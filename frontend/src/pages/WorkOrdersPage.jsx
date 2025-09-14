@@ -1,22 +1,23 @@
-//src/pages/WorkOrdersPage
 import { useState, useEffect } from "react";
 import { LuCheck, LuClipboardList, LuClock, LuPlus, LuSearch } from "react-icons/lu";
 import WorkOrdersTable from "../components/WorkOrdersTable";
 import WorkOrderDetails from "../components/WorkOrderDetails";
 import WorkOrderForm from "../components/WorkOrderForm";
+import { apiBackendFetch } from "../services/api";
 
 export default function WorkOrdersPage() {
   const [workOrders, setWorkOrders] = useState([]);
   const [search, setSearch] = useState("");
-  const [selectedWO, setSelectedWO] = useState(null);
-  const [editingWO, setEditingWO] = useState(null);
-  const [showForm, setShowForm] = useState(false);
+  const [selectedWO, setSelectedWO] = useState(null);   // details drawer key
+  const [editingWO, setEditingWO] = useState(null);     // form drawer key
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null)
 
   // mock fetch (replace with API later)
   useEffect(() => {
     setWorkOrders([
       {
-        woId: 1,
+        id: 1,
         woNumber: "WO-2025-0001",
         workDescription: "Install router",
         assignee: "John Doe",
@@ -38,10 +39,13 @@ export default function WorkOrdersPage() {
         status: "Pending",
         objective: "Setup new router for HQ",
         instruction: "Install in server room and configure VLANs",
-        targetOutput: "Stable router connection for all departments"
+        targetOutput: "Stable router connection for all departments",
+        isNew: true,
+        isFSL: true,
+        isESL: false
       },
       {
-        woId: 2,
+        id: 2,
         woNumber: "WO-2025-0002",
         workDescription: "Server maintenance",
         assignee: "Jane Smith",
@@ -63,59 +67,76 @@ export default function WorkOrdersPage() {
         status: "In Progress",
         objective: "Perform quarterly maintenance",
         instruction: "Check logs, update OS patches",
-        targetOutput: "Servers up-to-date and optimized"
+        targetOutput: "Servers up-to-date and optimized",
+        isNew: false,
+        isFSL: false,
+        isESL: true
       }
     ]);
 
     const fetchAllData = async () => {
       try {
-        const []
+        const workOrdersRes = await apiBackendFetch("/api/workorders");
+        console.log(workOrdersRes);
+
+        if (!workOrdersRes.ok)
+          throw new Error("Failed to fetch Work Orders");
+
+        const workOrdersData = await workOrdersRes.json();
+
+        setWorkOrders(workOrdersData);
+        setLoading(false);
+      } catch (err) {
+        console.error("Error retrieving workorders:", err);
+        setError("Failed to fetch work orders.");
       }
     }
+
+    fetchAllData();
   }, []);
+  
+  if (loading) return <p className="p-4">Loading...</p>;
+  if (error) return <p className="p-4 text-red-600">{error}</p>;
 
-  // Handlers
-  const handleView = (order) => {
-    setSelectedWO(order);
-    setEditingWO(null);
-  };
-
-  const handleEdit = (order) => {
-    setEditingWO(order || null); // null = new
-    setSelectedWO(null);
-  };
-
-  const handleBack = () => {
-    setSelectedWO(null);
-    setEditingWO(null);
-  };
-
-  const handleSave = (orderData) => {
-    if (orderData.woId) {
-      // update existing
-      setWorkOrders((prev) =>
-        prev.map((wo) => (wo.woId === orderData.woId ? orderData : wo))
-      );
-    } else {
-      // create new
-      const newId = workOrders.length + 1;
-      const newOrder = {
-        ...orderData,
-        woId: newId,
-        woNumber: `WO-2025-${String(newId).padStart(4, "0")}`,
-      };
-      setWorkOrders((prev) => [...prev, newOrder]);
-    }
-    setEditingWO(null);
-    setSelectedWO(null);
-  };
-
-
+  // search filter (controlled input now)
   const filtered = workOrders.filter(
     (wo) =>
-      wo.woNumber.toLowerCase().includes(search.toLowerCase()) ||
-      wo.accountName.toLowerCase().includes(search.toLowerCase())
+      wo.woNumber?.toLowerCase().includes(search.toLowerCase()) ||
+      (wo.accountName || "").toLowerCase().includes(search.toLowerCase())
   );
+
+  // Save handler: edit or create (mirrors UsersPage behavior)
+  const handleSave = async (formData, mode) => {
+    try {
+      console.log(formData)
+      const response = await apiBackendFetch(
+        mode === "edit" ? `/api/workorders/${formData.id}` : "/api/workorders",
+        {
+          method: mode === "edit" ? "PUT" : "POST",
+          body: JSON.stringify(formData)
+        }
+      );
+
+      if (!response.ok) throw new Error ("Failed to save workorder");
+
+      const savedWorkOrder = await response.json();
+      console.log("Saved:", savedWorkOrder);
+
+      if (mode === "edit") {
+        setWorkOrders((prev) => 
+          prev.map((wo) => (wo.Id === savedWorkOrder.id ? savedWorkOrder : wo))
+        );
+        setSelectedWO(savedWorkOrder.id);
+      } else {
+        setWorkOrders((prev) => [...prev, savedWorkOrder]);
+      }
+
+        setEditingWO(null);
+    } catch (err) {
+      console.error("Error saving workorder:", err);
+      setError("Failed to save work order");
+    }
+  };
 
   return (
     <div className="relative w-full h-full overflow-hidden bg-white">
@@ -131,9 +152,8 @@ export default function WorkOrdersPage() {
               </h2>
             </div>
           </div>
-          {/* Notifications Container */}
-          <div></div>
-          {/* Status Center Container */}
+
+          {/* Status center */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
             <div className="relative flex flex-col rounded-xl shadow-sm border border-gray-200 p-6">
               <LuClipboardList className="absolute top-6 right-6 text-gray-600"/>
@@ -160,53 +180,76 @@ export default function WorkOrdersPage() {
               <p className="text-xs text-gray-500">Successfully completed workorders</p>
             </div>
           </div>
-          {/* Search + Table Container */}
+
+          {/* Search + Table */}
           <div className="flex flex-col p-6 border border-gray-200 rounded-md gap-6">
             <div className="flex">
               <div className="relative flex gap-6">
-                  <LuSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4"/>
-                  <input
-                    type="text"
-                    className="flex h-9 w-full rounded-md border border-gray-200 bg-transparent px-3 py-1 text-sm shadow-xs transition-colors pl-10"
-                    placeholder="Search workorders..."
-                  />
+                <LuSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4"/>
+                <input
+                  type="text"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="flex h-9 w-full rounded-md border border-gray-200 bg-transparent px-3 py-1 text-sm shadow-xs transition-colors pl-10"
+                  placeholder="Search workorders..."
+                />
               </div>
               <div className="ml-auto">
                 <button
-                  onClick={() => handleEdit(null)}
+                  onClick={() => { setEditingWO({}); setSelectedWO(null); }}
                   className="ml-auto px-4 py-2 rounded-md bg-blue-500 text-white hover:bg-blue-600 font-medium transition-all duration-150 cursor-pointer text-sm flex shadow-sm"
                 >
                   <LuPlus className="my-auto mr-2"/> Create New
                 </button>
               </div>
             </div>
+
             <WorkOrdersTable
               workOrders={filtered}
-              onView={handleView}
-              onEdit={handleEdit}
+              onView={(workOrder) => {
+                setSelectedWO(workOrder);
+                setEditingWO(null);
+              }}
+              onEdit={(workOrder) => {
+                setEditingWO(workOrder);
+                setSelectedWO(null);
+              }}
             />
           </div>
-          
-
         </div>
       )}
-      <div className="xl:max-w-4/5 mx-auto">
-        {/* Drawer/Modal for Details */}
+
+      {/* Details Drawer */}
+      <div
+        className={`absolute top-0 right-0 h-full w-full bg-white shadow-xl transition-all duration-300 ${
+          selectedWO && !editingWO
+            ? "translate-x-0 opacity-100"
+            : "translate-x-full opacity-0"
+        }`}
+      >
         {selectedWO && !editingWO && (
           <WorkOrderDetails
             workOrder={selectedWO}
-            onBack={handleBack}
-            onEdit={handleEdit}/>
+            onBack={() => setSelectedWO(null)}
+            onEdit={() => setEditingWO(selectedWO)}
+          />
         )}
+      </div>
 
-        {/* Form (Create/Edit) */}
+      {/* Form Drawer */}
+      <div
+        className={`absolute top-0 right-0 h-full w-full bg-white shadow-xl transition-all duration-300 ${
+          editingWO
+            ? "translate-x-0 opacity-100"
+            : "translate-x-full opacity-0"
+        }`}
+      >
         {editingWO && (
           <WorkOrderForm
-            wo={selectedWO}
-            onClose={() => {
-              setSelectedWO(null);
-              setShowForm(false);
-            }}
+            workOrder={editingWO}
+            mode={editingWO?.id ? "edit" : "create"}
+            onSave={handleSave}
+            onBack={() => setEditingWO(null)}
           />
         )}
       </div>

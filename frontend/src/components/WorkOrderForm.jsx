@@ -1,21 +1,21 @@
 import { useState, useEffect } from "react";
 import { LuArrowLeft, LuCheck, LuX } from "react-icons/lu";
 
-const WorkOrderForm = ({ initialData, onSave, onCancel }) => {
+const WorkOrderForm = ({ workOrder, mode = "create", onSave, onBack }) => {
   const [formData, setFormData] = useState({
     woNumber: "",
     workDescription: "",
     assignee: "",
     department: "",
-    account: "",
-    isNewAccount: false,
+    accountName: "",
+    isNew: false,
     industry: "",
     mode: "",
     productBrand: "",
     contactPerson: "",
     contactNumber: "",
-    fsl: false,
-    esl: false,
+    isFSL: false,
+    isESL: false,
     woDate: "",
     dueDate: "",
     fromTime: "",
@@ -28,13 +28,42 @@ const WorkOrderForm = ({ initialData, onSave, onCancel }) => {
     targetOutput: "",
   });
 
-  // Load initial data when editing
+  // load initial (editing) data
   useEffect(() => {
-    if (initialData) {
-      setFormData({ ...formData, ...initialData });
+    if (workOrder && Object.keys(workOrder).length > 0) {
+      // if editing, populate; if it's an empty object (create) it stays blank
+      setFormData((prev) => ({ ...prev, ...workOrder }));
+    } else if (workOrder && Object.keys(workOrder).length === 0) {
+      // new empty form (explicit)
+      setFormData((prev) => ({
+        ...prev,
+        woNumber: "",
+        workDescription: "",
+        assignee: "",
+        department: "",
+        accountName: "",
+        isNew: false,
+        industry: "",
+        mode: "",
+        productBrand: "",
+        contactPerson: "",
+        contactNumber: "",
+        isFSL: false,
+        isESL: false,
+        woDate: "",
+        dueDate: "",
+        fromTime: "",
+        toTime: "",
+        actualDate: "",
+        actualFromTime: "",
+        actualToTime: "",
+        objective: "",
+        instruction: "",
+        targetOutput: "",
+      }));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [initialData]);
+  }, [workOrder]);
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -46,25 +75,23 @@ const WorkOrderForm = ({ initialData, onSave, onCancel }) => {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    onSave(formData);
+    // call parent onSave(mode same pattern as UsersPage)
+    onSave(formData, mode);
   };
 
   return (
-    <form
-      onSubmit={handleSubmit}
-      className="h-full w-full p-6 overflow-y-auto"
-    >
+    <form onSubmit={handleSubmit} className="h-full w-full p-6 overflow-y-auto">
       {/* Header */}
       <div className="flex items-center mb-6">
         <button
           type="button"
-          onClick={onCancel}
+          onClick={onBack}
           className="mr-4 rounded px-2 py-2 font-medium hover:bg-gray-100 transition-all duration-150 flex align-middle border border-gray-200"
         >
           <LuArrowLeft className="my-auto text-lg" />
         </button>
         <h1 className="text-2xl font-bold">
-          {initialData ? "Edit Work Order" : "New Work Order"}
+          {mode === "edit" ? "Edit Work Order" : "New Work Order"}
         </h1>
         <div className="ml-auto flex gap-2">
           <button
@@ -75,7 +102,7 @@ const WorkOrderForm = ({ initialData, onSave, onCancel }) => {
           </button>
           <button
             type="button"
-            onClick={onCancel}
+            onClick={onBack}
             className="flex border border-gray-200 bg-gray-400 hover:bg-gray-500 transition-all duration-150 cursor-pointer px-4 py-2 rounded-md items-center text-sm text-white"
           >
             <LuX className="mr-2" /> Cancel
@@ -83,7 +110,7 @@ const WorkOrderForm = ({ initialData, onSave, onCancel }) => {
         </div>
       </div>
 
-      {/* Form Body */}
+      {/* Form Body (keeps your exact structure / classes) */}
       <div className="rounded-xl border border-gray-200 p-6 shadow-sm">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4">
           {/* Left column */}
@@ -138,18 +165,18 @@ const WorkOrderForm = ({ initialData, onSave, onCancel }) => {
               <label className="text-sm text-right my-auto">Account</label>
               <input
                 type="text"
-                name="account"
-                value={formData.account}
+                name="accountName"
+                value={formData.accountName}
                 onChange={handleChange}
                 className="col-span-4 w-full rounded-md border border-gray-200 px-3 py-2"
               />
               <div className="flex items-center gap-2">
                 <input
                   type="checkbox"
-                  name="isNewAccount"
-                  checked={formData.isNewAccount}
+                  name="isNew"
+                  checked={!!formData.isNew}
                   onChange={handleChange}
-                  className="h-4 w-4 border border-gray-400 rounded"
+                  className="h-4 w-4 border border-gray-400"
                 />
                 <label className="text-sm text-gray-600">New</label>
               </div>
@@ -219,8 +246,8 @@ const WorkOrderForm = ({ initialData, onSave, onCancel }) => {
               <label className="flex items-center gap-2">
                 <input
                   type="checkbox"
-                  name="fsl"
-                  checked={formData.fsl}
+                  name="isFSL"
+                  checked={!!formData.isFSL}
                   onChange={handleChange}
                   className="h-4 w-4 border border-gray-400 rounded"
                 />
@@ -229,8 +256,8 @@ const WorkOrderForm = ({ initialData, onSave, onCancel }) => {
               <label className="flex items-center gap-2">
                 <input
                   type="checkbox"
-                  name="esl"
-                  checked={formData.esl}
+                  name="isESL"
+                  checked={!!formData.isESL}
                   onChange={handleChange}
                   className="h-4 w-4 border border-gray-400 rounded"
                 />
@@ -262,7 +289,7 @@ const WorkOrderForm = ({ initialData, onSave, onCancel }) => {
               />
             </div>
 
-            {/* From Time */}
+            {/* From / To Time */}
             <div className="grid grid-cols-6 gap-x-4">
               <label className="text-sm text-right my-auto">From Time</label>
               <input
@@ -274,7 +301,6 @@ const WorkOrderForm = ({ initialData, onSave, onCancel }) => {
               />
             </div>
 
-            {/* To Time */}
             <div className="grid grid-cols-6 gap-x-4">
               <label className="text-sm text-right my-auto">To Time</label>
               <input
@@ -286,7 +312,7 @@ const WorkOrderForm = ({ initialData, onSave, onCancel }) => {
               />
             </div>
 
-            {/* Actual Date */}
+            {/* Actuals */}
             <div className="grid grid-cols-6 gap-x-4">
               <label className="text-sm text-right my-auto">Actual Date</label>
               <input
@@ -298,7 +324,6 @@ const WorkOrderForm = ({ initialData, onSave, onCancel }) => {
               />
             </div>
 
-            {/* Actual From Time */}
             <div className="grid grid-cols-6 gap-x-4">
               <label className="text-sm text-right my-auto">Actual From</label>
               <input
@@ -310,7 +335,6 @@ const WorkOrderForm = ({ initialData, onSave, onCancel }) => {
               />
             </div>
 
-            {/* Actual To Time */}
             <div className="grid grid-cols-6 gap-x-4">
               <label className="text-sm text-right my-auto">Actual To</label>
               <input
@@ -326,7 +350,6 @@ const WorkOrderForm = ({ initialData, onSave, onCancel }) => {
 
         {/* Long Texts */}
         <div className="mt-6 space-y-4">
-          {/* Objective */}
           <div className="grid grid-cols-6 gap-4">
             <label className="text-sm text-right my-auto">Objective</label>
             <textarea
@@ -337,7 +360,6 @@ const WorkOrderForm = ({ initialData, onSave, onCancel }) => {
             />
           </div>
 
-          {/* Instruction */}
           <div className="grid grid-cols-6 gap-4">
             <label className="text-sm text-right my-auto">Instruction</label>
             <textarea
@@ -348,7 +370,6 @@ const WorkOrderForm = ({ initialData, onSave, onCancel }) => {
             />
           </div>
 
-          {/* Target Output */}
           <div className="grid grid-cols-6 gap-4">
             <label className="text-sm text-right my-auto">Target Output</label>
             <textarea

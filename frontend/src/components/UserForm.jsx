@@ -16,16 +16,16 @@ const UserForm = ({ user, roles, departments, statuses, mode = "create", onBack,
 
   const [formData, setFormData] = useState(
     user || {
-      first_name: "",
-      last_name: "",
+      firstName: "",
+      lastName: "",
       username: "",
       email: "",
-      phone_number: "",
+      phoneNumber: "",
       role: "",
       department: "",
       status: "Active",
       permissions: [],
-      joined_date: new Date().toISOString().split("T")[0],
+      joinedDate: new Date().toISOString().split("T")[0],
     }
   );
 
@@ -109,8 +109,8 @@ const UserForm = ({ user, roles, departments, statuses, mode = "create", onBack,
             className="p-6 pt-0 space-y-4">
             <div className="flex">
               <img
-                src={formData.avatar_url || defaultAvatar}
-                alt={formData.avatar_url || defaultAvatar}
+                src={formData.avatarUrl || defaultAvatar}
+                alt={formData.avatarUrl || defaultAvatar}
                 className="h-16 w-16 rounded-full object-cover"
                 onError={(e) => {
                   e.currentTarget.src = defaultAvatar
@@ -119,11 +119,11 @@ const UserForm = ({ user, roles, departments, statuses, mode = "create", onBack,
               <div className="flex flex-col w-full mt-auto ml-4">
                 <label
                   className="text-sm"
-                  htmlFor="avatar_url">Avatar URL</label>
+                  htmlFor="avatarUrl">Avatar URL</label>
                 <input
                   type="text"
-                  name="avatar_url"
-                  value={formData.avatar_url}
+                  name="avatarUrl"
+                  value={formData.avatarUrl}
                   onChange={handleChange}
                   className="w-full border rounded-md pl-3 p-2 bg-yellow-50 border-gray-200 focus:border-black h-9 text-sm"
                   />
@@ -133,28 +133,28 @@ const UserForm = ({ user, roles, departments, statuses, mode = "create", onBack,
               className="grid grid-cols-2 gap-4">
               <div>
                 <label
-                  htmlFor="first_name"
+                  htmlFor="firstName"
                   className="text-sm">
                   First Name *
                 </label>
                 <input
                   type="text"
-                  name="first_name"
-                  value={formData.first_name}
+                  name="firstName"
+                  value={formData.firstName}
                   onChange={handleChange}
                   className="w-full border rounded-md pl-3 p-2 bg-yellow-50 border-gray-200 focus:border-black h-9 text-sm"
                   />
               </div>
               <div>
                 <label
-                  htmlFor="last_name"
+                  htmlFor="lastName"
                   className="text-sm">
                   Last Name *
                 </label>
                 <input
                   type="text"
-                  name="last_name"
-                  value={formData.last_name}
+                  name="lastName"
+                  value={formData.lastName}
                   onChange={handleChange}
                   className="w-full border rounded-md pl-3 p-2 bg-yellow-50 border-gray-200 focus:border-black h-9 text-sm"
                   />
@@ -193,14 +193,14 @@ const UserForm = ({ user, roles, departments, statuses, mode = "create", onBack,
             </div>
             <div>
                 <label
-                  htmlFor="phone_number"
+                  htmlFor="phoneNumber"
                   className="text-sm">
                   Phone Number *
                 </label>
                 <input
                   type="text"
-                  name="phone_number"
-                  value={formData.phone_number}
+                  name="phoneNumber"
+                  value={formData.phoneNumber}
                   placeholder="+1 (555) 123-4567"
                   onChange={handleChange}
                   className="w-full border rounded-md pl-3 p-2 bg-yellow-50 border-gray-200 focus:border-black h-9 text-sm"
@@ -369,22 +369,22 @@ const UserForm = ({ user, roles, departments, statuses, mode = "create", onBack,
           <div className="p-6 pt-0 space-y-4">
             <div>
               <label
-                htmlFor="joined_date"
+                htmlFor="joinedDate"
                 className="text-sm font-medium text-gray-500"
               >
                 Join Date
               </label>
               <input
                 type="date"
-                id="joined_date"
-                name="joined_date"
+                id="joinedDate"
+                name="joinedDate"
                 value={
-                  formData.joined_date
-                    ? new Date(formData.joined_date).toISOString().split("T")[0]
+                  formData.joinedDate
+                    ? new Date(formData.joinedDate).toISOString().split("T")[0]
                     : new Date().toISOString().split("T")[0] // ✅ default to today
                 }
                 onChange={(e) =>
-                  setFormData({ ...formData, joined_date: e.target.value })
+                  setFormData({ ...formData, joinedDate: e.target.value })
                 }
                 className="mt-1 block rounded-md border border-gray-300 bg-yellow-50 p-2 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500"
               />

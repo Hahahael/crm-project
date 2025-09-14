@@ -65,7 +65,6 @@ const UsersPage = () => {
         mode === "edit" ? `/api/users/${formData.id}` : "/api/users",
         {
           method: mode === "edit" ? "PUT" : "POST",
-          headers: { "Content-Type": "application/json" },
           body: JSON.stringify(formData),
         }
       );

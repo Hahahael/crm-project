@@ -1,7 +1,7 @@
 // routes/usersRoutes.js
 import express from "express";
 import db from "../db.js";
-import { toSnake } from "../helper/utils.js";
+import { toSnake, toJsonbArray } from "../helper/utils.js";
 
 const router = express.Router();
 
@@ -83,6 +83,7 @@ router.post("/", async (req, res) => {
 // Update existing user
 router.put("/:id", async (req, res) => {
   try {
+    console.log(req);
     const { id } = req.params;
     const body = toSnake(req.body);
     const {
@@ -119,7 +120,7 @@ router.put("/:id", async (req, res) => {
         role,
         department,
         status,
-        permissions,
+        toJsonbArray(permissions),
         joined_date,
         avatar_url,
         password_hash,

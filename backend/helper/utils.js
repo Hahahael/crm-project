@@ -48,3 +48,8 @@ export function formatDateOnly(dateStr) {
 export function formatTimeOnly(dateStr) {
   return formatDate(dateStr, "HH:mm");
 }
+
+export function toJsonbArray(arr) {
+  if (!Array.isArray(arr)) return arr; // fallback
+  return JSON.stringify(arr); // Postgres driver will handle ::jsonb
+}

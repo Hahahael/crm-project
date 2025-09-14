@@ -6,6 +6,8 @@ import { users } from "./usersMock.js";
 import { roles } from "./rolesMock.js";
 import { departments } from "./departmentsMock.js";
 import { statuses } from "./statusesMock.js";
+import { workorders } from "./workordersMock.js";
+import { toJsonbArray } from "../helper/utils.js";
 
 let pool;
 
@@ -52,8 +54,8 @@ mem.public.none(`
     status_name TEXT
   );
 
-  CREATE TABLE work_orders (
-    wo_id SERIAL PRIMARY KEY,
+  CREATE TABLE workorders (
+    id SERIAL PRIMARY KEY,
     wo_number VARCHAR(20) UNIQUE,
     work_description TEXT NOT NULL,
     assignee INT REFERENCES users(id) ON DELETE SET NULL,
@@ -92,7 +94,7 @@ mem.public.none(`
 
   CREATE TABLE workflow_stages (
     stage_id SERIAL PRIMARY KEY,
-    wo_id INT NOT NULL REFERENCES work_orders(wo_id) ON DELETE CASCADE,
+    wo_id INT NOT NULL REFERENCES workorders(id) ON DELETE CASCADE,
     stage_name VARCHAR(50) NOT NULL,  -- e.g. Work Order, Sales Lead, TR, RFQ, NAEF, Quotation
     status VARCHAR(50) DEFAULT 'Pending', -- Pending, Approved, Rejected, In Progress
     assigned_to INT REFERENCES users(id) ON DELETE SET NULL,
@@ -115,39 +117,93 @@ for (const u of users) {
     )
     VALUES (
       ${u.id},
-      '${esc(u.avatar_url)}',
-      '${esc(u.first_name)}',
-      '${esc(u.last_name)}',
+      '${esc(u.avatarUrl)}',
+      '${esc(u.firstName)}',
+      '${esc(u.lastName)}',
       '${esc(u.username)}',
       '${esc(u.email)}',
-      '${esc(u.phone_number)}',
+      '${esc(u.phomeNumber)}',
       '${esc(u.role)}',
       '${esc(u.department)}',
       '${esc(u.status)}',
-      '${esc(JSON.stringify(u.permissions))}',
+      '${esc(toJsonbArray(u.permissions))}',
       '${esc(u.password_hash)}',
-      '${u.joined_date}',
-      '${u.updated_at}',
-      '${u.last_login}',
-      '${esc(u.created_by)}'
+      '${u.joinedDate}',
+      '${u.updatedAt}',
+      '${u.lastLogin}',
+      '${esc(u.createdBy)}'
     )
   `);
 }
 
 for (const r of roles) {
   mem.public.none(
-    `INSERT INTO roles (id, role_name) VALUES (${r.id}, '${esc(r.role_name)}')`
+    `INSERT INTO roles (id, role_name) VALUES (${r.id}, '${esc(r.roleName)}')`
   );
 }
 for (const d of departments) {
   mem.public.none(
-    `INSERT INTO departments (id, department_name) VALUES (${d.id}, '${esc(d.department_name)}')`
+    `INSERT INTO departments (id, department_name) VALUES (${d.id}, '${esc(d.departmentName)}')`
   );
 }
 for (const s of statuses) {
   mem.public.none(
-    `INSERT INTO statuses (id, status_name) VALUES (${s.id}, '${esc(s.status_name)}')`
+    `INSERT INTO statuses (id, status_name) VALUES (${s.id}, '${esc(s.statusName)}')`
   );
+}
+for (const wo of workorders) {
+  mem.public.none(
+    `
+    INSERT INTO workorders (
+      wo_number,
+      work_description,
+      assignee,
+      account_name,
+      is_new_account,
+      industry,
+      mode,
+      product_brand,
+      contact_person,
+      contact_number,
+      wo_date,
+      due_date,
+      from_time,
+      to_time,
+      actual_date,
+      actual_from_time,
+      actual_to_time,
+      objective,
+      instruction,
+      target_output,
+      is_fsl,
+      is_esl,
+      created_at,
+      updated_at
+    ) VALUES (
+      '${esc(wo.woNumber)}',
+      '${esc(wo.workDescription)}',
+      1,
+      '${esc(wo.accountName)}',
+      ${wo.isNew ? 'TRUE' : 'FALSE'},
+      '${esc(wo.industry)}',
+      '${esc(wo.mode)}',
+      '${esc(wo.productBrand)}',
+      '${esc(wo.contactPerson)}',
+      '${esc(wo.contactNumber)}',
+      '${wo.woDate}',
+      ${wo.dueDate ? `'${wo.dueDate}'` : 'NULL'},
+      ${wo.fromTime ? `'${wo.fromTime}'` : 'NULL'},
+      ${wo.toTime ? `'${wo.toTime}'` : 'NULL'},
+      ${wo.actualDate ? `'${wo.actualDate}'` : 'NULL'},
+      ${wo.actualFromTime ? `'${wo.actualFromTime}'` : 'NULL'},
+      ${wo.actualToTime ? `'${wo.actualToTime}'` : 'NULL'},
+      '${esc(wo.objective)}',
+      '${esc(wo.instruction)}',
+      '${esc(wo.targetOutput)}',
+      ${wo.isFSL ? 'TRUE' : 'FALSE'},
+      ${wo.isESL ? 'TRUE' : 'FALSE'},
+      NOW(),
+      NOW())`);
 }
 
 pool = new adapter.Pool();

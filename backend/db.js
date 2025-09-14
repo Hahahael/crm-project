@@ -3,11 +3,6 @@ import pg from "pg";
 import { newDb } from "pg-mem";
 import { toCamel } from "./helper/utils.js";
 
-// import mock data...
-import { users } from "./mocks/usersMock.js";
-import { roles } from "./mocks/rolesMock.js";
-import { departments } from "./mocks/departmentsMock.js";
-import { statuses } from "./mocks/statusesMock.js";
 import mockPool from "./mocks/dbMock.js"
 
 let pool;
