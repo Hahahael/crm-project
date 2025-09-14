@@ -1,20 +1,48 @@
-import { Pool } from 'pg';
-import { config } from 'dotenv';
+// db.js
+import pg from "pg";
+import { newDb } from "pg-mem";
+import { toCamel } from "./helper/utils.js";
 
-// Pick environment file based on NODE_ENV
-const envFile = `.env.${process.env.NODE_ENV || 'dev'}`;
-config({ path: envFile });
+// import mock data...
+import { users } from "./mocks/usersMock.js";
+import { roles } from "./mocks/rolesMock.js";
+import { departments } from "./mocks/departmentsMock.js";
+import { statuses } from "./mocks/statusesMock.js";
+import mockPool from "./mocks/dbMock.js"
 
-const pool = new Pool({
-  user: process.env.DB_USER,
-  host: process.env.DB_HOST,
-  database: process.env.DB_NAME,
-  password: process.env.DB_PASS,
-  port: process.env.DB_PORT || 5432,
-});
+let pool;
 
-pool.connect()
-  .then(() => console.log(`✅ Connected to database: ${process.env.DB_NAME}`))
-  .catch(err => console.error('❌ Database connection error:', err));
+console.log("Loading database...");
+
+if (process.env.USE_MOCK === "true") {
+  pool = mockPool;
+  pool.connect().then(() => {
+    console.log("Connected to mock database!");
+  });
+} else {
+  const { Pool } = pg;
+  pool = new Pool({
+    user: process.env.DB_USER,
+    host: process.env.DB_HOST,
+    database: process.env.DB_NAME,
+    password: process.env.DB_PASS,
+    port: process.env.DB_PORT || 5432,
+  });
+
+  pool
+    .connect()
+    .then(() => console.log(`✅ Connected to database: ${process.env.DB_NAME}`))
+    .catch((err) => console.error("❌ Database connection error:", err));
+}
+
+// ✅ wrap query to always camelCase rows
+const originalQuery = pool.query.bind(pool);
+pool.query = async (...args) => {
+  const result = await originalQuery(...args);
+  return {
+    ...result,
+    rows: toCamel(result.rows),
+  };
+};
 
 export default pool;

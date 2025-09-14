@@ -3,8 +3,7 @@ import pkg from "jsonwebtoken";
 const { verify } = pkg;
 
 export default function (req, res, next) {
-  const authHeader = req.headers["authorization"];
-  const token = authHeader && authHeader.split(" ")[1]; // "Bearer TOKEN"
+  const token = req.cookies?.token; // ✅ read from cookie instead of header
 
   if (!token) {
     return res.status(401).json({ message: "Access denied. No token provided." });
@@ -15,6 +14,10 @@ export default function (req, res, next) {
     req.user = decoded; // userId, role
     next();
   } catch (err) {
-    return res.status(403).json({ message: "Invalid or expired token." });
+    console.error("❌ JWT verification error:", err.name, err.message);
+    return res.status(403).json({
+      message: "Invalid or expired token.",
+      error: err.message,
+    });
   }
 }

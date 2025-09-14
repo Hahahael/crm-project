@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { RxPerson, RxLockClosed } from "react-icons/rx";
 import { useNavigate } from "react-router-dom";
+import { apiBackendFetch } from "../services/api"; // use your fetch helper
 
 function LoginPage() {
   const [username, setUsername] = useState("");
@@ -13,9 +14,8 @@ function LoginPage() {
     e.preventDefault();
 
     try {
-      const res = await fetch("http://localhost:5000/auth/login", {
+      const res = await apiBackendFetch("/auth/login", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ username, password }),
       });
 
@@ -23,15 +23,10 @@ function LoginPage() {
         throw new Error("Invalid credentials");
       }
 
-      const data = await res.json();
-
-      // Save JWT in localStorage
-      localStorage.setItem("token", data.token);
-
-      // Show login success overlay
+      // No need to store token manually
       setLoginSuccess(true);
 
-      // Redirect after 2 seconds
+      // Redirect after 1.5 seconds
       setTimeout(() => {
         navigate("/dashboard");
       }, 1500);
@@ -96,9 +91,9 @@ function LoginPage() {
       {/* Login Success Overlay */}
       {loginSuccess && (
         <div className="absolute inset-0 flex items-center justify-center bg-gray-200/50 transition-all duration-200 ease-in">
-        <div className="bg-white p-6 rounded-lg shadow-lg text-center 
-                transform transition-transform duration-200 
-                animate-[fadeIn_0.2s_ease-in_forwards]">
+          <div className="bg-white p-6 rounded-lg shadow-lg text-center 
+                          transform transition-transform duration-200 
+                          animate-[fadeIn_0.2s_ease-in_forwards]">
             <h3 className="text-xl font-bold text-green-600 mb-2">Login Successful!</h3>
             <p className="text-gray-700">Redirecting to your dashboard...</p>
           </div>

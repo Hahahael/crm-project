@@ -68,6 +68,6 @@ export const users = [
       status: "Suspended",
       last_login: "2025-09-07 09:10:00",
       permissions: ["read"],
-    },
+    }
   ];
   

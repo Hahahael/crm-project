@@ -1,8 +1,10 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap');
 @import "tailwindcss";
 /* index.css */
 
+
 :root {
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: "Inter",  sans-serif;
   line-height: 1.5;
   font-weight: 400;
 
@@ -15,6 +17,7 @@
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   --light-blue: #e6edfd;
+  --font-main: 'Inter', sans-serif
 }
 
 @keyframes fadeIn {
@@ -85,4 +88,8 @@ button:focus-visible {
 
 .bg-login {
   background-color: var(--light-blue);
+}
+
+body {
+  font-family: var(--font-main);
 }

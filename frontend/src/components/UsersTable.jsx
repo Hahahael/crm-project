@@ -1,11 +1,13 @@
-// UsersTable.jsx
+//src/components/UsersTable
 import React, { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
-import { RxDotsHorizontal, RxEyeOpen, RxPencil2, RxTrash } from "react-icons/rx";
+import { LuEllipsis, LuEye, LuPencil, LuTrash } from "react-icons/lu";
+import config from "../config.js"
+import util from "../helper/utils.js"
 
 const TRANSITION_MS = 150;
 
-export default function UsersTable({ users, onView }) {
+export default function UsersTable({ users, onView, onEdit, onDelete }) {
   const [openMenuId, setOpenMenuId] = useState(null);
   const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 });
   const [isMounted, setIsMounted] = useState(false);
@@ -14,19 +16,7 @@ export default function UsersTable({ users, onView }) {
   const menuRef = useRef(null);
   const closeTimeoutRef = useRef(null);
 
-  const roleBadgeClasses = {
-    Admin: "bg-purple-100 text-purple-700",
-    Manager: "bg-blue-100 text-blue-700",
-    "Sales Agent": "bg-green-100 text-green-700",
-    "Technical Engineer": "bg-amber-100 text-amber-700",
-    "Field Service": "bg-indigo-100 text-indigo-700",
-  };
-
-  const statusBadgeClasses = {
-    Active: "bg-green-100 text-green-700",
-    Inactive: "bg-gray-100 text-gray-700",
-    Suspended: "bg-red-100 text-red-700",
-  };
+  console.log(users);
 
   // Compute menu position
   const computePosition = (btn) => {
@@ -78,6 +68,17 @@ export default function UsersTable({ users, onView }) {
     startClose();
   };
 
+  const handleEdit = (userId) => {
+    const user = users.find((u) => u.id === userId);
+    onEdit(user); // send to parent
+    startClose();
+  };
+
+  const handleDelete = (userId) => {
+    onDelete(userId); 
+    startClose();
+  };
+
   // Outside click handler
   useEffect(() => {
     const handleClickOutside = (e) => {
@@ -98,61 +99,61 @@ export default function UsersTable({ users, onView }) {
       <table className="min-w-full border-collapse text-left text-sm">
         <thead className="hover:bg-gray-100 border-b border-gray-200">
           <tr>
-            <th className="px-4 py-2 font-medium text-gray-500">User</th>
-            <th className="px-4 py-2 font-medium text-gray-500">Username</th>
-            <th className="px-4 py-2 font-medium text-gray-500">Email</th>
-            <th className="px-4 py-2 font-medium text-gray-500">Role</th>
-            <th className="px-4 py-2 font-medium text-gray-500">Department</th>
-            <th className="px-4 py-2 font-medium text-gray-500">Status</th>
-            <th className="px-4 py-2 font-medium text-gray-500">Last Login</th>
-            <th className="px-4 py-2 font-medium text-gray-500 text-right">Actions</th>
+            <th className="px-4 py-2 font-normal text-sm text-gray-500">User</th>
+            <th className="px-4 py-2 font-normal text-sm text-gray-500">Username</th>
+            <th className="px-4 py-2 font-normal text-sm text-gray-500">Email</th>
+            <th className="px-4 py-2 font-normal text-sm text-gray-500">Role</th>
+            <th className="px-4 py-2 font-normal text-sm text-gray-500">Department</th>
+            <th className="px-4 py-2 font-normal text-sm text-gray-500">Status</th>
+            <th className="px-4 py-2 font-normal text-sm text-gray-500">Last Login</th>
+            <th className="px-4 py-2 font-normal text-sm text-gray-500 text-right">Actions</th>
           </tr>
         </thead>
 
         <tbody className="divide-y divide-gray-200">
           {users.map((user) => (
             <tr key={user.id} className="hover:bg-gray-100 transition-all duration-200">
-              <td className="px-4 py-2 text-black flex">
+              <td className="px-4 py-2 text-black flex text-sm">
                 <img
-                  src={user.avatar_url}
+                  src={user.avatarUrl}
                   alt={user.username}
                   className="h-10 w-10 rounded-full object-cover mr-3"
                 />
                 <span className="my-auto">
-                  {`${user.first_name} ${user.last_name}`}
+                  {`${user.firstName} ${user.lastName}`}
                   <br />
-                  <span className="text-gray-400">{user.phone_number}</span>
+                  <span className="text-gray-400">{user.phoneNumber}</span>
                 </span>
               </td>
-              <td className="px-4 py-2 text-black">{user.username}</td>
-              <td className="px-4 py-2 text-black">{user.email}</td>
-              <td className="px-4 py-2 text-black">
+              <td className="px-4 py-2 text-black text-sm">{user.username}</td>
+              <td className="px-4 py-2 text-black text-sm">{user.email}</td>
+              <td className="px-4 py-2 text-black text-sm">
                 <span
-                  className={`rounded-md px-3 py-1 text-xs font-semibold border-gray-200 border ${
-                    roleBadgeClasses[user.role] || "bg-gray-100 text-gray-700"
+                  className={`rounded-md px-3 py-1 text-xs font-semibold ${
+                    config.roleBadgeClasses[user.role] || "bg-gray-100 text-gray-700"
                   }`}
                 >
                   {user.role}
                 </span>
               </td>
-              <td className="px-4 py-2 text-black">{user.department}</td>
-              <td className="px-4 py-2 text-black">
+              <td className="px-4 py-2 text-black text-sm">{user.department}</td>
+              <td className="px-4 py-2 text-black text-sm">
                 <span
-                  className={`rounded-full px-2 py-1 text-xs font-semibold ${
-                    statusBadgeClasses[user.status] || "bg-yellow-100 text-yellow-700"
+                  className={`rounded-md px-2 py-1 text-xs font-semibold ${
+                    config.statusBadgeClasses[user.status] || "bg-yellow-100 text-yellow-700"
                   }`}
                 >
                   {user.status}
                 </span>
               </td>
-              <td className="px-4 py-2 text-black">{user.last_login}</td>
-              <td className="px-4 py-2 text-black text-right">
+              <td className="px-4 py-2 text-black text-sm">{util.formatDate(user.lastLogin, "MM/DD/YYYY hh:mm A")}</td>
+              <td className="px-4 py-2 text-black text-sm text-right">
                 <button
                   ref={(el) => (buttonRefs.current[user.id] = el)}
                   onClick={() => toggleMenu(user.id)}
                   className="rounded p-2 hover:bg-gray-200"
                 >
-                  <RxDotsHorizontal />
+                  <LuEllipsis />
                 </button>
               </td>
             </tr>
@@ -181,13 +182,15 @@ export default function UsersTable({ users, onView }) {
                 className="cursor-pointer px-4 py-2 hover:bg-gray-100 flex"
                 onClick={() => handleView(openMenuId)}
               >
-                <RxEyeOpen className="my-auto mr-2" /> View Details
+                <LuEye className="my-auto mr-2" /> View Details
               </li>
-              <li className="cursor-pointer px-4 py-2 hover:bg-gray-100 flex">
-                <RxPencil2 className="my-auto mr-2" /> Edit User
+              <li className="cursor-pointer px-4 py-2 hover:bg-gray-100 flex"
+                onClick={() => handleEdit(openMenuId)}>
+                <LuPencil className="my-auto mr-2" /> Edit User
               </li>
-              <li className="cursor-pointer px-4 py-2 text-red-600 hover:bg-gray-100 flex">
-                <RxTrash className="my-auto mr-2" /> Delete User
+              <li className="cursor-pointer px-4 py-2 text-red-600 hover:bg-gray-100 flex"
+                onClick={() => handleDelete(openMenuId)}>
+                <LuTrash className="my-auto mr-2" /> Delete User
               </li>
             </ul>
           </div>,

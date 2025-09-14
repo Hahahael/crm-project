@@ -1,14 +1,12 @@
-import { useState } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import ProtectedRoute from "./components/ProtectedRoute";
 import LoginPage from "./pages/LoginPage";
 import DashboardPage from "./pages/DashboardPage";
 import UsersPage from "./pages/UsersPage";
 import Layout from "./components/Layout";
+import WorkOrdersPage from "./pages/WorkOrdersPage";
 
 function App() {
-  const [token, setToken] = useState(localStorage.getItem("token")); // ✅ reactive
-
   return (
     <BrowserRouter>
       <Routes>
@@ -16,27 +14,35 @@ function App() {
 
         <Route
           path="/login"
-          element={token ? <Navigate to="/dashboard" replace /> : <LoginPage setToken={setToken} />}
+          element={<LoginPage />}
         />
 
         <Route element={<Layout />}>
-        <Route
-          path="/dashboard"
-          element={
-            <ProtectedRoute>
-              <DashboardPage setToken={setToken} />
-            </ProtectedRoute>
-          }
-        />
-
-        <Route
-          path="/users"
-          element={
-            <ProtectedRoute>
-              <UsersPage />
-            </ProtectedRoute>
-          }
-        /></Route>
+          <Route
+            path="/dashboard"
+            element={
+              <ProtectedRoute>
+                <DashboardPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/workorders"
+            element={
+              <ProtectedRoute>
+                <WorkOrdersPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/users"
+            element={
+              <ProtectedRoute>
+                <UsersPage />
+              </ProtectedRoute>
+            }
+          />
+        </Route>
       </Routes>
     </BrowserRouter>
   );
