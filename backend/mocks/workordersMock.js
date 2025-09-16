@@ -1,10 +1,9 @@
 export const workorders = [
   {
-    woId: 1,
+    id: 1,
     woNumber: "WO-2025-0001",
     workDescription: "Install router",
-    assignee: "John Doe",
-    department: "IT",
+    assignee: 2,
     type: "FSL",
     accountName: "Acme Corp",
     industry: "Telecom",
@@ -23,16 +22,15 @@ export const workorders = [
     objective: "Setup new router for HQ",
     instruction: "Install in server room and configure VLANs",
     targetOutput: "Stable router connection for all departments",
-    isNew: true,
+    isNewAccount: true,
     isFSL: true,
-    isESL: false
+    isESL: true
   },
   {
-    woId: 2,
+    id: 2,
     woNumber: "WO-2025-0002",
     workDescription: "Server maintenance",
-    assignee: "Jane Smith",
-    department: "Ops",
+    assignee: 1,
     type: "ESL",
     accountName: "Globex Inc",
     industry: "Finance",
@@ -51,7 +49,7 @@ export const workorders = [
     objective: "Perform quarterly maintenance",
     instruction: "Check logs, update OS patches",
     targetOutput: "Servers up-to-date and optimized",
-    isNew: false,
+    isNewAccount: false,
     isFSL: false,
     isESL: true
   }

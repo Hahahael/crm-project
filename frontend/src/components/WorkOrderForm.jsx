@@ -1,21 +1,23 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { LuArrowLeft, LuCheck, LuX } from "react-icons/lu";
+import { apiBackendFetch } from "../services/api";
 
 const WorkOrderForm = ({ workOrder, mode = "create", onSave, onBack }) => {
   const [formData, setFormData] = useState({
     woNumber: "",
     workDescription: "",
     assignee: "",
+    assigneeUsername: "", // 🔹 added for display
     department: "",
     accountName: "",
-    isNew: false,
+    isNewAccount: false,
     industry: "",
     mode: "",
     productBrand: "",
     contactPerson: "",
     contactNumber: "",
-    isFSL: false,
-    isESL: false,
+    isFsl: false,
+    isEsl: false,
     woDate: "",
     dueDate: "",
     fromTime: "",
@@ -28,28 +30,63 @@ const WorkOrderForm = ({ workOrder, mode = "create", onSave, onBack }) => {
     targetOutput: "",
   });
 
+  // 🔹 user search state
+  const [users, setUsers] = useState([]);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const assigneeRef = useRef(null);
+
+  // fetch users once
+  useEffect(() => {
+    const fetchUsers = async () => {
+      try {
+        const res = await apiBackendFetch("/api/users");
+        const data = await res.json();
+        setUsers(data);
+      } catch (err) {
+        console.error("Failed to fetch users", err);
+      }
+    };
+    fetchUsers();
+  }, []);
+
+  // filter users by search
+  const filteredUsers = users.filter((u) =>
+    u.username.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  // close dropdown on outside click
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (assigneeRef.current && !assigneeRef.current.contains(e.target)) {
+        setDropdownOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
   // load initial (editing) data
   useEffect(() => {
     if (workOrder && Object.keys(workOrder).length > 0) {
-      // if editing, populate; if it's an empty object (create) it stays blank
       setFormData((prev) => ({ ...prev, ...workOrder }));
     } else if (workOrder && Object.keys(workOrder).length === 0) {
-      // new empty form (explicit)
       setFormData((prev) => ({
         ...prev,
         woNumber: "",
         workDescription: "",
         assignee: "",
+        assigneeUsername: "",
         department: "",
         accountName: "",
-        isNew: false,
+        isNewAccount: false,
         industry: "",
         mode: "",
         productBrand: "",
         contactPerson: "",
         contactNumber: "",
-        isFSL: false,
-        isESL: false,
+        isFsl: false,
+        isEsl: false,
         woDate: "",
         dueDate: "",
         fromTime: "",
@@ -62,8 +99,9 @@ const WorkOrderForm = ({ workOrder, mode = "create", onSave, onBack }) => {
         targetOutput: "",
       }));
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [workOrder]);
+
+  console.log(workOrder);
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -75,8 +113,32 @@ const WorkOrderForm = ({ workOrder, mode = "create", onSave, onBack }) => {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    // call parent onSave(mode same pattern as UsersPage)
-    onSave(formData, mode);
+  
+    // Destructure optional fields
+    const { actualDate, actualFromTime, actualToTime, woNumber, ...requiredFields } = formData;
+  
+    // Check if any required field is empty
+    const missing = Object.entries(requiredFields).filter(
+      ([key, value]) =>
+        value === "" || value === null || value === undefined
+    );
+  
+    if (missing.length > 0) {
+      alert(`Please fill in all required fields: ${missing.map(([key]) => key).join(", ")}`);
+      return;
+    }
+  
+    // ✅ Convert empty optional fields to null before sending
+    const cleanedFormData = {
+      ...formData,
+      actualDate: formData.actualDate || null,
+      actualFromTime: formData.actualFromTime || null,
+      actualToTime: formData.actualToTime || null,
+      fromTime: formData.fromTime || null,
+      toTime: formData.toTime || null,
+    };
+  
+    onSave(cleanedFormData, mode);
   };
 
   return (
@@ -110,21 +172,22 @@ const WorkOrderForm = ({ workOrder, mode = "create", onSave, onBack }) => {
         </div>
       </div>
 
-      {/* Form Body (keeps your exact structure / classes) */}
+      {/* Form Body */}
       <div className="rounded-xl border border-gray-200 p-6 shadow-sm">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4">
           {/* Left column */}
           <div className="flex flex-col gap-y-5">
             {/* WO# */}
-            <div className="grid grid-cols-6 gap-x-4">
+            <div className={`grid-cols-6 gap-x-4 ${mode === "create" ? "hidden" : "grid" }`}>
               <label className="text-sm text-right my-auto">WO#</label>
               <input
                 type="text"
                 name="woNumber"
                 value={formData.woNumber}
                 onChange={handleChange}
-                className="col-span-5 w-full rounded-md border border-gray-200 px-3 py-2"
+                className="col-span-5 w-full rounded-md border border-gray-200 px-3 py-2 text-gray-400 focus:outline-none focus:ring-0"
                 placeholder="WO-2025-0001"
+                readOnly
               />
             </div>
 
@@ -136,26 +199,70 @@ const WorkOrderForm = ({ workOrder, mode = "create", onSave, onBack }) => {
                 name="workDescription"
                 value={formData.workDescription}
                 onChange={handleChange}
-                className="col-span-5 w-full rounded-md border border-gray-200 px-3 py-2"
+                className="col-span-5 w-full rounded-md border border-gray-200 px-3 py-2 focus:outline-1"
               />
             </div>
 
             {/* Assignee + Dept */}
-            <div className="grid grid-cols-6 gap-x-4">
+            <div
+              className="grid grid-cols-6 gap-x-4 relative"
+              ref={assigneeRef}
+            >
               <label className="text-sm text-right my-auto">Assignee</label>
-              <input
-                type="text"
-                name="assignee"
-                value={formData.assignee}
-                onChange={handleChange}
-                className="col-span-2 w-full rounded-md border border-gray-200 px-3 py-2"
-              />
+              <div className="col-span-2 relative">
+                <input
+                  type="text"
+                  value={formData.assigneeUsername || ""}
+                  onChange={(e) => {
+                    const q = e.target.value;
+                    setFormData((prev) => ({
+                      ...prev,
+                      assigneeUsername: q,
+                    }));
+                    setSearchQuery(q);
+                    setDropdownOpen(true);
+                  }}
+                  onFocus={() => setDropdownOpen(true)}
+                  placeholder="Search user..."
+                  className="w-full rounded-md border border-gray-200 px-3 py-2"
+                />
+
+                {dropdownOpen && (
+                  <ul className="absolute z-10 mt-1 w-full bg-white border border-gray-200 rounded-md shadow-lg max-h-40 overflow-y-auto">
+                    {filteredUsers.length > 0 ? (
+                      filteredUsers.map((user) => (
+                        <li
+                          key={user.id}
+                          onClick={() => {
+                            setFormData((prev) => ({
+                              ...prev,
+                              assignee: user.id, // store FK
+                              assigneeUsername: user.username, // display username
+                              department: user.department
+                            }));
+                            setDropdownOpen(false);
+                          }}
+                          className="px-3 py-2 cursor-pointer hover:bg-gray-100 text-sm"
+                        >
+                          {user.username}
+                        </li>
+                      ))
+                    ) : (
+                      <li className="px-3 py-2 text-gray-500 text-sm">
+                        No results found
+                      </li>
+                    )}
+                  </ul>
+                )}
+              </div>
+
               <label className="text-sm text-right my-auto">Department</label>
               <input
                 type="text"
                 name="department"
                 value={formData.department}
                 onChange={handleChange}
+                readOnly
                 className="col-span-2 w-full rounded-md border border-gray-200 px-3 py-2"
               />
             </div>
@@ -174,7 +281,7 @@ const WorkOrderForm = ({ workOrder, mode = "create", onSave, onBack }) => {
                 <input
                   type="checkbox"
                   name="isNew"
-                  checked={!!formData.isNew}
+                  checked={!!formData.isNewAccount}
                   onChange={handleChange}
                   className="h-4 w-4 border border-gray-400"
                 />
@@ -204,7 +311,9 @@ const WorkOrderForm = ({ workOrder, mode = "create", onSave, onBack }) => {
 
             {/* Product/Brand */}
             <div className="grid grid-cols-6 gap-x-4">
-              <label className="text-sm text-right my-auto">Product/Brand</label>
+              <label className="text-sm text-right my-auto">
+                Product/Brand
+              </label>
               <input
                 type="text"
                 name="productBrand"
@@ -216,7 +325,9 @@ const WorkOrderForm = ({ workOrder, mode = "create", onSave, onBack }) => {
 
             {/* Contact Person */}
             <div className="grid grid-cols-6 gap-x-4">
-              <label className="text-sm text-right my-auto">Contact Person</label>
+              <label className="text-sm text-right my-auto">
+                Contact Person
+              </label>
               <input
                 type="text"
                 name="contactPerson"
@@ -228,7 +339,9 @@ const WorkOrderForm = ({ workOrder, mode = "create", onSave, onBack }) => {
 
             {/* Contact Number */}
             <div className="grid grid-cols-6 gap-x-4">
-              <label className="text-sm text-right my-auto">Contact Number</label>
+              <label className="text-sm text-right my-auto">
+                Contact Number
+              </label>
               <input
                 type="text"
                 name="contactNumber"
@@ -239,15 +352,15 @@ const WorkOrderForm = ({ workOrder, mode = "create", onSave, onBack }) => {
             </div>
           </div>
 
-          {/* Right column */}
+          {/* Right column (unchanged, keeping your structure) */}
           <div className="flex flex-col gap-y-5">
             {/* FSL / ESL checkboxes */}
             <div className="flex items-center justify-end gap-4">
               <label className="flex items-center gap-2">
                 <input
                   type="checkbox"
-                  name="isFSL"
-                  checked={!!formData.isFSL}
+                  name="isFsl"
+                  checked={formData.isFsl}
                   onChange={handleChange}
                   className="h-4 w-4 border border-gray-400 rounded"
                 />
@@ -256,8 +369,8 @@ const WorkOrderForm = ({ workOrder, mode = "create", onSave, onBack }) => {
               <label className="flex items-center gap-2">
                 <input
                   type="checkbox"
-                  name="isESL"
-                  checked={!!formData.isESL}
+                  name="isEsl"
+                  checked={formData.isEsl}
                   onChange={handleChange}
                   className="h-4 w-4 border border-gray-400 rounded"
                 />
@@ -325,7 +438,9 @@ const WorkOrderForm = ({ workOrder, mode = "create", onSave, onBack }) => {
             </div>
 
             <div className="grid grid-cols-6 gap-x-4">
-              <label className="text-sm text-right my-auto">Actual From</label>
+              <label className="text-sm text-right my-auto">
+                Actual From
+              </label>
               <input
                 type="time"
                 name="actualFromTime"
@@ -371,7 +486,9 @@ const WorkOrderForm = ({ workOrder, mode = "create", onSave, onBack }) => {
           </div>
 
           <div className="grid grid-cols-6 gap-4">
-            <label className="text-sm text-right my-auto">Target Output</label>
+            <label className="text-sm text-right my-auto">
+              Target Output
+            </label>
             <textarea
               name="targetOutput"
               value={formData.targetOutput}

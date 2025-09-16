@@ -3,7 +3,7 @@ export const users = [    {
   avatarUrl: "https://i.pravatar.cc/40?img=1",
   firstName: "John",
   lastName: "Doe",
-  username: "123",
+  username: "admin",
   email: "john@example.com",
   phomeNumber: "09171234567",
   role: "Admin",

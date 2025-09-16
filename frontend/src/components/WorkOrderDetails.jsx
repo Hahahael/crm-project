@@ -67,7 +67,7 @@ const WorkOrderDetails = ({ workOrder, onBack, onEdit }) => {
                 Assignee
               </label>
               <div className="col-span-2 w-full rounded-md bg-yellow-50 text-md border border-gray-200 px-3 py-3">
-                {workOrder.assignee || ""}
+                {workOrder.assigneeUsername || ""}
               </div>
               <label htmlFor="woNumberInput" className="text-sm text-right my-auto">
                 Assignee
@@ -89,7 +89,7 @@ const WorkOrderDetails = ({ workOrder, onBack, onEdit }) => {
                   <input
                     type="checkbox"
                     id="newAcct"
-                    checked={workOrder.isNew}
+                    checked={workOrder.isNewAccount}
                     disabled
                     className="h-4 w-4 rounded border-gray-400"
                   />
@@ -149,7 +149,7 @@ const WorkOrderDetails = ({ workOrder, onBack, onEdit }) => {
                 <input
                   type="checkbox"
                   id="fsl"
-                  checked={workOrder.isFSL}
+                  checked={workOrder.isFsl}
                   disabled
                   className="h-4 w-4 rounded border-gray-400"
                 />
@@ -161,7 +161,7 @@ const WorkOrderDetails = ({ workOrder, onBack, onEdit }) => {
                   <input
                     type="checkbox"
                     id="esl"
-                    checked={workOrder.isESL}
+                    checked={workOrder.isEsl}
                     disabled
                     className="h-4 w-4 rounded border-gray-400"
                   />
@@ -211,7 +211,7 @@ const WorkOrderDetails = ({ workOrder, onBack, onEdit }) => {
                 Actual Date
               </label>
               <div className="col-span-5 w-full rounded-md bg-yellow-50 text-md border border-gray-200 px-3 py-3">
-                {workOrder.actualDate || ""}
+                {workOrder.actualDate || "-"}
               </div>
             </div>
 
@@ -220,7 +220,7 @@ const WorkOrderDetails = ({ workOrder, onBack, onEdit }) => {
                 Actual From Time
               </label>
               <div className="col-span-5 w-full rounded-md bg-yellow-50 text-md border border-gray-200 px-3 py-3">
-                {workOrder.actualFromTime || ""}
+                {workOrder.actualFromTime || "-"}
               </div>
             </div>
 
@@ -229,7 +229,7 @@ const WorkOrderDetails = ({ workOrder, onBack, onEdit }) => {
                 Actual To Time
               </label>
               <div className="col-span-5 w-full rounded-md bg-yellow-50 text-md border border-gray-200 px-3 py-3">
-                {workOrder.actualToTime || ""}
+                {workOrder.actualToTime || "-"}
               </div>
             </div>
           </div>
@@ -243,13 +243,13 @@ const WorkOrderDetails = ({ workOrder, onBack, onEdit }) => {
           >
             <label
               className="text-sm text-right my-auto"
-              for="objective"
+              htmlFor="objective"
             >
               Objective
             </label>
             <div
               className="col-span-5 min-h-[100px] rounded-md border border-gray-200 bg-yellow-50 px-3 py-3 cursor-default"
-              readonly=""
+              readOnly=""
             >
               No objective provided
             </div>
@@ -259,13 +259,13 @@ const WorkOrderDetails = ({ workOrder, onBack, onEdit }) => {
           >
             <label
               className="text-sm text-right my-auto"
-              for="instruction"
+              htmlFor="instruction"
             >
               Instruction
             </label>
             <div
               className="col-span-5 min-h-[100px] rounded-md border border-gray-200 bg-yellow-50 px-3 py-3 cursor-default"
-              readonly=""
+              readOnly=""
             >
               No instructions provided
             </div>
@@ -275,13 +275,13 @@ const WorkOrderDetails = ({ workOrder, onBack, onEdit }) => {
           >
             <label
               className="text-sm text-right my-auto"
-              for="targetOut"
+              htmlFor="targetOut"
             >
               Target Output
             </label>
             <div
               className="col-span-5 min-h-[100px] rounded-md border border-gray-200 bg-yellow-50 px-3 py-3 cursor-default"
-              readonly=""
+              readOnly=""
             >
               Complete field assessment and provide technical recommendations
               for system upgrade.

@@ -1,3 +1,4 @@
+//src/pages/WorkOrdersPage
 import { useState, useEffect } from "react";
 import { LuCheck, LuClipboardList, LuClock, LuPlus, LuSearch } from "react-icons/lu";
 import WorkOrdersTable from "../components/WorkOrdersTable";
@@ -13,85 +14,27 @@ export default function WorkOrdersPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null)
 
+  const fetchAllData = async () => {
+    try {
+      const workOrdersRes = await apiBackendFetch("/api/workorders");
+      console.log(workOrdersRes);
+
+      if (!workOrdersRes.ok)
+        throw new Error("Failed to fetch Work Orders");
+
+      const workOrdersData = await workOrdersRes.json();
+
+      console.log((workOrdersData));
+      setWorkOrders(workOrdersData);
+      setLoading(false);
+    } catch (err) {
+      console.error("Error retrieving workorders:", err);
+      setError("Failed to fetch work orders.");
+    }
+  }
+
   // mock fetch (replace with API later)
   useEffect(() => {
-    setWorkOrders([
-      {
-        id: 1,
-        woNumber: "WO-2025-0001",
-        workDescription: "Install router",
-        assignee: "John Doe",
-        department: "IT",
-        type: "FSL",
-        accountName: "Acme Corp",
-        industry: "Telecom",
-        mode: "Onsite",
-        productBrand: "Cisco",
-        contactPerson: "Alice Johnson",
-        contactNumber: "09171234567",
-        woDate: "2025-09-12",
-        dueDate: "2025-09-20",
-        fromTime: "09:00",
-        toTime: "12:00",
-        actualDate: "2025-09-19",
-        actualFromTime: "09:30",
-        actualToTime: "11:45",
-        status: "Pending",
-        objective: "Setup new router for HQ",
-        instruction: "Install in server room and configure VLANs",
-        targetOutput: "Stable router connection for all departments",
-        isNew: true,
-        isFSL: true,
-        isESL: false
-      },
-      {
-        id: 2,
-        woNumber: "WO-2025-0002",
-        workDescription: "Server maintenance",
-        assignee: "Jane Smith",
-        department: "Ops",
-        type: "ESL",
-        accountName: "Globex Inc",
-        industry: "Finance",
-        mode: "Remote",
-        productBrand: "Dell",
-        contactPerson: "Bob Lee",
-        contactNumber: "09179876543",
-        woDate: "2025-09-15",
-        dueDate: "2025-09-18",
-        fromTime: "14:00",
-        toTime: "17:00",
-        actualDate: "",
-        actualFromTime: "",
-        actualToTime: "",
-        status: "In Progress",
-        objective: "Perform quarterly maintenance",
-        instruction: "Check logs, update OS patches",
-        targetOutput: "Servers up-to-date and optimized",
-        isNew: false,
-        isFSL: false,
-        isESL: true
-      }
-    ]);
-
-    const fetchAllData = async () => {
-      try {
-        const workOrdersRes = await apiBackendFetch("/api/workorders");
-        console.log(workOrdersRes);
-
-        if (!workOrdersRes.ok)
-          throw new Error("Failed to fetch Work Orders");
-
-        const workOrdersData = await workOrdersRes.json();
-
-        setWorkOrders(workOrdersData);
-        setLoading(false);
-      } catch (err) {
-        console.error("Error retrieving workorders:", err);
-        setError("Failed to fetch work orders.");
-      }
-    }
-
     fetchAllData();
   }, []);
   
@@ -122,11 +65,12 @@ export default function WorkOrdersPage() {
       const savedWorkOrder = await response.json();
       console.log("Saved:", savedWorkOrder);
 
+      await fetchAllData();
       if (mode === "edit") {
         setWorkOrders((prev) => 
-          prev.map((wo) => (wo.Id === savedWorkOrder.id ? savedWorkOrder : wo))
+          prev.map((wo) => (wo.id === savedWorkOrder.id ? savedWorkOrder : wo))
         );
-        setSelectedWO(savedWorkOrder.id);
+        setSelectedWO(savedWorkOrder);
       } else {
         setWorkOrders((prev) => [...prev, savedWorkOrder]);
       }

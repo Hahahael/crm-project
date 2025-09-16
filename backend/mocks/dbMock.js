@@ -182,9 +182,9 @@ for (const wo of workorders) {
     ) VALUES (
       '${esc(wo.woNumber)}',
       '${esc(wo.workDescription)}',
-      1,
+      '${wo.assignee}',
       '${esc(wo.accountName)}',
-      ${wo.isNew ? 'TRUE' : 'FALSE'},
+      ${wo.isNewAccount ? 'TRUE' : 'FALSE'},
       '${esc(wo.industry)}',
       '${esc(wo.mode)}',
       '${esc(wo.productBrand)}',

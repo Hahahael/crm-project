@@ -1,5 +1,7 @@
 //src/components/WorkOrdersTable
 import { LuEllipsis, LuEye, LuPencil, LuTrash } from "react-icons/lu";
+import util from "../helper/utils.js"
+import config from "../config.js";
 
 export default function WorkOrdersTable({ workOrders, onView, onEdit }) {
   return (
@@ -23,18 +25,40 @@ export default function WorkOrdersTable({ workOrders, onView, onEdit }) {
         </thead>
         <tbody className="divide-y divide-gray-200">
           {workOrders.map((wo) => (
-            <tr key={wo.woId} className="hover:bg-gray-50 transition-all duration-200">
+            <tr key={wo.id} className="hover:bg-gray-50 transition-all duration-200">
               <td className="px-4 py-2 text-black text-sm">{wo.woNumber}</td>
-              <td className="px-4 py-2 text-black text-sm">{wo.woDate}</td>
+              <td className="px-4 py-2 text-black text-sm">{util.formatDate(wo.woDate, "MM/DD/YYYY")}</td>
               <td className="px-4 py-2 text-black text-sm">{wo.workDescription}</td>
               <td className="px-4 py-2 text-black text-sm">{wo.accountName}</td>
-              <td className="px-4 py-2 text-black text-sm">{wo.type}</td>
-              <td className="px-4 py-2 text-black text-sm">{wo.assignee}</td>
+              <td className="px-4 py-2 text-black text-sm">
+                <span
+                  className={`rounded-full px-2 py-1 text-xs mr-2 ${
+                    wo.isNewAccount ? "bg-green-100 text-green-900" : "hidden"
+                  }`}
+                >
+                  New
+                </span>
+                <span
+                  className={`rounded-full px-2 py-1 text-xs mr-2 ${
+                    wo.isFsl ? "bg-purple-100 text-purple-900" : "hidden"
+                  }`}
+                >
+                  FSL
+                </span>
+                <span
+                  className={`rounded-full px-2 py-1 text-xs mr-2 ${
+                    wo.isEsl ? "bg-indigo-100 text-indigo-900" : "hidden"
+                  }`}
+                >
+                  ESL
+                </span>
+              </td>
+              <td className="px-4 py-2 text-black text-sm">{wo.assigneeUsername}</td>
               <td className="px-4 py-2 text-black text-sm">{wo.status}</td>
               <td className="px-4 py-2 text-black text-sm">{wo.status}</td>
-              <td className="px-4 py-2 text-black text-sm">{wo.dueDate}</td>
-              <td className="px-4 py-2 text-black text-sm">{wo.dueDate}</td>
-              <td className="px-4 py-2 text-black text-sm">{wo.dueDate}</td>
+              <td className="px-4 py-2 text-black text-sm">{util.formatDate(wo.dueDate, "MM/DD/YYYY")}</td>
+              <td className="px-4 py-2 text-black text-sm">{util.formatDate(wo.doneDate, "MM/DD/YYYY") || "-"}</td>
+              <td className="px-4 py-2 text-black text-sm">-</td>
               <td className="px-4 py-2 text-black text-sm">
                 <div className="flex gap-2">
                   <button
