@@ -3,7 +3,7 @@ import { useParams } from "react-router-dom";
 import { useEffect, useState } from "react";
 import config from "../config.js";
 import { LuPrinter, LuArrowLeft, LuPencil, LuTrash } from "react-icons/lu";
-import util from "../helper/utils.js"
+import utils from "../helper/utils.js"
 
 const WorkOrderDetails = ({ workOrder, onBack, onEdit }) => {
   return (
@@ -175,7 +175,7 @@ const WorkOrderDetails = ({ workOrder, onBack, onEdit }) => {
                 WO Date
               </label>
               <div className="col-span-5 w-full rounded-md bg-yellow-50 text-md border border-gray-200 px-3 py-3">
-                {workOrder.woDate || ""}
+                {utils.formatDate(workOrder.woDate, "DD/MM/YYYY") || ""}
               </div>
             </div>
 
@@ -184,7 +184,7 @@ const WorkOrderDetails = ({ workOrder, onBack, onEdit }) => {
                 Due Date
               </label>
               <div className="col-span-5 w-full rounded-md bg-yellow-50 text-md border border-gray-200 px-3 py-3">
-                {workOrder.dueDate || ""}
+                {utils.formatDate(workOrder.dueDate, "DD/MM/YYYY") || ""}
               </div>
             </div>
 
@@ -211,7 +211,7 @@ const WorkOrderDetails = ({ workOrder, onBack, onEdit }) => {
                 Actual Date
               </label>
               <div className="col-span-5 w-full rounded-md bg-yellow-50 text-md border border-gray-200 px-3 py-3">
-                {workOrder.actualDate || "-"}
+                {utils.formatDate(workOrder.actualDate, "DD/MM/YYYY") || "-"}
               </div>
             </div>
 

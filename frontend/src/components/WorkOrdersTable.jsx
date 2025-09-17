@@ -27,7 +27,7 @@ export default function WorkOrdersTable({ workOrders, onView, onEdit }) {
           {workOrders.map((wo) => (
             <tr key={wo.id} className="hover:bg-gray-50 transition-all duration-200">
               <td className="px-4 py-2 text-black text-sm">{wo.woNumber}</td>
-              <td className="px-4 py-2 text-black text-sm">{util.formatDate(wo.woDate, "MM/DD/YYYY")}</td>
+              <td className="px-4 py-2 text-black text-sm">{util.formatDate(wo.woDate, "DD/MM/YYYY")}</td>
               <td className="px-4 py-2 text-black text-sm">{wo.workDescription}</td>
               <td className="px-4 py-2 text-black text-sm">{wo.accountName}</td>
               <td className="px-4 py-2 text-black text-sm">
@@ -56,8 +56,8 @@ export default function WorkOrdersTable({ workOrders, onView, onEdit }) {
               <td className="px-4 py-2 text-black text-sm">{wo.assigneeUsername}</td>
               <td className="px-4 py-2 text-black text-sm">{wo.status}</td>
               <td className="px-4 py-2 text-black text-sm">{wo.status}</td>
-              <td className="px-4 py-2 text-black text-sm">{util.formatDate(wo.dueDate, "MM/DD/YYYY")}</td>
-              <td className="px-4 py-2 text-black text-sm">{util.formatDate(wo.doneDate, "MM/DD/YYYY") || "-"}</td>
+              <td className="px-4 py-2 text-black text-sm">{util.formatDate(wo.dueDate, "DD/MM/YYYY")}</td>
+              <td className="px-4 py-2 text-black text-sm">{util.formatDate(wo.doneDate, "DD/MM/YYYY") || "-"}</td>
               <td className="px-4 py-2 text-black text-sm">-</td>
               <td className="px-4 py-2 text-black text-sm">
                 <div className="flex gap-2">

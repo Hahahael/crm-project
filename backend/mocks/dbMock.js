@@ -59,6 +59,7 @@ mem.public.none(`
     wo_number VARCHAR(20) UNIQUE,
     work_description TEXT NOT NULL,
     assignee INT REFERENCES users(id) ON DELETE SET NULL,
+    status VARCHAR(50) DEFAULT 'Pending',
     
     -- Account Info
     account_name VARCHAR(255) NOT NULL,
@@ -158,6 +159,7 @@ for (const wo of workorders) {
       wo_number,
       work_description,
       assignee,
+      status,
       account_name,
       is_new_account,
       industry,
@@ -183,6 +185,7 @@ for (const wo of workorders) {
       '${esc(wo.woNumber)}',
       '${esc(wo.workDescription)}',
       '${wo.assignee}',
+      '${wo.status}',
       '${esc(wo.accountName)}',
       ${wo.isNewAccount ? 'TRUE' : 'FALSE'},
       '${esc(wo.industry)}',

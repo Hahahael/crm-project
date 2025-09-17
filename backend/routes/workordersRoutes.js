@@ -24,7 +24,27 @@ router.get("/", async (req, res) => {
   }
 });
 
-// Get single user
+router.get("/assigned", async (req, res) => {
+  try {
+    const username = req.user.username;
+    const result = await db.query(
+      `SELECT 
+        w.*, 
+        u.username AS assignee_username,
+        u.department AS department
+       FROM workorders w
+       LEFT JOIN users u ON w.assignee = u.id
+       WHERE u.username = $1
+       ORDER BY w.id ASC`,
+      [username]
+    );
+    return res.json(result.rows);
+  } catch (err) {
+    res.status(500).json({ error: "Failed to fetch assigned workorders" });
+  }
+});
+
+// Get single workorder
 router.get("/:id", async (req, res) => {
   try {
     const { id } = req.params;
@@ -91,7 +111,6 @@ router.post("/", async (req, res) => {
     let newCounter = 1;
     if (result.rows.length > 0) {
       const lastWoNumber = result.rows[0].woNumber; // e.g. "WO-2025-0042"
-      console.log(lastWoNumber);
       const lastCounter = parseInt(lastWoNumber.split("-")[2], 10);
       newCounter = lastCounter + 1;
     }
@@ -152,8 +171,6 @@ router.post("/", async (req, res) => {
 // Update existing workorder
 router.put("/:id", async (req, res) => {
   try {
-    console.log(req);
-    console.log(JSON.stringify(req.params));
     const { id } = req.params;
     const body = toSnake(req.body);
     const {
@@ -236,6 +253,25 @@ router.put("/:id", async (req, res) => {
   } catch (err) {
     console.error(err);
     return res.status(500).json({ error: "Failed to update workorder" });
+  }
+});
+
+// Get workorder status summary
+router.get("/summary/status", async (req, res) => {
+  try {
+    const result = await db.query(`
+      SELECT
+        COUNT(*) AS total,
+        SUM(CASE WHEN status = 'Pending' THEN 1 ELSE 0 END) AS pending,
+        SUM(CASE WHEN status = 'In Progress' THEN 1 ELSE 0 END) AS in_progress,
+        SUM(CASE WHEN status = 'Completed' THEN 1 ELSE 0 END) AS completed
+      FROM workorders;
+    `);
+    
+    return res.json(result.rows[0]);
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: "Failed to fetch status summary" });
   }
 });
 

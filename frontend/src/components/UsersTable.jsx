@@ -16,8 +16,6 @@ export default function UsersTable({ users, onView, onEdit, onDelete }) {
   const menuRef = useRef(null);
   const closeTimeoutRef = useRef(null);
 
-  console.log(users);
-
   // Compute menu position
   const computePosition = (btn) => {
     const rect = btn.getBoundingClientRect();
@@ -146,7 +144,7 @@ export default function UsersTable({ users, onView, onEdit, onDelete }) {
                   {user.status}
                 </span>
               </td>
-              <td className="px-4 py-2 text-black text-sm">{util.formatDate(user.lastLogin, "MM/DD/YYYY hh:mm A")}</td>
+              <td className="px-4 py-2 text-black text-sm">{util.formatDate(user.lastLogin, "DD/MM/YYYY hh:mm A")}</td>
               <td className="px-4 py-2 text-black text-sm text-right">
                 <button
                   ref={(el) => (buttonRefs.current[user.id] = el)}

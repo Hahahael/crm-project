@@ -1,8 +1,10 @@
 import { useState, useEffect, useRef } from "react";
 import { LuArrowLeft, LuCheck, LuX } from "react-icons/lu";
 import { apiBackendFetch } from "../services/api";
+import utils from "../helper/utils.js"
 
 const WorkOrderForm = ({ workOrder, mode = "create", onSave, onBack }) => {
+  const [errors, setErrors] = useState(null);
   const [formData, setFormData] = useState({
     woNumber: "",
     workDescription: "",
@@ -101,34 +103,50 @@ const WorkOrderForm = ({ workOrder, mode = "create", onSave, onBack }) => {
     }
   }, [workOrder]);
 
-  console.log(workOrder);
-
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
+    const newValue = type === "checkbox" ? checked : value;
+
     setFormData((prev) => ({
       ...prev,
-      [name]: type === "checkbox" ? checked : value,
+      [name]: newValue,
     }));
+
+    setErrors((prevErrors) => {
+      if (!prevErrors) return prevErrors;
+      if (newValue !== "" && newValue !== null && newValue !== undefined) {
+        const { [name]: removed, ...rest } = prevErrors;
+        return rest;
+      }
+      return prevErrors;
+    });
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
   
-    // Destructure optional fields
+    // Destructure optional + WO number
     const { actualDate, actualFromTime, actualToTime, woNumber, ...requiredFields } = formData;
   
-    // Check if any required field is empty
+    // Find missing required fields
     const missing = Object.entries(requiredFields).filter(
-      ([key, value]) =>
-        value === "" || value === null || value === undefined
+      ([, value]) => value === "" || value === null || value === undefined
     );
   
     if (missing.length > 0) {
-      alert(`Please fill in all required fields: ${missing.map(([key]) => key).join(", ")}`);
+      // Mark missing fields as errors
+      const newErrors = {};
+      missing.forEach(([key]) => {
+        newErrors[key] = true;
+      });
+      setErrors(newErrors);
       return;
     }
   
-    // ✅ Convert empty optional fields to null before sending
+    // ✅ Reset errors if all fields are valid
+    setErrors({});
+  
+    // ✅ Convert empty optional fields to null
     const cleanedFormData = {
       ...formData,
       actualDate: formData.actualDate || null,
@@ -140,6 +158,7 @@ const WorkOrderForm = ({ workOrder, mode = "create", onSave, onBack }) => {
   
     onSave(cleanedFormData, mode);
   };
+  
 
   return (
     <form onSubmit={handleSubmit} className="h-full w-full p-6 overflow-y-auto">
@@ -199,7 +218,8 @@ const WorkOrderForm = ({ workOrder, mode = "create", onSave, onBack }) => {
                 name="workDescription"
                 value={formData.workDescription}
                 onChange={handleChange}
-                className="col-span-5 w-full rounded-md border border-gray-200 px-3 py-2 focus:outline-1"
+                className={`col-span-5 w-full rounded-md border px-3 py-2 focus:outline-1
+                  ${errors?.workDescription ? "border-red-500" : "border-gray-200"}`}
               />
             </div>
 
@@ -384,7 +404,7 @@ const WorkOrderForm = ({ workOrder, mode = "create", onSave, onBack }) => {
               <input
                 type="date"
                 name="woDate"
-                value={formData.woDate}
+                value={utils.formatDate(formData.woDate, "YYYY-MM-DD")}
                 onChange={handleChange}
                 className="col-span-5 rounded-md border border-gray-200 px-3 py-2"
               />
@@ -396,7 +416,7 @@ const WorkOrderForm = ({ workOrder, mode = "create", onSave, onBack }) => {
               <input
                 type="date"
                 name="dueDate"
-                value={formData.dueDate}
+                value={utils.formatDate(formData.dueDate, "YYYY-MM-DD")}
                 onChange={handleChange}
                 className="col-span-5 rounded-md border border-gray-200 px-3 py-2"
               />
@@ -431,9 +451,10 @@ const WorkOrderForm = ({ workOrder, mode = "create", onSave, onBack }) => {
               <input
                 type="date"
                 name="actualDate"
-                value={formData.actualDate}
+                value={utils.formatDate(formData.actualDate, "YYYY-MM-DD")}
                 onChange={handleChange}
                 className="col-span-5 rounded-md border border-gray-200 px-3 py-2"
+                readOnly
               />
             </div>
 
@@ -447,6 +468,7 @@ const WorkOrderForm = ({ workOrder, mode = "create", onSave, onBack }) => {
                 value={formData.actualFromTime}
                 onChange={handleChange}
                 className="col-span-5 rounded-md border border-gray-200 px-3 py-2"
+                readOnly
               />
             </div>
 
@@ -458,6 +480,7 @@ const WorkOrderForm = ({ workOrder, mode = "create", onSave, onBack }) => {
                 value={formData.actualToTime}
                 onChange={handleChange}
                 className="col-span-5 rounded-md border border-gray-200 px-3 py-2"
+                readOnly
               />
             </div>
           </div>

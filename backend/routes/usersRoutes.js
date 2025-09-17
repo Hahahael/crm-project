@@ -83,7 +83,6 @@ router.post("/", async (req, res) => {
 // Update existing user
 router.put("/:id", async (req, res) => {
   try {
-    console.log(req);
     const { id } = req.params;
     const body = toSnake(req.body);
     const {
