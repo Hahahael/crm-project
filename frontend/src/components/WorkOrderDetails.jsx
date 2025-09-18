@@ -1,11 +1,42 @@
 //src/components/WorkOrderDetails
 import { useParams } from "react-router-dom";
 import { useEffect, useState } from "react";
-import config from "../config.js";
 import { LuPrinter, LuArrowLeft, LuPencil, LuTrash } from "react-icons/lu";
+import { apiBackendFetch } from "../services/api";
+import config from "../config.js";
 import utils from "../helper/utils.js"
 
-const WorkOrderDetails = ({ workOrder, onBack, onEdit }) => {
+const WorkOrderDetails = ({ workOrder, currentUser, onBack, onEdit, onWorkOrderUpdated, toSalesLead }) => {
+  const isAssignedToMe = currentUser && (workOrder.assignee === currentUser.id);
+  const isCreator = currentUser && (workOrder.createdBy === currentUser.id);
+
+  useEffect(() => {
+    if (
+      isAssignedToMe &&
+      !workOrder.actualDate &&
+      !workOrder.actualFromTime
+    ) {
+      const now = new Date();
+      const actualDate = now.toISOString().split("T")[0]; // YYYY-MM-DD
+      const actualFromTime = now.toTimeString().slice(0, 8); // HH:MM:SS
+
+      apiBackendFetch(`/api/workorders/${workOrder.id}`, {
+        method: "PUT",
+        body: JSON.stringify({
+          ...workOrder,
+          actualDate,
+          actualFromTime,
+        }),
+        headers: { "Content-Type": "application/json" },
+      })
+        .then((res) => res.json())
+        .then((updatedWO) => {
+          if (onWorkOrderUpdated) onWorkOrderUpdated(updatedWO);
+        });
+    }
+    // eslint-disable-next-line
+  }, [workOrder?.id, isAssignedToMe]);
+
   return (
     <div className="h-full w-full p-6 overflow-y-auto">
       {/* Header with back button */}
@@ -31,13 +62,23 @@ const WorkOrderDetails = ({ workOrder, onBack, onEdit }) => {
                 TechCorp Industries
           </h2>
         </div>
-        <div className="flex flex-col gap-x-2 gap-y-2 ml-auto lg:flex-row">
-          <button
-            onClick={() => onEdit(workOrder)}
-            className="flex border border-gray-200 bg-blue-500 hover:bg-blue-600 transition-all duration-150 cursor-pointer px-4 py-2 rounded-md align-middle justify-center items-center text-sm text-white"
-          >
-            <LuPencil className="my-auto mr-2 cursor-pointer" /> Edit Workorder
-          </button>
+        <div className={`flex flex-col gap-x-2 gap-y-2 ml-auto lg:flex-row `}>
+          {isCreator && (
+            <button
+              onClick={() => onEdit(workOrder)}
+              className="flex border border-gray-200 bg-blue-500 hover:bg-blue-600 transition-all duration-150 cursor-pointer px-4 py-2 rounded-md align-middle justify-center items-center text-sm text-white"
+            >
+              <LuPencil className="my-auto mr-2 cursor-pointer" /> Edit Workorder
+            </button>
+          )}
+          {isAssignedToMe && (
+            <button
+              onClick={() => toSalesLead(workOrder)}
+              className="flex border border-gray-200 bg-green-500 hover:bg-green-600 transition-all duration-150 cursor-pointer px-4 py-2 rounded-md align-middle justify-center items-center text-sm text-white"
+            >
+              <LuPencil className="my-auto mr-2 cursor-pointer" /> Create Sales Lead
+            </button>
+          )}
         </div>
       </div>
 
@@ -193,7 +234,7 @@ const WorkOrderDetails = ({ workOrder, onBack, onEdit }) => {
                 From Time
               </label>
               <div className="col-span-5 w-full rounded-md bg-yellow-50 text-md border border-gray-200 px-3 py-3">
-                {workOrder.fromTime || ""}
+                {utils.formatTimeOnly(workOrder.fromTime) || ""}
               </div>
             </div>
 
@@ -202,7 +243,7 @@ const WorkOrderDetails = ({ workOrder, onBack, onEdit }) => {
                 To Time
               </label>
               <div className="col-span-5 w-full rounded-md bg-yellow-50 text-md border border-gray-200 px-3 py-3">
-                {workOrder.toTime || ""}
+                {utils.formatTimeOnly(workOrder.toTime) || ""}
               </div>
             </div>
 
@@ -220,7 +261,7 @@ const WorkOrderDetails = ({ workOrder, onBack, onEdit }) => {
                 Actual From Time
               </label>
               <div className="col-span-5 w-full rounded-md bg-yellow-50 text-md border border-gray-200 px-3 py-3">
-                {workOrder.actualFromTime || "-"}
+                {`${utils.formatTimeOnly(workOrder.actualFromTime)}` || "-"}
               </div>
             </div>
 
@@ -229,7 +270,7 @@ const WorkOrderDetails = ({ workOrder, onBack, onEdit }) => {
                 Actual To Time
               </label>
               <div className="col-span-5 w-full rounded-md bg-yellow-50 text-md border border-gray-200 px-3 py-3">
-                {workOrder.actualToTime || "-"}
+                {utils.formatTimeOnly(workOrder.actualToTime) || "-"}
               </div>
             </div>
           </div>

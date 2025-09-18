@@ -24,7 +24,8 @@ export const workorders = [
     targetOutput: "Stable router connection for all departments",
     isNewAccount: true,
     isFSL: true,
-    isESL: true
+    isESL: true,
+    createdBy: 3
   },
   {
     id: 2,
@@ -51,7 +52,8 @@ export const workorders = [
     targetOutput: "Servers up-to-date and optimized",
     isNewAccount: false,
     isFSL: false,
-    isESL: true
+    isESL: true,
+    createdBy: 1
   },
   {
     id: 3,
@@ -78,7 +80,8 @@ export const workorders = [
     targetOutput: "Servers up-to-date and optimized",
     isNewAccount: false,
     isFSL: false,
-    isESL: true
+    isESL: true,
+    createdBy: 1
   },
   {
     id: 4,
@@ -105,6 +108,7 @@ export const workorders = [
     targetOutput: "Servers up-to-date and optimized",
     isNewAccount: false,
     isFSL: false,
-    isESL: true
+    isESL: true,
+    createdBy: 2
   }
 ]

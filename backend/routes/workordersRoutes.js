@@ -2,7 +2,7 @@
 import express from "express";
 import db from "../db.js";
 import { toSnake } from "../helper/utils.js";
-
+ 
 const router = express.Router();
 
 // Get all workorders
@@ -11,10 +11,12 @@ router.get("/", async (req, res) => {
     const result = await db.query(`
       SELECT 
         w.*, 
-        u.username AS assignee_username,
-        u.department AS department
+        assignee_user.username AS assignee_username,
+        assignee_user.department AS department,
+        creator_user.username AS creator_username
       FROM workorders w
-      LEFT JOIN users u ON w.assignee = u.id
+      LEFT JOIN users assignee_user ON w.assignee = assignee_user.id
+      LEFT JOIN users creator_user ON w.created_by = creator_user.id
       ORDER BY w.id ASC
     `);
     return res.json(result.rows); // ✅ camelCase
@@ -35,6 +37,27 @@ router.get("/assigned", async (req, res) => {
        FROM workorders w
        LEFT JOIN users u ON w.assignee = u.id
        WHERE u.username = $1
+       ORDER BY w.id ASC`,
+      [username]
+    );
+    return res.json(result.rows);
+  } catch (err) {
+    res.status(500).json({ error: "Failed to fetch assigned workorders" });
+  }
+});
+
+router.get("/assigned/new", async (req, res) => {
+  try {
+    const username = req.user.username;
+    const result = await db.query(
+      `SELECT 
+        w.*, 
+        u.username AS assignee_username,
+        u.department AS department
+       FROM workorders w
+       LEFT JOIN users u ON w.assignee = u.id
+       WHERE u.username = $1
+         AND w.actual_date IS NULL
        ORDER BY w.id ASC`,
       [username]
     );
@@ -71,6 +94,7 @@ router.get("/:id", async (req, res) => {
 router.post("/", async (req, res) => {
   try {
     const body = toSnake(req.body); // ✅ convert camelCase → snake_case
+    console.log(body);
     const {
       work_description,
       assignee,
@@ -93,6 +117,7 @@ router.post("/", async (req, res) => {
       target_output,
       is_fsl,
       is_esl,
+      created_by,
     } = body;
 
     // 1️⃣ Figure out the current year
@@ -121,8 +146,8 @@ router.post("/", async (req, res) => {
     // 4️⃣ Insert into DB
     const insertResult = await db.query(
       `INSERT INTO workorders 
-        (wo_number, work_description, assignee, account_name, is_new_account, industry, mode, product_brand, contact_person, contact_number, wo_date, due_date, from_time, to_time, actual_date, actual_from_time, actual_to_time, objective, instruction, target_output, is_fsl, is_esl, created_at, updated_at)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,NOW(),NOW())
+        (wo_number, work_description, assignee, account_name, is_new_account, industry, mode, product_brand, contact_person, contact_number, wo_date, due_date, from_time, to_time, actual_date, actual_from_time, actual_to_time, objective, instruction, target_output, is_fsl, is_esl, created_at, created_by, updated_at)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,NOW(),$23,NOW())
        RETURNING id`,
       [
         woNumber,
@@ -147,6 +172,7 @@ router.post("/", async (req, res) => {
         target_output,
         is_fsl,
         is_esl,
+        created_by,
       ]
     );
 

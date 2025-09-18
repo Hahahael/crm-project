@@ -20,6 +20,7 @@ const adapter = mem.adapters.createPg();
 
 // Schema creation
 mem.public.none(`
+  -- USERS TABLE
   CREATE TABLE users (
     id SERIAL PRIMARY KEY,
     avatar_url VARCHAR (255),
@@ -39,21 +40,25 @@ mem.public.none(`
     created_by VARCHAR (100)
   );
 
+  -- ROLES TABLE
   CREATE TABLE roles (
     id SERIAL PRIMARY KEY,
     role_name TEXT
   );
 
+  -- DEPARTMENTS TABLE
   CREATE TABLE departments (
     id SERIAL PRIMARY KEY,
     department_name TEXT
   );
 
+  -- STATUSES TABLE
   CREATE TABLE statuses (
     id SERIAL PRIMARY KEY,
     status_name TEXT
   );
 
+  -- WORKORDERS TABLE
   CREATE TABLE workorders (
     id SERIAL PRIMARY KEY,
     wo_number VARCHAR(20) UNIQUE,
@@ -69,7 +74,7 @@ mem.public.none(`
     product_brand VARCHAR(100),
     contact_person VARCHAR(100),
     contact_number VARCHAR(20),
-    
+
     -- Dates
     wo_date DATE NOT NULL,
     due_date DATE,
@@ -78,21 +83,23 @@ mem.public.none(`
     actual_date DATE,
     actual_from_time TIME,
     actual_to_time TIME,
-    
+
     -- Details
     objective TEXT,
     instruction TEXT,
     target_output TEXT,
-    
+
     -- Flags for Sales Lead Type
     is_fsl BOOLEAN DEFAULT FALSE,
     is_esl BOOLEAN DEFAULT FALSE,
-    
+
     -- Metadata
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    created_by INT REFERENCES users(id) ON DELETE SET NULL,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
   );
 
+  -- WORKFLOW STAGES TABLE
   CREATE TABLE workflow_stages (
     stage_id SERIAL PRIMARY KEY,
     wo_id INT NOT NULL REFERENCES workorders(id) ON DELETE CASCADE,
@@ -103,6 +110,93 @@ mem.public.none(`
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
   );
+
+  -- SALES LEADS TABLE (based on your requirements)
+  CREATE TABLE sales_leads (
+    id SERIAL PRIMARY KEY,
+    sl_number VARCHAR(20) UNIQUE NOT NULL, -- FSL-YYYY-NNNN, auto-generated
+    end_user VARCHAR(100) NOT NULL,
+    department VARCHAR(50) NOT NULL,
+    contact_no VARCHAR(20) NOT NULL,
+    sales_stage VARCHAR(30) NOT NULL DEFAULT 'Sales Lead',
+    designation VARCHAR(50) NOT NULL,
+    immediate_support VARCHAR(100),
+    email_address VARCHAR(100) NOT NULL,
+
+    -- Application Details
+    category VARCHAR(50) NOT NULL,
+    application VARCHAR(50) NOT NULL,
+    machine VARCHAR(100) NOT NULL,
+    machine_process VARCHAR(50) NOT NULL,
+    needed_product VARCHAR(100) NOT NULL,
+    existing_specifications TEXT,
+    issues_with_existing TEXT,
+    consideration TEXT,
+
+    -- Support and Quotation
+    support_needed TEXT NOT NULL,
+    urgency VARCHAR(20) NOT NULL DEFAULT 'Medium',
+    model_to_quote VARCHAR(100) NOT NULL,
+    quantity INT NOT NULL DEFAULT 1 CHECK (quantity > 0),
+    quantity_attention VARCHAR(100),
+    qr_cc VARCHAR(100),
+    qr_email_to TEXT NOT NULL,
+    next_followup_date DATE NOT NULL,
+    due_date DATE NOT NULL,
+    done_date DATE,
+
+    -- Field Sales Lead Details
+    account VARCHAR(100) NOT NULL,
+    industry VARCHAR(50) NOT NULL,
+    se_id INT NOT NULL REFERENCES users(id),
+    sales_plan_rep VARCHAR(100),
+    fsl_ref VARCHAR(20),
+    date DATE NOT NULL DEFAULT CURRENT_DATE,
+    time TIME NOT NULL,
+    location VARCHAR(100) NOT NULL,
+    ww VARCHAR(20),
+
+    -- Customer Actual/Setup
+    requirement TEXT NOT NULL,
+    requirement_category TEXT NOT NULL,
+    deadline DATE NOT NULL,
+    customer_machine VARCHAR(100) NOT NULL,
+    customer_machine_process VARCHAR(50) NOT NULL,
+    product_application TEXT NOT NULL,
+    customer_issues TEXT,
+    existing_setup_items TEXT,
+    customer_suggested_setup TEXT,
+    remarks TEXT,
+    
+    -- File uploads (store file metadata, files in separate table or storage)
+    actual_picture JSONB,
+    draft_design_layout JSONB,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  );
+
+  -- SALES LEAD SUPPORT NEEDED (if multi-select, normalized)
+  CREATE TABLE sales_lead_support_needed (
+    sales_lead_id INT REFERENCES sales_leads(id) ON DELETE CASCADE,
+    support_type VARCHAR(50) NOT NULL,
+    PRIMARY KEY (sales_lead_id, support_type)
+  );
+
+  -- SALES LEAD FILES (if you want to store files separately)
+  CREATE TABLE sales_lead_files (
+    id SERIAL PRIMARY KEY,
+    sales_lead_id INT REFERENCES sales_leads(id) ON DELETE CASCADE,
+    file_type VARCHAR(30), -- 'actual_picture', 'draft_design_layout'
+    file_url VARCHAR(255) NOT NULL,
+    file_name VARCHAR(100),
+    file_size INT,
+    uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  );
+
+  -- Indexes for performance
+  CREATE INDEX idx_workorders_wo_number ON workorders(wo_number);
+  CREATE INDEX idx_sales_leads_sl_number ON sales_leads(sl_number);
+  CREATE INDEX idx_sales_leads_se_id ON sales_leads(se_id);
 `);
 
 // seed data ...
@@ -180,6 +274,7 @@ for (const wo of workorders) {
       is_fsl,
       is_esl,
       created_at,
+      created_by,
       updated_at
     ) VALUES (
       '${esc(wo.woNumber)}',
@@ -206,6 +301,7 @@ for (const wo of workorders) {
       ${wo.isFSL ? 'TRUE' : 'FALSE'},
       ${wo.isESL ? 'TRUE' : 'FALSE'},
       NOW(),
+      ${wo.createdBy},
       NOW())`);
 }
 

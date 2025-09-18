@@ -8,6 +8,8 @@ import authMiddleware from "./middleware/authMiddleware.js";
 import usersRouter from "./routes/usersRoutes.js"
 import hierarchicalRouter from "./routes/hierarchicalRoutes.js";
 import workordersRouter from "./routes/workordersRoutes.js";
+import salesleadsRouter from "./routes/salesleadsRoutes.js";
+
 
 const PORT = process.env.PORT || 5000;
 
@@ -46,6 +48,7 @@ app.use("/dashboard", usersRouter);
 app.use("/api/users", usersRouter);
 app.use("/api/hierarchy", hierarchicalRouter);
 app.use("/api/workorders", workordersRouter);
+app.use("/api/salesleads", salesleadsRouter);
 
 app.get("/", (req, res) => {
   res.send("🚀 Server is alive!");

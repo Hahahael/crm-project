@@ -1,5 +1,8 @@
 // helper/utils.js
 import dayjs from "dayjs";
+import customParseFormat from "dayjs/plugin/customParseFormat";
+
+dayjs.extend(customParseFormat);
 
 export function toCamel(row) {
   if (Array.isArray(row)) return row.map(toCamel);
@@ -44,8 +47,12 @@ export function formatDateOnly(dateStr) {
   return formatDate(dateStr, "YYYY-MM-DD");
 }
 
-export function formatTimeOnly(dateStr) {
-  return formatDate(dateStr, "HH:mm");
+export function formatTimeOnly(timeStr) {
+  if (!timeStr) return "-";
+  console.log("Formatting time:", timeStr); 
+  // Tell dayjs the format you expect
+  const parsed = dayjs(timeStr, "HH:mm:ss");
+  return parsed.isValid() ? parsed.format("HH:mm A") : "-";
 }
 
 // ✅ Default export with all helpers
