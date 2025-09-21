@@ -5,6 +5,7 @@ import DashboardPage from "./pages/DashboardPage";
 import UsersPage from "./pages/UsersPage";
 import Layout from "./components/Layout";
 import WorkOrdersPage from "./pages/WorkOrdersPage";
+import SalesLeadsPage from "./pages/SalesLeadsPage";
 
 function App() {
   return (
@@ -31,6 +32,14 @@ function App() {
             element={
               <ProtectedRoute>
                 <WorkOrdersPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/salesleads"
+            element={
+              <ProtectedRoute>
+                <SalesLeadsPage />
               </ProtectedRoute>
             }
           />

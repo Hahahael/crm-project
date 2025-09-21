@@ -35,6 +35,12 @@ export default function Layout() {
               Workorders
             </Link>
             <Link
+              to="/salesleads"
+              className="block rounded-md px-3 py-2 hover:bg-gray-700"
+            >
+              Sales Leads
+            </Link>
+            <Link
               to="/users"
               className="block rounded-md px-3 py-2 hover:bg-gray-700"
             >

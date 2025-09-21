@@ -1,5 +1,6 @@
 // dbMock.js
 import { newDb } from "pg-mem";
+import { toJsonbArray } from "../helper/utils.js";
 
 // import mock data...
 import { users } from "./usersMock.js";
@@ -7,7 +8,7 @@ import { roles } from "./rolesMock.js";
 import { departments } from "./departmentsMock.js";
 import { statuses } from "./statusesMock.js";
 import { workorders } from "./workordersMock.js";
-import { toJsonbArray } from "../helper/utils.js";
+import { salesLeads } from "./salesleadsMocks.js";
 
 let pool;
 
@@ -115,8 +116,10 @@ mem.public.none(`
   CREATE TABLE sales_leads (
     id SERIAL PRIMARY KEY,
     sl_number VARCHAR(20) UNIQUE NOT NULL, -- FSL-YYYY-NNNN, auto-generated
+    workorder_id INT REFERENCES workorders(id) ON DELETE SET NULL,
+    assignee INT REFERENCES users(id) ON DELETE SET NULL,
     end_user VARCHAR(100) NOT NULL,
-    department VARCHAR(50) NOT NULL,
+    department VARCHAR(75) NOT NULL,
     contact_no VARCHAR(20) NOT NULL,
     sales_stage VARCHAR(30) NOT NULL DEFAULT 'Sales Lead',
     designation VARCHAR(50) NOT NULL,
@@ -135,14 +138,14 @@ mem.public.none(`
 
     -- Support and Quotation
     support_needed TEXT NOT NULL,
-    urgency VARCHAR(20) NOT NULL DEFAULT 'Medium',
+    urgency VARCHAR(100) NOT NULL DEFAULT 'Medium',
     model_to_quote VARCHAR(100) NOT NULL,
     quantity INT NOT NULL DEFAULT 1 CHECK (quantity > 0),
     quantity_attention VARCHAR(100),
     qr_cc VARCHAR(100),
     qr_email_to TEXT NOT NULL,
     next_followup_date DATE NOT NULL,
-    due_date DATE NOT NULL,
+    due_date DATE,
     done_date DATE,
 
     -- Field Sales Lead Details
@@ -151,17 +154,15 @@ mem.public.none(`
     se_id INT NOT NULL REFERENCES users(id),
     sales_plan_rep VARCHAR(100),
     fsl_ref VARCHAR(20),
-    date DATE NOT NULL DEFAULT CURRENT_DATE,
-    time TIME NOT NULL,
-    location VARCHAR(100) NOT NULL,
+    fsl_date DATE NOT NULL DEFAULT CURRENT_DATE,
+    fsl_time TIME NOT NULL,
+    fsl_location VARCHAR(100) NOT NULL,
     ww VARCHAR(20),
 
     -- Customer Actual/Setup
     requirement TEXT NOT NULL,
     requirement_category TEXT NOT NULL,
     deadline DATE NOT NULL,
-    customer_machine VARCHAR(100) NOT NULL,
-    customer_machine_process VARCHAR(50) NOT NULL,
     product_application TEXT NOT NULL,
     customer_issues TEXT,
     existing_setup_items TEXT,
@@ -303,6 +304,114 @@ for (const wo of workorders) {
       NOW(),
       ${wo.createdBy},
       NOW())`);
+}
+
+for (const sl of salesLeads) {
+  mem.public.none(
+    `
+    INSERT INTO sales_leads (
+      sl_number,
+      workorder_id,
+      assignee,
+      sales_stage,
+      end_user,
+      designation,
+      department,
+      immediate_support,
+      contact_no,
+      email_address,
+      category,
+      application,
+      machine,
+      machine_process,
+      needed_product,
+      existing_specifications,
+      issues_with_existing,
+      consideration,
+      support_needed,
+      urgency,
+      model_to_quote,
+      quantity,
+      quantity_attention,
+      qr_cc,
+      qr_email_to,
+      next_followup_date,
+      due_date,
+      done_date,
+      account,
+      industry,
+      se_id,
+      sales_plan_rep,
+      fsl_ref,
+      fsl_date,
+      fsl_time,
+      fsl_location,
+      ww,
+      requirement,
+      requirement_category,
+      deadline,
+      product_application,
+      customer_issues,
+      existing_setup_items,
+      customer_suggested_setup,
+      remarks,
+      actual_picture,
+      draft_design_layout,
+      created_at,
+      updated_at
+    ) VALUES (
+      '${esc(sl.slNumber)}',
+      ${sl.woId},
+      ${sl.assignee},
+      '${esc(sl.salesStage)}',
+      '${esc(sl.endUser)}',
+      '${esc(sl.designation)}',
+      '${esc(sl.department)}',
+      '${esc(sl.immediateSupport)}',
+      '${esc(sl.contactNo)}',
+      '${esc(sl.emailAddress)}',
+      '${esc(sl.category)}',
+      '${esc(sl.application)}',
+      '${esc(sl.machine)}',
+      '${esc(sl.machineProcess)}',
+      '${esc(sl.neededProduct)}',
+      '${esc(sl.existingSpecifications)}',
+      '${esc(sl.issuesWithExisting)}',
+      '${esc(sl.consideration)}',
+      '${esc(sl.supportNeeded)}',
+      '${esc(sl.urgency)}',
+      '${esc(sl.modelToQuote)}',
+      ${sl.quantity},
+      '${esc(sl.quantityAttention)}',
+      '${esc(sl.qrCc)}',
+      '${esc(sl.qrEmailTo)}',
+      ${sl.nextFollowupDate ? `'${sl.nextFollowupDate}'` : 'NULL'},
+      ${sl.dueDate ? `'${sl.dueDate}'` : 'NULL'},
+      ${sl.doneDate ? `'${sl.doneDate}'` : 'NULL'},
+      '${esc(sl.account)}',
+      '${esc(sl.industry)}',
+      ${sl.seId},
+      '${esc(sl.salesPlanRep)}',
+      '${esc(sl.fslRef)}',
+      '${sl.fslDate}',
+      '${sl.fslTime}',
+      '${esc(sl.fslLocation)}',
+      '${esc(sl.ww)}',
+      '${esc(sl.requirement)}',
+      '${esc(sl.requirementCategory)}',
+      '${sl.deadline}',
+      '${esc(sl.productApplication)}',
+      '${esc(sl.customerIssues)}',
+      '${esc(sl.existingSetupItems)}',
+      '${esc(sl.customerSuggestedSetup)}',
+      '${esc(sl.remarks)}',
+      NULL,
+      NULL,
+      '${sl.createdAt}',
+      '${sl.updatedAt}'
+    )
+    `
+  );
 }
 
 pool = new adapter.Pool();

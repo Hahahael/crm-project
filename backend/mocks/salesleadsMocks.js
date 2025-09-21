@@ -1,6 +1,8 @@
 export const salesLeads = [
   {
     id: 1,
+    woId: 1,
+    assignee: 2,
     slNumber: "FSL-2025-0001",
     salesStage: "Sales Lead",
     endUser: "Acme",
@@ -38,17 +40,15 @@ export const salesLeads = [
     seId: 1, // You may want to map "Michael Johnson" to a user ID in your users mock
     salesPlanRep: "",
     fslRef: "SL-2023-0089",
-    date: "2023-06-01",
-    time: "10:30", // "10:30 AM" converted to 24-hour format if needed
-    location: "Acme HQ, Building 3",
+    fslDate: "2023-06-01",
+    fslTime: "10:30", // "10:30 AM" converted to 24-hour format if needed
+    fslLocation: "Acme HQ, Building 3",
     ww: "",
   
     // Customer Actual/Setup
     requirement: "Modernize assembly line control systems",
     requirementCategory: "Reduce downtime by 30%, increase efficiency",
     deadline: "2023-08-30",
-    customerMachine: "Conveyor Belt System",
-    customerMachineProcess: "Assembly Line",
     productApplication: "Industrial Automation",
     customerIssues: "Frequent breakdowns, high maintenance cost",
     existingSetupItems: "Using outdated motor controllers with frequent failures",
@@ -62,6 +62,8 @@ export const salesLeads = [
   },
   {
     id: 2,
+    woId: 2,
+    assignee: 1,
     slNumber: "FSL-2025-0002",
     salesStage: "Quotation",
     endUser: "TechSolutions Inc.",
@@ -99,17 +101,15 @@ export const salesLeads = [
     seId: 2, // Map "Emily Chen" to the correct user ID in your users mock
     salesPlanRep: "",
     fslRef: "PO-2023-0789",
-    date: "2023-06-05",
-    time: "14:00", // "2:00 PM" in 24-hour format
-    location: "TechSolutions Campus",
+    fslDate: "2023-06-05",
+    fslTime: "14:00", // "2:00 PM" in 24-hour format
+    fslLocation: "TechSolutions Campus",
     ww: "",
   
     // Customer Actual/Setup
     requirement: "Smart building management system",
     requirementCategory: "Reduce energy consumption by 25%",
     deadline: "2023-10-15",
-    customerMachine: "HVAC Control System",
-    customerMachineProcess: "Climate Control",
     productApplication: "Building Automation",
     customerIssues: "Energy inefficiency, poor temperature control",
     existingSetupItems: "Outdated control panels with minimal automation",
@@ -123,6 +123,8 @@ export const salesLeads = [
   },
   {
     id: 3,
+    woId: 3,
+    assignee: 3,
     slNumber: "FSL-2025-0003",
     salesStage: "Technical",
     endUser: "MediPharm Labs",
@@ -160,17 +162,15 @@ export const salesLeads = [
     seId: 3, // Map "David Wong" to the correct user ID in your users mock
     salesPlanRep: "",
     fslRef: "PO-2023-0567",
-    date: "2023-06-03",
-    time: "09:00", // "9:00 AM" in 24-hour format
-    location: "MediPharm Facility",
+    fslDate: "2023-06-03",
+    fslTime: "09:00", // "9:00 AM" in 24-hour format
+    fslLocation: "MediPharm Facility",
     ww: "",
 
     // Customer Actual/Setup
     requirement: "Automated precision mixing system",
     requirementCategory: "Achieve consistent mixing quality, reduce manual intervention",
     deadline: "2023-07-30",
-    customerMachine: "Mixing Equipment",
-    customerMachineProcess: "Chemical Mixing",
     productApplication: "Pharmaceutical Processing",
     customerIssues: "Inconsistent mixing results, quality concerns",
     existingSetupItems: "Manual process currently in use",
@@ -181,66 +181,5 @@ export const salesLeads = [
     draftDesignLayout: null,
     createdAt: "2023-06-03T09:00:00.000Z",
     updatedAt: "2023-06-03T09:00:00.000Z"
-  },
-  {
-    id: 4,
-    slNumber: "FSL-2025-0004",
-    salesStage: "RFQ",
-    endUser: "GreenEnergy Solutions",
-    designation: "Chief Engineer",
-    department: "Engineering",
-    immediateSupport: "Lisa Martinez",
-    contactNo: "333-444-5555",
-    emailAddress: "l.martinez@greenenergy.com",
-
-    // Application Details
-    category: "Replacement, Upgrade",
-    application: "Renewable Energy",
-    machine: "Solar Inverter System",
-    machineProcess: "Power Conversion",
-    neededProduct: "Grid-Tie Inverters",
-    existingSpecifications: "10kW, single-phase output",
-    issuesWithExisting: "Efficiency loss, compatibility with new panels",
-    consideration: "Increased capacity, smart grid features",
-
-    // Support and Quotation
-    supportNeeded: "System sizing, installation consultation",
-    urgency: "Medium - Scheduled upgrade",
-    modelToQuote: "GTI-15000",
-    quantity: 5,
-    quantityAttention: "Project Manager",
-    qrCc: "projects@greenenergy.com",
-    qrEmailTo: "l.martinez@greenenergy.com, projects@greenenergy.com",
-    nextFollowupDate: "2023-06-25",
-    dueDate: null,
-    doneDate: null,
-
-    // Field Sales Lead Details
-    account: "GreenEnergy Solutions",
-    industry: "Renewable Energy",
-    seId: 4, // Map "Thomas Brown" to the correct user ID in your users mock
-    salesPlanRep: "",
-    fslRef: "PO-2023-0890",
-    date: "2023-06-08",
-    time: "13:30", // "1:30 PM" in 24-hour format
-    location: "Solar Farm Site",
-    ww: "",
-
-    // Customer Actual/Setup
-    requirement: "Modernized solar power conversion system",
-    requirementCategory: "Increase conversion efficiency, enable smart grid integration",
-    deadline: "2023-09-15",
-    customerMachine: "Solar Inverter System",
-    customerMachineProcess: "Power Conversion",
-    productApplication: "Renewable Energy",
-    customerIssues: "Efficiency loss, compatibility with new panels",
-    existingSetupItems: "Aging inverters with decreasing efficiency",
-    customerSuggestedSetup: "GTI-20000 Smart",
-    remarks: "Customer interested in performance guarantee and extended warranty options. Site has limited access requiring special installation considerations.",
-
-    actualPicture: null,
-    draftDesignLayout: null,
-    createdAt: "2023-06-08T13:30:00.000Z",
-    updatedAt: "2023-06-08T13:30:00.000Z"
   }
 ];

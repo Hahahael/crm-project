@@ -1,16 +1,21 @@
 //src/pages/SalesLeadsPage
 import { useState, useEffect, useRef } from "react";
-import { LuBell, LuCheck, LuCircleAlert, LuClipboardList, LuClock, LuPlus, LuSearch, LuX } from "react-icons/lu";
+import { useLocation } from "react-router-dom";
+import { LuBell, LuChartColumn, LuChartLine, LuCheck, LuCircleAlert, LuClipboardCheck, LuClipboardList, LuClock, LuFileText, LuPlus, LuSearch, LuX } from "react-icons/lu";
 import SalesLeadsTable from "../components/SalesLeadsTable";
 import SalesLeadDetails from "../components/SalesLeadDetails";
 import SalesLeadForm from "../components/SalesLeadForm";
 import { apiBackendFetch } from "../services/api";
 
 export default function SalesLeadsPage() {
+  const timeoutRef = useRef();
+  const location = useLocation();
+  const workOrderId = location.state?.workOrderId;
+
   const [salesLeads, setSalesLeads] = useState([]);
   const [search, setSearch] = useState("");
   const [selectedSL, setSelectedSL] = useState(null);
-  const [editingSL, setEditingSL] = useState(null);
+  const [editingSL, setEditingSL] = useState(workOrderId || null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [successMessage, setSuccessMessage] = useState("");
@@ -22,7 +27,6 @@ export default function SalesLeadsPage() {
     inProgress: 0,
     completed: 0,
   });
-  const timeoutRef = useRef();
 
   const fetchAllData = async () => {
     try {
@@ -109,12 +113,14 @@ export default function SalesLeadsPage() {
   );
 
   const handleSave = async (formData, mode) => {
+    console.log("Saving saleslead:", formData, "Mode:", mode);
     try {
+      console.log(formData.id);
       const response = await apiBackendFetch(
         mode === "edit" ? `/api/salesleads/${formData.id}` : "/api/salesleads",
         {
           method: mode === "edit" ? "PUT" : "POST",
-          body: JSON.stringify(formData)
+          body: mode === "edit" ? JSON.stringify(formData) : JSON.stringify({...formData, workorderId: formData.id, assignee: currentUser.id }), // include woId for backend processing
         }
       );
 
@@ -244,33 +250,33 @@ export default function SalesLeadsPage() {
           )}
 
           {/* Status center */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
             <div className="relative flex flex-col rounded-xl shadow-sm border border-gray-200 p-6">
-              <LuClipboardList className="absolute top-6 right-6 text-gray-600"/>
+              <LuChartColumn className="absolute top-6 right-6 text-gray-600"/>
               <p className="text-sm mb-1">Total Leads</p>
               <h2 className="text-2xl font-bold">{statusSummary.total}</h2>
               <p className="text-xs text-gray-500">All salesleads in the system</p>
             </div>
             <div className="relative flex flex-col rounded-xl shadow-sm border border-gray-200 p-6">
-              <LuClock className="absolute top-6 right-6 text-yellow-600"/>
+              <LuFileText className="absolute top-6 right-6 text-gray-600"/>
               <p className="text-sm mb-1">Sales Lead Stage</p>
               <h2 className="text-2xl font-bold">{statusSummary.pending}</h2>
               <p className="text-xs text-gray-500">Workorders waiting to be started</p>
             </div>
             <div className="relative flex flex-col rounded-xl shadow-sm border border-gray-200 p-6">
-              <LuClock className="absolute top-6 right-6 text-blue-600"/>
+              <LuClipboardCheck className="absolute top-6 right-6 text-gray-600"/>
               <p className="text-sm mb-1">Technical Stage</p>
               <h2 className="text-2xl font-bold">{statusSummary.inProgress}</h2>
               <p className="text-xs text-gray-500">Workorders currently active</p>
             </div>
             <div className="relative flex flex-col rounded-xl shadow-sm border border-gray-200 p-6">
-              <LuCheck className="absolute top-6 right-6 text-green-600"/>
+              <LuChartLine className="absolute top-6 right-6 text-gray-600"/>
               <p className="text-sm mb-1">RFQ/NAEF/Quotation</p>
               <h2 className="text-2xl font-bold">{statusSummary.completed}</h2>
               <p className="text-xs text-gray-500">Successfully completed salesleads</p>
             </div>
             <div className="relative flex flex-col rounded-xl shadow-sm border border-gray-200 p-6">
-              <LuCheck className="absolute top-6 right-6 text-green-600"/>
+              <LuClock className="absolute top-6 right-6 text-gray-600"/>
               <p className="text-sm mb-1">High Urgency</p>
               <h2 className="text-2xl font-bold">{statusSummary.completed}</h2>
               <p className="text-xs text-gray-500">Successfully completed salesleads</p>
@@ -309,7 +315,7 @@ export default function SalesLeadsPage() {
 
       {/* Details Drawer */}
       <div
-        className={`absolute top-0 right-0 h-full w-full bg-white shadow-xl transition-all duration-300 ${
+        className={`absolute overflow-auto top-0 right-0 h-full w-full bg-white shadow-xl transition-all duration-300 ${
           selectedSL && !editingSL
             ? "translate-x-0 opacity-100"
             : "translate-x-full opacity-0"

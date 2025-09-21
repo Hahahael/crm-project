@@ -1,5 +1,6 @@
 //src/pages/WorkOrdersPage
 import { useState, useEffect, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 import { LuBell, LuCheck, LuCircleAlert, LuClipboardList, LuClock, LuPlus, LuSearch, LuX } from "react-icons/lu";
 import WorkOrdersTable from "../components/WorkOrdersTable";
 import WorkOrderDetails from "../components/WorkOrderDetails";
@@ -7,6 +8,9 @@ import WorkOrderForm from "../components/WorkOrderForm";
 import { apiBackendFetch } from "../services/api";
 
 export default function WorkOrdersPage() {
+  const timeoutRef = useRef();
+  const navigate = useNavigate();
+  
   const [workOrders, setWorkOrders] = useState([]);
   const [search, setSearch] = useState("");
   const [selectedWO, setSelectedWO] = useState(null);
@@ -23,7 +27,6 @@ export default function WorkOrdersPage() {
     inProgress: 0,
     completed: 0,
   });
-  const timeoutRef = useRef();
 
   const fetchAllData = async () => {
     try {
@@ -326,6 +329,7 @@ export default function WorkOrdersPage() {
               );
               fetchNewAssignedWorkOrders(); // <-- refresh from backend
             }}
+            toSalesLead={(passedWO) => navigate('/salesleads', { state: { workOrderId: passedWO?.id } })}
           />
         )}
       </div>
