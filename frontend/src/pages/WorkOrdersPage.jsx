@@ -19,7 +19,6 @@ export default function WorkOrdersPage() {
   const [error, setError] = useState(null);
   const [successMessage, setSuccessMessage] = useState("");
   const [currentUser, setCurrentUser] = useState(null);
-  const [assignedWorkOrders, setAssignedWorkOrders] = useState([]);
   const [newAssignedWorkOrders, setNewAssignedWorkOrders] = useState([]);
   const [statusSummary, setStatusSummary] = useState({
     total: 0,
@@ -119,11 +118,30 @@ export default function WorkOrdersPage() {
       if (!response.ok) throw new Error("Failed to save workorder");
 
       const savedWorkOrder = await response.json();
-      
-      setSuccessMessage("Work order saved successfully!"); // ✅ trigger success message
+
+      // If creating, also create the initial workflow stage
+      if (mode !== "edit") {
+        await apiBackendFetch("/api/workflow-stages", {
+          method: "POST",
+          body: JSON.stringify({
+            woId: savedWorkOrder.id,
+            stageName: "Work Order",
+            status: "Pending",
+            assignedTo: savedWorkOrder.assignee,
+          }),
+        });
+      }
+
+      // Fetch all workflow stages and log them
+      const stagesRes = await apiBackendFetch("/api/workflow-stages");
+      if (stagesRes.ok) {
+        const allStages = await stagesRes.json();
+        console.log("All workflow stages:", allStages);
+      }
+
+      setSuccessMessage("Work order saved successfully!");
       await fetchAllData();
       setSelectedWO(savedWorkOrder);
-
       setEditingWO(null);
     } catch (err) {
       console.error("Error saving workorder:", err);

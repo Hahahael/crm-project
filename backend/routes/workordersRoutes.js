@@ -57,7 +57,10 @@ router.get("/assigned/new", async (req, res) => {
        FROM workorders w
        LEFT JOIN users u ON w.assignee = u.id
        WHERE u.username = $1
-         AND w.actual_date IS NULL
+         AND NOT EXISTS (
+           SELECT 1 FROM workflow_stages ws
+           WHERE ws.wo_id = w.id AND ws.stage_name = 'Sales Lead'
+         )
        ORDER BY w.id ASC`,
       [username]
     );

@@ -113,25 +113,68 @@ export default function SalesLeadsPage() {
   );
 
   const handleSave = async (formData, mode) => {
-    console.log("Saving saleslead:", formData, "Mode:", mode);
     try {
-      console.log(formData.id);
       const response = await apiBackendFetch(
         mode === "edit" ? `/api/salesleads/${formData.id}` : "/api/salesleads",
         {
           method: mode === "edit" ? "PUT" : "POST",
-          body: mode === "edit" ? JSON.stringify(formData) : JSON.stringify({...formData, workorderId: formData.id, assignee: currentUser.id }), // include woId for backend processing
+          body: mode === "edit"
+            ? JSON.stringify(formData)
+            : JSON.stringify({
+                ...formData,
+                workorderId: formData.id,
+                assignee: currentUser.id,
+              }),
         }
       );
 
       if (!response.ok) throw new Error("Failed to save saleslead");
-
       const savedSalesLead = await response.json();
-      
-      setSuccessMessage("Sales Lead saved successfully!"); // ✅ trigger success message
+
+      if (mode === "edit") {
+        // Fetch the workflow stage for this workorder and stage name
+        const wsRes = await apiBackendFetch(
+          `/api/workflowstages/workorder/${savedSalesLead.workorderId}`
+        );
+        if (wsRes.ok) {
+          const stages = await wsRes.json();
+          // Find the "Sales Lead" stage
+          const salesLeadStage = stages.find(
+            s => s.stage_name === "Sales Lead"
+          );
+          if (salesLeadStage) {
+            await apiBackendFetch(`/api/workflowstages/${salesLeadStage.stage_id}`, {
+              method: "PUT",
+              body: JSON.stringify({
+                status: savedSalesLead.status || "Pending",
+                assigned_to: savedSalesLead.assignee,
+              }),
+            });
+          }
+        }
+      } else {
+        // Create a new workflow stage for this sales lead
+        await apiBackendFetch("/api/workflowstages", {
+          method: "POST",
+          body: JSON.stringify({
+            wo_id: savedSalesLead.workorderId,
+            stage_name: "Sales Lead",
+            status: savedSalesLead.status || "Pending",
+            assigned_to: savedSalesLead.assignee,
+          }),
+        });
+      }
+
+      // Fetch all workflow stages and log them
+      const stagesRes = await apiBackendFetch("/api/workflow-stages");
+      if (stagesRes.ok) {
+        const allStages = await stagesRes.json();
+        console.log("All workflow stages:", allStages);
+      }
+
+      setSuccessMessage("Sales Lead saved successfully!");
       await fetchAllData();
       setSelectedSL(savedSalesLead);
-
       setEditingSL(null);
     } catch (err) {
       console.error("Error saving saleslead:", err);

@@ -3,3 +3,4 @@ dist/
 coverage/
 mock/
 *.code-workspace
+*.xlsx

@@ -59,6 +59,55 @@ mem.public.none(`
     status_name TEXT
   );
 
+  CREATE TABLE accounts (
+    id SERIAL PRIMARY KEY,
+    account_id VARCHAR(20) UNIQUE NOT NULL,
+    date_created TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    requested_by INT REFERENCES users(id) ON DELETE SET NULL,
+    designation VARCHAR(100),
+    department VARCHAR(100),
+    validity_period VARCHAR(50),
+    due_date DATE,
+    account_name VARCHAR(255) NOT NULL,
+    contract_period VARCHAR(50),
+    industry VARCHAR(100),
+    account_designation VARCHAR(100),
+    product TEXT,
+    contact_number VARCHAR(20),
+    location VARCHAR(255),
+    email_address VARCHAR(100),
+    address TEXT,
+    buyer_incharge VARCHAR(100),
+    trunkline VARCHAR(20),
+    contract_number VARCHAR(50),
+    process VARCHAR(100),
+    secondary_email_address VARCHAR(100),
+    machines TEXT,
+    reason_to_apply TEXT,
+    automotive_section TEXT,
+    source_of_inquiry VARCHAR(100),
+    commodity TEXT,
+    business_activity VARCHAR(100),
+    model VARCHAR(100),
+    annual_target_sales NUMERIC(12, 2) CHECK (annual_target_sales >= 0),
+    population TEXT,
+    source_of_target VARCHAR(100),
+    existing_bellows TEXT,
+    products_to_order TEXT,
+    model_under TEXT,
+    target_areas TEXT,
+    analysis TEXT,
+    from_date DATE,
+    to_date DATE,
+    activity_period VARCHAR(50),
+    prepared_by INT REFERENCES users(id) ON DELETE SET NULL,
+    noted_by INT REFERENCES users(id) ON DELETE SET NULL,
+    approved_by INT REFERENCES users(id) ON DELETE SET NULL,
+    received_by INT REFERENCES users(id) ON DELETE SET NULL,
+    acknowledged_by INT REFERENCES users(id) ON DELETE SET NULL,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  );
+
   -- WORKORDERS TABLE
   CREATE TABLE workorders (
     id SERIAL PRIMARY KEY,
@@ -115,8 +164,8 @@ mem.public.none(`
   -- SALES LEADS TABLE (based on your requirements)
   CREATE TABLE sales_leads (
     id SERIAL PRIMARY KEY,
-    sl_number VARCHAR(20) UNIQUE NOT NULL, -- FSL-YYYY-NNNN, auto-generated
-    workorder_id INT REFERENCES workorders(id) ON DELETE SET NULL,
+    sl_number VARCHAR(20) UNIQUE NOT NULL,
+    wo_id INT REFERENCES workorders(id) ON DELETE SET NULL,
     assignee INT REFERENCES users(id) ON DELETE SET NULL,
     end_user VARCHAR(100) NOT NULL,
     department VARCHAR(75) NOT NULL,
@@ -194,10 +243,91 @@ mem.public.none(`
     uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
   );
 
-  -- Indexes for performance
-  CREATE INDEX idx_workorders_wo_number ON workorders(wo_number);
-  CREATE INDEX idx_sales_leads_sl_number ON sales_leads(sl_number);
-  CREATE INDEX idx_sales_leads_se_id ON sales_leads(se_id);
+  -- TECHNICAL RECOMMENDATIONS TABLE
+  CREATE TABLE technical_recommendations (
+    id SERIAL PRIMARY KEY,
+    wo_id INT REFERENCES workorders(id) ON DELETE SET NULL,
+    assignee INT REFERENCES users(id) ON DELETE SET NULL,
+    tr_number VARCHAR(20) UNIQUE NOT NULL, -- TR-YYYY-NNNN, auto-generated
+    status VARCHAR(50) DEFAULT 'Open',
+    priority VARCHAR(50) DEFAULT 'Medium',
+    title VARCHAR(255) NOT NULL,
+    sl_id INT REFERENCES sales_leads(id) ON DELETE SET NULL,
+    account_id INT REFERENCES accounts(id) ON DELETE SET NULL,
+    contact_person VARCHAR(100),
+    contact_number VARCHAR(20),
+    contact_email VARCHAR(100),
+    current_system TEXT,
+    current_system_issues TEXT,
+    proposed_solution TEXT,
+    technical_justification TEXT,
+    installation_requirements TEXT,
+    training_requirements TEXT,
+    maintenance_requirements TEXT,
+    attachments JSONB,
+    additional_notes TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    created_by INT REFERENCES users(id) ON DELETE SET NULL,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  );
+`);
+
+mem.public.none(`
+
+  -- TECHNICAL RECOMMENDATION PRODUCTS
+  CREATE TABLE technical_recommendation_products (
+    id SERIAL PRIMARY KEY,
+    technical_recommendation_id INT REFERENCES technical_recommendations(id) ON DELETE CASCADE,
+    product_name VARCHAR(100) NOT NULL,
+    model VARCHAR(100),
+    description TEXT,
+    quantity INT NOT NULL DEFAULT 1 CHECK (quantity > 0),
+    unit_price NUMERIC(12, 2) CHECK (unit_price >= 0),
+    total_price NUMERIC(12, 2)
+  );
+
+  -- RFQS
+  CREATE TABLE rfqs (
+    id SERIAL PRIMARY KEY,
+    wo_id INT REFERENCES workorders(id) ON DELETE SET NULL,
+    assignee INT REFERENCES users(id) ON DELETE SET NULL,
+    rfq_number VARCHAR(20) UNIQUE NOT NULL,
+    rfq_date DATE NOT NULL,
+    due_date DATE,
+    description TEXT,
+    sl_id INT REFERENCES sales_leads(id) ON DELETE SET NULL,
+    account_id INT REFERENCES accounts(id) ON DELETE SET NULL,
+    payment_terms VARCHAR(100),
+    notes TEXT,
+    subtotal NUMERIC(12, 2) CHECK (subtotal >= 0),
+    vat NUMERIC(12, 2) CHECK (vat >= 0),
+    grand_total NUMERIC(12, 2) CHECK (grand_total >= 0),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    created_by INT REFERENCES users(id) ON DELETE SET NULL,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  );
+
+  CREATE TABLE rfq_items (
+    id SERIAL PRIMARY KEY,
+    rfq_id INT REFERENCES rfqs(id) ON DELETE CASCADE,
+    description TEXT NOT NULL,
+    brand VARCHAR(100),
+    part_number VARCHAR(100),
+    quantity INT NOT NULL DEFAULT 1 CHECK (quantity > 0),
+    unit VARCHAR(50),
+    lead_time VARCHAR(100),
+    unit_price NUMERIC(12, 2) CHECK (unit_price >= 0),
+    amount NUMERIC(12, 2)
+  );
+
+  CREATE TABLE naef_timelines (
+    id SERIAL PRIMARY KEY,
+    account_id INT REFERENCES accounts(id) ON DELETE CASCADE,
+    week_number INT NOT NULL,
+    update_description TEXT,
+    probability VARCHAR(50),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  );
 `);
 
 // seed data ...
@@ -218,7 +348,7 @@ for (const u of users) {
       '${esc(u.lastName)}',
       '${esc(u.username)}',
       '${esc(u.email)}',
-      '${esc(u.phomeNumber)}',
+      '${esc(u.phoneNumber)}',
       '${esc(u.role)}',
       '${esc(u.department)}',
       '${esc(u.status)}',
@@ -311,7 +441,7 @@ for (const sl of salesLeads) {
     `
     INSERT INTO sales_leads (
       sl_number,
-      workorder_id,
+      wo_id,
       assignee,
       sales_stage,
       end_user,

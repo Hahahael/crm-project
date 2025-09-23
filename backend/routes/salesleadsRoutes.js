@@ -96,7 +96,7 @@ router.post("/", async (req, res) => {
       remarks,
       actual_picture,
       draft_design_layout,
-      workorder_id,
+      wo_id,
       assignee
     } = body;
 
@@ -123,7 +123,7 @@ router.post("/", async (req, res) => {
     // Insert into DB
     const insertResult = await db.query(
       `INSERT INTO sales_leads 
-        (sl_number, sales_stage, end_user, designation, department, immediate_support, contact_no, email_address, category, application, machine, machine_process, needed_product, existing_specifications, issues_with_existing, consideration, support_needed, urgency, model_to_quote, quantity, quantity_attention, qr_cc, qr_email_to, next_followup_date, due_date, done_date, account, industry, se_id, sales_plan_rep, fsl_ref, fsl_date, fsl_time, fsl_location, ww, requirement, requirement_category, deadline, product_application, customer_issues, existing_setup_items, customer_suggested_setup, remarks, actual_picture, draft_design_layout, workorder_id, assignee, created_at, updated_at)
+        (sl_number, sales_stage, end_user, designation, department, immediate_support, contact_no, email_address, category, application, machine, machine_process, needed_product, existing_specifications, issues_with_existing, consideration, support_needed, urgency, model_to_quote, quantity, quantity_attention, qr_cc, qr_email_to, next_followup_date, due_date, done_date, account, industry, se_id, sales_plan_rep, fsl_ref, fsl_date, fsl_time, fsl_location, ww, requirement, requirement_category, deadline, product_application, customer_issues, existing_setup_items, customer_suggested_setup, remarks, actual_picture, draft_design_layout, wo_id, assignee, created_at, updated_at)
         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,$32,$33,$34,$35,$36,$37,$38,$39,$40,$41,$42,$43,$44,$45,$46,$47,NOW(),NOW())
         RETURNING id`,
       [
@@ -172,7 +172,7 @@ router.post("/", async (req, res) => {
         remarks,
         actual_picture,
         draft_design_layout,
-        workorder_id || null,
+        wo_id || null,
         assignee || null
       ]
     );
