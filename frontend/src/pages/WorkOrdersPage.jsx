@@ -263,25 +263,25 @@ export default function WorkOrdersPage() {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
             <div className="relative flex flex-col rounded-xl shadow-sm border border-gray-200 p-6">
               <LuClipboardList className="absolute top-6 right-6 text-gray-600"/>
-              <p className="text-sm mb-1">Total Workorders</p>
+              <p className="text-sm mb-1 mr-4">Total Workorders</p>
               <h2 className="text-2xl font-bold">{statusSummary.total}</h2>
               <p className="text-xs text-gray-500">All workorders in the system</p>
             </div>
             <div className="relative flex flex-col rounded-xl shadow-sm border border-gray-200 p-6">
               <LuClock className="absolute top-6 right-6 text-yellow-600"/>
-              <p className="text-sm mb-1">Pending</p>
+              <p className="text-sm mb-1 mr-4">Pending</p>
               <h2 className="text-2xl font-bold">{statusSummary.pending}</h2>
               <p className="text-xs text-gray-500">Workorders waiting to be started</p>
             </div>
             <div className="relative flex flex-col rounded-xl shadow-sm border border-gray-200 p-6">
               <LuClock className="absolute top-6 right-6 text-blue-600"/>
-              <p className="text-sm mb-1">In Progress</p>
+              <p className="text-sm mb-1 mr-4">In Progress</p>
               <h2 className="text-2xl font-bold">{statusSummary.inProgress}</h2>
               <p className="text-xs text-gray-500">Workorders currently active</p>
             </div>
             <div className="relative flex flex-col rounded-xl shadow-sm border border-gray-200 p-6">
               <LuCheck className="absolute top-6 right-6 text-green-600"/>
-              <p className="text-sm mb-1">Completed</p>
+              <p className="text-sm mb-1 mr-4">Completed</p>
               <h2 className="text-2xl font-bold">{statusSummary.completed}</h2>
               <p className="text-xs text-gray-500">Successfully completed workorders</p>
             </div>

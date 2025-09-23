@@ -6,6 +6,7 @@ import UsersPage from "./pages/UsersPage";
 import Layout from "./components/Layout";
 import WorkOrdersPage from "./pages/WorkOrdersPage";
 import SalesLeadsPage from "./pages/SalesLeadsPage";
+import TechnicalsPage from "./pages/TechnicalsPage";
 
 function App() {
   return (
@@ -40,6 +41,14 @@ function App() {
             element={
               <ProtectedRoute>
                 <SalesLeadsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/tech-reco"
+            element={
+              <ProtectedRoute>
+                <TechnicalsPage />
               </ProtectedRoute>
             }
           />

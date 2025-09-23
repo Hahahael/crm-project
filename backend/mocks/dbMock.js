@@ -9,6 +9,8 @@ import { departments } from "./departmentsMock.js";
 import { statuses } from "./statusesMock.js";
 import { workorders } from "./workordersMock.js";
 import { salesLeads } from "./salesleadsMocks.js";
+import { technicalRecommendations } from "./technicalrecommendationsMock.js";
+import { workflowStages } from "./workflowstagesMocks.js";
 
 let pool;
 
@@ -59,6 +61,8 @@ mem.public.none(`
     status_name TEXT
   );
 
+  /*
+  -- ACCOUNTS TABLE (commented out for now)
   CREATE TABLE accounts (
     id SERIAL PRIMARY KEY,
     account_id VARCHAR(20) UNIQUE NOT NULL,
@@ -107,6 +111,7 @@ mem.public.none(`
     acknowledged_by INT REFERENCES users(id) ON DELETE SET NULL,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
   );
+  */
 
   -- WORKORDERS TABLE
   CREATE TABLE workorders (
@@ -253,7 +258,8 @@ mem.public.none(`
     priority VARCHAR(50) DEFAULT 'Medium',
     title VARCHAR(255) NOT NULL,
     sl_id INT REFERENCES sales_leads(id) ON DELETE SET NULL,
-    account_id INT REFERENCES accounts(id) ON DELETE SET NULL,
+  -- account_id INT REFERENCES accounts(id) ON DELETE SET NULL,
+  account_id TEXT,
     contact_person VARCHAR(100),
     contact_number VARCHAR(20),
     contact_email VARCHAR(100),
@@ -296,7 +302,8 @@ mem.public.none(`
     due_date DATE,
     description TEXT,
     sl_id INT REFERENCES sales_leads(id) ON DELETE SET NULL,
-    account_id INT REFERENCES accounts(id) ON DELETE SET NULL,
+  -- account_id INT REFERENCES accounts(id) ON DELETE SET NULL,
+  account_id TEXT,
     payment_terms VARCHAR(100),
     notes TEXT,
     subtotal NUMERIC(12, 2) CHECK (subtotal >= 0),
@@ -322,7 +329,8 @@ mem.public.none(`
 
   CREATE TABLE naef_timelines (
     id SERIAL PRIMARY KEY,
-    account_id INT REFERENCES accounts(id) ON DELETE CASCADE,
+  -- account_id INT REFERENCES accounts(id) ON DELETE CASCADE,
+  account_id TEXT,
     week_number INT NOT NULL,
     update_description TEXT,
     probability VARCHAR(50),
@@ -539,6 +547,62 @@ for (const sl of salesLeads) {
       NULL,
       '${sl.createdAt}',
       '${sl.updatedAt}'
+    )
+    `
+  );
+}
+
+for (const tr of technicalRecommendations) {
+  mem.public.none(
+    `
+    INSERT INTO technical_recommendations (
+      wo_id, assignee, tr_number, status, priority, title, sl_id, account_id,
+      contact_person, contact_number, contact_email, current_system, current_system_issues,
+      proposed_solution, technical_justification, installation_requirements, training_requirements,
+      maintenance_requirements, attachments, additional_notes, created_at, created_by, updated_at
+    ) VALUES (
+      ${tr.woId},
+      ${tr.assignee},
+      '${tr.trNumber}',
+      '${tr.status}',
+      '${tr.priority}',
+      '${tr.title}',
+      ${tr.slId},
+      ${tr.accountId},
+      '${tr.contactPerson}',
+      '${tr.contactNumber}',
+      '${tr.contactEmail}',
+      '${tr.currentSystem}',
+      '${tr.currentSystemIssues}',
+      '${tr.proposedSolution}',
+      '${tr.technicalJustification}',
+      '${tr.installationRequirements}',
+      '${tr.trainingRequirements}',
+      '${tr.maintenanceRequirements}',
+      ${tr.attachments ? `'${tr.attachments}'` : 'NULL'},
+      '${tr.additionalNotes}',
+      '${tr.createdAt}',
+      ${tr.createdBy},
+      '${tr.updatedAt}'
+    )
+    `
+  );
+}
+
+for (const ws of workflowStages) {
+  mem.public.none(
+    `
+    INSERT INTO workflow_stages (
+      stage_id, wo_id, stage_name, status, assigned_to, notified, created_at, updated_at
+    ) VALUES (
+      ${ws.stageId},
+      ${ws.woId},
+      '${ws.stageName}',
+      '${ws.status}',
+      ${ws.assignedTo},
+      ${ws.notified ? 'TRUE' : 'FALSE'},
+      '${ws.createdAt}',
+      '${ws.updatedAt}'
     )
     `
   );

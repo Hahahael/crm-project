@@ -69,7 +69,7 @@ export default function SalesLeadsPage() {
 
   const fetchAssignedSalesLeads = async () => {
     try {
-      const res = await apiBackendFetch("/api/salesleads/assigned");
+      const res = await apiBackendFetch(`/api/salesleads/${currentUser.id}`);
       if (res.ok) {
         const data = await res.json();
         setAssignedSalesLeads(data);
@@ -296,31 +296,31 @@ export default function SalesLeadsPage() {
           <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
             <div className="relative flex flex-col rounded-xl shadow-sm border border-gray-200 p-6">
               <LuChartColumn className="absolute top-6 right-6 text-gray-600"/>
-              <p className="text-sm mb-1">Total Leads</p>
+              <p className="text-sm mb-1 mr-4">Total Leads</p>
               <h2 className="text-2xl font-bold">{statusSummary.total}</h2>
               <p className="text-xs text-gray-500">All salesleads in the system</p>
             </div>
             <div className="relative flex flex-col rounded-xl shadow-sm border border-gray-200 p-6">
               <LuFileText className="absolute top-6 right-6 text-gray-600"/>
-              <p className="text-sm mb-1">Sales Lead Stage</p>
+              <p className="text-sm mb-1 mr-4">Sales Lead Stage</p>
               <h2 className="text-2xl font-bold">{statusSummary.pending}</h2>
               <p className="text-xs text-gray-500">Workorders waiting to be started</p>
             </div>
             <div className="relative flex flex-col rounded-xl shadow-sm border border-gray-200 p-6">
               <LuClipboardCheck className="absolute top-6 right-6 text-gray-600"/>
-              <p className="text-sm mb-1">Technical Stage</p>
+              <p className="text-sm mb-1 mr-4">Technical Stage</p>
               <h2 className="text-2xl font-bold">{statusSummary.inProgress}</h2>
               <p className="text-xs text-gray-500">Workorders currently active</p>
             </div>
             <div className="relative flex flex-col rounded-xl shadow-sm border border-gray-200 p-6">
               <LuChartLine className="absolute top-6 right-6 text-gray-600"/>
-              <p className="text-sm mb-1">RFQ/NAEF/Quotation</p>
+              <p className="text-sm mb-1 mr-4">RFQ / NAEF / Quotation</p>
               <h2 className="text-2xl font-bold">{statusSummary.completed}</h2>
               <p className="text-xs text-gray-500">Successfully completed salesleads</p>
             </div>
             <div className="relative flex flex-col rounded-xl shadow-sm border border-gray-200 p-6">
               <LuClock className="absolute top-6 right-6 text-gray-600"/>
-              <p className="text-sm mb-1">High Urgency</p>
+              <p className="text-sm mb-1 mr-5">High Urgency</p>
               <h2 className="text-2xl font-bold">{statusSummary.completed}</h2>
               <p className="text-xs text-gray-500">Successfully completed salesleads</p>
             </div>

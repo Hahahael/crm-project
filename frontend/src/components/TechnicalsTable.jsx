@@ -1,9 +1,9 @@
-//src/components/WorkOrdersTable
+//src/components/TechnicalsTable
 import { LuEllipsis, LuEye, LuPencil, LuTrash } from "react-icons/lu";
 import util from "../helper/utils.js"
 import config from "../config.js";
 
-export default function SalesLeadsTable({ technicals, onView, onEdit }) {
+export default function TechnicalsTable({ technicals, onView, onEdit }) {
   return (
     <div className="relative overflow-x-auto rounded-lg border border-gray-200 bg-white">
       <table className="w-full border-collapse text-left text-sm min-w-4xl">
@@ -26,13 +26,12 @@ export default function SalesLeadsTable({ technicals, onView, onEdit }) {
           {technicals.map((tr) => (
             <tr key={tr.id} className="hover:bg-gray-50 transition-all duration-200">
               <td className="px-4 py-2 text-black text-sm">{tr.trNumber}</td>
-              <td className="px-4 py-2 text-black text-sm">{tr.account}</td>
+              <td className="px-4 py-2 text-black text-sm">{tr.accountId}</td>
               <td className="px-4 py-2 text-black text-sm">{tr.title}</td>
               <td className="px-4 py-2 text-black text-sm">{tr.status}</td>
               <td className="px-4 py-2 text-black text-sm">{tr.priority}</td>
-              <td className="px-4 py-2 text-black text-sm">{tr.createdDate}</td>
-              <td className="px-4 py-2 text-black text-sm">{tr.lastModified}</td>
-              <td className="px-4 py-2 text-black text-sm">{util.formatDate(tr.followUpDate, "DD/MM/YYYY")}</td>
+              <td className="px-4 py-2 text-black text-sm">{util.formatDate(tr.createdAt, "DD/MM/YYYY")}</td>
+              <td className="px-4 py-2 text-black text-sm">{util.formatDate(tr.updatedAt, "DD/MM/YYYY")}</td>
               <td className="px-4 py-2 text-black text-sm">{util.formatDate(tr.dueDate, "DD/MM/YYYY")}</td>
               <td className="px-4 py-2 text-black text-sm">{util.formatDate(tr.doneDate, "DD/MM/YYYY")}</td>
               <td className="px-4 py-2 text-black text-sm">{tr.taskStatus}</td>

@@ -25,7 +25,7 @@ export default function TechnicalsPage() {
     const location = useLocation();
     const workOrderId = location.state?.workOrderId;
 
-    const [salesLeads, setSalesLeads] = useState([]);
+    const [technicalRecos, setTechnicalRecos] = useState([]);
     const [search, setSearch] = useState("");
     const [selectedSL, setSelectedSL] = useState(null);
     const [editingSL, setEditingSL] = useState(workOrderId || null);
@@ -33,7 +33,7 @@ export default function TechnicalsPage() {
     const [error, setError] = useState(null);
     const [successMessage, setSuccessMessage] = useState("");
     const [currentUser, setCurrentUser] = useState(null);
-    const [assignedSalesLeads, setAssignedSalesLeads] = useState([]);
+    const [assignedTechnicalRecos, setAssignedTechnicalRecos] = useState([]);
     const [statusSummary, setStatusSummary] = useState({
         total: 0,
         pending: 0,
@@ -43,24 +43,24 @@ export default function TechnicalsPage() {
 
     const fetchAllData = async () => {
         try {
-            const salesLeadsRes = await apiBackendFetch("/api/salesleads");
-            if (!salesLeadsRes.ok) throw new Error("Failed to fetch Sales Leads");
+            const technicalRecosRes = await apiBackendFetch("/api/technicals");
+            if (!technicalRecosRes.ok) throw new Error("Failed to fetch Technical Recommendations");
 
-            const salesLeadsData = await salesLeadsRes.json();
-            setSalesLeads(salesLeadsData);
+            const technicalRecosData = await technicalRecosRes.json();
+            setTechnicalRecos(technicalRecosData);
+            console.log("Fetched technical recommendations:", technicalRecosData);
 
             // Fetch status summary
-            const summaryRes = await apiBackendFetch("/api/salesleads/summary/status");
-            if (summaryRes.ok) {
-                const summaryData = await summaryRes.json();
-                setStatusSummary({
-                    total: Number(summaryData.total) || 0,
-                    pending: Number(summaryData.pending) || 0,
-                    inProgress: Number(summaryData.inProgress) || 0,
-                    completed: Number(summaryData.completed) || 0,
-                });
-            }
-
+            // const summaryRes = await apiBackendFetch("/api/technicals/summary/status");
+            // if (summaryRes.ok) {
+            //     const summaryData = await summaryRes.json();
+            //     setStatusSummary({
+            //         total: Number(summaryData.total) || 0,
+            //         pending: Number(summaryData.pending) || 0,
+            //         inProgress: Number(summaryData.inProgress) || 0,
+            //         completed: Number(summaryData.completed) || 0,
+            //     });
+            // }
             setLoading(false);
         } catch (err) {
             console.error("Error retrieving salesleads:", err);
@@ -82,13 +82,13 @@ export default function TechnicalsPage() {
 
     const fetchAssignedSalesLeads = async () => {
         try {
-            const res = await apiBackendFetch("/api/salesleads/assigned");
+            const res = await apiBackendFetch(`/api/technicals/${currentUser.id}`);
             if (res.ok) {
                 const data = await res.json();
-                setAssignedSalesLeads(data);
+                setAssignedTechnicalRecos(data);
             }
         } catch (err) {
-            console.error("Failed to fetch assigned salesleads", err);
+            console.error("Failed to fetch assigned technical recommendations", err);
         }
     };
 
@@ -109,14 +109,14 @@ export default function TechnicalsPage() {
         }
     }, [successMessage]);
 
-    const newAssignedSalesLeads = currentUser
-        ? salesLeads.filter((wo) => wo.assigneeUsername === currentUser.username && wo.status === "Pending")
+    const newAssignedTechnicalRecos = currentUser
+        ? technicalRecos.filter((wo) => wo.assigneeUsername === currentUser.username && wo.status === "Pending")
         : [];
 
     if (loading) return <p className="p-4">Loading...</p>;
     if (error) return <p className="p-4 text-red-600">{error}</p>;
 
-    const filtered = salesLeads.filter(
+    const filtered = technicalRecos.filter(
         (wo) => wo.woNumber?.toLowerCase().includes(search.toLowerCase()) || (wo.accountName || "").toLowerCase().includes(search.toLowerCase())
     );
 
@@ -124,7 +124,7 @@ export default function TechnicalsPage() {
         console.log("Saving saleslead:", formData, "Mode:", mode);
         try {
             console.log(formData.id);
-            const response = await apiBackendFetch(mode === "edit" ? `/api/salesleads/${formData.id}` : "/api/salesleads", {
+            const response = await apiBackendFetch(mode === "edit" ? `/api/technicals/${formData.id}` : "/api/technicals", {
                 method: mode === "edit" ? "PUT" : "POST",
                 body:
                     mode === "edit" ? JSON.stringify(formData) : JSON.stringify({ ...formData, workorderId: formData.id, assignee: currentUser.id }), // include woId for backend processing
@@ -177,7 +177,7 @@ export default function TechnicalsPage() {
                     </div>
 
                     {/* Banner Notifications */}
-                    {currentUser && assignedSalesLeads.length > 1 && (
+                    {currentUser && assignedTechnicalRecos.length > 1 && (
                         <div className="flex border-blue-200 border-2 rounded-xl p-4 mb-6 bg-blue-50 items-start justify-between text-card-foreground shadow-lg animate-pulse">
                             <div className="flex space-x-3">
                                 <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-100">
@@ -187,17 +187,17 @@ export default function TechnicalsPage() {
                                     <div className="flex items-center space-x-2 mb-2">
                                         <LuCircleAlert className="h-4 w-4 text-blue-600" />
                                         <p className="text-sm font-semibold text-blue-800">
-                                            {`You have ${assignedSalesLeads.length} new sales lead${
-                                                assignedSalesLeads.length > 1 ? "s" : ""
+                                            {`You have ${assignedTechnicalRecos.length} new technical recommendation${
+                                                assignedTechnicalRecos.length > 1 ? "s" : ""
                                             } assigned to you`}
                                         </p>
                                     </div>
                                     <div className="space-y-1">
-                                        <p className="text-sm text-gray-900">{assignedSalesLeads.map((wo) => wo.woNumber).join(", ")}</p>
+                                        <p className="text-sm text-gray-900">{assignedTechnicalRecos.map((wo) => wo.woNumber).join(", ")}</p>
                                     </div>
                                     <div className="mt-3">
                                         <button
-                                            onClick={() => setSelectedSL(assignedSalesLeads[0])}
+                                            onClick={() => setSelectedSL(assignedTechnicalRecos[0])}
                                             className="inline-flex items-center justify-center whitespace-nowrap font-medium transition-colors shadow h-8 rounded-md px-3 text-xs bg-orange-600 hover:bg-orange-700 text-white cursor-pointer">
                                             View First Sales Lead
                                         </button>
@@ -213,7 +213,7 @@ export default function TechnicalsPage() {
                             </button>
                         </div>
                     )}
-                    {currentUser && assignedSalesLeads.length === 1 && (
+                    {currentUser && assignedTechnicalRecos.length === 1 && (
                         <div className="flex border-blue-200 border-2 rounded-xl p-4 mb-6 bg-blue-50 items-start justify-between text-card-foreground shadow-lg animate-pulse">
                             <div className="flex space-x-3">
                                 <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-100">
@@ -229,10 +229,10 @@ export default function TechnicalsPage() {
                                     </div>
                                     <div className="space-y-1">
                                         <p className="text-sm font-medium text-gray-900">
-                                            {assignedSalesLeads[0].woNumber} - {assignedSalesLeads[0].workDescription}
+                                            {assignedTechnicalRecos[0].woNumber} - {assignedTechnicalRecos[0].workDescription}
                                         </p>
-                                        <p className="text-sm text-gray-600">Account: {assignedSalesLeads[0].accountName}</p>
-                                        <p className="text-sm text-gray-600">Contact: {assignedSalesLeads[0].contactPerson}</p>
+                                        <p className="text-sm text-gray-600">Account: {assignedTechnicalRecos[0].accountName}</p>
+                                        <p className="text-sm text-gray-600">Contact: {assignedTechnicalRecos[0].contactPerson}</p>
                                     </div>
                                     <div className="mt-3">
                                         <button
@@ -260,31 +260,31 @@ export default function TechnicalsPage() {
                     <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
                         <div className="relative flex flex-col rounded-xl shadow-sm border border-gray-200 p-6">
                             <LuChartColumn className="absolute top-6 right-6 text-gray-600" />
-                            <p className="text-sm mb-1">Total Leads</p>
+                            <p className="text-sm mb-1 mr-4">Total Leads</p>
                             <h2 className="text-2xl font-bold">{statusSummary.total}</h2>
                             <p className="text-xs text-gray-500">All salesleads in the system</p>
                         </div>
                         <div className="relative flex flex-col rounded-xl shadow-sm border border-gray-200 p-6">
                             <LuFileText className="absolute top-6 right-6 text-gray-600" />
-                            <p className="text-sm mb-1">Sales Lead Stage</p>
+                            <p className="text-sm mb-1 mr-4">Sales Lead Stage</p>
                             <h2 className="text-2xl font-bold">{statusSummary.pending}</h2>
                             <p className="text-xs text-gray-500">Workorders waiting to be started</p>
                         </div>
                         <div className="relative flex flex-col rounded-xl shadow-sm border border-gray-200 p-6">
                             <LuClipboardCheck className="absolute top-6 right-6 text-gray-600" />
-                            <p className="text-sm mb-1">Technical Stage</p>
+                            <p className="text-sm mb-1 mr-4">Technical Stage</p>
                             <h2 className="text-2xl font-bold">{statusSummary.inProgress}</h2>
                             <p className="text-xs text-gray-500">Workorders currently active</p>
                         </div>
                         <div className="relative flex flex-col rounded-xl shadow-sm border border-gray-200 p-6">
                             <LuChartLine className="absolute top-6 right-6 text-gray-600" />
-                            <p className="text-sm mb-1">RFQ/NAEF/Quotation</p>
+                            <p className="text-sm mb-1 mr-4">RFQ / NAEF / Quotation</p>
                             <h2 className="text-2xl font-bold">{statusSummary.completed}</h2>
                             <p className="text-xs text-gray-500">Successfully completed salesleads</p>
                         </div>
                         <div className="relative flex flex-col rounded-xl shadow-sm border border-gray-200 p-6">
                             <LuClock className="absolute top-6 right-6 text-gray-600" />
-                            <p className="text-sm mb-1">High Urgency</p>
+                            <p className="text-sm mb-1 mr-5">High Urgency</p>
                             <h2 className="text-2xl font-bold">{statusSummary.completed}</h2>
                             <p className="text-xs text-gray-500">Successfully completed salesleads</p>
                         </div>
@@ -306,7 +306,7 @@ export default function TechnicalsPage() {
                         </div>
 
                         <TechnicalsTable
-                            salesLeads={filtered}
+                            technicals={filtered}
                             onView={(salesLead) => {
                                 setSelectedSL(salesLead);
                                 setEditingSL(null);

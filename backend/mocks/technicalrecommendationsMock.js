@@ -26,7 +26,3 @@ export const technicalRecommendations = [
     updatedAt: "2025-09-22",
   },
 ];
-
-export const workflowStages = [
-  // Example: will be filled in steps 1-3
-];
