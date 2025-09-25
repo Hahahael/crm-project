@@ -395,7 +395,7 @@ export default function SalesLeadsPage() {
             onBack={() => setSelectedSL(null)}
             onEdit={() => setEditingSL(selectedSL)}
             toNextStage={(passedSL, nextStage ) => {
-              navigate(`/${nextStage}`, { state: { woId: passedSL?.woId } });
+              navigate(`/${nextStage}`, { state: { salesLead: { slNumber: passedSL.slNumber, woId: passedSL.woId, slId: passedSL.id } } });
               setSelectedSL(null);
             }}
           />

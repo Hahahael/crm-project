@@ -25,12 +25,12 @@ import { apiBackendFetch } from "../services/api";
 export default function TechnicalsPage() {
     const timeoutRef = useRef();
     const location = useLocation();
-    const woId = location.state?.woId;
+    const salesLead = location.state?.salesLead;
 
     const [technicalRecos, setTechnicalRecos] = useState([]);
     const [search, setSearch] = useState("");
     const [selectedTR, setSelectedTR] = useState(null);
-    const [editingTR, setEditingTR] = useState(woId || null);
+    const [editingTR, setEditingTR] = useState(salesLead || null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [successMessage, setSuccessMessage] = useState("");
@@ -42,6 +42,8 @@ export default function TechnicalsPage() {
         inProgress: 0,
         completed: 0,
     });
+
+    console.log("editingTR:", editingTR);
 
     const fetchAllData = async () => {
         try {
@@ -179,7 +181,6 @@ export default function TechnicalsPage() {
             setSuccessMessage("Technical Recommendation saved successfully!"); // ✅ trigger success message
             await fetchAllData();
             setSelectedTR(savedTechnicalReco);
-
             setEditingTR(null);
         } catch (err) {
             console.error("Error saving technical recommendation:", err);
@@ -343,12 +344,12 @@ export default function TechnicalsPage() {
 
                         <TechnicalsTable
                             technicals={filtered}
-                            onView={(salesLead) => {
-                                setSelectedTR(salesLead);
+                            onView={(technicalReco) => {
+                                setSelectedTR(technicalReco);
                                 setEditingTR(null);
                             }}
-                            onEdit={(salesLead) => {
-                                setEditingTR(salesLead);
+                            onEdit={(technicalReco) => {
+                                setEditingTR(technicalReco);
                                 setSelectedTR(null);
                             }}
                         />
@@ -363,7 +364,7 @@ export default function TechnicalsPage() {
                 }`}>
                 {selectedTR && !editingTR && (
                     <TechnicalDetails
-                        salesLead={selectedTR}
+                        technicalReco={selectedTR}
                         onBack={() => setSelectedTR(null)}
                         onEdit={() => setEditingTR(selectedTR)}
                     />
@@ -377,7 +378,7 @@ export default function TechnicalsPage() {
                 }`}>
                 {editingTR && (
                     <TechnicalForm
-                        salesLead={editingTR}
+                        technicalReco={editingTR}
                         mode={editingTR?.id ? "edit" : "create"}
                         onSave={(formData, mode) => handleSave(formData, mode)}
                         onBack={() => setEditingTR(null)}

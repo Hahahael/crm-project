@@ -51,7 +51,6 @@ router.post("/", async (req, res) => {
     const body = toSnake(req.body);
     console.log("Creating sales lead with data:", body);
     const {
-      sl_number,
       sales_stage,
       end_user,
       designation,
@@ -118,7 +117,7 @@ router.post("/", async (req, res) => {
       newCounter = lastCounter + 1;
     }
 
-    const slNumber = `FSL-${currentYear}-${String(newCounter).padStart(4, "0")}`;
+    const sl_number = `FSL-${currentYear}-${String(newCounter).padStart(4, "0")}`;
 
     // Insert into DB
     const insertResult = await db.query(
@@ -127,7 +126,7 @@ router.post("/", async (req, res) => {
         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,$32,$33,$34,$35,$36,$37,$38,$39,$40,$41,$42,$43,$44,$45,$46,$47,NOW(),NOW())
         RETURNING id`,
       [
-        slNumber,
+        sl_number,
         sales_stage,
         end_user,
         designation,

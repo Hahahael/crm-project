@@ -38,13 +38,13 @@ export default function TechnicalsTable({ technicals, onView, onEdit }) {
               <td className="px-4 py-2 text-black text-sm">
                 <div className="flex gap-2">
                   <button
-                    onClick={() => onView(sl)}
+                    onClick={() => onView(tr)}
                     className="cursor-pointer rounded px-2 py-2 text-black border border-gray-200 bg-white hover:bg-gray-100 transition-all duration-200"
                   >
                     <LuEye className="my-auto" />
                   </button>
                   <button
-                    onClick={() => onEdit(sl)}
+                    onClick={() => onEdit(tr)}
                     className="cursor-pointer rounded px-2 py-1 text-black  border border-gray-200 bg-white hover:bg-gray-100 transition-all duration-200"
                   >
                     <LuPencil className="my-auto" />

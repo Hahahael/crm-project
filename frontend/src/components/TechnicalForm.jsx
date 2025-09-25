@@ -1,16 +1,20 @@
-import React, { useState } from "react";
+import { useState, useEffect, useRef } from "react";
+import { LuArrowLeft, LuCheck, LuSave, LuX } from "react-icons/lu";
+import { apiBackendFetch } from "../services/api";
+import utils from "../helper/utils.js";
 
 const TechnicalForm = ({ technicalReco, mode = "create", onSave, onBack }) => {
+    const [errors, setErrors] = useState(null);
     const [formData, setFormData] = useState({
         trNumber: "",
         status: "Draft",
         priority: "Medium",
         title: "",
-        salesLeadRef: "",
-        customerName: "",
+        slId: "",
+        accountId: "",
         contactPerson: "",
         contactEmail: "",
-        contactPhone: "",
+        contactNumber: "",
         currentSystem: "",
         currentSystemIssues: "",
         proposedSolution: "",
@@ -20,290 +24,566 @@ const TechnicalForm = ({ technicalReco, mode = "create", onSave, onBack }) => {
         trainingRequirements: "",
         maintenanceRequirements: "",
         attachments: [],
-        notes: "",
+        additionalNotes: "",
         ...technicalReco,
     });
 
+    // 🔹 user search state
+    const [users, setUsers] = useState([]);
+    const [searchQuery, setSearchQuery] = useState("");
+    const [dropdownOpen, setDropdownOpen] = useState(false);
+    const assigneeRef = useRef(null);
+
+    // fetch users once
+    useEffect(() => {
+        const fetchUsers = async () => {
+            try {
+                const res = await apiBackendFetch("/api/users");
+                const data = await res.json();
+                setUsers(data);
+            } catch (err) {
+                console.error("Failed to fetch users", err);
+            }
+        };
+        fetchUsers();
+    }, []);
+
+    // filter users by search
+    const filteredUsers = users.filter((u) => u.username.toLowerCase().includes(searchQuery.toLowerCase()));
+
+    // close dropdown on outside click
+    useEffect(() => {
+        const handleClickOutside = (e) => {
+            if (assigneeRef.current && !assigneeRef.current.contains(e.target)) {
+                setDropdownOpen(false);
+            }
+        };
+        document.addEventListener("mousedown", handleClickOutside);
+        return () => document.removeEventListener("mousedown", handleClickOutside);
+    }, []);
+
+    // load initial (editing) data
+    useEffect(() => {
+        if (technicalReco && Object.keys(technicalReco).length > 0) {
+            setFormData((prev) => ({ ...prev, ...technicalReco }));
+        } else if (technicalReco && Object.keys(technicalReco).length === 0) {
+            setFormData((prev) => ({
+                trNumber: "",
+                status: "Draft",
+                priority: "Medium",
+                title: "",
+                slId: "",
+                accountId: "",
+                contactPerson: "",
+                contactEmail: "",
+                contactNumber: "",
+                currentSystem: "",
+                currentSystemIssues: "",
+                proposedSolution: "",
+                technicalJustification: "",
+                products: [],
+                installationRequirements: "",
+                trainingRequirements: "",
+                maintenanceRequirements: "",
+                attachments: [],
+                additionalNotes: "",
+            }));
+        }
+    }, [technicalReco]);
+
     const handleChange = (e) => {
-        const { name, value } = e.target;
-        setFormData((prev) => ({ ...prev, [name]: value }));
+        const { name, value, type, checked } = e.target;
+        const newValue = type === "checkbox" ? checked : value;
+
+        setFormData((prev) => ({
+            ...prev,
+            [name]: newValue,
+        }));
+
+        setErrors((prevErrors) => {
+            if (!prevErrors) return prevErrors;
+            if (newValue !== "" && newValue !== null && newValue !== undefined) {
+                const { [name]: removed, ...rest } = prevErrors;
+                console.log(rest);
+                return rest;
+            }
+            console.log(prevErrors);
+            return prevErrors;
+        });
     };
 
     const handleSubmit = (e) => {
         e.preventDefault();
-        onSave && onSave(formData);
+
+        // Destructure optional + WO number
+        const {
+            products,
+            trNumber,
+            installationRequirements,
+            trainingRequirements,
+            maintenanceRequirements,
+            attachments,
+            additionalNotes,
+            ...requiredFields
+        } = formData;
+
+        // Find missing required fields
+        const missing = Object.entries(requiredFields).filter(([, value]) => value === "" || value === null || value === undefined);
+
+        console.log("Missing fields:", missing);
+
+        if (missing.length > 0) {
+            // Mark missing fields as errors
+            const newErrors = {};
+            missing.forEach(([key]) => {
+                newErrors[key] = true;
+            });
+            setErrors(newErrors);
+            return;
+        }
+
+        console.log("Form data is valid, submitting:", formData);
+
+        // ✅ Reset errors if all fields are valid
+        setErrors({});
+
+        // ✅ Convert empty optional fields to null
+        const cleanedFormData = {
+            ...formData,
+            installationRequirements: formData.installationRequirements || null,
+            trainingRequirements: formData.trainingRequirements || null,
+            maintenanceRequirements: formData.maintenanceRequirements || null,
+            additionalNotes: formData.additionalNotes || null,
+        };
+
+        onSave(cleanedFormData, mode);
     };
 
     return (
-        <div className="container mx-auto p-6 overflow-auto">
+        <form
+            onSubmit={handleSubmit}
+            className="h-full w-full p-6 overflow-y-auto">
             {/* Header */}
             <div className="py-4 flex items-center justify-between">
-                <button
-                    onClick={onBack}
-                    className="flex items-center text-muted-foreground mb-2 text-gray-500 hover:text-gray-700 cursor-pointer">
-                    {/* Add your back icon here */}
-                    Back to Recommendation Details
-                </button>
-                <div className="flex gap-2">
+                <div className="flex flex-col">
                     <button
                         type="button"
-                        className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground h-9 px-4 py-2"
-                        onClick={onBack}>
-                        Cancel
+                        onClick={onBack}
+                        className="mr-4 hover:text-gray-900 transition-all duration-150 flex align-middle text-gray-500 text-base cursor-pointer">
+                        <LuArrowLeft className="my-auto text-lg" />
+                        &nbsp;Back to Technical Recommendation Details
+                    </button>
+                    <h1 className="text-2xl font-bold">{mode === "edit" ? "Edit Technical Recommendation" : "New Technical Recommendation"}</h1>
+                    <h2 className="text-lg text-gray-500">{technicalReco?.trNumber ? `${technicalReco.trNumber}` : "TR# (auto-generated)"}</h2>
+                    <h2 className="text-sm text-gray-500">{mode === "edit" ? "Update the technical recommendation details below." : "Create a new Technical Recommendation"}</h2>
+                </div>
+                <div className="ml-auto flex gap-2">
+                    <button
+                        type="button"
+                        onClick={onBack}
+                        className="flex border border-red-200 bg-red-400 hover:bg-red-500 transition-all duration-150 cursor-pointer px-4 py-2 rounded-md items-center text-sm text-white">
+                        <LuX className="mr-2" /> Cancel
                     </button>
                     <button
                         type="submit"
-                        className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium bg-primary text-primary-foreground shadow hover:bg-primary/90 h-9 px-4 py-2"
-                        onClick={handleSubmit}>
-                        Save Changes
+                        className="flex border border-blue-200 bg-blue-500 hover:bg-blue-600 transition-all duration-150 cursor-pointer px-4 py-2 rounded-md items-center text-sm text-white">
+                        <LuSave className="mr-2" /> Save
+                    </button>
+                    <button
+                        type="button"
+                        onClick={onBack}
+                        className="flex border border-green-200 bg-green-500 hover:bg-green-600 transition-all duration-150 cursor-pointer px-4 py-2 rounded-md items-center text-sm text-white">
+                        <LuCheck className="mr-2" /> For Approval
                     </button>
                 </div>
             </div>
-
-            <div className="mb-6">
-                <h1 className="text-2xl font-bold">Edit Technical Recommendation</h1>
-                <p className="text-muted-foreground">Update the technical recommendation details below.</p>
-            </div>
-
-            <form onSubmit={handleSubmit}>
-                <div className="space-y-6">
-                    {/* Basic Information */}
-                    <div className="rounded-xl border border-gray-200 p-6 shadow-sm">
-                        <div className="flex flex-col space-y-1.5 p-6">
-                            <h3 className="font-bold leading-none tracking-tight">Basic Information</h3>
-                            <p className="text-sm text-gray-500">Enter the basic details for this technical recommendation</p>
-                        </div>
-                        <div className="p-6 pt-0 space-y-4">
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                {/* TR Number (readonly) */}
-                                <div>
-                                    <label
-                                        className="text-sm font-medium"
-                                        htmlFor="trNumber">
-                                        TR#
-                                    </label>
-                                    <input
-                                        className="flex h-9 w-full rounded-md border border-input px-3 py-1 text-sm shadow-sm bg-yellow-50"
-                                        id="trNumber"
-                                        name="trNumber"
-                                        value={formData.trNumber}
-                                        readOnly
-                                    />
-                                </div>
-                                {/* Status */}
-                                <div>
-                                    <label
-                                        className="text-sm font-medium"
-                                        htmlFor="status">
-                                        Status
-                                    </label>
-                                    <select
-                                        className="flex h-9 w-full rounded-md border border-input px-3 py-2 text-sm shadow-sm bg-yellow-50"
-                                        id="status"
-                                        name="status"
-                                        value={formData.status}
-                                        onChange={handleChange}>
-                                        <option value="Draft">Draft</option>
-                                        <option value="Submitted">Submitted</option>
-                                        <option value="Approved">Approved</option>
-                                        <option value="Rejected">Rejected</option>
-                                    </select>
-                                </div>
-                                {/* Priority */}
-                                <div>
-                                    <label
-                                        className="text-sm font-medium"
-                                        htmlFor="priority">
-                                        Priority
-                                    </label>
-                                    <select
-                                        className="flex h-9 w-full rounded-md border border-input px-3 py-2 text-sm shadow-sm bg-yellow-50"
-                                        id="priority"
-                                        name="priority"
-                                        value={formData.priority}
-                                        onChange={handleChange}>
-                                        <option value="Low">Low</option>
-                                        <option value="Medium">Medium</option>
-                                        <option value="High">High</option>
-                                        <option value="Critical">Critical</option>
-                                    </select>
-                                </div>
-                            </div>
-                            {/* Title and Sales Lead Ref */}
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div>
-                                    <label
-                                        className="text-sm font-medium"
-                                        htmlFor="title">
-                                        Title
-                                    </label>
-                                    <input
-                                        className="flex h-9 w-full rounded-md border border-input px-3 py-1 text-sm shadow-sm bg-yellow-50"
-                                        id="title"
-                                        name="title"
-                                        value={formData.title}
-                                        onChange={handleChange}
-                                        placeholder="Enter a descriptive title"
-                                    />
-                                </div>
-                                <div>
-                                    <label
-                                        className="text-sm font-medium"
-                                        htmlFor="salesLeadRef">
-                                        Sales Lead Reference
-                                    </label>
-                                    <input
-                                        className="flex h-9 w-full rounded-md border border-input px-3 py-1 text-sm shadow-sm bg-yellow-50"
-                                        id="salesLeadRef"
-                                        name="salesLeadRef"
-                                        value={formData.salesLeadRef}
-                                        onChange={handleChange}
-                                        placeholder="e.g., FSL-2023-1001"
-                                    />
-                                </div>
-                            </div>
-                            {/* Customer Info */}
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div>
-                                    <label
-                                        className="text-sm font-medium"
-                                        htmlFor="customerName">
-                                        Customer Name
-                                    </label>
-                                    <input
-                                        className="flex h-9 w-full rounded-md border border-input px-3 py-1 text-sm shadow-sm bg-yellow-50"
-                                        id="customerName"
-                                        name="customerName"
-                                        value={formData.customerName}
-                                        onChange={handleChange}
-                                    />
-                                </div>
-                                <div>
-                                    <label
-                                        className="text-sm font-medium"
-                                        htmlFor="contactPerson">
-                                        Contact Person
-                                    </label>
-                                    <input
-                                        className="flex h-9 w-full rounded-md border border-input px-3 py-1 text-sm shadow-sm bg-yellow-50"
-                                        id="contactPerson"
-                                        name="contactPerson"
-                                        value={formData.contactPerson}
-                                        onChange={handleChange}
-                                    />
-                                </div>
-                                <div>
-                                    <label
-                                        className="text-sm font-medium"
-                                        htmlFor="contactEmail">
-                                        Contact Email
-                                    </label>
-                                    <input
-                                        type="email"
-                                        className="flex h-9 w-full rounded-md border border-input px-3 py-1 text-sm shadow-sm bg-yellow-50"
-                                        id="contactEmail"
-                                        name="contactEmail"
-                                        value={formData.contactEmail}
-                                        onChange={handleChange}
-                                    />
-                                </div>
-                                <div>
-                                    <label
-                                        className="text-sm font-medium"
-                                        htmlFor="contactPhone">
-                                        Contact Phone
-                                    </label>
-                                    <input
-                                        className="flex h-9 w-full rounded-md border border-input px-3 py-1 text-sm shadow-sm bg-yellow-50"
-                                        id="contactPhone"
-                                        name="contactPhone"
-                                        value={formData.contactPhone}
-                                        onChange={handleChange}
-                                    />
-                                </div>
-                            </div>
-                        </div>
+            <div className="space-y-6">
+                {/* Basic Information */}
+                <div className="rounded-xl border border-gray-200 p-6 shadow-sm">
+                    <div className="flex flex-col space-y-1.5 p-6">
+                        <h3 className="font-bold leading-none tracking-tight">Basic Information</h3>
+                        <p className="text-sm text-gray-500">Enter the basic details for this technical recommendation</p>
                     </div>
-
-                    {/* Technical Details */}
-                    <div className="rounded-xl border border-gray-200 p-6 shadow-sm">
-                        <div className="flex flex-col space-y-1.5 p-6">
-                            <h3 className="font-bold leading-none tracking-tight">Technical Details</h3>
-                            <p className="text-sm text-gray-500">Provide information about the current system and proposed solution</p>
+                    <div className="p-6 pt-0 space-y-4">
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            {/* TR Number (readonly) */}
+                            {formData.trNumber && (<div>
+                                <label
+                                    className="text-sm font-medium"
+                                    htmlFor="trNumber">
+                                    TR#
+                                </label>
+                                <input
+                                    className="flex h-9 w-full rounded-md border border-input px-3 py-1 text-sm shadow-sm bg-yellow-50"
+                                    id="trNumber"
+                                    name="trNumber"
+                                    value={formData.trNumber}
+                                    readOnly
+                                />
+                            </div>)}
+                            {/* Status */}
+                            <div>
+                                <label
+                                    className="text-sm font-medium"
+                                    htmlFor="status">
+                                    Status
+                                </label>
+                                <select
+                                    id="status"
+                                    name="status"
+                                    value={formData.status}
+                                    onChange={handleChange}
+                                    className={`flex h-9 w-full rounded-md border border-input px-3 py-2 text-sm shadow-sm bg-yellow-50
+                                        ${errors?.status ? "border-red-500" : "border-gray-200"}`}
+                                >
+                                    <option value="Draft">Draft</option>
+                                    <option value="Submitted">Submitted</option>
+                                    <option value="Approved">Approved</option>
+                                    <option value="Rejected">Rejected</option>
+                                </select>
+                            </div>
+                            {/* Priority */}
+                            <div>
+                                <label
+                                    className="text-sm font-medium"
+                                    htmlFor="priority">
+                                    Priority
+                                </label>
+                                <select
+                                    id="priority"
+                                    name="priority"
+                                    value={formData.priority}
+                                    className={`flex h-9 w-full rounded-md border border-input px-3 py-2 text-sm shadow-sm bg-yellow-50
+                                        ${errors?.priority ? "border-red-500" : "border-gray-200"}`}
+                                    onChange={handleChange}>
+                                    <option value="Low">Low</option>
+                                    <option value="Medium">Medium</option>
+                                    <option value="High">High</option>
+                                    <option value="Critical">Critical</option>
+                                </select>
+                            </div>
                         </div>
-                        <div className="p-6 pt-0 space-y-4">
+                        {/* Title and Sales Lead Ref */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
                                 <label
                                     className="text-sm font-medium"
-                                    htmlFor="currentSystem">
-                                    Current System
+                                    htmlFor="title">
+                                    Title
                                 </label>
-                                <textarea
-                                    className="flex min-h-[60px] w-full rounded-md border border-input px-3 py-2 text-sm shadow-sm bg-yellow-50"
-                                    id="currentSystem"
-                                    name="currentSystem"
-                                    rows={3}
-                                    value={formData.currentSystem}
+                                <input
+                                    className={`flex h-9 w-full rounded-md border border-input px-3 py-1 text-sm shadow-sm bg-yellow-50
+                                        ${errors?.title ? "border-red-500" : "border-gray-200"}`}
+                                    id="title"
+                                    name="title"
+                                    value={formData.title}
                                     onChange={handleChange}
-                                    placeholder="Describe the current system in detail"
+                                    placeholder="Enter a descriptive title"
                                 />
                             </div>
                             <div>
                                 <label
                                     className="text-sm font-medium"
-                                    htmlFor="currentSystemIssues">
-                                    Current System Issues
+                                    htmlFor="salesLeadRef">
+                                    Sales Lead Reference
                                 </label>
-                                <textarea
-                                    className="flex min-h-[60px] w-full rounded-md border border-input px-3 py-2 text-sm shadow-sm bg-yellow-50"
-                                    id="currentSystemIssues"
-                                    name="currentSystemIssues"
-                                    rows={3}
-                                    value={formData.currentSystemIssues}
+                                <input
+                                    className="flex h-9 w-full rounded-md border border-input px-3 py-1 text-sm shadow-sm bg-yellow-50"
+                                    id="salesLeadRef"
+                                    name="salesLeadRef"
+                                    value={formData.slNumber}
                                     onChange={handleChange}
-                                    placeholder="Describe the issues with the current system"
+                                    placeholder="e.g., FSL-2023-1001"
+                                    readOnly
+                                />
+                            </div>
+                        </div>
+                        {/* Customer Info */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label
+                                    className="text-sm font-medium"
+                                    htmlFor="accountId">
+                                    Customer Name
+                                </label>
+                                <input
+                                    id="accountId"
+                                    name="accountId"
+                                    value={formData.accountId}
+                                    className={`flex h-9 w-full rounded-md border border-input px-3 py-1 text-sm shadow-sm bg-yellow-50
+                                        ${errors?.accountId ? "border-red-500" : "border-gray-200"}`}
+                                    onChange={handleChange}
                                 />
                             </div>
                             <div>
                                 <label
                                     className="text-sm font-medium"
-                                    htmlFor="proposedSolution">
-                                    Proposed Solution
+                                    htmlFor="contactPerson">
+                                    Contact Person
                                 </label>
-                                <textarea
-                                    className="flex min-h-[60px] w-full rounded-md border border-input px-3 py-2 text-sm shadow-sm bg-yellow-50"
-                                    id="proposedSolution"
-                                    name="proposedSolution"
-                                    rows={3}
-                                    value={formData.proposedSolution}
+                                <input
+                                    id="contactPerson"
+                                    name="contactPerson"
+                                    value={formData.contactPerson}
+                                    className={`flex h-9 w-full rounded-md border border-input px-3 py-1 text-sm shadow-sm bg-yellow-50
+                                        ${errors?.contactPerson ? "border-red-500" : "border-gray-200"}`}
                                     onChange={handleChange}
-                                    placeholder="Describe the proposed solution in detail"
                                 />
                             </div>
                             <div>
                                 <label
                                     className="text-sm font-medium"
-                                    htmlFor="technicalJustification">
-                                    Technical Justification
+                                    htmlFor="contactEmail">
+                                    Contact Email
                                 </label>
-                                <textarea
-                                    className="flex min-h-[60px] w-full rounded-md border border-input px-3 py-2 text-sm shadow-sm bg-yellow-50"
-                                    id="technicalJustification"
-                                    name="technicalJustification"
-                                    rows={3}
-                                    value={formData.technicalJustification}
+                                <input
+                                    type="email"
+                                    id="contactEmail"
+                                    name="contactEmail"
+                                    value={formData.contactEmail}
+                                    className={`flex h-9 w-full rounded-md border border-input px-3 py-1 text-sm shadow-sm bg-yellow-50
+                                        ${errors?.contactEmail ? "border-red-500" : "border-gray-200"}`}
                                     onChange={handleChange}
-                                    placeholder="Provide technical justification for the proposed solution"
+                                />
+                            </div>
+                            <div>
+                                <label
+                                    className="text-sm font-medium"
+                                    htmlFor="contactNumber">
+                                    Contact Phone
+                                </label>
+                                <input
+                                    id="contactNumber"
+                                    name="contactNumber"
+                                    value={formData.contactNumber}
+                                    className={`flex h-9 w-full rounded-md border border-input px-3 py-1 text-sm shadow-sm bg-yellow-50
+                                        ${errors?.contactNumber ? "border-red-500" : "border-gray-200"}`}
+                                    onChange={handleChange}
                                 />
                             </div>
                         </div>
                     </div>
-
-                    {/* Product Recommendations, Additional Requirements, Attachments, Notes */}
-                    {/* ...repeat the same card/section pattern for each group of fields... */}
                 </div>
-            </form>
-        </div>
+
+                {/* Technical Details */}
+                <div className="rounded-xl border border-gray-200 p-6 shadow-sm">
+                    <div className="flex flex-col space-y-1.5 p-6">
+                        <h3 className="font-bold leading-none tracking-tight">Technical Details</h3>
+                        <p className="text-sm text-gray-500">Provide information about the current system and proposed solution</p>
+                    </div>
+                    <div className="p-6 pt-0 space-y-4">
+                        <div>
+                            <label
+                                className="text-sm font-medium"
+                                htmlFor="currentSystem">
+                                Current System
+                            </label>
+                            <textarea
+                                id="currentSystem"
+                                name="currentSystem"
+                                rows={3}
+                                value={formData.currentSystem}
+                                onChange={handleChange}
+                                className={`flex min-h-[60px] w-full rounded-md border border-input px-3 py-2 text-sm shadow-sm bg-yellow-50
+                                    ${errors?.currentSystem ? "border-red-500" : "border-gray-200"}`}
+                                placeholder="Describe the current system in detail"
+                            />
+                        </div>
+                        <div>
+                            <label
+                                className="text-sm font-medium"
+                                htmlFor="currentSystemIssues">
+                                Current System Issues
+                            </label>
+                            <textarea
+                                id="currentSystemIssues"
+                                name="currentSystemIssues"
+                                rows={3}
+                                value={formData.currentSystemIssues}
+                                onChange={handleChange}
+                                className={`flex min-h-[60px] w-full rounded-md border border-input px-3 py-2 text-sm shadow-sm bg-yellow-50
+                                    ${errors?.currentSystemIssues ? "border-red-500" : "border-gray-200"}`}
+                                placeholder="Describe the issues with the current system"
+                            />
+                        </div>
+                        <div>
+                            <label
+                                className="text-sm font-medium"
+                                htmlFor="proposedSolution">
+                                Proposed Solution
+                            </label>
+                            <textarea
+                                id="proposedSolution"
+                                name="proposedSolution"
+                                rows={3}
+                                value={formData.proposedSolution}
+                                className={`flex min-h-[60px] w-full rounded-md border border-input px-3 py-2 text-sm shadow-sm bg-yellow-50
+                                    ${errors?.proposedSolution ? "border-red-500" : "border-gray-200"}`}
+                                onChange={handleChange}
+                                placeholder="Describe the proposed solution in detail"
+                            />
+                        </div>
+                        <div>
+                            <label
+                                className="text-sm font-medium"
+                                htmlFor="technicalJustification">
+                                Technical Justification
+                            </label>
+                            <textarea
+                                id="technicalJustification"
+                                name="technicalJustification"
+                                rows={3}
+                                value={formData.technicalJustification}
+                                className={`flex min-h-[60px] w-full rounded-md border border-input px-3 py-2 text-sm shadow-sm bg-yellow-50
+                                    ${errors?.technicalJustification ? "border-red-500" : "border-gray-200"}`}
+                                onChange={handleChange}
+                                placeholder="Provide technical justification for the proposed solution"
+                            />
+                        </div>
+                    </div>
+                </div>
+
+                {/* Additional Requirements */}
+                <div className="rounded-xl border border-gray-200 p-6 shadow-sm">
+                    <div className="flex flex-col space-y-1.5 p-6">
+                        <h3 className="font-bold leading-none tracking-tight">Additional Requirements</h3>
+                        <p className="text-sm text-gray-500">Provide information about installation, training, and maintenance requirements</p>
+                    </div>
+                    <div className="p-6 pt-0 space-y-4">
+                        <div>
+                            <label
+                                className="text-sm font-medium"
+                                htmlFor="installationRequirements">
+                                Installation Requirements
+                            </label>
+                            <textarea
+                                className="flex min-h-[60px] w-full rounded-md border border-input px-3 py-2 text-sm shadow-sm bg-yellow-50"
+                                id="installationRequirements"
+                                name="installationRequirements"
+                                rows={3}
+                                value={formData.installationRequirements}
+                                onChange={handleChange}
+                                placeholder="Describe the current system in detail"
+                            />
+                        </div>
+                        <div>
+                            <label
+                                className="text-sm font-medium"
+                                htmlFor="trainingRequirements">
+                                Training Requirements
+                            </label>
+                            <textarea
+                                className="flex min-h-[60px] w-full rounded-md border border-input px-3 py-2 text-sm shadow-sm bg-yellow-50"
+                                id="trainingRequirements"
+                                name="trainingRequirements"
+                                rows={3}
+                                value={formData.trainingRequirements}
+                                onChange={handleChange}
+                                placeholder="Describe the issues with the current system"
+                            />
+                        </div>
+                        <div>
+                            <label
+                                className="text-sm font-medium"
+                                htmlFor="maintenanceRequirements">
+                                Maintenance Requirements
+                            </label>
+                            <textarea
+                                className="flex min-h-[60px] w-full rounded-md border border-input px-3 py-2 text-sm shadow-sm bg-yellow-50"
+                                id="maintenanceRequirements"
+                                name="maintenanceRequirements"
+                                rows={3}
+                                value={formData.maintenanceRequirements}
+                                onChange={handleChange}
+                                placeholder="Describe the proposed solution in detail"
+                            />
+                        </div>
+                    </div>
+                </div>
+
+                {/* Products Recommendation */}
+                <div className="rounded-xl border border-gray-200 p-6 shadow-sm">
+                    <div className="flex flex-col space-y-1.5 p-6">
+                        <h3 className="font-bold leading-none tracking-tight">Product Recommendations</h3>
+                        <p className="text-sm text-gray-500">Specify the products recommended for this solution</p>
+                    </div>
+                    <div className="p-6 pt-0 space-y-4">
+                        <div>
+                            <label
+                                className="text-sm font-medium"
+                                htmlFor="productsPlaceholder">
+                                Products Placeholder
+                            </label>
+                            <textarea
+                                className="flex min-h-[60px] w-full rounded-md border border-input px-3 py-2 text-sm shadow-sm bg-yellow-50"
+                                id="productsPlaceholder"
+                                name="productsPlaceholder"
+                                rows={3}
+                                value={formData.productsPlaceholder}
+                                onChange={handleChange}
+                                placeholder="Describe the current system in detail"
+                                isReadOnly={true}
+                            />
+                        </div>
+                    </div>
+                </div>
+
+                {/* Attachments */}
+                <div className="rounded-xl border border-gray-200 p-6 shadow-sm">
+                    <div className="flex flex-col space-y-1.5 p-6">
+                        <h3 className="font-bold leading-none tracking-tight">Attachments</h3>
+                        <p className="text-sm text-gray-500">Upload relevant documents and files</p>
+                    </div>
+                    <div className="p-6 pt-0 space-y-4">
+                        <div>
+                            <label
+                                className="text-sm font-medium"
+                                htmlFor="attachmentsPlaceholder">
+                                Attachments Placeholder
+                            </label>
+                            <textarea
+                                className="flex min-h-[60px] w-full rounded-md border border-input px-3 py-2 text-sm shadow-sm bg-yellow-50"
+                                id="attachmentsPlaceholder"
+                                name="attachmentsPlaceholder"
+                                rows={3}
+                                value={formData.attachmentsPlaceholder}
+                                onChange={handleChange}
+                                placeholder="Describe the current system in detail"
+                                isReadOnly={true}
+                            />
+                        </div>
+                    </div>
+                </div>
+
+                {/* Notes */}
+                <div className="rounded-xl border border-gray-200 p-6 shadow-sm">
+                    <div className="flex flex-col space-y-1.5 p-6">
+                        <h3 className="font-bold leading-none tracking-tight">Notes</h3>
+                        <p className="text-sm text-gray-500">Add any additional notes or comments</p>
+                    </div>
+                    <div className="p-6 pt-0 space-y-4">
+                        <div>
+                            <label
+                                className="text-sm font-medium"
+                                htmlFor="additionalNotes">
+                            </label>
+                            <textarea
+                                className="flex min-h-[60px] w-full rounded-md border border-input px-3 py-2 text-sm shadow-sm bg-yellow-50"
+                                id="additionalNotes"
+                                name="additionalNotes"
+                                rows={3}
+                                value={formData.additionalNotes}
+                                onChange={handleChange}
+                                placeholder="Describe the current system in detail"
+                            />
+                        </div>
+                    </div>
+                </div>
+
+                {/* Product Recommendations, Additional Requirements, Attachments, Notes */}
+                {/* ...repeat the same card/section pattern for each group of fields... */}
+            </div>
+        </form>
     );
 };
 

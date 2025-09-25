@@ -10,6 +10,7 @@ import { statuses } from "./statusesMock.js";
 import { workorders } from "./workordersMock.js";
 import { salesLeads } from "./salesleadsMocks.js";
 import { technicalRecommendations } from "./technicalrecommendationsMock.js";
+import { rfqs } from "./rfqsMocks.js";
 import { workflowStages } from "./workflowstagesMocks.js";
 
 let pool;
@@ -21,7 +22,7 @@ console.log("⚡ Using pg-mem (in-memory Postgres)");
 const mem = newDb({ autoCreateForeignKeyIndices: true });
 const adapter = mem.adapters.createPg();
 
-// Schema creation
+// Users, Roles, Departments, Statuses Table
 mem.public.none(`
   -- USERS TABLE
   CREATE TABLE users (
@@ -62,6 +63,7 @@ mem.public.none(`
   );
 `);
 
+// Accounts Table
 mem.public.none(`
   -- ACCOUNTS TABLE (commented out for now)
   CREATE TABLE accounts (
@@ -114,6 +116,7 @@ mem.public.none(`
   );
 `);
 
+// Workorders Table
 mem.public.none(`
   -- WORKORDERS TABLE
   CREATE TABLE workorders (
@@ -157,6 +160,7 @@ mem.public.none(`
   );
 `);
 
+// Workflow Stages Table
 mem.public.none(`
   -- WORKFLOW STAGES TABLE
   CREATE TABLE workflow_stages (
@@ -171,6 +175,7 @@ mem.public.none(`
   );
 `);
 
+// Sales Leads Table
 mem.public.none(`
   -- SALES LEADS TABLE (based on your requirements)
   CREATE TABLE sales_leads (
@@ -255,6 +260,7 @@ mem.public.none(`
   );
 `);
 
+// Technical Recommendations Table
 mem.public.none(`
   -- TECHNICAL RECOMMENDATIONS TABLE
   CREATE TABLE technical_recommendations (
@@ -267,7 +273,7 @@ mem.public.none(`
     title VARCHAR(255) NOT NULL,
     sl_id INT REFERENCES sales_leads(id) ON DELETE SET NULL,
   -- account_id INT REFERENCES accounts(id) ON DELETE SET NULL,
-  account_id TEXT,
+    account_id TEXT,
     contact_person VARCHAR(100),
     contact_number VARCHAR(20),
     contact_email VARCHAR(100),
@@ -298,6 +304,7 @@ mem.public.none(`
   );
 `);
 
+// RFQs Table
 mem.public.none(`
   -- RFQS
   CREATE TABLE rfqs (
@@ -310,7 +317,7 @@ mem.public.none(`
     description TEXT,
     sl_id INT REFERENCES sales_leads(id) ON DELETE SET NULL,
   -- account_id INT REFERENCES accounts(id) ON DELETE SET NULL,
-  account_id TEXT,
+    account_id TEXT,
     payment_terms VARCHAR(100),
     notes TEXT,
     subtotal NUMERIC(12, 2) CHECK (subtotal >= 0),
@@ -354,12 +361,11 @@ const esc = (val) =>
 for (const u of users) {
   mem.public.none(`
     INSERT INTO users (
-      id, avatar_url, first_name, last_name, username, email,
+      avatar_url, first_name, last_name, username, email,
       phone_number, role, department, status, permissions,
       password_hash, joined_date, updated_at, last_login, created_by
     )
     VALUES (
-      ${u.id},
       '${esc(u.avatarUrl)}',
       '${esc(u.firstName)}',
       '${esc(u.lastName)}',
@@ -381,17 +387,17 @@ for (const u of users) {
 
 for (const r of roles) {
   mem.public.none(
-    `INSERT INTO roles (id, role_name) VALUES (${r.id}, '${esc(r.roleName)}')`
+    `INSERT INTO roles (role_name) VALUES ('${esc(r.roleName)}')`
   );
 }
 for (const d of departments) {
   mem.public.none(
-    `INSERT INTO departments (id, department_name) VALUES (${d.id}, '${esc(d.departmentName)}')`
+    `INSERT INTO departments (department_name) VALUES ('${esc(d.departmentName)}')`
   );
 }
 for (const s of statuses) {
   mem.public.none(
-    `INSERT INTO statuses (id, status_name) VALUES (${s.id}, '${esc(s.statusName)}')`
+    `INSERT INTO statuses (status_name) VALUES ('${esc(s.statusName)}')`
   );
 }
 for (const wo of workorders) {
@@ -593,6 +599,32 @@ for (const tr of technicalRecommendations) {
       '${tr.createdAt}',
       ${tr.createdBy},
       '${tr.updatedAt}'
+    )
+    `
+  );
+}
+
+for (const r of rfqs) {
+  mem.public.none(
+    `INSERT INTO rfqs 
+    (wo_id, assignee, rfq_number, rfq_date, due_date, description, sl_id, account_id, payment_terms, notes, subtotal, vat, grand_total, created_at, created_by, updated_at)
+    VALUES (
+    ${r.wo_id},
+    ${r.assignee},
+    '${r.rfq_number}',
+    '${r.rfq_date}',
+    '${r.due_date}',
+    '${r.description}',
+    ${r.sl_id},
+    ${r.account_id},
+    '${r.payment_terms}',
+    '${r.notes}',
+    ${r.subtotal},
+    ${r.vat},
+    ${r.grand_total},
+    NOW(),
+    ${r.created_by},
+    NOW()
     )
     `
   );

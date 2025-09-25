@@ -11,9 +11,11 @@ router.get("/", async (req, res) => {
       SELECT 
         tr.*, 
         u.username AS assignee_username,
-        u.department AS assignee_department
+        u.department AS assignee_department,
+        sl.sl_number AS sl_number
       FROM technical_recommendations tr
       LEFT JOIN users u ON tr.assignee = u.id
+      LEFT JOIN sales_leads sl ON tr.sl_id = sl.id
       ORDER BY tr.id ASC
     `);
     return res.json(result.rows);
@@ -31,9 +33,11 @@ router.get("/:id", async (req, res) => {
       SELECT 
         tr.*, 
         u.username AS assignee_username,
-        u.department AS assignee_department
+        u.department AS assignee_department,
+        sl.sl_number AS sl_number
       FROM technical_recommendations tr
       LEFT JOIN users u ON tr.assignee = u.id
+      LEFT JOIN sales_leads sl ON tr.sl_id = sl.id
       WHERE tr.id = $1
     `, [id]);
     if (result.rows.length === 0)
@@ -83,10 +87,12 @@ router.post("/", async (req, res) => {
        LIMIT 1`,
       [`TR-${currentYear}-%`]
     );
+    
+    console.log("Latest TR number query result:", result.rows);
 
     let newCounter = 1;
     if (result.rows.length > 0) {
-      const lastTrNumber = result.rows[0].tr_number;
+      const lastTrNumber = result.rows[0].trNumber;
       const lastCounter = parseInt(lastTrNumber.split("-")[2], 10);
       newCounter = lastCounter + 1;
     }

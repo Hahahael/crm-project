@@ -1,6 +1,8 @@
 import { LuArrowLeft, LuPencil, LuPrinter } from "react-icons/lu";
+import utils from "../helper/utils";
 
 const TechnicalDetails = ({ technicalReco, onBack, onEdit, onPrint }) => {
+    console.log("Technical Recommendation Details:", technicalReco);
     function Detail({ label, value }) {
         return (
             <div>
@@ -75,11 +77,11 @@ const TechnicalDetails = ({ technicalReco, onBack, onEdit, onPrint }) => {
                             />
                             <Detail
                                 label="Sales Lead Reference"
-                                value={technicalReco.salesLeadRef}
+                                value={technicalReco.slNumber}
                             />
                             <Detail
                                 label="Created Date"
-                                value={technicalReco.createdDate}
+                                value={utils.formatDate(technicalReco.createdAt, "DD/MM/YYYY")}
                             />
                         </div>
                     </div>
@@ -95,7 +97,7 @@ const TechnicalDetails = ({ technicalReco, onBack, onEdit, onPrint }) => {
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <Detail
                                 label="Customer Name"
-                                value={technicalReco.customerName}
+                                value={technicalReco.accountId}
                             />
                             <Detail
                                 label="Contact Person"
@@ -107,7 +109,7 @@ const TechnicalDetails = ({ technicalReco, onBack, onEdit, onPrint }) => {
                             />
                             <Detail
                                 label="Contact Phone"
-                                value={technicalReco.contactPhone}
+                                value={technicalReco.contactNumber}
                             />
                         </div>
                     </div>
@@ -158,7 +160,7 @@ const TechnicalDetails = ({ technicalReco, onBack, onEdit, onPrint }) => {
                                 </tr>
                             </thead>
                             <tbody>
-                                {technicalReco.products?.map((prod, idx) => (
+                                {utils.toArray(technicalReco.products).map((prod, idx) => (
                                     <tr key={idx}>
                                         <td className="p-2">{prod.name}</td>
                                         <td className="p-2">{prod.model}</td>
@@ -222,7 +224,7 @@ const TechnicalDetails = ({ technicalReco, onBack, onEdit, onPrint }) => {
                                 </tr>
                             </thead>
                             <tbody>
-                                {technicalReco.attachments?.map((file, idx) => (
+                                {utils.toArray(technicalReco.attachments).map((file, idx) => (
                                     <tr key={idx}>
                                         <td className="p-2">{file.name}</td>
                                         <td className="p-2">{file.type}</td>

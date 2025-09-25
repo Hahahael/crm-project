@@ -65,7 +65,7 @@ router.post("/", async (req, res) => {
         role,
         department,
         status,
-        permissions,
+        toJsonbArray(permissions),
         joined_date,
         avatar_url,
         password_hash,

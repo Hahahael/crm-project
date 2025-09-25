@@ -54,10 +54,15 @@ export function formatTimeOnly(timeStr) {
   return parsed.isValid() ? parsed.format("HH:mm A") : "-";
 }
 
+export function toArray(val) {
+  return Array.isArray(val) ? val : [];
+}
+
 // ✅ Default export with all helpers
 export default {
   toCamel,
   toSnake,
+  toArray,
   formatDate,
   parseToTimestamp,
   formatDateTime,

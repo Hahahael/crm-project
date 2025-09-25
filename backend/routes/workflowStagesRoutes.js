@@ -1,6 +1,7 @@
 // routes/workflowStagesRoutes.js
 import express from "express";
 import db from "../db.js";
+import { toSnake } from "../helper/utils.js";
 
 const router = express.Router();
 
@@ -63,19 +64,20 @@ router.get("/:id", async (req, res) => {
 router.post("/", async (req, res) => {
   console.log(req.body);
   try {
+    const body = toSnake(req.body);
     const {
-      woId,
-      stageName,
+      wo_id,
+      stage_name,
       status,
-      assignedTo,
+      assigned_to,
       notified = false
-    } = req.body;
+    } = body;
     const result = await db.query(
       `INSERT INTO workflow_stages
         (wo_id, stage_name, status, assigned_to, notified, created_at, updated_at)
        VALUES ($1, $2, $3, $4, $5, NOW(), NOW())
        RETURNING *`,
-      [woId, stageName, status, assignedTo, notified]
+      [wo_id, stage_name, status, assigned_to, notified]
     );
     
     // const workflows = await db.query(
@@ -98,11 +100,12 @@ router.post("/", async (req, res) => {
 router.put("/:id", async (req, res) => {
   try {
     const { id } = req.params;
+    const body = toSnake(req.body);
     const {
       status,
       assigned_to,
       notified
-    } = req.body;
+    } = body;
     const result = await db.query(
       `UPDATE workflow_stages
          SET status = COALESCE($1, status),
