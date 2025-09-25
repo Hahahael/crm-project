@@ -2,7 +2,8 @@
 const apiUrl = import.meta.env.VITE_API_URL;
 
 export async function apiBackendFetch(endpoint, options = {}) {
-  console.log(endpoint);
+  console.log(`Endpoint: ${apiUrl}${endpoint}`);
+  console.log(`Options:`, options);
   try {
     const res = await fetch(`${apiUrl}${endpoint}`, {
       ...options,

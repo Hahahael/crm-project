@@ -1,6 +1,6 @@
 //src/pages/SalesLeadsPage
 import { useState, useEffect, useRef } from "react";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { LuBell, LuChartColumn, LuChartLine, LuCheck, LuCircleAlert, LuClipboardCheck, LuClipboardList, LuClock, LuFileText, LuPlus, LuSearch, LuX } from "react-icons/lu";
 import SalesLeadsTable from "../components/SalesLeadsTable";
 import SalesLeadDetails from "../components/SalesLeadDetails";
@@ -10,12 +10,13 @@ import { apiBackendFetch } from "../services/api";
 export default function SalesLeadsPage() {
   const timeoutRef = useRef();
   const location = useLocation();
-  const workOrderId = location.state?.workOrderId;
+  const navigate = useNavigate();
+  const woId = location.state?.woId;
 
   const [salesLeads, setSalesLeads] = useState([]);
   const [search, setSearch] = useState("");
   const [selectedSL, setSelectedSL] = useState(null);
-  const [editingSL, setEditingSL] = useState(workOrderId || null);
+  const [editingSL, setEditingSL] = useState(woId || null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [successMessage, setSuccessMessage] = useState("");
@@ -114,6 +115,7 @@ export default function SalesLeadsPage() {
 
   const handleSave = async (formData, mode) => {
     try {
+      console.log(formData);
       const response = await apiBackendFetch(
         mode === "edit" ? `/api/salesleads/${formData.id}` : "/api/salesleads",
         {
@@ -122,7 +124,7 @@ export default function SalesLeadsPage() {
             ? JSON.stringify(formData)
             : JSON.stringify({
                 ...formData,
-                workorderId: formData.id,
+                woId: formData.id,
                 assignee: currentUser.id,
               }),
         }
@@ -134,7 +136,7 @@ export default function SalesLeadsPage() {
       if (mode === "edit") {
         // Fetch the workflow stage for this workorder and stage name
         const wsRes = await apiBackendFetch(
-          `/api/workflowstages/workorder/${savedSalesLead.workorderId}`
+          `/api/workflowstages/workorder/${savedSalesLead.woId}`
         );
         if (wsRes.ok) {
           const stages = await wsRes.json();
@@ -143,7 +145,7 @@ export default function SalesLeadsPage() {
             s => s.stage_name === "Sales Lead"
           );
           if (salesLeadStage) {
-            await apiBackendFetch(`/api/workflowstages/${salesLeadStage.stage_id}`, {
+            await apiBackendFetch(`/api/workflowstages/${salesLeadStage.id}`, {
               method: "PUT",
               body: JSON.stringify({
                 status: savedSalesLead.status || "Pending",
@@ -157,7 +159,7 @@ export default function SalesLeadsPage() {
         await apiBackendFetch("/api/workflowstages", {
           method: "POST",
           body: JSON.stringify({
-            wo_id: savedSalesLead.workorderId,
+            wo_id: savedSalesLead.woId,
             stage_name: "Sales Lead",
             status: savedSalesLead.status || "Pending",
             assigned_to: savedSalesLead.assignee,
@@ -181,6 +183,29 @@ export default function SalesLeadsPage() {
       setError("Failed to save sales lead");
     }
   };
+
+  const addWorkFlowStage = async (woId, stageName, assignedTo, mode = "create") => {
+    console.log(`Adding workflow stage: WO ID ${woId}, Stage: ${stageName}, Assigned To: ${assignedTo}, Mode: ${mode}`);
+    try {
+      const response = await apiBackendFetch("/api/workflow-stages", {
+        method: "POST",
+        body: JSON.stringify({
+          woId,
+          stageName,
+          status: mode === "create" ? "Pending" : "In Progress",
+          assignedTo,
+        })
+      });
+      if (!response.ok) throw new Error("Failed to add workflow stage");
+      const newStage = await response.json();
+      console.log("New workflow stage added:", newStage);
+      return newStage;
+    } catch (err) {
+      console.error("Error adding workflow stage:", err);
+      setError("Failed to add workflow stage");
+      return null;
+    }
+  }
 
   return (
     <div className="relative w-full h-full overflow-hidden bg-white">
@@ -369,6 +394,10 @@ export default function SalesLeadsPage() {
             salesLead={selectedSL}
             onBack={() => setSelectedSL(null)}
             onEdit={() => setEditingSL(selectedSL)}
+            toNextStage={(passedSL, nextStage ) => {
+              navigate(`/${nextStage}`, { state: { woId: passedSL?.woId } });
+              setSelectedSL(null);
+            }}
           />
         )}
       </div>
@@ -383,7 +412,7 @@ export default function SalesLeadsPage() {
           <SalesLeadForm
             salesLead={editingSL}
             mode={editingSL?.id ? "edit" : "create"}
-            onSave={handleSave}
+            onSave={(formData, mode) => handleSave(formData, mode)}
             onBack={() => setEditingSL(null)}
           />
         )}

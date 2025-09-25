@@ -1,7 +1,7 @@
 import { LuArrowLeft, LuPencil } from "react-icons/lu";
 import config from "../config.js";
 
-const SalesLeadDetails = ({ salesLead, onBack, onEdit }) => {
+const SalesLeadDetails = ({ salesLead, onBack, onEdit, toNextStage }) => {
 
   function Detail({ label, value }) {
     return (
@@ -38,13 +38,13 @@ const SalesLeadDetails = ({ salesLead, onBack, onEdit }) => {
         <div className="flex gap-2">
           <button
             className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-light shadow h-9 px-4 py-2 bg-purple-500 hover:bg-purple-600 text-white"
-            // onClick={} // Add handler for move to technical
+            onClick={() => toNextStage(salesLead.woId, "technicals")}
           >
             Move to Technical
           </button>
           <button
             className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-light shadow h-9 px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white"
-            // onClick={} // Add handler for move to RFQ
+            onClick={() => toNextStage(salesLead.woId, "rfqs")}
           >
             Move to RFQ
           </button>

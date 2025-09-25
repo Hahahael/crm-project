@@ -67,22 +67,31 @@ export default function WorkOrdersPage() {
   };
 
   const fetchNewAssignedWorkOrders = async () => {
+    if (!currentUser) return;
     try {
-      const res = await apiBackendFetch("/api/workorders/assigned/new");
+      const res = await apiBackendFetch(`/api/workflow-stages/assigned/latest/${currentUser.id}/${encodeURIComponent("Work Order")}`);
+
       if (res.ok) {
         const data = await res.json();
+        console.log("New assigned workorders:", data);
         setNewAssignedWorkOrders(data);
       }
+      console.log("New Assigned Work Orders:", newAssignedWorkOrders);
     } catch (err) {
       console.error("Failed to fetch assigned workorders", err);
     }
   };
 
   useEffect(() => {
-    fetchNewAssignedWorkOrders();
     fetchCurrentUser();
     fetchAllData();
   }, []);
+
+  useEffect(() => {
+    if (currentUser) {
+      fetchNewAssignedWorkOrders();
+    }
+  }, [currentUser]);
 
   useEffect(() => {
     if (successMessage) {
@@ -149,6 +158,29 @@ export default function WorkOrdersPage() {
     }
   };
 
+  const addWorkFlowStage = async (woId, stageName, assignedTo, mode = "create") => {
+    console.log(`Adding workflow stage: WO ID ${woId}, Stage: ${stageName}, Assigned To: ${assignedTo}, Mode: ${mode}`);
+    try {
+      const response = await apiBackendFetch("/api/workflow-stages", {
+        method: "POST",
+        body: JSON.stringify({
+          woId,
+          stageName,
+          status: mode === "create" ? "Pending" : "In Progress",
+          assignedTo,
+        })
+      });
+      if (!response.ok) throw new Error("Failed to add workflow stage");
+      const newStage = await response.json();
+      console.log("New workflow stage added:", newStage);
+      return newStage;
+    } catch (err) {
+      console.error("Error adding workflow stage:", err);
+      setError("Failed to add workflow stage");
+      return null;
+    }
+  }
+
   return (
     <div className="relative w-full h-full overflow-hidden bg-white">
       {/* Toast Notification */}
@@ -205,7 +237,10 @@ export default function WorkOrdersPage() {
                   </div>
                   <div className="mt-3">
                     <button
-                      onClick={() => setSelectedWO(newAssignedWorkOrders[0])}
+                      onClick={() => {
+                        setSelectedWO(newAssignedWorkOrders[0]);
+                        addWorkFlowStage(newAssignedWorkOrders[0].id, "Work Order", currentUser.id, "edit");
+                      }}
                       className="inline-flex items-center justify-center whitespace-nowrap font-medium transition-colors shadow h-8 rounded-md px-3 text-xs bg-orange-600 hover:bg-orange-700 text-white cursor-pointer"
                     >
                       View First Work Order
@@ -243,7 +278,10 @@ export default function WorkOrdersPage() {
                   </div>
                   <div className="mt-3">
                     <button
-                      onClick={() => setSelectedWO(newAssignedWorkOrders[0])}
+                      onClick={() => {
+                        setSelectedWO(newAssignedWorkOrders[0])
+                        addWorkFlowStage(newAssignedWorkOrders[0].woId, "Work Order", currentUser.id, "edit");
+                      }}
                       className="inline-flex items-center justify-center whitespace-nowrap font-medium transition-colors shadow h-8 rounded-md px-3 text-xs bg-orange-600 hover:bg-orange-700 text-white cursor-pointer"
                     >
                       Open Work Order
@@ -337,7 +375,10 @@ export default function WorkOrdersPage() {
           <WorkOrderDetails
             workOrder={selectedWO}
             currentUser={currentUser}
-            onBack={() => setSelectedWO(null)}
+            onBack={() => {
+              setSelectedWO(null);
+              fetchNewAssignedWorkOrders();
+            }}
             onEdit={() => setEditingWO(selectedWO)}
             onWorkOrderUpdated={(updatedWO) => {
               setSelectedWO(updatedWO);
@@ -347,7 +388,10 @@ export default function WorkOrdersPage() {
               );
               fetchNewAssignedWorkOrders(); // <-- refresh from backend
             }}
-            toSalesLead={(passedWO) => navigate('/salesleads', { state: { workOrderId: passedWO?.id } })}
+            toSalesLead={(passedWO) => {
+              navigate('/salesleads', { state: { woId: passedWO?.id } });
+              setSelectedWO(null);
+            }}
           />
         )}
       </div>

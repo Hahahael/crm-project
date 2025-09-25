@@ -97,7 +97,6 @@ router.get("/:id", async (req, res) => {
 router.post("/", async (req, res) => {
   try {
     const body = toSnake(req.body); // ✅ convert camelCase → snake_case
-    console.log(body);
     const {
       work_description,
       assignee,

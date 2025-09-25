@@ -60,8 +60,9 @@ mem.public.none(`
     id SERIAL PRIMARY KEY,
     status_name TEXT
   );
+`);
 
-  /*
+mem.public.none(`
   -- ACCOUNTS TABLE (commented out for now)
   CREATE TABLE accounts (
     id SERIAL PRIMARY KEY,
@@ -111,8 +112,9 @@ mem.public.none(`
     acknowledged_by INT REFERENCES users(id) ON DELETE SET NULL,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
   );
-  */
+`);
 
+mem.public.none(`
   -- WORKORDERS TABLE
   CREATE TABLE workorders (
     id SERIAL PRIMARY KEY,
@@ -153,10 +155,12 @@ mem.public.none(`
     created_by INT REFERENCES users(id) ON DELETE SET NULL,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
   );
+`);
 
+mem.public.none(`
   -- WORKFLOW STAGES TABLE
   CREATE TABLE workflow_stages (
-    stage_id SERIAL PRIMARY KEY,
+    id SERIAL PRIMARY KEY,
     wo_id INT NOT NULL REFERENCES workorders(id) ON DELETE CASCADE,
     stage_name VARCHAR(50) NOT NULL,  -- e.g. Work Order, Sales Lead, TR, RFQ, NAEF, Quotation
     status VARCHAR(50) DEFAULT 'Pending', -- Pending, Approved, Rejected, In Progress
@@ -165,7 +169,9 @@ mem.public.none(`
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
   );
+`);
 
+mem.public.none(`
   -- SALES LEADS TABLE (based on your requirements)
   CREATE TABLE sales_leads (
     id SERIAL PRIMARY KEY,
@@ -247,7 +253,9 @@ mem.public.none(`
     file_size INT,
     uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
   );
+`);
 
+mem.public.none(`
   -- TECHNICAL RECOMMENDATIONS TABLE
   CREATE TABLE technical_recommendations (
     id SERIAL PRIMARY KEY,
@@ -276,9 +284,6 @@ mem.public.none(`
     created_by INT REFERENCES users(id) ON DELETE SET NULL,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
   );
-`);
-
-mem.public.none(`
 
   -- TECHNICAL RECOMMENDATION PRODUCTS
   CREATE TABLE technical_recommendation_products (
@@ -291,7 +296,9 @@ mem.public.none(`
     unit_price NUMERIC(12, 2) CHECK (unit_price >= 0),
     total_price NUMERIC(12, 2)
   );
+`);
 
+mem.public.none(`
   -- RFQS
   CREATE TABLE rfqs (
     id SERIAL PRIMARY KEY,
@@ -326,11 +333,13 @@ mem.public.none(`
     unit_price NUMERIC(12, 2) CHECK (unit_price >= 0),
     amount NUMERIC(12, 2)
   );
+`);
 
+mem.public.none(`
   CREATE TABLE naef_timelines (
     id SERIAL PRIMARY KEY,
   -- account_id INT REFERENCES accounts(id) ON DELETE CASCADE,
-  account_id TEXT,
+    account_id TEXT,
     week_number INT NOT NULL,
     update_description TEXT,
     probability VARCHAR(50),
@@ -593,9 +602,8 @@ for (const ws of workflowStages) {
   mem.public.none(
     `
     INSERT INTO workflow_stages (
-      stage_id, wo_id, stage_name, status, assigned_to, notified, created_at, updated_at
+      wo_id, stage_name, status, assigned_to, notified, created_at, updated_at
     ) VALUES (
-      ${ws.stageId},
       ${ws.woId},
       '${ws.stageName}',
       '${ws.status}',

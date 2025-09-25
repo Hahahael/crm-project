@@ -1,13 +1,13 @@
 export const technicalRecommendations = [
   {
     id: 1,
-    woId: 7,
+    woId: 3,
     assignee: 3,
     trNumber: "TR-2025-9001",
     status: "Open",
     priority: "High",
     title: "Recommend upgrade",
-    slId: 5,
+    slId: 2,
     accountId: 1,
     contactPerson: "Contact Name TR",
     contactNumber: "09997776666",

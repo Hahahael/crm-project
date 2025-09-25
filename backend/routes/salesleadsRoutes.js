@@ -26,7 +26,6 @@ router.get("/", async (req, res) => {
 // Get single sales lead
 router.get("/:id", async (req, res) => {
   try {
-    console.log(req);
     const { id } = req.params;
     const result = await db.query(`
       SELECT 

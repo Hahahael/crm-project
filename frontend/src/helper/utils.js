@@ -49,7 +49,6 @@ export function formatDateOnly(dateStr) {
 
 export function formatTimeOnly(timeStr) {
   if (!timeStr) return "-";
-  console.log("Formatting time:", timeStr); 
   // Tell dayjs the format you expect
   const parsed = dayjs(timeStr, "HH:mm:ss");
   return parsed.isValid() ? parsed.format("HH:mm A") : "-";

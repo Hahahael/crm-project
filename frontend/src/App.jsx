@@ -45,7 +45,7 @@ function App() {
             }
           />
           <Route
-            path="/tech-reco"
+            path="/technicals"
             element={
               <ProtectedRoute>
                 <TechnicalsPage />

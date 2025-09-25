@@ -22,7 +22,7 @@ app.use(cookieParser());
 app.use(express.json());
 app.use(
   cors({
-    origin: FRONTEND_URL, // frontend origin
+    origin: true, // frontend origin
     credentials: true,               // ✅ allow cookies
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"], // add any custom headers if needed

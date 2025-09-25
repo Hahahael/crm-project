@@ -41,7 +41,7 @@ export default function Layout() {
               Sales Leads
             </Link>
             <Link
-              to="/tech-reco"
+              to="/technicals"
               className="block rounded-md px-3 py-2 hover:bg-gray-700"
             >
               Technical Reco
