@@ -19,6 +19,13 @@ const PORT = process.env.PORT || 5000;
 const FRONTEND_URL = process.env.FRONTEND_URL || "http://localhost:5173";
 
 const app = express();
+// Restore /auth routes for authentication
+app.use("/auth", authRoutes);
+
+// Healthcheck route for monitoring
+app.get("/healthcheck", (req, res) => {
+  res.json({ status: "ok" });
+});
 
 app.use(cookieParser());
 app.use(express.json());
