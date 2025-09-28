@@ -79,8 +79,8 @@ export function getMe(req, res) {
 export function logout(req, res) {
   res.clearCookie("token", {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "Strict",
+    secure: true,
+    sameSite: "None",
   });
   return res.json({ message: "Logged out successfully" });
 }
