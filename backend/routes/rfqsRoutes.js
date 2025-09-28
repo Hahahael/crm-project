@@ -21,7 +21,18 @@ router.get("/", async (req, res) => {
     return res.json(result.rows);
   } catch (err) {
     console.error(err);
-    return res.status(500).json({ error: "Failed to fetch technical recommendations" });
+    return res.status(500).json({ error: "Failed to fetch RFQs" });
+  }
+});
+
+// Get all vendors
+router.get("/vendors", async (req, res) => {
+  try {
+    const result = await db.query(`SELECT * FROM vendors ORDER BY id ASC`);
+    return res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: "Failed to fetch vendors" });
   }
 });
 
@@ -45,7 +56,7 @@ router.get("/:id", async (req, res) => {
     return res.json(result.rows[0]);
   } catch (err) {
     console.error(err);
-    return res.status(500).json({ error: "Failed to fetch technical recommendation" });
+    return res.status(500).json({ error: "Failed to fetch RFQ" });
   }
 });
 
@@ -130,11 +141,11 @@ router.post("/", async (req, res) => {
     return res.status(201).json(final.rows[0]);
   } catch (err) {
     console.error(err);
-    return res.status(500).json({ error: "Failed to create technical recommendation" });
+    return res.status(500).json({ error: "Failed to create RFQ" });
   }
 });
 
-// Update existing technical recommendation
+// Update existing RFQ
 router.put("/:id", async (req, res) => {
   try {
     const { id } = req.params;
@@ -162,7 +173,6 @@ router.put("/:id", async (req, res) => {
         body.grand_total,
         body.created_at,
         body.created_by,
-        body.updated_at,
         id
       ]
     );
@@ -179,7 +189,196 @@ router.put("/:id", async (req, res) => {
     return res.json(result.rows[0]);
   } catch (err) {
     console.error(err);
-    return res.status(500).json({ error: "Failed to update technical recommendation" });
+    return res.status(500).json({ error: "Failed to update RFQ" });
+  }
+});
+
+// Get items associated with an RFQ
+router.get("/:id/items", async (req, res) => {
+  try {
+    const { id } = req.params;
+    // Get items and their vendor quotes
+    const itemsResult = await db.query(
+      `SELECT * FROM rfq_items WHERE rfq_id = $1 ORDER BY id ASC`,
+      [id]
+    );
+    const items = itemsResult.rows;
+
+    // For each item, get vendor quotes
+    const itemsWithQuotes = await Promise.all(items.map(async (item) => {
+      const quotesResult = await db.query(
+        `SELECT q.*, v.name AS vendor_name, v.contact_person, v.phone, v.email, v.address
+         FROM rfq_item_vendor_quotes q
+         LEFT JOIN vendors v ON q.vendor_id = v.id
+         WHERE q.rfq_item_id = $1
+         ORDER BY q.id ASC`,
+        [item.id]
+      );
+      return {
+        ...item,
+        vendorQuotes: quotesResult.rows
+      };
+    }));
+    return res.json(itemsWithQuotes);
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: "Failed to fetch RFQ items" });
+  }
+});
+
+// Get vendors associated with an RFQ
+// Create RFQ items
+router.post('/:id/items', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const itemsRaw = Array.isArray(req.body) ? req.body : [req.body];
+    const items = itemsRaw.map(toSnake);
+    // Fetch existing items
+    const existingRes = await db.query('SELECT * FROM rfq_items WHERE rfq_id = $1', [id]);
+    const existing = existingRes.rows;
+    const existingIds = new Set(existing.map(i => i.id));
+    const incomingIds = new Set(items.filter(i => i.id).map(i => i.id));
+
+    // Delete items not in incoming
+    for (const ex of existing) {
+      if (!incomingIds.has(ex.id)) {
+        await db.query('DELETE FROM rfq_items WHERE id = $1', [ex.id]);
+      }
+    }
+
+    const upserted = [];
+    for (const item of items) {
+      if (item.id && existingIds.has(item.id)) {
+        // Update
+        const result = await db.query(
+          `UPDATE rfq_items SET description=$1, brand=$2, part_number=$3, quantity=$4, unit=$5, lead_time=$6, unit_price=$7, amount=$8 WHERE id=$9 RETURNING *`,
+          [item.description, item.brand, item.part_number, item.quantity, item.unit, item.lead_time, item.unit_price, item.amount, item.id]
+        );
+        upserted.push(result.rows[0]);
+      } else {
+        // Insert
+        const result = await db.query(
+          `INSERT INTO rfq_items (rfq_id, description, brand, part_number, quantity, unit, lead_time, unit_price, amount)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`,
+          [id, item.description, item.brand, item.part_number, item.quantity, item.unit, item.lead_time, item.unit_price, item.amount]
+        );
+        upserted.push(result.rows[0]);
+      }
+    }
+    return res.status(201).json(upserted);
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: 'Failed to save RFQ items' });
+  }
+});
+
+// Create RFQ vendors
+router.post('/:id/vendors', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const vendorsRaw = Array.isArray(req.body) ? req.body : [req.body];
+    const vendors = vendorsRaw.map(toSnake);
+    // Fetch existing vendors
+    const existingRes = await db.query('SELECT * FROM rfq_vendors WHERE rfq_id = $1', [id]);
+    const existing = existingRes.rows;
+    const existingIds = new Set(existing.map(v => v.id));
+    const incomingIds = new Set(vendors.filter(v => v.id).map(v => v.id));
+
+    // Delete vendors not in incoming
+    for (const ex of existing) {
+      if (!incomingIds.has(ex.id)) {
+        await db.query('DELETE FROM rfq_vendors WHERE id = $1', [ex.id]);
+      }
+    }
+
+    const upserted = [];
+    for (const vendor of vendors) {
+      if (vendor.id && existingIds.has(vendor.id)) {
+        // Update
+        const result = await db.query(
+          `UPDATE rfq_vendors SET vendor_id=$1, contact_person=$2, status=$3, quote_date=$4, grand_total=$5, notes=$6 WHERE id=$7 RETURNING *`,
+          [vendor.vendor_id, vendor.contact_person, vendor.status, vendor.quote_date, vendor.grand_total, vendor.notes, vendor.id]
+        );
+        upserted.push(result.rows[0]);
+      } else {
+        // Insert
+        const result = await db.query(
+          `INSERT INTO rfq_vendors (rfq_id, vendor_id, contact_person, status, quote_date, grand_total, notes)
+           VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *`,
+          [id, vendor.vendor_id, vendor.contact_person, vendor.status, vendor.quote_date, vendor.grand_total, vendor.notes]
+        );
+        upserted.push(result.rows[0]);
+      }
+    }
+    return res.status(201).json(upserted);
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: 'Failed to save RFQ vendors' });
+  }
+});
+
+// Create RFQ item vendor quotes
+router.post('/:id/item-quotes', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const quotesRaw = Array.isArray(req.body) ? req.body : [req.body];
+    const quotes = quotesRaw.map(toSnake);
+    // Fetch existing quotes for items in this RFQ
+    // Get all item ids for this RFQ
+    const itemsRes = await db.query('SELECT id FROM rfq_items WHERE rfq_id = $1', [id]);
+    const itemIds = itemsRes.rows.map(r => r.id);
+    const existingRes = await db.query('SELECT * FROM rfq_item_vendor_quotes WHERE rfq_item_id = ANY($1)', [itemIds]);
+    const existing = existingRes.rows;
+    const existingIds = new Set(existing.map(q => q.id));
+    const incomingIds = new Set(quotes.filter(q => q.id).map(q => q.id));
+
+    // Delete quotes not in incoming
+    for (const ex of existing) {
+      if (!incomingIds.has(ex.id)) {
+        await db.query('DELETE FROM rfq_item_vendor_quotes WHERE id = $1', [ex.id]);
+      }
+    }
+
+    const upserted = [];
+    for (const quote of quotes) {
+      if (quote.id && existingIds.has(quote.id)) {
+        // Update
+        const result = await db.query(
+          `UPDATE rfq_item_vendor_quotes SET vendor_id=$1, price=$2, total=$3, lead_time=$4, lead_time_color=$5, quote_date=$6, status=$7, notes=$8 WHERE id=$9 RETURNING *`,
+          [quote.vendor_id, quote.price, quote.total, quote.lead_time, quote.lead_time_color, quote.quote_date, quote.status, quote.notes, quote.id]
+        );
+        upserted.push(result.rows[0]);
+      } else {
+        // Insert
+        const result = await db.query(
+          `INSERT INTO rfq_item_vendor_quotes (rfq_item_id, vendor_id, price, total, lead_time, lead_time_color, quote_date, status, notes)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`,
+          [quote.rfq_item_id, quote.vendor_id, quote.price, quote.total, quote.lead_time, quote.lead_time_color, quote.quote_date, quote.status, quote.notes]
+        );
+        upserted.push(result.rows[0]);
+      }
+    }
+    return res.status(201).json(upserted);
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: 'Failed to save RFQ item vendor quotes' });
+  }
+});
+router.get("/:id/vendors", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const result = await db.query(
+      `SELECT rv.*, v.name, v.phone, v.email, v.address
+       FROM rfq_vendors rv
+       LEFT JOIN vendors v ON rv.vendor_id = v.id
+       WHERE rv.rfq_id = $1
+       ORDER BY rv.id ASC`,
+      [id]
+    );
+    return res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: "Failed to fetch RFQ vendors" });
   }
 });
 

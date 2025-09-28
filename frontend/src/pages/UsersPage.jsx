@@ -6,6 +6,7 @@ import UsersTable from "../components/UsersTable";
 import UserForm from "../components/UserForm";
 import UserDetailsWrapper from "../components/UserDetailsWrapper";
 import ConfirmModal from "../components/ConfirmModal";
+import LoadingModal from "../components/LoadingModal";
 
 const UsersPage = () => {
   const [users, setUsers] = useState([]);
@@ -44,18 +45,18 @@ const UsersPage = () => {
         setRoles(rolesData);
         setDepartments(departmentsData);
         setStatuses(statusesData);
-        setLoading(false);
+        setTimeout(() => setLoading(false), 500);
       } catch (err) {
         console.error("❌ Error fetching data:", err);
         setError("Failed to fetch data.");
-        setLoading(false);
+        setTimeout(() => setLoading(false), 500);
       }
     };
 
     fetchAllData();
   }, []);
 
-  if (loading) return <p className="p-4">Loading...</p>;
+  if (loading) return <LoadingModal message="Loading Work Orders..." subtext="Please wait while we fetch your data." />;
   if (error) return <p className="p-4 text-red-600">{error}</p>;
 
   // Save (create/edit) user

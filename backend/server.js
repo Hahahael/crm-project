@@ -6,6 +6,7 @@ import pool from './db.js';
 import authRoutes from "./routes/authRoutes.js";
 import authMiddleware from "./middleware/authMiddleware.js";
 import usersRouter from "./routes/usersRoutes.js"
+import accountsRouter from "./routes/accountsRoutes.js";
 import hierarchicalRouter from "./routes/hierarchicalRoutes.js";
 import workflowStagesRouter from "./routes/workflowStagesRoutes.js";
 import workordersRouter from "./routes/workordersRoutes.js";
@@ -50,6 +51,7 @@ app.use((req, res, next) => {
 app.use(authMiddleware);
 app.use("/dashboard", usersRouter);
 app.use("/api/users", usersRouter);
+app.use("/api/accounts", accountsRouter);
 app.use("/api/hierarchy", hierarchicalRouter);
 app.use("/api/workflow-stages", workflowStagesRouter);
 app.use("/api/workorders", workordersRouter);

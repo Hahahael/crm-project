@@ -142,31 +142,89 @@ router.delete("/:id", async (req, res) => {
   }
 });
 
+// Get latest workflow stages assigned to a user with 'Pending' status for a specific stage name
 router.get("/assigned/latest/:id/:stageName", async (req, res) => {
   console.log("Fetching latest assigned workflow stages for user:", req.params.id, "and stage:", req.params.stageName);
   try {
     const { id, stageName } = req.params;
-    const result = await db.query(`
-      SELECT ws.*, wo.*
-      FROM workflow_stages ws
-      INNER JOIN (
-        SELECT wo_id, MAX(created_at) AS max_created
-        FROM workflow_stages
-        WHERE assigned_to = $1
-        GROUP BY wo_id
-      ) latest
-        ON ws.wo_id = latest.wo_id AND ws.created_at = latest.max_created
-      INNER JOIN workorders wo ON ws.wo_id = wo.id
-      WHERE ws.status = 'Pending' AND ws.stage_name = $2
-      `, [id, stageName]
-    );
 
+    // Refactored: join users and sales_leads as needed
+    let query;
+    const stage = stageName.toLowerCase();
+    if (stage.includes("sales lead") || stage.includes("sl")) {
+      // For sales_leads: join users for username/department, include woNumber
+      query = `
+        SELECT ws.*, sl.*, sl.wo_number AS woNumber, u.username AS se_username, u.department AS se_department
+        FROM workflow_stages ws
+        INNER JOIN (
+          SELECT wo_id, MAX(created_at) AS max_created
+          FROM workflow_stages
+          WHERE assigned_to = $1
+          GROUP BY wo_id
+        ) latest ON ws.wo_id = latest.wo_id AND ws.created_at = latest.max_created
+        INNER JOIN sales_leads sl ON ws.wo_id = sl.id
+        LEFT JOIN users u ON sl.se_id = u.id
+        WHERE ws.status = 'Pending' AND ws.stage_name = $2
+      `;
+    } else if (stage.includes("workorder") || stage.includes("wo")) {
+      // For workorders: join users for username/department, include woNumber
+      query = `
+        SELECT ws.*, wo.*, wo.wo_number AS woNumber, u.username AS assigned_to_username, u.department AS assigned_to_department
+        FROM workflow_stages ws
+        INNER JOIN (
+          SELECT wo_id, MAX(created_at) AS max_created
+          FROM workflow_stages
+          WHERE assigned_to = $1
+          GROUP BY wo_id
+        ) latest ON ws.wo_id = latest.wo_id AND ws.created_at = latest.max_created
+        INNER JOIN workorders wo ON ws.wo_id = wo.id
+        LEFT JOIN users u ON ws.assigned_to = u.id
+        WHERE ws.status = 'Pending' AND ws.stage_name = $2
+      `;
+    } else {
+      // For other tables: join sales_leads for sl_number, join users for username/department
+      // Table name and alias
+      let table, alias;
+      if (stage.includes("technical reco") || stage.includes("tr")) {
+        table = "technical_recommendations";
+        alias = "tr";
+      } else if (stage.includes("rfq")) {
+        table = "rfqs";
+        alias = "rfq";
+      } else if (stage.includes("naef")) {
+        table = "naefs";
+        alias = "naef";
+      } else if (stage.includes("quotation") || stage.includes("quote")) {
+        table = "quotations";
+        alias = "qt";
+      } else {
+        table = "workorders";
+        alias = "wo";
+      }
+      query = `
+        SELECT ws.*, ${alias}.*, sl.sl_number, wo.wo_number AS woNumber, u.username AS se_username, u.department AS se_department
+        FROM workflow_stages ws
+        INNER JOIN (
+          SELECT wo_id, MAX(created_at) AS max_created
+          FROM workflow_stages
+          WHERE assigned_to = $1
+          GROUP BY wo_id
+        ) latest ON ws.wo_id = latest.wo_id AND ws.created_at = latest.max_created
+        INNER JOIN ${table} ${alias} ON ws.wo_id = ${alias}.wo_id
+        LEFT JOIN sales_leads sl ON ${alias}.sl_id = sl.id
+        LEFT JOIN workorders wo ON sl.wo_id = wo.id
+        LEFT JOIN users u ON sl.se_id = u.id
+        WHERE ws.status = 'Pending' AND ws.stage_name = $2
+      `;
+    }
+
+    const result = await db.query(query, [id, stageName]);
     console.log("Latest assigned workflow stages result:", result.rows);
     return res.json(result.rows);
   } catch (err) {
     console.error(err);
     return res.status(500).json({ error: "Failed to fetch workflow stage" });
   }
-})
+});
 
 export default router;

@@ -2,7 +2,7 @@ export const technicalRecommendations = [
   {
     id: 1,
     woId: 3,
-    assignee: 3,
+    assignee: 1,
     trNumber: "TR-2025-9001",
     status: "Open",
     priority: "High",
@@ -28,7 +28,7 @@ export const technicalRecommendations = [
   {
     id: 2,
     woId: 4,
-    assignee: 4,
+    assignee: 1,
     trNumber: "TR-2025-9002",
     status: "Open",
     priority: "High",

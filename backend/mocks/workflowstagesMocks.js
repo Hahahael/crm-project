@@ -14,7 +14,7 @@ export const workflowStages = [
     woId: 2,
     stageName: "Work Order",
     status: "In Progress",
-    assignedTo: 2,
+    assignedTo: 1,
     notified: false,
     createdAt: "2025-09-22",
     updatedAt: "2025-09-22"
@@ -24,7 +24,7 @@ export const workflowStages = [
     woId: 2,
     stageName: "Sales Lead",
     status: "In Progress",
-    assignedTo: 2,
+    assignedTo: 1,
     notified: false,
     createdAt: "2025-09-22",
     updatedAt: "2025-09-22"
@@ -34,7 +34,7 @@ export const workflowStages = [
     woId: 3,
     stageName: "Work Order",
     status: "In Progress",
-    assignedTo: 3,
+    assignedTo: 1,
     notified: false,
     createdAt: "2025-09-22",
     updatedAt: "2025-09-22"
@@ -44,17 +44,57 @@ export const workflowStages = [
     woId: 3,
     stageName: "Sales Lead",
     status: "In Progress",
-    assignedTo: 3,
+    assignedTo: 1,
     notified: false,
     createdAt: "2025-09-22",
     updatedAt: "2025-09-22"
   },
   {
     id: 6,
-    woId: 3,
-    stageName: "TR",
+    woId: 4,
+    stageName: "Technical Recommendation",
+    status: "Pending",
+    assignedTo: 1,
+    notified: false,
+    createdAt: "2025-09-22",
+    updatedAt: "2025-09-22"
+  },
+  {
+    id: 7,
+    woId: 4,
+    stageName: "Work Order",
     status: "In Progress",
-    assignedTo: 3,
+    assignedTo: 1,
+    notified: false,
+    createdAt: "2025-09-22",
+    updatedAt: "2025-09-22"
+  },
+  {
+    id: 8,
+    woId: 4,
+    stageName: "Sales Lead",
+    status: "In Progress",
+    assignedTo: 1,
+    notified: false,
+    createdAt: "2025-09-22",
+    updatedAt: "2025-09-22"
+  },
+  {
+    id: 9,
+    woId: 4,
+    stageName: "Technical Recommendation",
+    status: "In Progress",
+    assignedTo: 1,
+    notified: false,
+    createdAt: "2025-09-22",
+    updatedAt: "2025-09-22"
+  },
+  {
+    id: 10,
+    woId: 4,
+    stageName: "RFQ",
+    status: "Pending",
+    assignedTo: 1,
     notified: false,
     createdAt: "2025-09-22",
     updatedAt: "2025-09-22"

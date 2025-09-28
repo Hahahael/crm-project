@@ -1,6 +1,6 @@
 //src/pages/TechnicalsPage
 import { useState, useEffect, useRef } from "react";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import {
     LuBell,
     LuChartColumn,
@@ -21,11 +21,13 @@ import TechnicalsTable from "../components/TechnicalsTable";
 import TechnicalDetails from "../components/TechnicalDetails";
 import TechnicalForm from "../components/TechnicalForm";
 import { apiBackendFetch } from "../services/api";
+import LoadingModal from "../components/LoadingModal";
 
 export default function TechnicalsPage() {
     const timeoutRef = useRef();
     const location = useLocation();
     const salesLead = location.state?.salesLead;
+    const navigate = useNavigate();
 
     const [technicalRecos, setTechnicalRecos] = useState([]);
     const [search, setSearch] = useState("");
@@ -35,7 +37,7 @@ export default function TechnicalsPage() {
     const [error, setError] = useState(null);
     const [successMessage, setSuccessMessage] = useState("");
     const [currentUser, setCurrentUser] = useState(null);
-    const [assignedTechnicalRecos, setAssignedTechnicalRecos] = useState([]);
+    const [newAssignedTechnicalRecos, setNewAssignedTechnicalRecos] = useState([]);
     const [statusSummary, setStatusSummary] = useState({
         total: 0,
         pending: 0,
@@ -65,7 +67,7 @@ export default function TechnicalsPage() {
             //         completed: Number(summaryData.completed) || 0,
             //     });
             // }
-            setLoading(false);
+            setTimeout(() => setLoading(false), 500);
         } catch (err) {
             console.error("Error retrieving technical recommendations:", err);
             setError("Failed to fetch technical recommendations.");
@@ -84,23 +86,32 @@ export default function TechnicalsPage() {
         }
     };
 
-    const fetchAssignedTechnicalRecos = async () => {
+    const fetchNewAssignedTechnicalRecos = async () => {
+        if (!currentUser) return;
         try {
-            const res = await apiBackendFetch(`/api/technicals/${currentUser.id}`);
+            const res = await apiBackendFetch(`/api/workflow-stages/assigned/latest/${currentUser.id}/${encodeURIComponent("Technical Recommendation")}`);
+
             if (res.ok) {
                 const data = await res.json();
-                setAssignedTechnicalRecos(data);
+                console.log("New assigned technical recommendations:", data);
+                setNewAssignedTechnicalRecos(data);
             }
+            console.log("New Assigned Technical Recommendations:", newAssignedTechnicalRecos);
         } catch (err) {
-            console.error("Failed to fetch assigned technical recommendations", err);
+            console.error("Failed to fetch assigned workorders", err);
         }
     };
 
     useEffect(() => {
-        fetchAssignedTechnicalRecos();
         fetchCurrentUser();
         fetchAllData();
     }, []);
+
+    useEffect(() => {
+      if (currentUser) {
+        fetchNewAssignedTechnicalRecos();
+      }
+    }, [currentUser]);
 
     useEffect(() => {
         if (successMessage) {
@@ -113,11 +124,7 @@ export default function TechnicalsPage() {
         }
     }, [successMessage]);
 
-    const newAssignedTechnicalRecos = currentUser
-        ? technicalRecos.filter((wo) => wo.assigneeUsername === currentUser.username && wo.status === "Pending")
-        : [];
-
-    if (loading) return <p className="p-4">Loading...</p>;
+    if (loading) return <LoadingModal message="Loading Work Orders..." subtext="Please wait while we fetch your data." />;
     if (error) return <p className="p-4 text-red-600">{error}</p>;
 
     const filtered = technicalRecos.filter(
@@ -130,52 +137,47 @@ export default function TechnicalsPage() {
             console.log(formData.id);
             const response = await apiBackendFetch(mode === "edit" ? `/api/technicals/${formData.id}` : "/api/technicals", {
                 method: mode === "edit" ? "PUT" : "POST",
-                body:
-                    mode === "edit" ? JSON.stringify(formData) : JSON.stringify({ ...formData, woId: formData.id, assignee: currentUser.id }), // include woId for backend processing
+                body: mode === "edit" ? JSON.stringify(formData) : JSON.stringify({ ...formData, woId: formData.id, assignee: currentUser.id }), // include woId for backend processing
             });
 
             if (!response.ok) throw new Error("Failed to save technical recommendation");
             const savedTechnicalReco = await response.json();
-      
+
             if (mode === "edit") {
-              // Fetch the workflow stage for this workorder and stage name
-              const wsRes = await apiBackendFetch(
-                `/api/workflowstages/workorder/${savedTechnicalReco.woId}`
-              );
-              if (wsRes.ok) {
-                const stages = await wsRes.json();
-                // Find the "Technical Recommendation" stage
-                const technicalRecoStage = stages.find(
-                  s => s.stage_name === "Technical Recommendation"
-                );
-                if (technicalRecoStage) {
-                  await apiBackendFetch(`/api/workflowstages/${technicalRecoStage.woId}`, {
-                    method: "PUT",
-                    body: JSON.stringify({
-                      status: savedTechnicalReco.status || "Pending",
-                      assigned_to: savedTechnicalReco.assignee,
-                    }),
-                  });
+                // Fetch the workflow stage for this workorder and stage name
+                const wsRes = await apiBackendFetch(`/api/workflowstages/workorder/${savedTechnicalReco.woId}`);
+                if (wsRes.ok) {
+                    const stages = await wsRes.json();
+                    // Find the "Technical Recommendation" stage
+                    const technicalRecoStage = stages.find((s) => s.stage_name === "Technical Recommendation");
+                    if (technicalRecoStage) {
+                        await apiBackendFetch(`/api/workflowstages/${technicalRecoStage.woId}`, {
+                            method: "PUT",
+                            body: JSON.stringify({
+                                status: savedTechnicalReco.status || "Pending",
+                                assigned_to: savedTechnicalReco.assignee,
+                            }),
+                        });
+                    }
                 }
-              }
             } else {
-              // Create a new workflow stage for this sales lead
-              await apiBackendFetch("/api/workflowstages", {
-                method: "POST",
-                body: JSON.stringify({
-                  wo_id: savedTechnicalReco.woId,
-                  stage_name: "Technical Recommendation",
-                  status: savedTechnicalReco.status || "Pending",
-                  assigned_to: savedTechnicalReco.assignee,
-                }),
-              });
+                // Create a new workflow stage for this sales lead
+                await apiBackendFetch("/api/workflowstages", {
+                    method: "POST",
+                    body: JSON.stringify({
+                        wo_id: savedTechnicalReco.woId,
+                        stage_name: "Technical Recommendation",
+                        status: savedTechnicalReco.status || "Pending",
+                        assigned_to: savedTechnicalReco.assignee,
+                    }),
+                });
             }
-      
+
             // Fetch all workflow stages and log them
             const stagesRes = await apiBackendFetch("/api/workflow-stages");
             if (stagesRes.ok) {
-              const allStages = await stagesRes.json();
-              console.log("All workflow stages:", allStages);
+                const allStages = await stagesRes.json();
+                console.log("All workflow stages:", allStages);
             }
 
             setSuccessMessage("Technical Recommendation saved successfully!"); // ✅ trigger success message
@@ -220,28 +222,28 @@ export default function TechnicalsPage() {
                     </div>
 
                     {/* Banner Notifications */}
-                    {currentUser && assignedTechnicalRecos.length > 1 && (
-                        <div className="flex border-blue-200 border-2 rounded-xl p-4 mb-6 bg-blue-50 items-start justify-between text-card-foreground shadow-lg animate-pulse">
+                    {currentUser && newAssignedTechnicalRecos.length > 1 && (
+                        <div className="flex border-purple-200 border-2 rounded-xl p-4 mb-6 bg-purple-50 items-start justify-between text-card-foreground shadow-lg animate-pulse">
                             <div className="flex space-x-3">
-                                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-100">
-                                    <LuBell className="h-5 w-5 text-blue-600" />
+                                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-purple-100">
+                                    <LuBell className="h-5 w-5 text-purple-600" />
                                 </div>
                                 <div className="flex-1 min-w-0">
                                     <div className="flex items-center space-x-2 mb-2">
-                                        <LuCircleAlert className="h-4 w-4 text-blue-600" />
-                                        <p className="text-sm font-semibold text-blue-800">
-                                            {`You have ${assignedTechnicalRecos.length} new technical recommendation${
-                                                assignedTechnicalRecos.length > 1 ? "s" : ""
+                                        <LuCircleAlert className="h-4 w-4 text-purple-600" />
+                                        <p className="text-sm font-semibold text-purple-800">
+                                            {`You have ${newAssignedTechnicalRecos.length} new technical recommendation${
+                                                newAssignedTechnicalRecos.length > 1 ? "s" : ""
                                             } assigned to you`}
                                         </p>
                                     </div>
                                     <div className="space-y-1">
-                                        <p className="text-sm text-gray-900">{assignedTechnicalRecos.map((wo) => wo.woNumber).join(", ")}</p>
+                                        <p className="text-sm text-gray-900">{newAssignedTechnicalRecos.map((tr) => tr.trNumber).join(", ")}</p>
                                     </div>
                                     <div className="mt-3">
                                         <button
-                                            onClick={() => setSelectedTR(assignedTechnicalRecos[0])}
-                                            className="inline-flex items-center justify-center whitespace-nowrap font-medium transition-colors shadow h-8 rounded-md px-3 text-xs bg-orange-600 hover:bg-orange-700 text-white cursor-pointer">
+                                            onClick={() => setSelectedTR(newAssignedTechnicalRecos[0])}
+                                            className="inline-flex items-center justify-center whitespace-nowrap font-medium transition-colors shadow h-8 rounded-md px-3 text-xs bg-purple-600 hover:bg-purple-700 text-white cursor-pointer">
                                             View First Technical Recommendation
                                         </button>
                                     </div>
@@ -256,26 +258,26 @@ export default function TechnicalsPage() {
                             </button>
                         </div>
                     )}
-                    {currentUser && assignedTechnicalRecos.length === 1 && (
-                        <div className="flex border-blue-200 border-2 rounded-xl p-4 mb-6 bg-blue-50 items-start justify-between text-card-foreground shadow-lg animate-pulse">
+                    {currentUser && newAssignedTechnicalRecos.length === 1 && (
+                        <div className="flex border-purple-200 border-2 rounded-xl p-4 mb-6 bg-purple-50 items-start justify-between text-card-foreground shadow-lg animate-pulse">
                             <div className="flex space-x-3">
-                                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-100">
-                                    <LuBell className="h-5 w-5 text-blue-600" />
+                                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-purple-100">
+                                    <LuBell className="h-5 w-5 text-purple-600" />
                                 </div>
                                 <div className="flex-1 min-w-0">
                                     <div className="flex items-center space-x-2 mb-2">
-                                        <LuCircleAlert className="h-4 w-4 text-blue-600" />
-                                        <p className="text-sm font-semibold text-blue-800">New Technical Recommendation</p>
-                                        <span className="inline-flex items-center rounded-md border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 hover:bg-secondary/80 bg-orange-100 text-orange-800 border-orange-200">
-                                            RECOMMENDATION
+                                        <LuCircleAlert className="h-4 w-4 text-purple-600" />
+                                        <p className="text-sm font-semibold text-purple-800">New Technical Recommendation</p>
+                                        <span className="inline-flex items-center rounded-md border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 hover:bg-secondary/80 bg-purple-100 text-purple-800 border-purple-200">
+                                            TR
                                         </span>
                                     </div>
                                     <div className="space-y-1">
                                         <p className="text-sm font-medium text-gray-900">
-                                            {assignedTechnicalRecos[0].woNumber} - {assignedTechnicalRecos[0].workDescription}
+                                            {newAssignedTechnicalRecos[0].trNumber} - {newAssignedTechnicalRecos[0].title}
                                         </p>
-                                        <p className="text-sm text-gray-600">Account: {assignedTechnicalRecos[0].accountName}</p>
-                                        <p className="text-sm text-gray-600">Contact: {assignedTechnicalRecos[0].contactPerson}</p>
+                                        <p className="text-sm text-gray-600">Account: {newAssignedTechnicalRecos[0].accountId}</p>
+                                        <p className="text-sm text-gray-600">Contact: {newAssignedTechnicalRecos[0].contactPerson}</p>
                                     </div>
                                     <div className="mt-3">
                                         <button
@@ -283,7 +285,7 @@ export default function TechnicalsPage() {
                                                 setEditingTR({});
                                                 setSelectedTR(null);
                                             }}
-                                            className="inline-flex items-center justify-center whitespace-nowrap font-medium transition-colors shadow h-8 rounded-md px-3 text-xs bg-orange-600 hover:bg-orange-700 text-white cursor-pointer">
+                                            className="inline-flex items-center justify-center whitespace-nowrap font-medium transition-colors shadow h-8 rounded-md px-3 text-xs bg-purple-600 hover:bg-purple-700 text-white cursor-pointer">
                                             Open Technical Recommendation
                                         </button>
                                     </div>
@@ -365,8 +367,15 @@ export default function TechnicalsPage() {
                 {selectedTR && !editingTR && (
                     <TechnicalDetails
                         technicalReco={selectedTR}
+                        currentUser={currentUser}
                         onBack={() => setSelectedTR(null)}
                         onEdit={() => setEditingTR(selectedTR)}
+                        onTechnicalRecoUpdated={(updatedTR) => {
+                            setSelectedTR(updatedTR);
+                            // Optionally, update the technicalRecos array as well:
+                            setTechnicalRecos((prev) => prev.map((tr) => (tr.id === updatedTR.id ? updatedTR : tr)));
+                            fetchNewAssignedTechnicalRecos(); // <-- refresh from backend
+                        }}
                     />
                 )}
             </div>
@@ -381,7 +390,10 @@ export default function TechnicalsPage() {
                         technicalReco={editingTR}
                         mode={editingTR?.id ? "edit" : "create"}
                         onSave={(formData, mode) => handleSave(formData, mode)}
-                        onBack={() => setEditingTR(null)}
+                        onBack={() => {
+                            fetchNewAssignedTechnicalRecos();
+                            setEditingTR(null);
+                        }}
                     />
                 )}
             </div>

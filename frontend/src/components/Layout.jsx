@@ -47,6 +47,12 @@ export default function Layout() {
               Technical Reco
             </Link>
             <Link
+              to="/rfqs"
+              className="block rounded-md px-3 py-2 hover:bg-gray-700"
+            >
+              RFQs
+            </Link>
+            <Link
               to="/users"
               className="block rounded-md px-3 py-2 hover:bg-gray-700"
             >

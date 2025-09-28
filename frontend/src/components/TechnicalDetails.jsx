@@ -1,7 +1,12 @@
 import { LuArrowLeft, LuPencil, LuPrinter } from "react-icons/lu";
+import { useEffect } from "react";
+import { apiBackendFetch } from "../services/api.js";
 import utils from "../helper/utils";
 
-const TechnicalDetails = ({ technicalReco, onBack, onEdit, onPrint }) => {
+const TechnicalDetails = ({ technicalReco, currentUser, onBack, onEdit, onTechnicalRecoUpdated, onPrint }) => {
+    const isAssignedToMe = currentUser && technicalReco.assignee === currentUser.id;
+    const isCreator = currentUser && technicalReco.createdBy === currentUser.id;
+
     console.log("Technical Recommendation Details:", technicalReco);
     function Detail({ label, value }) {
         return (
@@ -11,6 +16,29 @@ const TechnicalDetails = ({ technicalReco, onBack, onEdit, onPrint }) => {
             </div>
         );
     }
+
+    useEffect(() => {
+        if (isAssignedToMe && !technicalReco.actualDate && !technicalReco.actualFromTime) {
+            const now = new Date();
+            const actualDate = now.toISOString().split("T")[0]; // YYYY-MM-DD
+            const actualFromTime = now.toTimeString().slice(0, 8); // HH:MM:SS
+
+            apiBackendFetch(`/api/technicals/${technicalReco.id}`, {
+                method: "PUT",
+                body: JSON.stringify({
+                    ...technicalReco,
+                    actualDate,
+                    actualFromTime,
+                }),
+                headers: { "Content-Type": "application/json" },
+            })
+                .then((res) => res.json())
+                .then((updatedTechnicalReco) => {
+                    if (onTechnicalRecoUpdated) onTechnicalRecoUpdated(updatedTechnicalReco);
+                });
+        }
+        // eslint-disable-next-line
+    }, [technicalReco?.id, isAssignedToMe]);
 
     return (
         <div className="container mx-auto p-6 overflow-auto">

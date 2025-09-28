@@ -11,6 +11,10 @@ import { workorders } from "./workordersMock.js";
 import { salesLeads } from "./salesleadsMocks.js";
 import { technicalRecommendations } from "./technicalrecommendationsMock.js";
 import { rfqs } from "./rfqsMocks.js";
+import { rfqItems } from "./rfqItemsMock.js";
+import { rfqVendors } from "./rfqVendorsMock.js";
+import { vendors } from "./vendorsMock.js";
+import { rfqItemVendorQuotes } from "./rfqItemVendorQuotesMock.js";
 import { workflowStages } from "./workflowstagesMocks.js";
 
 let pool;
@@ -325,7 +329,8 @@ mem.public.none(`
     grand_total NUMERIC(12, 2) CHECK (grand_total >= 0),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     created_by INT REFERENCES users(id) ON DELETE SET NULL,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_by INT REFERENCES users(id) ON DELETE SET NULL
   );
 
   CREATE TABLE rfq_items (
@@ -339,6 +344,45 @@ mem.public.none(`
     lead_time VARCHAR(100),
     unit_price NUMERIC(12, 2) CHECK (unit_price >= 0),
     amount NUMERIC(12, 2)
+  );
+`);
+
+mem.public.none(`
+  CREATE TABLE vendors (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
+    contact_person VARCHAR(100),
+    phone VARCHAR(20),
+    email VARCHAR(100),
+    address TEXT
+  );
+`);
+
+mem.public.none(`
+  CREATE TABLE rfq_vendors (
+    id SERIAL PRIMARY KEY,
+    rfq_id INT REFERENCES rfqs(id) ON DELETE CASCADE,
+    vendor_id INT REFERENCES vendors(id) ON DELETE SET NULL,
+    contact_person VARCHAR(100),
+    status VARCHAR(50) DEFAULT 'Pending', -- Quoted, Pending, etc.
+    quote_date DATE,
+    grand_total NUMERIC(12,2) DEFAULT 0,
+    notes TEXT
+  );
+`);
+
+mem.public.none(`
+  CREATE TABLE rfq_item_vendor_quotes (
+    id SERIAL PRIMARY KEY,
+    rfq_item_id INT REFERENCES rfq_items(id) ON DELETE CASCADE,
+    vendor_id INT REFERENCES vendors(id) ON DELETE SET NULL,
+    price NUMERIC(12,2) NOT NULL,
+    total NUMERIC(12,2),
+    lead_time VARCHAR(100),
+    lead_time_color VARCHAR(30),
+    quote_date DATE,
+    status VARCHAR(50),
+    notes TEXT
   );
 `);
 
@@ -609,24 +653,80 @@ for (const r of rfqs) {
     `INSERT INTO rfqs 
     (wo_id, assignee, rfq_number, rfq_date, due_date, description, sl_id, account_id, payment_terms, notes, subtotal, vat, grand_total, created_at, created_by, updated_at)
     VALUES (
-    ${r.wo_id},
+    ${r.woId},
     ${r.assignee},
-    '${r.rfq_number}',
-    '${r.rfq_date}',
-    '${r.due_date}',
+    '${r.rfqNumber}',
+    '${r.rfqDate}',
+    '${r.dueDate}',
     '${r.description}',
-    ${r.sl_id},
-    ${r.account_id},
-    '${r.payment_terms}',
+    ${r.slId},
+    ${r.accountId},
+    '${r.paymentTerms}',
     '${r.notes}',
     ${r.subtotal},
     ${r.vat},
-    ${r.grand_total},
+    ${r.grandTotal},
     NOW(),
-    ${r.created_by},
+    ${r.createdBy},
     NOW()
     )
     `
+  );
+}
+
+for (const v of vendors) {
+  mem.public.none(
+    `INSERT INTO vendors (name, contact_person, phone, email, address)
+     VALUES ('${esc(v.name)}', '${esc(v.contactPerson)}', '${esc(v.phone)}', '${esc(v.email)}', '${esc(v.address)}')`
+  );
+}
+
+for (const item of rfqItems) {
+  mem.public.none(
+    `INSERT INTO rfq_items (rfq_id, description, brand, part_number, quantity, unit, lead_time, unit_price, amount)
+     VALUES (
+      ${item.rfqId},
+      '${esc(item.description)}',
+      '${esc(item.brand)}',
+      '${esc(item.partNumber)}',
+      ${item.quantity},
+      '${esc(item.unit)}',
+      '${esc(item.leadTime)}',
+      ${item.unitPrice},
+      ${item.amount}
+     )`
+  );
+}
+
+for (const q of rfqItemVendorQuotes) {
+  mem.public.none(
+    `INSERT INTO rfq_item_vendor_quotes (rfq_item_id, vendor_id, price, total, lead_time, lead_time_color, quote_date, status, notes)
+     VALUES (
+      ${q.rfqItemId},
+      ${q.vendorId},
+      ${q.price},
+      ${q.total},
+      '${esc(q.leadTime)}',
+      '${esc(q.leadTimeColor)}',
+      '${q.quoteDate}',
+      '${esc(q.status)}',
+      '${esc(q.notes)}'
+     )`
+  );
+}
+
+for (const rv of rfqVendors) {
+  mem.public.none(
+    `INSERT INTO rfq_vendors (rfq_id, vendor_id, contact_person, status, quote_date, grand_total, notes)
+     VALUES (
+      ${rv.rfqId},
+      ${rv.vendorId},
+      '${esc(rv.contactPerson)}',
+      '${esc(rv.status)}',
+      ${rv.quoteDate ? `'${rv.quoteDate}'` : 'NULL'},
+      ${rv.grandTotal},
+      '${esc(rv.notes)}'
+     )`
   );
 }
 

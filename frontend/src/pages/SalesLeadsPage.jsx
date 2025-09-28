@@ -6,6 +6,7 @@ import SalesLeadsTable from "../components/SalesLeadsTable";
 import SalesLeadDetails from "../components/SalesLeadDetails";
 import SalesLeadForm from "../components/SalesLeadForm";
 import { apiBackendFetch } from "../services/api";
+import LoadingModal from "../components/LoadingModal";
 
 export default function SalesLeadsPage() {
   const timeoutRef = useRef();
@@ -21,7 +22,7 @@ export default function SalesLeadsPage() {
   const [error, setError] = useState(null);
   const [successMessage, setSuccessMessage] = useState("");
   const [currentUser, setCurrentUser] = useState(null);
-  const [assignedSalesLeads, setAssignedSalesLeads] = useState([]);
+  const [newAssignedSalesLeads, setNewAssignedSalesLeads] = useState([]);
   const [statusSummary, setStatusSummary] = useState({
     total: 0,
     pending: 0,
@@ -48,8 +49,8 @@ export default function SalesLeadsPage() {
           completed: Number(summaryData.completed) || 0,
         });
       }
-  
-      setLoading(false);
+      
+      setTimeout(() => setLoading(false), 500);
     } catch (err) {
       console.error("Error retrieving salesleads:", err);
       setError("Failed to fetch sales leads.");
@@ -68,12 +69,12 @@ export default function SalesLeadsPage() {
     }
   };
 
-  const fetchAssignedSalesLeads = async () => {
+  const fetchNewAssignedSalesLeads = async () => {
     try {
       const res = await apiBackendFetch(`/api/salesleads/${currentUser.id}`);
       if (res.ok) {
         const data = await res.json();
-        setAssignedSalesLeads(data);
+        setNewAssignedSalesLeads(data);
       }
     } catch (err) {
       console.error("Failed to fetch assigned salesleads", err);
@@ -81,10 +82,15 @@ export default function SalesLeadsPage() {
   };
 
   useEffect(() => {
-    fetchAssignedSalesLeads();
     fetchCurrentUser();
     fetchAllData();
   }, []);
+  
+  useEffect(() => {
+    if (currentUser) {
+      fetchNewAssignedSalesLeads();
+    }
+  }, [currentUser]);
 
   useEffect(() => {
     if (successMessage) {
@@ -98,13 +104,7 @@ export default function SalesLeadsPage() {
     
   }, [successMessage]);
 
-  const newAssignedSalesLeads = currentUser
-  ? salesLeads.filter(
-      wo => wo.assigneeUsername === currentUser.username && wo.status === "Pending"
-    )
-  : [];
-
-  if (loading) return <p className="p-4">Loading...</p>;
+  if (loading) return <LoadingModal message="Loading Work Orders..." subtext="Please wait while we fetch your data." />;
   if (error) return <p className="p-4 text-red-600">{error}</p>;
 
   const filtered = salesLeads.filter(
@@ -243,7 +243,7 @@ export default function SalesLeadsPage() {
           </div>
 
           {/* Banner Notifications */}
-          {currentUser && assignedSalesLeads.length > 1 && (
+          {currentUser && newAssignedSalesLeads.length > 1 && (
             <div className="flex border-blue-200 border-2 rounded-xl p-4 mb-6 bg-blue-50 items-start justify-between text-card-foreground shadow-lg animate-pulse">
               <div className="flex space-x-3">
                 <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-100">
@@ -253,17 +253,17 @@ export default function SalesLeadsPage() {
                   <div className="flex items-center space-x-2 mb-2">
                     <LuCircleAlert className="h-4 w-4 text-blue-600"/>
                     <p className="text-sm font-semibold text-blue-800">
-                      {`You have ${assignedSalesLeads.length} new sales lead${assignedSalesLeads.length > 1 ? "s" : ""} assigned to you`}
+                      {`You have ${newAssignedSalesLeads.length} new sales lead${newAssignedSalesLeads.length > 1 ? "s" : ""} assigned to you`}
                     </p>
                   </div>
                   <div className="space-y-1">
                     <p className="text-sm text-gray-900">
-                      {assignedSalesLeads.map(wo => wo.woNumber).join(", ")}
+                      {newAssignedSalesLeads.map(sl => sl.slNumber).join(", ")}
                     </p>
                   </div>
                   <div className="mt-3">
                     <button
-                      onClick={() => setSelectedSL(assignedSalesLeads[0])}
+                      onClick={() => setSelectedSL(newAssignedSalesLeads[0])}
                       className="inline-flex items-center justify-center whitespace-nowrap font-medium transition-colors shadow h-8 rounded-md px-3 text-xs bg-orange-600 hover:bg-orange-700 text-white cursor-pointer"
                     >
                       View First Sales Lead
@@ -278,7 +278,7 @@ export default function SalesLeadsPage() {
               </button>
             </div>
           )}
-          {currentUser && assignedSalesLeads.length === 1 && (
+          {currentUser && newAssignedSalesLeads.length === 1 && (
             <div className="flex border-blue-200 border-2 rounded-xl p-4 mb-6 bg-blue-50 items-start justify-between text-card-foreground shadow-lg animate-pulse">
               <div className="flex space-x-3">
                 <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-100">
@@ -295,9 +295,9 @@ export default function SalesLeadsPage() {
                     </span>
                   </div>
                   <div className="space-y-1">
-                    <p className="text-sm font-medium text-gray-900">{assignedSalesLeads[0].woNumber} - {assignedSalesLeads[0].workDescription}</p>
-                    <p className="text-sm text-gray-600">Account: {assignedSalesLeads[0].accountName}</p>
-                    <p className="text-sm text-gray-600">Contact: {assignedSalesLeads[0].contactPerson}</p>
+                    <p className="text-sm font-medium text-gray-900">{newAssignedSalesLeads[0].slNumber} - {newAssignedSalesLeads[0].workDescription}</p>
+                    <p className="text-sm text-gray-600">Account: {newAssignedSalesLeads[0].accountName}</p>
+                    <p className="text-sm text-gray-600">Contact: {newAssignedSalesLeads[0].contactPerson}</p>
                   </div>
                   <div className="mt-3">
                     <button
@@ -392,11 +392,18 @@ export default function SalesLeadsPage() {
         {selectedSL && !editingSL && (
           <SalesLeadDetails
             salesLead={selectedSL}
+            currentUser={currentUser}
             onBack={() => setSelectedSL(null)}
             onEdit={() => setEditingSL(selectedSL)}
             toNextStage={(passedSL, nextStage ) => {
               navigate(`/${nextStage}`, { state: { salesLead: { slNumber: passedSL.slNumber, woId: passedSL.woId, slId: passedSL.id } } });
               setSelectedSL(null);
+            }}
+            onSalesLeadUpdated={(updatedSalesLead) => {
+              setSelectedSL(updatedSalesLead);
+              // Optionally, update the salesLeads array as well:
+              setSalesLeads((prev) => prev.map((sl) => (sl.id === updatedSalesLead.id ? updatedSalesLead : sl)));
+              fetchNewAssignedSalesLeads(); // <-- refresh from backend
             }}
           />
         )}

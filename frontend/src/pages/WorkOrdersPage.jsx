@@ -6,6 +6,7 @@ import WorkOrdersTable from "../components/WorkOrdersTable";
 import WorkOrderDetails from "../components/WorkOrderDetails";
 import WorkOrderForm from "../components/WorkOrderForm";
 import { apiBackendFetch } from "../services/api";
+import LoadingModal from "../components/LoadingModal";
 
 export default function WorkOrdersPage() {
   const timeoutRef = useRef();
@@ -31,10 +32,10 @@ export default function WorkOrdersPage() {
     try {
       const workOrdersRes = await apiBackendFetch("/api/workorders");
       if (!workOrdersRes.ok) throw new Error("Failed to fetch Work Orders");
-  
+
       const workOrdersData = await workOrdersRes.json();
       setWorkOrders(workOrdersData);
-  
+
       // Fetch status summary
       const summaryRes = await apiBackendFetch("/api/workorders/summary/status");
       if (summaryRes.ok) {
@@ -46,8 +47,9 @@ export default function WorkOrdersPage() {
           completed: Number(summaryData.completed) || 0,
         });
       }
-  
-      setLoading(false);
+
+      // Add a minimum delay before hiding loading modal
+      setTimeout(() => setLoading(false), 500);
     } catch (err) {
       console.error("Error retrieving workorders:", err);
       setError("Failed to fetch work orders.");
@@ -105,7 +107,7 @@ export default function WorkOrdersPage() {
     
   }, [successMessage]);
 
-  if (loading) return <p className="p-4">Loading...</p>;
+  if (loading) return <LoadingModal message="Loading Work Orders..." subtext="Please wait while we fetch your data." />;
   if (error) return <p className="p-4 text-red-600">{error}</p>;
 
   const filtered = workOrders.filter(
