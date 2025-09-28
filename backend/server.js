@@ -22,31 +22,27 @@ const app = express();
 
 app.use(cookieParser());
 app.use(express.json());
+// Allow multiple Vercel preview URLs and production
+const allowedOrigins = [
+  "https://crm-project-git-dev-raphaels-projects-763450c5.vercel.app",
+  "https://crm-project-ieqy6ib68-raphaels-projects-763450c5.vercel.app",
+  "https://crm-project-4ugu.onrender.com",
+  FRONTEND_URL,
+];
 app.use(
   cors({
-    origin: FRONTEND_URL, // frontend origin
-    credentials: true,               // ✅ allow cookies
+    origin: function (origin, callback) {
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error("Not allowed by CORS"));
+      }
+    },
+    credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization"], // add any custom headers if needed
+    allowedHeaders: ["Content-Type", "Authorization"],
   })
 );
-
-// Apply auth middleware AFTER public routes if needed
-app.use("/auth", authRoutes);
-app.get('/healthcheck', async (req, res) => {
-  try {
-    const result = await pool.query('SELECT NOW()');
-    return res.json({ status: 'ok', time: result.rows[0] });
-  } catch (err) {
-    console.error(err);
-    return res.status(500).json({ status: 'error', message: err.message });
-  }
-});
-
-app.use((req, res, next) => {
-  res.setHeader("Cache-Control", "no-store");
-  next();
-});
 
 app.use(authMiddleware);
 app.use("/dashboard", usersRouter);
