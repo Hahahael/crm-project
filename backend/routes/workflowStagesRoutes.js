@@ -188,34 +188,78 @@ router.get("/assigned/latest/:id/:stageName", async (req, res) => {
       if (stage.includes("technical reco") || stage.includes("tr")) {
         table = "technical_recommendations";
         alias = "tr";
+        query = `
+          SELECT ws.*, tr.*
+          FROM workflow_stages ws
+          INNER JOIN (
+            SELECT wo_id, MAX(created_at) AS max_created
+            FROM workflow_stages
+            WHERE assigned_to = $1
+            GROUP BY wo_id
+          ) latest ON ws.wo_id = latest.wo_id AND ws.created_at = latest.max_created
+          INNER JOIN technical_recommendations tr ON ws.wo_id = tr.wo_id
+          WHERE ws.status = 'Pending' AND ws.stage_name = $2
+        `;
       } else if (stage.includes("rfq")) {
         table = "rfqs";
         alias = "rfq";
-      } else if (stage.includes("naef")) {
-        table = "naefs";
-        alias = "naef";
+        query = `
+          SELECT ws.*, rfq.*
+          FROM workflow_stages ws
+          INNER JOIN (
+            SELECT wo_id, MAX(created_at) AS max_created
+            FROM workflow_stages
+            WHERE assigned_to = $1
+            GROUP BY wo_id
+          ) latest ON ws.wo_id = latest.wo_id AND ws.created_at = latest.max_created
+          INNER JOIN rfqs rfq ON ws.wo_id = rfq.wo_id
+          WHERE ws.status = 'Pending' AND ws.stage_name = $2
+        `;
+      // } else if (stage.includes("naef")) {
+      //   // For accounts, join on ws.account_id = account.id (no wo_id/sl_id references)
+      //   query = `
+      //     SELECT ws.*, account.*
+      //     FROM workflow_stages ws
+      //     INNER JOIN (
+      //       SELECT account_id, MAX(created_at) AS max_created
+      //       FROM workflow_stages
+      //       WHERE assigned_to = $1
+      //       GROUP BY account_id
+      //     ) latest ON ws.account_id = latest.account_id AND ws.created_at = latest.max_created
+      //     INNER JOIN accounts account ON ws.account_id = account.id
+      //     WHERE ws.status = 'Pending' AND ws.stage_name = $2
+      //   `;
       } else if (stage.includes("quotation") || stage.includes("quote")) {
         table = "quotations";
         alias = "qt";
+        query = `
+          SELECT ws.*, qt.*
+          FROM workflow_stages ws
+          INNER JOIN (
+            SELECT wo_id, MAX(created_at) AS max_created
+            FROM workflow_stages
+            WHERE assigned_to = $1
+            GROUP BY wo_id
+          ) latest ON ws.wo_id = latest.wo_id AND ws.created_at = latest.max_created
+          INNER JOIN quotations qt ON ws.wo_id = qt.wo_id
+          WHERE ws.status = 'Pending' AND ws.stage_name = $2
+        `;
       } else {
         table = "workorders";
         alias = "wo";
+        query = `
+          SELECT ws.*, wo.*
+          FROM workflow_stages ws
+          INNER JOIN (
+            SELECT wo_id, MAX(created_at) AS max_created
+            FROM workflow_stages
+            WHERE assigned_to = $1
+            GROUP BY wo_id
+          ) latest ON ws.wo_id = latest.wo_id AND ws.created_at = latest.max_created
+          INNER JOIN workorders wo ON ws.wo_id = wo.id
+          WHERE ws.status = 'Pending' AND ws.stage_name = $2
+        `;
       }
-      query = `
-        SELECT ws.*, ${alias}.*, sl.sl_number, wo.wo_number AS woNumber, u.username AS se_username, u.department AS se_department
-        FROM workflow_stages ws
-        INNER JOIN (
-          SELECT wo_id, MAX(created_at) AS max_created
-          FROM workflow_stages
-          WHERE assigned_to = $1
-          GROUP BY wo_id
-        ) latest ON ws.wo_id = latest.wo_id AND ws.created_at = latest.max_created
-        INNER JOIN ${table} ${alias} ON ws.wo_id = ${alias}.wo_id
-        LEFT JOIN sales_leads sl ON ${alias}.sl_id = sl.id
-        LEFT JOIN workorders wo ON sl.wo_id = wo.id
-        LEFT JOIN users u ON sl.se_id = u.id
-        WHERE ws.status = 'Pending' AND ws.stage_name = $2
-      `;
     }
 
     const result = await db.query(query, [id, stageName]);

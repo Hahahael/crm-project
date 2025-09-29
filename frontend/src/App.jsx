@@ -8,6 +8,7 @@ import WorkOrdersPage from "./pages/WorkOrdersPage";
 import SalesLeadsPage from "./pages/SalesLeadsPage";
 import TechnicalsPage from "./pages/TechnicalsPage";
 import RFQsPage from "./pages/RFQsPage";
+import AccountsPage from "./pages/AccountsPage";
 
 function App() {
   return (
@@ -66,6 +67,14 @@ function App() {
             element={
               <ProtectedRoute>
                 <UsersPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/accounts"
+            element={
+              <ProtectedRoute>
+                <AccountsPage />
               </ProtectedRoute>
             }
           />

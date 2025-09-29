@@ -53,6 +53,12 @@ export default function Layout() {
               RFQs
             </Link>
             <Link
+              to="/accounts"
+              className="block rounded-md px-3 py-2 hover:bg-gray-700"
+            >
+              Accounts
+            </Link>
+            <Link
               to="/users"
               className="block rounded-md px-3 py-2 hover:bg-gray-700"
             >
