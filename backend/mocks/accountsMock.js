@@ -1,7 +1,7 @@
-// Mock data for new accounts (NAEF)
-const accountsMock = [
+export const accounts = [
   {
     id: 1,
+    refNumber: "REF-2025-001",
     accountId: "ACME-001",
     dateCreated: "2025-09-01T10:00:00Z",
     requestedBy: 1,
@@ -42,14 +42,15 @@ const accountsMock = [
     toDate: "2026-09-01",
     activityPeriod: "2025-2026",
     preparedBy: 2,
-    notedBy: 3,
-    approvedBy: 4,
-    receivedBy: 5,
-    acknowledgedBy: 6,
+    notedBy: 2,
+    approvedBy: 2,
+    receivedBy: 2,
+    acknowledgedBy: 2,
     updatedAt: "2025-09-10T15:30:00Z"
   },
   {
     id: 2,
+    refNumber: "REF-2025-002",
     accountId: "BETA-002",
     dateCreated: "2025-09-05T09:30:00Z",
     requestedBy: 2,
@@ -89,15 +90,16 @@ const accountsMock = [
     fromDate: "2025-09-05",
     toDate: "2027-09-05",
     activityPeriod: "2025-2027",
-    preparedBy: 3,
-    notedBy: 4,
-    approvedBy: 5,
-    receivedBy: 6,
+    preparedBy: 1,
+    notedBy: 1,
+    approvedBy: 1,
+    receivedBy: 1,
     acknowledgedBy: 1,
     updatedAt: "2025-09-12T11:45:00Z"
   },
   {
     id: 3,
+    refNumber: "REF-2025-003",
     accountId: "GAMMA-003",
     dateCreated: "2025-08-20T14:20:00Z",
     requestedBy: 3,
@@ -138,12 +140,10 @@ const accountsMock = [
     toDate: "2026-02-20",
     activityPeriod: "2025-2025",
     preparedBy: 1,
-    notedBy: 2,
-    approvedBy: 3,
-    receivedBy: 4,
-    acknowledgedBy: 5,
+    notedBy: 1,
+    approvedBy: 1,
+    receivedBy: 1,
+    acknowledgedBy: 1,
     updatedAt: "2025-09-01T08:10:00Z"
   }
 ];
-
-module.exports = accountsMock;

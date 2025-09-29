@@ -35,7 +35,7 @@ export default function AccountsPage() {
         console.log("fetchAllData called");
         try {
             const accountsRes = await apiBackendFetch("/api/accounts");
-            if (!accountsRes.ok) throw new Error("Failed to fetch Technical Recommendations");
+            if (!accountsRes.ok) throw new Error("Failed to fetch Accounts");
 
             console.log("Accounts response:", accountsRes);
 
@@ -56,8 +56,8 @@ export default function AccountsPage() {
             // }
             setTimeout(() => setLoading(false), 500);
         } catch (err) {
-            console.error("Error retrieving technical recommendations:", err);
-            setError("Failed to fetch technical recommendations.");
+            console.error("Error retrieving accounts:", err);
+            setError("Failed to fetch accounts.");
         }
     };
 
@@ -76,14 +76,14 @@ export default function AccountsPage() {
     const fetchNewAssignedNAEFs = async () => {
         if (!currentUser) return;
         try {
-            const res = await apiBackendFetch(`/api/workflow-stages/assigned/latest/${currentUser.id}/${encodeURIComponent("NAEF")}`);
+            const naefsRes = await apiBackendFetch(`/api/workflow-stages/assigned/latest/${currentUser.id}/${encodeURIComponent("NAEF")}`);
 
-            if (res.ok) {
-                const data = await res.json();
+            if (naefsRes.ok) {
+                const data = await naefsRes.json();
                 console.log("New assigned accounts:", data);
                 setNewAssignedAccounts(data);
+                console.log("New Assigned Accounts:", newAssignedAccounts);
             }
-            console.log("New Assigned Accounts:", newAssignedNAEFs);
         } catch (err) {
             console.error("Failed to fetch assigned workorders", err);
         }
@@ -135,10 +135,10 @@ export default function AccountsPage() {
                 const wsRes = await apiBackendFetch(`/api/workflowstages/workorder/${savedAccount.woId}`);
                 if (wsRes.ok) {
                     const stages = await wsRes.json();
-                    // Find the "Technical Recommendation" stage
-                    const technicalRecoStage = stages.find((s) => s.stage_name === "Technical Recommendation");
-                    if (technicalRecoStage) {
-                        await apiBackendFetch(`/api/workflowstages/${technicalRecoStage.woId}`, {
+                    // Find the "NAEF" stage
+                    const naefStage = stages.find((s) => s.stage_name === "NAEF");
+                    if (naefStage) {
+                        await apiBackendFetch(`/api/workflowstages/${naefStage.woId}`, {
                             method: "PUT",
                             body: JSON.stringify({
                                 status: savedAccount.status || "Pending",
@@ -153,7 +153,7 @@ export default function AccountsPage() {
                     method: "POST",
                     body: JSON.stringify({
                         wo_id: savedAccount.woId,
-                        stage_name: "Technical Recommendation",
+                        stage_name: "NAEF",
                         status: savedAccount.status || "Pending",
                         assigned_to: savedAccount.assignee,
                     }),
@@ -167,13 +167,13 @@ export default function AccountsPage() {
                 console.log("All workflow stages:", allStages);
             }
 
-            setSuccessMessage("Technical Recommendation saved successfully!"); // ✅ trigger success message
+            setSuccessMessage("NAEF Stage saved successfully!"); // ✅ trigger success message
             await fetchAllData();
             setSelectedAccount(savedAccount);
             setEditingAccount(null);
         } catch (err) {
-            console.error("Error saving technical recommendation:", err);
-            setError("Failed to save technical recommendation");
+            console.error("Error saving NAEF Stage:", err);
+            setError("Failed to save NAEF Stage");
         }
     };
   // Placeholder for state and logic
@@ -353,7 +353,7 @@ export default function AccountsPage() {
             }`}>
             {selectedAccount && !editingAccount && (
                 <AccountDetails
-                    technicalReco={selectedAccount}
+                    account={selectedAccount}
                     currentUser={currentUser}
                     onBack={() => setSelectedAccount(null)}
                     onEdit={() => setEditingAccount(selectedAccount)}

@@ -9,9 +9,8 @@ const router = express.Router();
 router.get("/", async (req, res) => {
   try {
     const result = await pool.query("SELECT * FROM accounts");
-    // Convert snake_case to camelCase for frontend
-    const accounts = result.rows.map(toCamel);
-    res.json(accounts);
+    console.log("Fetched accounts:", result.rows);
+    return res.json(result.rows); // ✅ camelCase
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -22,7 +21,7 @@ router.get("/:id", async (req, res) => {
   try {
     const result = await pool.query("SELECT * FROM accounts WHERE id = $1", [req.params.id]);
     if (result.rows.length === 0) return res.status(404).json({ error: "Account not found" });
-    res.json(toCamel(result.rows[0]));
+    return res.json(result.rows[0]);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

@@ -7,6 +7,7 @@ import { users } from "./usersMock.js";
 import { roles } from "./rolesMock.js";
 import { departments } from "./departmentsMock.js";
 import { statuses } from "./statusesMock.js";
+import { accounts } from "./accountsMock.js";
 import { workorders } from "./workordersMock.js";
 import { salesLeads } from "./salesleadsMocks.js";
 import { technicalRecommendations } from "./technicalrecommendationsMock.js";
@@ -73,6 +74,7 @@ mem.public.none(`
   CREATE TABLE accounts (
     id SERIAL PRIMARY KEY,
     account_id VARCHAR(20) UNIQUE NOT NULL,
+    ref_number VARCHAR(20) UNIQUE,
     date_created TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     requested_by INT REFERENCES users(id) ON DELETE SET NULL,
     designation VARCHAR(100),
@@ -443,6 +445,106 @@ for (const s of statuses) {
   mem.public.none(
     `INSERT INTO statuses (status_name) VALUES ('${esc(s.statusName)}')`
   );
+}
+
+for (const account of accounts) {
+  mem.public.none(`
+    INSERT INTO accounts (
+      account_id,
+      ref_number,
+      date_created,
+      requested_by,
+      designation,
+      department,
+      validity_period,
+      due_date,
+      account_name,
+      contract_period,
+      industry,
+      account_designation,
+      product,
+      contact_number,
+      location,
+      email_address,
+      address,
+      buyer_incharge,
+      trunkline,
+      contract_number,
+      process,
+      secondary_email_address,
+      machines,
+      reason_to_apply,
+      automotive_section,
+      source_of_inquiry,
+      commodity,
+      business_activity,
+      model,
+      annual_target_sales,
+      population,
+      source_of_target,
+      existing_bellows,
+      products_to_order,
+      model_under,
+      target_areas,
+      analysis,
+      from_date,
+      to_date,
+      activity_period,
+      prepared_by,
+      noted_by,
+      approved_by,
+      received_by,
+      acknowledged_by,
+      updated_at
+    ) VALUES (
+      '${esc(account.accountId)}',
+      '${esc(account.refNumber)}',
+      ${account.dateCreated ? `'${account.dateCreated}'` : 'NOW()'},
+      ${account.requestedBy || 'NULL'},
+      '${esc(account.designation)}',
+      '${esc(account.department)}',
+      '${esc(account.validityPeriod)}',
+      ${account.dueDate ? `'${account.dueDate}'` : 'NULL'},
+      '${esc(account.accountName)}',
+      '${esc(account.contractPeriod)}',
+      '${esc(account.industry)}',
+      '${esc(account.accountDesignation)}',
+      '${esc(account.product)}',
+      '${esc(account.contactNumber)}',
+      '${esc(account.location)}',
+      '${esc(account.emailAddress)}',
+      '${esc(account.address)}',
+      '${esc(account.buyerIncharge)}',
+      '${esc(account.trunkline)}',
+      '${esc(account.contractNumber)}',
+      '${esc(account.process)}',
+      '${esc(account.secondaryEmailAddress)}',
+      '${esc(account.machines)}',
+      '${esc(account.reasonToApply)}',
+      '${esc(account.automotiveSection)}',
+      '${esc(account.sourceOfInquiry)}',
+      '${esc(account.commodity)}',
+      '${esc(account.businessActivity)}',
+      '${esc(account.model)}',
+      ${account.annualTargetSales || 0},
+      '${esc(account.population)}',
+      '${esc(account.sourceOfTarget)}',
+      '${esc(account.existingBellows)}',
+      '${esc(account.productsToOrder)}',
+      '${esc(account.modelUnder)}',
+      '${esc(account.targetAreas)}',
+      '${esc(account.analysis)}',
+      ${account.fromDate ? `'${account.fromDate}'` : 'NULL'},
+      ${account.toDate ? `'${account.toDate}'` : 'NULL'},
+      '${esc(account.activityPeriod)}',
+      ${account.preparedBy || 'NULL'},
+      ${account.notedBy || 'NULL'},
+      ${account.approvedBy || 'NULL'},
+      ${account.receivedBy || 'NULL'},
+      ${account.acknowledgedBy || 'NULL'},
+      ${account.updatedAt ? `'${account.updatedAt}'` : 'NOW()'}
+    )
+  `);
 }
 for (const wo of workorders) {
   mem.public.none(
