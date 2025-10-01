@@ -9,6 +9,7 @@ import SalesLeadsPage from "./pages/SalesLeadsPage";
 import TechnicalsPage from "./pages/TechnicalsPage";
 import RFQsPage from "./pages/RFQsPage";
 import AccountsPage from "./pages/AccountsPage";
+import ApprovalsPage from "./pages/ApprovalsPage";
 
 function App() {
   return (
@@ -75,6 +76,14 @@ function App() {
             element={
               <ProtectedRoute>
                 <AccountsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/approvals"
+            element={
+              <ProtectedRoute>
+                <ApprovalsPage />
               </ProtectedRoute>
             }
           />

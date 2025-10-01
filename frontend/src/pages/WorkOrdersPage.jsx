@@ -391,8 +391,37 @@ export default function WorkOrdersPage() {
               fetchNewAssignedWorkOrders(); // <-- refresh from backend
             }}
             toSalesLead={(passedWO) => {
-              navigate('/salesleads', { state: { woId: passedWO?.id } });
-              setSelectedWO(null);
+              (async () => {
+                try {
+                  // 1. Create skeletal sales lead
+                  const res = await apiBackendFetch("/api/salesleads", {
+                    method: "POST",
+                    body: JSON.stringify({
+                      wo_id: passedWO.id,
+                      assignee: currentUser.id
+                    })
+                  });
+                  if (!res || !res.ok) throw new Error("Failed to create sales lead");
+                  const newSalesLead = await res.json();
+
+                  // 2. File workflow stage for draft sales lead
+                  await apiBackendFetch("/api/workflowstages", {
+                    method: "POST",
+                    body: JSON.stringify({
+                      wo_id: newSalesLead.id,
+                      stage_name: "Sales Lead",
+                      status: "Draft",
+                      assigned_to: currentUser.id
+                    })
+                  });
+
+                  // 3. Navigate to sales lead page with new sales lead ID
+                  navigate('/salesleads', { state: { salesLeadId: newSalesLead.id } });
+                  setSelectedWO(null);
+                } catch (err) {
+                  console.error("Error creating skeletal sales lead:", err);
+                }
+              })();
             }}
           />
         )}

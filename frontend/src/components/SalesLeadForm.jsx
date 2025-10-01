@@ -1,9 +1,10 @@
+/* eslint-disable no-unused-vars */
 import { useState, useEffect, useRef } from "react";
 import { LuArrowLeft, LuCheck, LuSave, LuX } from "react-icons/lu";
 import { apiBackendFetch } from "../services/api";
 import utils from "../helper/utils.js";
 
-const SalesLeadForm = ({ salesLead, mode = "create", onSave, onBack }) => {
+const SalesLeadForm = ({ salesLead, mode = "create", onSave, onBack, onSubmit }) => {
     console.log("SalesLeadForm rendered with mode:", mode, "and salesLead:", salesLead);
     const [errors, setErrors] = useState(null);
     const [formData, setFormData] = useState({
@@ -186,7 +187,7 @@ const SalesLeadForm = ({ salesLead, mode = "create", onSave, onBack }) => {
 
     const handleSubmit = (e) => {
         e.preventDefault();
-
+        // ...existing code...
         // Destructure optional + WO number
         const {
             slNumber,
@@ -208,10 +209,8 @@ const SalesLeadForm = ({ salesLead, mode = "create", onSave, onBack }) => {
             customerSuggestedSetup,
             ...requiredFields
         } = formData;
-
         // Find missing required fields
         const missing = Object.entries(requiredFields).filter(([, value]) => value === "" || value === null || value === undefined);
-
         if (missing.length > 0) {
             // Mark missing fields as errors
             const newErrors = {};
@@ -221,10 +220,8 @@ const SalesLeadForm = ({ salesLead, mode = "create", onSave, onBack }) => {
             setErrors(newErrors);
             return;
         }
-
         // ✅ Reset errors if all fields are valid
         setErrors({});
-
         // ✅ Convert empty optional fields to null
         const cleanedFormData = {
             ...formData,
@@ -239,8 +236,61 @@ const SalesLeadForm = ({ salesLead, mode = "create", onSave, onBack }) => {
             customerSuggested: formData.customerSuggested || null,
             remarks: formData.remarks || null,
         };
-
         onSave(cleanedFormData, mode);
+    };
+
+    // Handler for submit/approval (calls parent onSubmit)
+    const handleSubmitForApproval = () => {
+        // Validate and clean data as above
+        const {
+            slNumber,
+            immediateSupport,
+            existingSpecifications,
+            quantityAttention,
+            qrCc,
+            doneDate,
+            salesPlanRep,
+            ww,
+            existingSetupItems,
+            customerSuggested,
+            remarks,
+            actualPicture,
+            draftDesignLayout,
+            consideration,
+            issuesWithExisting,
+            customerIssues,
+            customerSuggestedSetup,
+            ...requiredFields
+        } = formData;
+        const missing = Object.entries(requiredFields).filter(([, value]) => value === "" || value === null || value === undefined);
+        if (missing.length > 0) {
+            const newErrors = {};
+            missing.forEach(([key]) => {
+                newErrors[key] = true;
+            });
+            setErrors(newErrors);
+            return;
+        }
+        setErrors({});
+        const cleanedFormData = {
+            ...formData,
+            immediateSupport: formData.immediateSupport || null,
+            existingSpecifications: formData.existingSpecifications || null,
+            quantityAttention: formData.quantityAttention || null,
+            qrCc: formData.qrCc || null,
+            doneDate: formData.doneDate || null,
+            salesPlanRep: formData.salesPlanRep || null,
+            ww: formData.ww || null,
+            existingSetupItems: formData.existingSetupItems || null,
+            customerSuggested: formData.customerSuggested || null,
+            remarks: formData.remarks || null,
+        };
+        if (typeof window !== "undefined" && window.onSubmitSalesLead) {
+            window.onSubmitSalesLead(cleanedFormData);
+        }
+        if (typeof onSubmit === "function") {
+            onSubmit(cleanedFormData);
+        }
     };
 
     return (
@@ -274,9 +324,9 @@ const SalesLeadForm = ({ salesLead, mode = "create", onSave, onBack }) => {
                     </button>
                     <button
                         type="button"
-                        onClick={onBack}
+                        onClick={handleSubmitForApproval}
                         className="flex border border-green-200 bg-green-500 hover:bg-green-600 transition-all duration-150 cursor-pointer px-4 py-2 rounded-md items-center text-sm text-white">
-                        <LuCheck className="mr-2" /> For Approval
+                        <LuCheck className="mr-2" /> Submit
                     </button>
                 </div>
             </div>

@@ -63,13 +63,25 @@ const SalesLeadDetails = ({ salesLead, currentUser, onBack, onEdit, onSalesLeadU
                 </div>
                 <div className="flex gap-2">
                     <button
+                        className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-light shadow h-9 px-4 py-2 bg-green-500 hover:bg-green-600 text-white"
+                        onClick={() => {
+                            if (typeof window !== "undefined" && window.onSubmitSalesLead) {
+                                window.onSubmitSalesLead(salesLead);
+                            }
+                            if (typeof toNextStage === "function") {
+                                toNextStage(salesLead, "submit");
+                            }
+                        }}>
+                        Submit for Approval
+                    </button>
+                    <button
                         className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-light shadow h-9 px-4 py-2 bg-purple-500 hover:bg-purple-600 text-white"
-                        onClick={() => toNextStage(salesLead, "technicals")}>
+                        onClick={() => toNextStage(salesLead, "technicals")}> 
                         Move to Technical
                     </button>
                     <button
                         className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-light shadow h-9 px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white"
-                        onClick={() => toNextStage(salesLead, "rfqs")}>
+                        onClick={() => toNextStage(salesLead, "rfqs")}> 
                         Move to RFQ
                     </button>
                     <button

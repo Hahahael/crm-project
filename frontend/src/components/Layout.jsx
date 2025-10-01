@@ -64,6 +64,12 @@ export default function Layout() {
             >
               Users
             </Link>
+              <Link
+                to="/approvals"
+                className="block rounded-md px-3 py-2 hover:bg-gray-700"
+              >
+                Approvals
+              </Link>
           </nav>
           <button
             onClick={async () => {

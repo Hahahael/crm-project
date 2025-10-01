@@ -5,6 +5,85 @@ import { toSnake } from "../helper/utils.js";
 
 const router = express.Router();
 
+// Get all workflows whose latest stage is 'Submitted', joined with module details
+router.get("/latest-submitted", async (req, res) => {
+  try {
+    // Get latest stage for each workflow (by wo_id), where stageName is 'Submitted'
+    // Join with workorders, sales_leads, rfqs, etc. as needed
+    // Get the latest workflow stage for each workorder
+    const unionQuery = `
+  SELECT ws.id AS workflow_stage_id, ws.created_at AS submitted_date, ws.stage_name, ws.status, ws.wo_id, ws.assigned_to, ws.remarks, u.username AS submitted_by, 'sales_lead' AS module, sl.sl_number AS transaction_number, sl.id AS module_id
+      FROM workflow_stages ws
+      INNER JOIN (
+        SELECT wo_id, MAX(created_at) AS max_created
+        FROM workflow_stages
+        GROUP BY wo_id
+      ) latest ON ws.wo_id = latest.wo_id AND ws.created_at = latest.max_created
+      LEFT JOIN sales_leads sl ON ws.wo_id = sl.wo_id
+      LEFT JOIN users u ON ws.assigned_to = u.id
+      WHERE ws.status = 'Submitted' AND ws.stage_name = 'Sales Lead'
+
+      UNION ALL
+
+  SELECT ws.id AS workflow_stage_id, ws.created_at AS submitted_date, ws.stage_name, ws.status, ws.wo_id, ws.assigned_to, ws.remarks, u.username AS submitted_by, 'rfq' AS module, r.rfq_number AS transaction_number, r.id AS module_id
+      FROM workflow_stages ws
+      INNER JOIN (
+        SELECT wo_id, MAX(created_at) AS max_created
+        FROM workflow_stages
+        GROUP BY wo_id
+      ) latest ON ws.wo_id = latest.wo_id AND ws.created_at = latest.max_created
+      LEFT JOIN rfqs r ON ws.wo_id = r.wo_id
+      LEFT JOIN users u ON ws.assigned_to = u.id
+      WHERE ws.status = 'Submitted' AND ws.stage_name = 'RFQ'
+
+      UNION ALL
+
+  SELECT ws.id AS workflow_stage_id, ws.created_at AS submitted_date, ws.stage_name, ws.status, ws.wo_id, ws.assigned_to, ws.remarks, u.username AS submitted_by, 'technical_recommendation' AS module, tr.tr_number AS transaction_number, tr.id AS module_id
+      FROM workflow_stages ws
+      INNER JOIN (
+        SELECT wo_id, MAX(created_at) AS max_created
+        FROM workflow_stages
+        GROUP BY wo_id
+      ) latest ON ws.wo_id = latest.wo_id AND ws.created_at = latest.max_created
+      LEFT JOIN technical_recommendations tr ON ws.wo_id = tr.wo_id
+      LEFT JOIN users u ON ws.assigned_to = u.id
+      WHERE ws.status = 'Submitted' AND ws.stage_name = 'Technical Recommendation'
+
+      UNION ALL
+
+  SELECT ws.id AS workflow_stage_id, ws.created_at AS submitted_date, ws.stage_name, ws.status, ws.wo_id, ws.assigned_to, ws.remarks, u.username AS submitted_by, 'account' AS module, a.ref_number AS transaction_number, a.id AS module_id
+      FROM workflow_stages ws
+      INNER JOIN (
+        SELECT wo_id, MAX(created_at) AS max_created
+        FROM workflow_stages
+        GROUP BY wo_id
+      ) latest ON ws.wo_id = latest.wo_id AND ws.created_at = latest.max_created
+      LEFT JOIN accounts a ON ws.wo_id = a.id
+      LEFT JOIN users u ON ws.assigned_to = u.id
+      WHERE ws.status = 'Submitted' AND (ws.stage_name = 'Account' OR ws.stage_name = 'NAEF')
+
+      UNION ALL
+
+  SELECT ws.id AS workflow_stage_id, ws.created_at AS submitted_date, ws.stage_name, ws.status, ws.wo_id, ws.assigned_to, ws.remarks, u.username AS submitted_by, 'workorder' AS module, wo.wo_number AS transaction_number, wo.id AS module_id
+      FROM workflow_stages ws
+      INNER JOIN (
+        SELECT wo_id, MAX(created_at) AS max_created
+        FROM workflow_stages
+        GROUP BY wo_id
+      ) latest ON ws.wo_id = latest.wo_id AND ws.created_at = latest.max_created
+      LEFT JOIN workorders wo ON ws.wo_id = wo.id
+      LEFT JOIN users u ON ws.assigned_to = u.id
+      WHERE ws.status = 'Submitted' AND ws.stage_name = 'Work Order'
+    `;
+    const { rows } = await db.query(unionQuery);
+    console.log("Latest submitted workflow stages:", rows);
+    return res.json(rows);
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: "Failed to fetch latest submitted workflow stages" });
+  }
+});
+
 // Get all workflow stages
 router.get("/", async (req, res) => {
   try {
@@ -70,26 +149,51 @@ router.post("/", async (req, res) => {
       stage_name,
       status,
       assigned_to,
-      notified = false
+      notified = false,
+      remarks // <-- add remarks from body
     } = body;
-    const result = await db.query(
-      `INSERT INTO workflow_stages
-        (wo_id, stage_name, status, assigned_to, notified, created_at, updated_at)
-       VALUES ($1, $2, $3, $4, $5, NOW(), NOW())
-       RETURNING *`,
-      [wo_id, stage_name, status, assigned_to, notified]
-    );
-    
-    // const workflows = await db.query(
-    //   `SELECT ws.*, u.username AS assigned_to_username
-    //    FROM workflow_stages ws
-    //    LEFT JOIN users u ON ws.assigned_to = u.id
-    //    ORDER BY ws.created_at ASC`
-    // );
+    // Start transaction
+    await db.query('BEGIN');
+    let insertedStage;
+    try {
+      const result = await db.query(
+        `INSERT INTO workflow_stages
+          (wo_id, stage_name, status, assigned_to, notified, remarks, created_at, updated_at)
+         VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())
+         RETURNING *`,
+        [wo_id, stage_name, status, assigned_to, notified, remarks]
+      );
+      insertedStage = result.rows[0];
 
-    // console.log("All Workflows after insert:", workflows.rows);
+      // Update stage_status in the relevant module only
+      switch (stage_name) {
+        case 'Sales Lead':
+          await db.query('UPDATE sales_leads SET stage_status = $1 WHERE wo_id = $2', [status, wo_id]);
+          break;
+        case 'RFQ':
+          await db.query('UPDATE rfqs SET stage_status = $1 WHERE wo_id = $2', [status, wo_id]);
+          break;
+        case 'Technical Recommendation':
+          await db.query('UPDATE technical_recommendations SET stage_status = $1 WHERE wo_id = $2', [status, wo_id]);
+          break;
+        case 'Account':
+        case 'NAEF':
+          if (body.account_id) {
+            await db.query('UPDATE accounts SET stage_status = $1 WHERE id = $2', [status, body.account_id]);
+          }
+          break;
+        case 'Work Order':
+        default:
+          await db.query('UPDATE workorders SET stage_status = $1 WHERE id = $2', [status, wo_id]);
+          break;
+      }
 
-    return res.status(201).json(result.rows[0]);
+      await db.query('COMMIT');
+    } catch (err) {
+      await db.query('ROLLBACK');
+      throw err;
+    }
+    return res.status(201).json(insertedStage);
   } catch (err) {
     console.error(err);
     return res.status(500).json({ error: "Failed to create workflow stage" });
@@ -152,9 +256,9 @@ router.get("/assigned/latest/:id/:stageName", async (req, res) => {
     let query;
     const stage = stageName.toLowerCase();
     if (stage.includes("sales lead") || stage.includes("sl")) {
-      // For sales_leads: join users for username/department, include woNumber
+      // For sales_leads: join users for username/department, include slNumber
       query = `
-        SELECT ws.*, sl.*, sl.wo_number AS woNumber, u.username AS se_username, u.department AS se_department
+        SELECT ws.*, sl.*, sl.sl_number AS slNumber, u.username AS se_username, u.department AS se_department
         FROM workflow_stages ws
         INNER JOIN (
           SELECT wo_id, MAX(created_at) AS max_created

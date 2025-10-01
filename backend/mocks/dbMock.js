@@ -72,8 +72,9 @@ mem.public.none(`
 mem.public.none(`
   -- ACCOUNTS TABLE (commented out for now)
   CREATE TABLE accounts (
-    id SERIAL PRIMARY KEY,
-    account_id VARCHAR(20) UNIQUE NOT NULL,
+  id SERIAL PRIMARY KEY,
+  account_id VARCHAR(20) UNIQUE NOT NULL,
+  stage_status VARCHAR(20) DEFAULT 'draft',
     ref_number VARCHAR(20) UNIQUE,
     date_created TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     requested_by INT REFERENCES users(id) ON DELETE SET NULL,
@@ -126,11 +127,12 @@ mem.public.none(`
 mem.public.none(`
   -- WORKORDERS TABLE
   CREATE TABLE workorders (
-    id SERIAL PRIMARY KEY,
-    wo_number VARCHAR(20) UNIQUE,
-    work_description TEXT NOT NULL,
-    assignee INT REFERENCES users(id) ON DELETE SET NULL,
-    status VARCHAR(50) DEFAULT 'Pending',
+  id SERIAL PRIMARY KEY,
+  wo_number VARCHAR(20) UNIQUE,
+  work_description TEXT NOT NULL,
+  assignee INT REFERENCES users(id) ON DELETE SET NULL,
+  status VARCHAR(50) DEFAULT 'Pending',
+  stage_status VARCHAR(20) DEFAULT 'draft',
     
     -- Account Info
     account_name VARCHAR(255) NOT NULL,
@@ -176,6 +178,7 @@ mem.public.none(`
     status VARCHAR(50) DEFAULT 'Pending', -- Pending, Approved, Rejected, In Progress
     assigned_to INT REFERENCES users(id) ON DELETE SET NULL,
     notified BOOLEAN DEFAULT FALSE,
+    remarks TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
   );
@@ -186,63 +189,64 @@ mem.public.none(`
   -- SALES LEADS TABLE (based on your requirements)
   CREATE TABLE sales_leads (
     id SERIAL PRIMARY KEY,
-    sl_number VARCHAR(20) UNIQUE NOT NULL,
-    wo_id INT REFERENCES workorders(id) ON DELETE SET NULL,
-    assignee INT REFERENCES users(id) ON DELETE SET NULL,
-    end_user VARCHAR(100) NOT NULL,
-    department VARCHAR(75) NOT NULL,
-    contact_no VARCHAR(20) NOT NULL,
-    sales_stage VARCHAR(30) NOT NULL DEFAULT 'Sales Lead',
-    designation VARCHAR(50) NOT NULL,
-    immediate_support VARCHAR(100),
-    email_address VARCHAR(100) NOT NULL,
+  sl_number VARCHAR(20) UNIQUE NOT NULL,
+  wo_id INT NOT NULL REFERENCES workorders(id) ON DELETE SET NULL,
+  assignee INT REFERENCES users(id) ON DELETE SET NULL,
+  stage_status VARCHAR(20) DEFAULT 'draft',
+  end_user VARCHAR(100),
+  department VARCHAR(75),
+  contact_no VARCHAR(20),
+  sales_stage VARCHAR(30) NOT NULL DEFAULT 'Sales Lead',
+  designation VARCHAR(50),
+  immediate_support VARCHAR(100),
+  email_address VARCHAR(100),
 
-    -- Application Details
-    category VARCHAR(50) NOT NULL,
-    application VARCHAR(50) NOT NULL,
-    machine VARCHAR(100) NOT NULL,
-    machine_process VARCHAR(50) NOT NULL,
-    needed_product VARCHAR(100) NOT NULL,
-    existing_specifications TEXT,
-    issues_with_existing TEXT,
-    consideration TEXT,
+  -- Application Details
+  category VARCHAR(50),
+  application VARCHAR(50),
+  machine VARCHAR(100),
+  machine_process VARCHAR(50),
+  needed_product VARCHAR(100),
+  existing_specifications TEXT,
+  issues_with_existing TEXT,
+  consideration TEXT,
 
-    -- Support and Quotation
-    support_needed TEXT NOT NULL,
-    urgency VARCHAR(100) NOT NULL DEFAULT 'Medium',
-    model_to_quote VARCHAR(100) NOT NULL,
-    quantity INT NOT NULL DEFAULT 1 CHECK (quantity > 0),
-    quantity_attention VARCHAR(100),
-    qr_cc VARCHAR(100),
-    qr_email_to TEXT NOT NULL,
-    next_followup_date DATE NOT NULL,
-    due_date DATE,
-    done_date DATE,
+  -- Support and Quotation
+  support_needed TEXT,
+  urgency VARCHAR(100) DEFAULT 'Medium',
+  model_to_quote VARCHAR(100),
+  quantity INT DEFAULT 1 CHECK (quantity > 0),
+  quantity_attention VARCHAR(100),
+  qr_cc VARCHAR(100),
+  qr_email_to TEXT,
+  next_followup_date DATE,
+  due_date DATE,
+  done_date DATE,
 
-    -- Field Sales Lead Details
-    account VARCHAR(100) NOT NULL,
-    industry VARCHAR(50) NOT NULL,
-    se_id INT NOT NULL REFERENCES users(id),
-    sales_plan_rep VARCHAR(100),
-    fsl_ref VARCHAR(20),
-    fsl_date DATE NOT NULL DEFAULT CURRENT_DATE,
-    fsl_time TIME NOT NULL,
-    fsl_location VARCHAR(100) NOT NULL,
-    ww VARCHAR(20),
+  -- Field Sales Lead Details
+  account VARCHAR(100),
+  industry VARCHAR(50),
+  se_id INT REFERENCES users(id),
+  sales_plan_rep VARCHAR(100),
+  fsl_ref VARCHAR(20),
+  fsl_date DATE DEFAULT CURRENT_DATE,
+  fsl_time TIME,
+  fsl_location VARCHAR(100),
+  ww VARCHAR(20),
 
-    -- Customer Actual/Setup
-    requirement TEXT NOT NULL,
-    requirement_category TEXT NOT NULL,
-    deadline DATE NOT NULL,
-    product_application TEXT NOT NULL,
-    customer_issues TEXT,
-    existing_setup_items TEXT,
-    customer_suggested_setup TEXT,
-    remarks TEXT,
+  -- Customer Actual/Setup
+  requirement TEXT,
+  requirement_category TEXT,
+  deadline DATE,
+  product_application TEXT,
+  customer_issues TEXT,
+  existing_setup_items TEXT,
+  customer_suggested_setup TEXT,
+  remarks TEXT,
     
-    -- File uploads (store file metadata, files in separate table or storage)
-    actual_picture JSONB,
-    draft_design_layout JSONB,
+  -- File uploads (store file metadata, files in separate table or storage)
+  actual_picture JSONB,
+  draft_design_layout JSONB,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
   );
@@ -270,11 +274,12 @@ mem.public.none(`
 mem.public.none(`
   -- TECHNICAL RECOMMENDATIONS TABLE
   CREATE TABLE technical_recommendations (
-    id SERIAL PRIMARY KEY,
-    wo_id INT REFERENCES workorders(id) ON DELETE SET NULL,
-    assignee INT REFERENCES users(id) ON DELETE SET NULL,
-    tr_number VARCHAR(20) UNIQUE NOT NULL, -- TR-YYYY-NNNN, auto-generated
-    status VARCHAR(50) DEFAULT 'Open',
+  id SERIAL PRIMARY KEY,
+  wo_id INT REFERENCES workorders(id) ON DELETE SET NULL,
+  assignee INT NOT NULL REFERENCES users(id) ON DELETE SET NULL,
+  tr_number VARCHAR(20) UNIQUE NOT NULL, -- TR-YYYY-NNNN, auto-generated
+  status VARCHAR(50) DEFAULT 'Open',
+  stage_status VARCHAR(20) DEFAULT 'draft',
     priority VARCHAR(50) DEFAULT 'Medium',
     title VARCHAR(255) NOT NULL,
     sl_id INT REFERENCES sales_leads(id) ON DELETE SET NULL,
@@ -314,10 +319,11 @@ mem.public.none(`
 mem.public.none(`
   -- RFQS
   CREATE TABLE rfqs (
-    id SERIAL PRIMARY KEY,
-    wo_id INT REFERENCES workorders(id) ON DELETE SET NULL,
-    assignee INT REFERENCES users(id) ON DELETE SET NULL,
-    rfq_number VARCHAR(20) UNIQUE NOT NULL,
+  id SERIAL PRIMARY KEY,
+  wo_id INT REFERENCES workorders(id) ON DELETE SET NULL,
+  assignee INT REFERENCES users(id) ON DELETE SET NULL,
+  rfq_number VARCHAR(20) UNIQUE NOT NULL,
+  stage_status VARCHAR(20) DEFAULT 'draft',
     rfq_date DATE NOT NULL,
     due_date DATE,
     description TEXT,

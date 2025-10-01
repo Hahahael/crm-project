@@ -49,55 +49,11 @@ router.get("/:id", async (req, res) => {
 router.post("/", async (req, res) => {
   try {
     const body = toSnake(req.body);
-    console.log("Creating sales lead with data:", body);
-    const {
-      sales_stage,
-      end_user,
-      designation,
-      department,
-      immediate_support,
-      contact_no,
-      email_address,
-      category,
-      application,
-      machine,
-      machine_process,
-      needed_product,
-      existing_specifications,
-      issues_with_existing,
-      consideration,
-      support_needed,
-      urgency,
-      model_to_quote,
-      quantity,
-      quantity_attention,
-      qr_cc,
-      qr_email_to,
-      next_followup_date,
-      due_date,
-      done_date,
-      account,
-      industry,
-      se_id,
-      sales_plan_rep,
-      fsl_ref,
-      fsl_date,
-      fsl_time,
-      fsl_location,
-      ww,
-      requirement,
-      requirement_category,
-      deadline,
-      product_application,
-      customer_issues,
-      existing_setup_items,
-      customer_suggested_setup,
-      remarks,
-      actual_picture,
-      draft_design_layout,
-      wo_id,
-      assignee
-    } = body;
+    console.log("Creating skeletal sales lead with data:", body);
+    // Only require wo_id and assignee, set sales_stage to 'Draft' by default
+    const wo_id = body.wo_id;
+    const assignee = body.assignee;
+    const sales_stage = body.sales_stage || 'Draft';
 
     // Generate SL number
     const currentYear = new Date().getFullYear();
@@ -119,64 +75,22 @@ router.post("/", async (req, res) => {
 
     const sl_number = `FSL-${currentYear}-${String(newCounter).padStart(4, "0")}`;
 
-    // Insert into DB
+    // Insert skeletal sales lead, all other fields default to null
     const insertResult = await db.query(
       `INSERT INTO sales_leads 
-        (sl_number, sales_stage, end_user, designation, department, immediate_support, contact_no, email_address, category, application, machine, machine_process, needed_product, existing_specifications, issues_with_existing, consideration, support_needed, urgency, model_to_quote, quantity, quantity_attention, qr_cc, qr_email_to, next_followup_date, due_date, done_date, account, industry, se_id, sales_plan_rep, fsl_ref, fsl_date, fsl_time, fsl_location, ww, requirement, requirement_category, deadline, product_application, customer_issues, existing_setup_items, customer_suggested_setup, remarks, actual_picture, draft_design_layout, wo_id, assignee, created_at, updated_at)
-        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,$32,$33,$34,$35,$36,$37,$38,$39,$40,$41,$42,$43,$44,$45,$46,$47,NOW(),NOW())
+        (sl_number, sales_stage, wo_id, assignee, created_at, updated_at)
+        VALUES ($1, $2, $3, $4, NOW(), NOW())
         RETURNING id`,
       [
         sl_number,
         sales_stage,
-        end_user,
-        designation,
-        department,
-        immediate_support,
-        contact_no,
-        email_address,
-        category,
-        application,
-        machine,
-        machine_process,
-        needed_product,
-        existing_specifications,
-        issues_with_existing,
-        consideration,
-        support_needed,
-        urgency,
-        model_to_quote,
-        quantity,
-        quantity_attention,
-        qr_cc,
-        qr_email_to,
-        next_followup_date,
-        due_date,
-        done_date,
-        account,
-        industry,
-        se_id,
-        sales_plan_rep,
-        fsl_ref,
-        fsl_date,
-        fsl_time,
-        fsl_location,
-        ww,
-        requirement,
-        requirement_category,
-        deadline,
-        product_application,
-        customer_issues,
-        existing_setup_items,
-        customer_suggested_setup,
-        remarks,
-        actual_picture,
-        draft_design_layout,
-        wo_id || null,
-        assignee || null
+        wo_id,
+        assignee
       ]
     );
     const newId = insertResult.rows[0].id;
-    
+
+    // Return the new skeletal sales lead
     const final = await db.query(
       `SELECT sl.*, u.username AS se_username, u.department AS se_department
        FROM sales_leads sl
