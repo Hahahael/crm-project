@@ -183,10 +183,16 @@ router.post("/", async (req, res) => {
           }
           break;
         case 'Work Order':
-        default:
           await db.query('UPDATE workorders SET stage_status = $1 WHERE id = $2', [status, wo_id]);
           break;
+        default:
+          // No action for unknown stage_name
+          break;
       }
+
+      // Log all workflow stages after insert
+      const allStages = await db.query('SELECT * FROM workflow_stages ORDER BY created_at ASC');
+      console.log('All workflow stages:', allStages.rows);
 
       await db.query('COMMIT');
     } catch (err) {
@@ -293,7 +299,7 @@ router.get("/assigned/latest/:id/:stageName", async (req, res) => {
         table = "technical_recommendations";
         alias = "tr";
         query = `
-          SELECT ws.*, tr.*
+          SELECT tr.*, sl.sl_number
           FROM workflow_stages ws
           INNER JOIN (
             SELECT wo_id, MAX(created_at) AS max_created
@@ -302,13 +308,14 @@ router.get("/assigned/latest/:id/:stageName", async (req, res) => {
             GROUP BY wo_id
           ) latest ON ws.wo_id = latest.wo_id AND ws.created_at = latest.max_created
           INNER JOIN technical_recommendations tr ON ws.wo_id = tr.wo_id
-          WHERE ws.status = 'Pending' AND ws.stage_name = $2
+          LEFT JOIN sales_leads sl ON tr.sl_id = sl.id
+          WHERE ws.status = 'Draft' AND ws.stage_name = $2
         `;
       } else if (stage.includes("rfq")) {
         table = "rfqs";
         alias = "rfq";
         query = `
-          SELECT ws.*, rfq.*
+          SELECT rfq.*, sl.sl_number
           FROM workflow_stages ws
           INNER JOIN (
             SELECT wo_id, MAX(created_at) AS max_created
@@ -317,7 +324,8 @@ router.get("/assigned/latest/:id/:stageName", async (req, res) => {
             GROUP BY wo_id
           ) latest ON ws.wo_id = latest.wo_id AND ws.created_at = latest.max_created
           INNER JOIN rfqs rfq ON ws.wo_id = rfq.wo_id
-          WHERE ws.status = 'Pending' AND ws.stage_name = $2
+          LEFT JOIN sales_leads sl ON rfq.sl_id = sl.id
+          WHERE ws.status = 'Draft' AND ws.stage_name = $2
         `;
       // } else if (stage.includes("naef")) {
       //   // For accounts, join on ws.account_id = account.id (no wo_id/sl_id references)
@@ -346,7 +354,7 @@ router.get("/assigned/latest/:id/:stageName", async (req, res) => {
             GROUP BY wo_id
           ) latest ON ws.wo_id = latest.wo_id AND ws.created_at = latest.max_created
           INNER JOIN quotations qt ON ws.wo_id = qt.wo_id
-          WHERE ws.status = 'Pending' AND ws.stage_name = $2
+          WHERE ws.status = 'Draft' AND ws.stage_name = $2
         `;
       } else {
         table = "workorders";

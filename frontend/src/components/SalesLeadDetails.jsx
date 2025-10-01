@@ -3,7 +3,7 @@ import { useEffect } from "react";
 import { apiBackendFetch } from "../services/api";
 import config from "../config.js";
 
-const SalesLeadDetails = ({ salesLead, currentUser, onBack, onEdit, onSalesLeadUpdated, toNextStage }) => {
+const SalesLeadDetails = ({ salesLead, currentUser, onBack, onEdit, onSalesLeadUpdated, onSubmit }) => {
     const isAssignedToMe = currentUser && salesLead.assignee === currentUser.id;
     const isCreator = currentUser && salesLead.createdBy === currentUser.id;
 
@@ -64,26 +64,19 @@ const SalesLeadDetails = ({ salesLead, currentUser, onBack, onEdit, onSalesLeadU
                 <div className="flex gap-2">
                     <button
                         className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-light shadow h-9 px-4 py-2 bg-green-500 hover:bg-green-600 text-white"
-                        onClick={() => {
-                            if (typeof window !== "undefined" && window.onSubmitSalesLead) {
-                                window.onSubmitSalesLead(salesLead);
-                            }
-                            if (typeof toNextStage === "function") {
-                                toNextStage(salesLead, "submit");
-                            }
-                        }}>
+                        onClick={() => onSubmit(salesLead)}>
                         Submit for Approval
                     </button>
-                    <button
+                    {/* <button
                         className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-light shadow h-9 px-4 py-2 bg-purple-500 hover:bg-purple-600 text-white"
-                        onClick={() => toNextStage(salesLead, "technicals")}> 
+                        onClick={() => onSubmit(salesLead, "technicals")}> 
                         Move to Technical
                     </button>
                     <button
                         className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-light shadow h-9 px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white"
-                        onClick={() => toNextStage(salesLead, "rfqs")}> 
+                        onClick={() => onSubmit(salesLead, "rfqs")}> 
                         Move to RFQ
-                    </button>
+                    </button> */}
                     <button
                         onClick={() => onEdit(salesLead)}
                         className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-light shadow h-9 px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white">

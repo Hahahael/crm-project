@@ -3,17 +3,10 @@ import { useState, useEffect, useRef } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import {
     LuBell,
-    LuChartColumn,
-    LuChartLine,
-    LuCheck,
     LuCircleAlert,
     LuCircleCheck,
     LuClipboard,
-    LuClipboardCheck,
-    LuClipboardList,
-    LuClock,
     LuFileText,
-    LuPlus,
     LuSearch,
     LuX,
 } from "react-icons/lu";
@@ -135,43 +128,24 @@ export default function TechnicalsPage() {
         console.log("Saving technical recommendation:", formData, "Mode:", mode);
         try {
             console.log(formData.id);
-            const response = await apiBackendFetch(mode === "edit" ? `/api/technicals/${formData.id}` : "/api/technicals", {
-                method: mode === "edit" ? "PUT" : "POST",
-                body: mode === "edit" ? JSON.stringify(formData) : JSON.stringify({ ...formData, woId: formData.id, assignee: currentUser.id }), // include woId for backend processing
+            const response = await apiBackendFetch(`/api/technicals/${formData.id}`, {
+                method: "PUT",
+                body: JSON.stringify(formData),
             });
 
             if (!response.ok) throw new Error("Failed to save technical recommendation");
             const savedTechnicalReco = await response.json();
-
-            if (mode === "edit") {
-                // Fetch the workflow stage for this workorder and stage name
-                const wsRes = await apiBackendFetch(`/api/workflowstages/workorder/${savedTechnicalReco.woId}`);
-                if (wsRes.ok) {
-                    const stages = await wsRes.json();
-                    // Find the "Technical Recommendation" stage
-                    const technicalRecoStage = stages.find((s) => s.stage_name === "Technical Recommendation");
-                    if (technicalRecoStage) {
-                        await apiBackendFetch(`/api/workflowstages/${technicalRecoStage.woId}`, {
-                            method: "PUT",
-                            body: JSON.stringify({
-                                status: savedTechnicalReco.status || "Pending",
-                                assigned_to: savedTechnicalReco.assignee,
-                            }),
-                        });
-                    }
-                }
-            } else {
-                // Create a new workflow stage for this sales lead
-                await apiBackendFetch("/api/workflowstages", {
-                    method: "POST",
-                    body: JSON.stringify({
-                        wo_id: savedTechnicalReco.woId,
-                        stage_name: "Technical Recommendation",
-                        status: savedTechnicalReco.status || "Pending",
-                        assigned_to: savedTechnicalReco.assignee,
-                    }),
-                });
-            }
+            
+            // Create a new workflow stage for this sales lead
+            await apiBackendFetch("/api/workflowstages", {
+                method: "POST",
+                body: JSON.stringify({
+                    wo_id: savedTechnicalReco.woId,
+                    stage_name: "Technical Recommendation",
+                    status: savedTechnicalReco.status || "Pending",
+                    assigned_to: savedTechnicalReco.assignee,
+                }),
+            });
 
             // Fetch all workflow stages and log them
             const stagesRes = await apiBackendFetch("/api/workflow-stages");
@@ -189,6 +163,40 @@ export default function TechnicalsPage() {
             setError("Failed to save technical recommendation");
         }
     };
+
+    
+    const handleSubmitForApproval = async (formData) => {
+        try {
+            // Set status to Submitted
+            const submitData = { ...formData, status: "Submitted" };
+            const response = await apiBackendFetch(`/api/technicals/${formData.id}`, {
+                method: "PUT",
+                body: JSON.stringify(submitData),
+            });
+            if (!response.ok) throw new Error("Failed to submit technical recommendation for approval");
+            const savedTechnicalReco = await response.json();
+            
+            // Create workflow stage for new technical recommendation
+            await apiBackendFetch("/api/workflow-stages", {
+                method: "POST",
+                body: JSON.stringify({
+                    wo_id: savedTechnicalReco.woId,
+                    stage_name: "Technical Recommendation",
+                    status: "Submitted",
+                    assigned_to: savedTechnicalReco.assignee,
+                }),
+            });
+
+            setSuccessMessage("Technical Recommendation submitted for approval!");
+            setSelectedTR(null);
+            setEditingTR(null);
+            await fetchAllData();
+            await fetchNewAssignedTechnicalRecos();
+        } catch (err) {
+            console.error("Error submitting for approval:", err);
+            setError("Failed to submit technical recommendation for approval");
+        }
+    }
 
     return (
         <div className="relative w-full h-full overflow-hidden bg-white">
@@ -282,7 +290,7 @@ export default function TechnicalsPage() {
                                     <div className="mt-3">
                                         <button
                                             onClick={() => {
-                                                setEditingTR({});
+                                                setEditingTR(newAssignedTechnicalRecos[0]);
                                                 setSelectedTR(null);
                                             }}
                                             className="inline-flex items-center justify-center whitespace-nowrap font-medium transition-colors shadow h-8 rounded-md px-3 text-xs bg-purple-600 hover:bg-purple-700 text-white cursor-pointer">
@@ -370,7 +378,7 @@ export default function TechnicalsPage() {
                         currentUser={currentUser}
                         onBack={() => setSelectedTR(null)}
                         onEdit={() => setEditingTR(selectedTR)}
-                        onTechnicalRecoUpdated={(updatedTR) => {
+                        onSave={(updatedTR) => {
                             setSelectedTR(updatedTR);
                             // Optionally, update the technicalRecos array as well:
                             setTechnicalRecos((prev) => prev.map((tr) => (tr.id === updatedTR.id ? updatedTR : tr)));
@@ -394,6 +402,7 @@ export default function TechnicalsPage() {
                             fetchNewAssignedTechnicalRecos();
                             setEditingTR(null);
                         }}
+                        onSubmitForApproval={handleSubmitForApproval}
                     />
                 )}
             </div>

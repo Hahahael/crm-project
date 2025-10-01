@@ -42,6 +42,7 @@ router.get("/:id", async (req, res) => {
     `, [id]);
     if (result.rows.length === 0)
       return res.status(404).json({ error: "Not found" });
+    console.log("Fetched technical recommendation:", result.rows[0]);
     return res.json(result.rows[0]);
   } catch (err) {
     console.error(err);
@@ -53,29 +54,10 @@ router.get("/:id", async (req, res) => {
 router.post("/", async (req, res) => {
   try {
     const body = toSnake(req.body);
-    const {
-      wo_id,
-      assignee,
-      tr_number,
-      status,
-      priority,
-      title,
-      sl_id,
-      account_id,
-      contact_person,
-      contact_number,
-      contact_email,
-      current_system,
-      current_system_issues,
-      proposed_solution,
-      technical_justification,
-      installation_requirements,
-      training_requirements,
-      maintenance_requirements,
-      attachments,
-      additional_notes,
-      created_by
-    } = body;
+    // Only require wo_id and assignee for skeletal creation, status defaults to 'Draft'
+    const wo_id = body.wo_id;
+    const assignee = body.assignee;
+    const status = body.status || 'Draft';
 
     // Generate TR number
     const currentYear = new Date().getFullYear();
@@ -87,50 +69,47 @@ router.post("/", async (req, res) => {
        LIMIT 1`,
       [`TR-${currentYear}-%`]
     );
-    
-    console.log("Latest TR number query result:", result.rows);
-
     let newCounter = 1;
     if (result.rows.length > 0) {
       const lastTrNumber = result.rows[0].trNumber;
       const lastCounter = parseInt(lastTrNumber.split("-")[2], 10);
       newCounter = lastCounter + 1;
     }
+    const tr_number = `TR-${currentYear}-${String(newCounter).padStart(4, "0")}`;
 
-    const trNumber = `TR-${currentYear}-${String(newCounter).padStart(4, "0")}`;
+    // Find sl_id from sales_leads using wo_id
+    let slId = null;
+    const slRes = await db.query(
+      `SELECT id FROM sales_leads WHERE wo_id = $1 LIMIT 1`,
+      [wo_id]
+    );
+    if (slRes.rows.length > 0) {
+      slId = slRes.rows[0].id;
+    }
 
-    // Insert into DB
+    // Insert skeletal technical recommendation, all other fields default to null
     const insertResult = await db.query(
       `INSERT INTO technical_recommendations 
-        (wo_id, assignee, tr_number, status, priority, title, sl_id, account_id, contact_person, contact_number, contact_email, current_system, current_system_issues, proposed_solution, technical_justification, installation_requirements, training_requirements, maintenance_requirements, attachments, additional_notes, created_at, created_by, updated_at)
-        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,NOW(),$21,NOW())
+        (wo_id, assignee, tr_number, status, sl_id, created_at, created_by, updated_at)
+        VALUES ($1, $2, $3, $4, $5, NOW(), $2, NOW())
         RETURNING id`,
       [
         wo_id,
         assignee,
-        trNumber,
+        tr_number,
         status,
-        priority,
-        title,
-        sl_id,
-        account_id,
-        contact_person,
-        contact_number,
-        contact_email,
-        current_system,
-        current_system_issues,
-        proposed_solution,
-        technical_justification,
-        installation_requirements,
-        training_requirements,
-        maintenance_requirements,
-        attachments,
-        additional_notes,
-        created_by
+        slId
       ]
     );
     const newId = insertResult.rows[0].id;
-    
+
+    // Create workflow stage for new technical recommendation (Draft)
+    await db.query(
+      `INSERT INTO workflow_stages (wo_id, stage_name, status, assigned_to, created_at, updated_at)
+       VALUES ($1, $2, $3, $4, NOW(), NOW())`,
+      [newId, 'Technical Recommendation', 'Draft', assignee]
+    );
+
     const final = await db.query(
       `SELECT tr.*, u.username AS assignee_username, u.department AS assignee_department
        FROM technical_recommendations tr
@@ -155,16 +134,13 @@ router.put("/:id", async (req, res) => {
     const updateResult = await db.query(
       `UPDATE technical_recommendations 
        SET 
-        wo_id=$1, assignee=$2, status=$3, priority=$4, title=$5, sl_id=$6, account_id=$7, contact_person=$8, contact_number=$9, contact_email=$10, current_system=$11, current_system_issues=$12, proposed_solution=$13, technical_justification=$14, installation_requirements=$15, training_requirements=$16, maintenance_requirements=$17, attachments=$18, additional_notes=$19, updated_at=NOW()
-       WHERE id=$20
+        status=$1, priority=$2, title=$3, account_id=$4, contact_person=$5, contact_number=$6, contact_email=$7, current_system=$8, current_system_issues=$9, proposed_solution=$10, technical_justification=$11, installation_requirements=$12, training_requirements=$13, maintenance_requirements=$14, attachments=$15, additional_notes=$16, updated_at=NOW()
+       WHERE id=$17
        RETURNING id`,
       [
-        body.wo_id,
-        body.assignee,
         body.status,
         body.priority,
         body.title,
-        body.sl_id,
         body.account_id,
         body.contact_person,
         body.contact_number,

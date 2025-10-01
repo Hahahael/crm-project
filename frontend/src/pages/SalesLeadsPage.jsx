@@ -35,7 +35,7 @@ export default function SalesLeadsPage() {
             const savedSalesLead = await response.json();
 
             // File workflow stage as Submitted
-            await apiBackendFetch("/api/workflowstages", {
+            await apiBackendFetch("/api/workflow-stages", {
                 method: "POST",
                 body: JSON.stringify({
                     wo_id: savedSalesLead.id,
@@ -44,6 +44,16 @@ export default function SalesLeadsPage() {
                     assigned_to: savedSalesLead.assignee,
                 }),
             });
+
+            apiBackendFetch(`/api/salesleads/${formData.id}`, {
+                method: "PUT",
+                body: JSON.stringify({
+                    ...formData,
+                    actualToTime: new Date().toTimeString().slice(0, 8),
+                }),
+                headers: { "Content-Type": "application/json" },
+            })
+
             setSuccessMessage("Sales Lead submitted for approval!");
             await fetchAllData();
             setSelectedSL(null);
@@ -179,6 +189,7 @@ export default function SalesLeadsPage() {
     );
 
     const handleSave = async (formData, mode) => {
+        console.log("Trying to save!");
         try {
             console.log(formData);
             const response = await apiBackendFetch(mode === "edit" ? `/api/salesleads/${formData.id}` : "/api/salesleads", {
@@ -195,36 +206,17 @@ export default function SalesLeadsPage() {
 
             if (!response.ok) throw new Error("Failed to save saleslead");
             const savedSalesLead = await response.json();
-
-            if (mode === "edit") {
-                // Fetch the workflow stage for this workorder and stage name
-                const wsRes = await apiBackendFetch(`/api/workflowstages/workorder/${savedSalesLead.woId}`);
-                if (wsRes.ok) {
-                    const stages = await wsRes.json();
-                    // Find the "Sales Lead" stage
-                    const salesLeadStage = stages.find((s) => s.stage_name === "Sales Lead");
-                    if (salesLeadStage) {
-                        await apiBackendFetch(`/api/workflowstages/${salesLeadStage.id}`, {
-                            method: "PUT",
-                            body: JSON.stringify({
-                                status: savedSalesLead.status || "Pending",
-                                assigned_to: savedSalesLead.assignee,
-                            }),
-                        });
-                    }
-                }
-            } else {
-                // Create a new workflow stage for this sales lead
-                await apiBackendFetch("/api/workflowstages", {
-                    method: "POST",
-                    body: JSON.stringify({
-                        wo_id: savedSalesLead.woId,
-                        stage_name: "Sales Lead",
-                        status: savedSalesLead.status || "Pending",
-                        assigned_to: savedSalesLead.assignee,
-                    }),
-                });
-            }
+            
+            // Create a new workflow stage for this sales lead
+            await apiBackendFetch("/api/workflow-stages", {
+                method: "POST",
+                body: JSON.stringify({
+                    wo_id: savedSalesLead.woId,
+                    stage_name: "Sales Lead",
+                    status: savedSalesLead.status || "Pending",
+                    assigned_to: savedSalesLead.assignee,
+                }),
+            });
 
             // Fetch all workflow stages and log them
             const stagesRes = await apiBackendFetch("/api/workflow-stages");
@@ -452,15 +444,9 @@ export default function SalesLeadsPage() {
                         currentUser={currentUser}
                         onBack={() => setSelectedSL(null)}
                         onEdit={() => setEditingSL(selectedSL)}
-                        toNextStage={(passedSL, nextStage) => {
-                            navigate(`/${nextStage}`, {
-                                state: { salesLead: { slNumber: passedSL.slNumber, woId: passedSL.woId, slId: passedSL.id } },
-                            });
-                            setSelectedSL(null);
-                        }}
+                        onSubmit={(passedSL) => {handleSubmitForApproval(passedSL)}}
                         onSalesLeadUpdated={(updatedSalesLead) => {
                             setSelectedSL(updatedSalesLead);
-                            // Optionally, update the salesLeads array as well:
                             setSalesLeads((prev) => prev.map((sl) => (sl.id === updatedSalesLead.id ? updatedSalesLead : sl)));
                             fetchNewAssignedSalesLeads(); // <-- refresh from backend
                         }}
@@ -478,7 +464,7 @@ export default function SalesLeadsPage() {
                         salesLead={editingSL}
                         mode={editingSL?.id ? "edit" : "create"}
                         onSave={(formData, mode) => handleSave(formData, mode)}
-                        onSubmit={handleSubmitForApproval}
+                        onSubmit={(formData) => handleSubmitForApproval(formData)}
                         onBack={() => setEditingSL(null)}
                     />
                 )}

@@ -3,9 +3,9 @@ import pkg from "jsonwebtoken";
 const { verify } = pkg;
 
 export default function (req, res, next) {
-  console.log("Auth Middleware: Headers:", req.headers);
-  console.log("Auth Middleware: Cookies:", req.cookies);
-  console.log("Auth Middleware: Authorization Header:", req.headers.authorization);
+  // console.log("Auth Middleware: Headers:", req.headers);
+  // console.log("Auth Middleware: Cookies:", req.cookies);
+  // console.log("Auth Middleware: Authorization Header:", req.headers.authorization);
   const token = req.cookies?.token; // ✅ read from cookie instead of header
 
   if (!token) {

@@ -210,16 +210,17 @@ const SalesLeadForm = ({ salesLead, mode = "create", onSave, onBack, onSubmit })
             ...requiredFields
         } = formData;
         // Find missing required fields
-        const missing = Object.entries(requiredFields).filter(([, value]) => value === "" || value === null || value === undefined);
-        if (missing.length > 0) {
-            // Mark missing fields as errors
-            const newErrors = {};
-            missing.forEach(([key]) => {
-                newErrors[key] = true;
-            });
-            setErrors(newErrors);
-            return;
-        }
+        // const missing = Object.entries(requiredFields).filter(([, value]) => value === "" || value === null || value === undefined);
+        // if (missing.length > 0) {
+        //     // Mark missing fields as errors
+        //     const newErrors = {};
+        //     missing.forEach(([key]) => {
+        //         newErrors[key] = true;
+        //     });
+        //     setErrors(newErrors);
+        //     return;
+        // }
+        console.log("Submitting form with data:", formData);
         // ✅ Reset errors if all fields are valid
         setErrors({});
         // ✅ Convert empty optional fields to null
@@ -262,16 +263,16 @@ const SalesLeadForm = ({ salesLead, mode = "create", onSave, onBack, onSubmit })
             customerSuggestedSetup,
             ...requiredFields
         } = formData;
-        const missing = Object.entries(requiredFields).filter(([, value]) => value === "" || value === null || value === undefined);
-        if (missing.length > 0) {
-            const newErrors = {};
-            missing.forEach(([key]) => {
-                newErrors[key] = true;
-            });
-            setErrors(newErrors);
-            return;
-        }
-        setErrors({});
+        // const missing = Object.entries(requiredFields).filter(([, value]) => value === "" || value === null || value === undefined);
+        // if (missing.length > 0) {
+        //     const newErrors = {};
+        //     missing.forEach(([key]) => {
+        //         newErrors[key] = true;
+        //     });
+        //     setErrors(newErrors);
+        //     return;
+        // }
+        // setErrors({});
         const cleanedFormData = {
             ...formData,
             immediateSupport: formData.immediateSupport || null,
@@ -285,12 +286,7 @@ const SalesLeadForm = ({ salesLead, mode = "create", onSave, onBack, onSubmit })
             customerSuggested: formData.customerSuggested || null,
             remarks: formData.remarks || null,
         };
-        if (typeof window !== "undefined" && window.onSubmitSalesLead) {
-            window.onSubmitSalesLead(cleanedFormData);
-        }
-        if (typeof onSubmit === "function") {
-            onSubmit(cleanedFormData);
-        }
+        onSubmit(cleanedFormData);
     };
 
     return (
@@ -955,14 +951,6 @@ const SalesLeadForm = ({ salesLead, mode = "create", onSave, onBack, onSubmit })
                         maxLength={2000}
                     />
                 </div>
-            </div>
-
-            <div className="flex justify-end">
-                <button
-                    type="submit"
-                    className="bg-blue-600 text-white px-6 py-2 rounded shadow hover:bg-blue-700">
-                    Save
-                </button>
             </div>
         </form>
     );

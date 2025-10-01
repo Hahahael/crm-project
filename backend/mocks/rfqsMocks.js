@@ -1,22 +1,28 @@
 export const rfqs = [
-    {    
+    {
         id: 1,
-        woId: 4,
+        woId: 1,
         assignee: 1,
-        rfqNumber: "RFQ-2025-9001",
-        rfqDate: "2025-09-22",
-        dueDate: "2025-09-25",
-        description: "RFQ description",
-        slId: 3,
-        accountId: 1,
-        paymentTerms: "Net 30",
-        notes: "Urgent RFQ",
-        subtotal: 1000.00,
-        vat: 0,
-        grandTotal: 1000.00,
-        createdAt: "2025-09-22",
+        rfqNumber: "RFQ-2025-0001",
+        stageStatus: "draft",
+        rfqDate: "2025-10-01T00:00:00.000Z",
+        dueDate: "2025-10-01T00:00:00.000Z",
+        description: null,
+        slId: 1,
+        accountId: null,
+        paymentTerms: null,
+        notes: null,
+        subtotal: null,
+        vat: null,
+        grandTotal: null,
+        createdAt: "2025-10-01T12:38:54.813Z",
         createdBy: 1,
-        updatedAt: "2025-09-22"
-    },
+        updatedAt: "2025-10-01T12:38:54.813Z",
+        updatedBy: null,
+        assigneeUsername: "admin",
+        assigneeDepartment: "IT",
+        slNumber: "FSL-2025-9001"
+    }
   ];
+  
   

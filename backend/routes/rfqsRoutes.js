@@ -4,7 +4,7 @@ import { toSnake } from "../helper/utils.js";
 
 const router = express.Router();
 
-// Get all technical recommendations
+// Get all RFQs
 router.get("/", async (req, res) => {
   try {
     const result = await db.query(`
@@ -36,7 +36,7 @@ router.get("/vendors", async (req, res) => {
   }
 });
 
-// Get single technical recommendation
+// Get single RFQ
 router.get("/:id", async (req, res) => {
   try {
     const { id } = req.params;
@@ -60,27 +60,17 @@ router.get("/:id", async (req, res) => {
   }
 });
 
-// Create new technical recommendation
+// Create new RFQ
 router.post("/", async (req, res) => {
   try {
     const body = toSnake(req.body);
     const {
       wo_id,
       assignee,
-      rfq_number,
       rfq_date,
       due_date,
-      description,
-      sl_id,
       account_id,
-      payment_terms,
-      notes,
-      subtotal,
-      vat,
-      grand_total,
-      created_at,
       created_by,
-      updated_at
     } = body;
 
     // Generate TR number
@@ -103,33 +93,43 @@ router.post("/", async (req, res) => {
       newCounter = lastCounter + 1;
     }
 
-    const rfqNumber = `RFQ-${currentYear}-${String(newCounter).padStart(4, "0")}`;
+    const rfq_number = `RFQ-${currentYear}-${String(newCounter).padStart(4, "0")}`;
+    
+    let sl_id = null;
+    const slRes = await db.query(
+      `SELECT id FROM sales_leads WHERE wo_id = $1 LIMIT 1`,
+      [wo_id]
+    );
+    if (slRes.rows.length > 0) {
+      sl_id = slRes.rows[0].id;
+    }
 
     // Insert into DB
     const insertResult = await db.query(
       `INSERT INTO rfqs 
-        (wo_id, assignee, rfq_number, rfq_date, due_date, description, sl_id, account_id, payment_terms, notes, subtotal, vat, grand_total, created_at, created_by, updated_at)
-        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,NOW(),$14,NOW())
+        (wo_id, assignee, rfq_number, rfq_date, due_date, sl_id, account_id, created_at, created_by, updated_at)
+        VALUES ($1,$2,$3,$4,$5,$6,$7,NOW(),$8,NOW())
         RETURNING id`,
       [
         wo_id,
         assignee,
         rfq_number,
-        rfq_date,
+        rfq_date || new Date().toISOString().split('T')[0],
         due_date,
-        description,
         sl_id,
         account_id,
-        payment_terms,
-        notes,
-        subtotal,
-        vat,
-        grand_total,
-        created_by,
+        assignee,
       ]
     );
     const newId = insertResult.rows[0].id;
-    
+
+    // Create workflow stage for new technical recommendation (Draft)
+    await db.query(
+      `INSERT INTO workflow_stages (wo_id, stage_name, status, assigned_to, created_at, updated_at)
+        VALUES ($1, $2, $3, $4, NOW(), NOW())`,
+      [newId, 'RFQ', 'Draft', assignee]
+    );
+
     const final = await db.query(
       `SELECT r.*, u.username AS assignee_username, u.department AS assignee_department
        FROM rfqs r

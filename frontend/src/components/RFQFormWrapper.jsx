@@ -109,10 +109,10 @@ export default function RFQFormWrapper({ rfq, tab, mode = "create", onBack, onSa
         if (!formData?.rfqDate) aggErrors.push("RFQ Date is required.");
         if (!formData?.dueDate) aggErrors.push("Due Date is required.");
         if (!formData?.description) aggErrors.push("Description is required.");
-        // Items validation
-        if (!rfqItems || rfqItems.length === 0) aggErrors.push("At least one RFQ item is required.");
-        // Vendors validation
-        if (!vendors || vendors.length === 0) aggErrors.push("At least one vendor is required.");
+        // // Items validation
+        // if (!rfqItems || rfqItems.length === 0) aggErrors.push("At least one RFQ item is required.");
+        // // Vendors validation
+        // if (!vendors || vendors.length === 0) aggErrors.push("At least one vendor is required.");
         setErrors(aggErrors);
         return aggErrors.length === 0;
     };

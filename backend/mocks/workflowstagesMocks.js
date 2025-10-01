@@ -1,42 +1,123 @@
 export const workflowStages = [
   {
-    id: 1,
     woId: 1,
-    stageName: "Work Order",
-    status: "Submitted",
-    assignedTo: 2,
-    notified: true,
-    createdAt: "2025-09-22T10:00:00",
-    updatedAt: "2025-09-22T10:00:00"
-  },
-  {
-    id: 2,
-    woId: 2,
-    stageName: "Sales Lead",
-    status: "Submitted",
-    assignedTo: 3,
-    notified: true,
-    createdAt: "2025-09-23T11:00:00",
-    updatedAt: "2025-09-23T11:00:00"
-  },
-  {
-    id: 3,
-    woId: 3,
-    stageName: "Technical Recommendation",
-    status: "Submitted",
-    assignedTo: 4,
+    stageName: 'Work Order',
+    status: 'Pending',
+    assignedTo: 1,
     notified: false,
-    createdAt: "2025-09-24T12:00:00",
-    updatedAt: "2025-09-24T12:00:00"
+    remarks: null,
+    createdAt: "2025-10-01T11:37:14.821Z",
+    updatedAt: "2025-10-01T11:37:14.821Z",
+    id: 1
   },
   {
-    id: 4,
-    woId: 4,
-    stageName: "RFQ",
-    status: "Submitted",
-    assignedTo: 5,
+    woId: 1,
+    stageName: 'Work Order',
+    status: 'In Progress',
+    assignedTo: 1,
     notified: false,
-    createdAt: "2025-09-25T13:00:00",
-    updatedAt: "2025-09-25T13:00:00"
-  }
+    remarks: null,
+    createdAt: "2025-10-01T11:38:00.045Z",
+    updatedAt: "2025-10-01T11:38:00.045Z",
+    id: 2
+  },
+  {
+    woId: 1,
+    stageName: 'Work Order',
+    status: 'Completed',
+    assignedTo: 1,
+    notified: false,
+    remarks: null,
+    createdAt: "2025-10-01T11:38:46.030Z",
+    updatedAt: "2025-10-01T11:38:46.030Z",
+    id: 3
+  },
+  {
+    woId: 1,
+    stageName: 'Sales Lead',
+    status: 'Draft',
+    assignedTo: 1,
+    notified: false,
+    remarks: null,
+    createdAt: "2025-10-01T11:38:46.039Z",
+    updatedAt: "2025-10-01T11:38:46.039Z",
+    id: 4
+  },
+  {
+    woId: 1,
+    stageName: 'Sales Lead',
+    status: 'Pending',
+    assignedTo: 1,
+    notified: false,
+    remarks: null,
+    createdAt: "2025-10-01T11:39:29.390Z",
+    updatedAt: "2025-10-01T11:39:29.390Z",
+    id: 5
+  },
+  {
+    woId: 1,
+    stageName: 'Sales Lead',
+    status: 'Pending',
+    assignedTo: 1,
+    notified: false,
+    remarks: null,
+    createdAt: "2025-10-01T11:39:56.712Z",
+    updatedAt: "2025-10-01T11:39:56.712Z",
+    id: 6
+  },
+  {
+    woId: 1,
+    stageName: 'Sales Lead',
+    status: 'Submitted',
+    assignedTo: 1,
+    notified: false,
+    remarks: null,
+    createdAt: "2025-10-01T11:40:11.583Z",
+    updatedAt: "2025-10-01T11:40:11.583Z",
+    id: 7
+  },
+  {
+    woId: 1,
+    stageName: 'Sales Lead',
+    status: 'Approved',
+    assignedTo: 1,
+    notified: false,
+    remarks: '1',
+    createdAt: "2025-10-01T12:25:53.484Z",
+    updatedAt: "2025-10-01T12:25:53.484Z",
+    id: 8
+  },
+  {
+    woId: 1,
+    stageName: 'Technical Recommendation',
+    status: 'Draft',
+    assignedTo: 1,
+    createdAt: "2025-10-01T12:25:53.547Z",
+    updatedAt: "2025-10-01T12:25:53.547Z",
+    id: 9,
+    notified: false,
+    remarks: null
+  },
+  {
+    woId: 1,
+    stageName: 'Technical Recommendation',
+    status: 'Submitted',
+    assignedTo: 1,
+    notified: false,
+    remarks: null,
+    createdAt: "2025-10-01T12:26:08.778Z",
+    updatedAt: "2025-10-01T12:26:08.778Z",
+    id: 10
+  },
+  // {
+  //   woId: 1,
+  //   stageName: 'Technical Recommendation',
+  //   status: 'Approved',
+  //   assignedTo: 1,
+  //   notified: false,
+  //   remarks: '1',
+  //   createdAt: "2025-10-01T12:26:55.407Z",
+  //   updatedAt: "2025-10-01T12:26:55.407Z",
+  //   id: 11
+  // }
 ];

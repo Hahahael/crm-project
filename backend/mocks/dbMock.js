@@ -281,7 +281,7 @@ mem.public.none(`
   status VARCHAR(50) DEFAULT 'Open',
   stage_status VARCHAR(20) DEFAULT 'draft',
     priority VARCHAR(50) DEFAULT 'Medium',
-    title VARCHAR(255) NOT NULL,
+    title VARCHAR(255) DEFAULT '',
     sl_id INT REFERENCES sales_leads(id) ON DELETE SET NULL,
   -- account_id INT REFERENCES accounts(id) ON DELETE SET NULL,
     account_id TEXT,
@@ -453,105 +453,106 @@ for (const s of statuses) {
   );
 }
 
-for (const account of accounts) {
-  mem.public.none(`
-    INSERT INTO accounts (
-      account_id,
-      ref_number,
-      date_created,
-      requested_by,
-      designation,
-      department,
-      validity_period,
-      due_date,
-      account_name,
-      contract_period,
-      industry,
-      account_designation,
-      product,
-      contact_number,
-      location,
-      email_address,
-      address,
-      buyer_incharge,
-      trunkline,
-      contract_number,
-      process,
-      secondary_email_address,
-      machines,
-      reason_to_apply,
-      automotive_section,
-      source_of_inquiry,
-      commodity,
-      business_activity,
-      model,
-      annual_target_sales,
-      population,
-      source_of_target,
-      existing_bellows,
-      products_to_order,
-      model_under,
-      target_areas,
-      analysis,
-      from_date,
-      to_date,
-      activity_period,
-      prepared_by,
-      noted_by,
-      approved_by,
-      received_by,
-      acknowledged_by,
-      updated_at
-    ) VALUES (
-      '${esc(account.accountId)}',
-      '${esc(account.refNumber)}',
-      ${account.dateCreated ? `'${account.dateCreated}'` : 'NOW()'},
-      ${account.requestedBy || 'NULL'},
-      '${esc(account.designation)}',
-      '${esc(account.department)}',
-      '${esc(account.validityPeriod)}',
-      ${account.dueDate ? `'${account.dueDate}'` : 'NULL'},
-      '${esc(account.accountName)}',
-      '${esc(account.contractPeriod)}',
-      '${esc(account.industry)}',
-      '${esc(account.accountDesignation)}',
-      '${esc(account.product)}',
-      '${esc(account.contactNumber)}',
-      '${esc(account.location)}',
-      '${esc(account.emailAddress)}',
-      '${esc(account.address)}',
-      '${esc(account.buyerIncharge)}',
-      '${esc(account.trunkline)}',
-      '${esc(account.contractNumber)}',
-      '${esc(account.process)}',
-      '${esc(account.secondaryEmailAddress)}',
-      '${esc(account.machines)}',
-      '${esc(account.reasonToApply)}',
-      '${esc(account.automotiveSection)}',
-      '${esc(account.sourceOfInquiry)}',
-      '${esc(account.commodity)}',
-      '${esc(account.businessActivity)}',
-      '${esc(account.model)}',
-      ${account.annualTargetSales || 0},
-      '${esc(account.population)}',
-      '${esc(account.sourceOfTarget)}',
-      '${esc(account.existingBellows)}',
-      '${esc(account.productsToOrder)}',
-      '${esc(account.modelUnder)}',
-      '${esc(account.targetAreas)}',
-      '${esc(account.analysis)}',
-      ${account.fromDate ? `'${account.fromDate}'` : 'NULL'},
-      ${account.toDate ? `'${account.toDate}'` : 'NULL'},
-      '${esc(account.activityPeriod)}',
-      ${account.preparedBy || 'NULL'},
-      ${account.notedBy || 'NULL'},
-      ${account.approvedBy || 'NULL'},
-      ${account.receivedBy || 'NULL'},
-      ${account.acknowledgedBy || 'NULL'},
-      ${account.updatedAt ? `'${account.updatedAt}'` : 'NOW()'}
-    )
-  `);
-}
+// for (const account of accounts) {
+//   mem.public.none(`
+//     INSERT INTO accounts (
+//       account_id,
+//       ref_number,
+//       date_created,
+//       requested_by,
+//       designation,
+//       department,
+//       validity_period,
+//       due_date,
+//       account_name,
+//       contract_period,
+//       industry,
+//       account_designation,
+//       product,
+//       contact_number,
+//       location,
+//       email_address,
+//       address,
+//       buyer_incharge,
+//       trunkline,
+//       contract_number,
+//       process,
+//       secondary_email_address,
+//       machines,
+//       reason_to_apply,
+//       automotive_section,
+//       source_of_inquiry,
+//       commodity,
+//       business_activity,
+//       model,
+//       annual_target_sales,
+//       population,
+//       source_of_target,
+//       existing_bellows,
+//       products_to_order,
+//       model_under,
+//       target_areas,
+//       analysis,
+//       from_date,
+//       to_date,
+//       activity_period,
+//       prepared_by,
+//       noted_by,
+//       approved_by,
+//       received_by,
+//       acknowledged_by,
+//       updated_at
+//     ) VALUES (
+//       '${esc(account.accountId)}',
+//       '${esc(account.refNumber)}',
+//       ${account.dateCreated ? `'${account.dateCreated}'` : 'NOW()'},
+//       ${account.requestedBy || 'NULL'},
+//       '${esc(account.designation)}',
+//       '${esc(account.department)}',
+//       '${esc(account.validityPeriod)}',
+//       ${account.dueDate ? `'${account.dueDate}'` : 'NULL'},
+//       '${esc(account.accountName)}',
+//       '${esc(account.contractPeriod)}',
+//       '${esc(account.industry)}',
+//       '${esc(account.accountDesignation)}',
+//       '${esc(account.product)}',
+//       '${esc(account.contactNumber)}',
+//       '${esc(account.location)}',
+//       '${esc(account.emailAddress)}',
+//       '${esc(account.address)}',
+//       '${esc(account.buyerIncharge)}',
+//       '${esc(account.trunkline)}',
+//       '${esc(account.contractNumber)}',
+//       '${esc(account.process)}',
+//       '${esc(account.secondaryEmailAddress)}',
+//       '${esc(account.machines)}',
+//       '${esc(account.reasonToApply)}',
+//       '${esc(account.automotiveSection)}',
+//       '${esc(account.sourceOfInquiry)}',
+//       '${esc(account.commodity)}',
+//       '${esc(account.businessActivity)}',
+//       '${esc(account.model)}',
+//       ${account.annualTargetSales || 0},
+//       '${esc(account.population)}',
+//       '${esc(account.sourceOfTarget)}',
+//       '${esc(account.existingBellows)}',
+//       '${esc(account.productsToOrder)}',
+//       '${esc(account.modelUnder)}',
+//       '${esc(account.targetAreas)}',
+//       '${esc(account.analysis)}',
+//       ${account.fromDate ? `'${account.fromDate}'` : 'NULL'},
+//       ${account.toDate ? `'${account.toDate}'` : 'NULL'},
+//       '${esc(account.activityPeriod)}',
+//       ${account.preparedBy || 'NULL'},
+//       ${account.notedBy || 'NULL'},
+//       ${account.approvedBy || 'NULL'},
+//       ${account.receivedBy || 'NULL'},
+//       ${account.acknowledgedBy || 'NULL'},
+//       ${account.updatedAt ? `'${account.updatedAt}'` : 'NOW()'}
+//     )
+//   `);
+// }
+
 for (const wo of workorders) {
   mem.public.none(
     `
@@ -756,31 +757,31 @@ for (const tr of technicalRecommendations) {
   );
 }
 
-for (const r of rfqs) {
-  mem.public.none(
-    `INSERT INTO rfqs 
-    (wo_id, assignee, rfq_number, rfq_date, due_date, description, sl_id, account_id, payment_terms, notes, subtotal, vat, grand_total, created_at, created_by, updated_at)
-    VALUES (
-    ${r.woId},
-    ${r.assignee},
-    '${r.rfqNumber}',
-    '${r.rfqDate}',
-    '${r.dueDate}',
-    '${r.description}',
-    ${r.slId},
-    ${r.accountId},
-    '${r.paymentTerms}',
-    '${r.notes}',
-    ${r.subtotal},
-    ${r.vat},
-    ${r.grandTotal},
-    NOW(),
-    ${r.createdBy},
-    NOW()
-    )
-    `
-  );
-}
+// for (const r of rfqs) {
+//   mem.public.none(
+//     `INSERT INTO rfqs 
+//     (wo_id, assignee, rfq_number, rfq_date, due_date, description, sl_id, account_id, payment_terms, notes, subtotal, vat, grand_total, created_at, created_by, updated_at)
+//     VALUES (
+//     ${r.woId},
+//     ${r.assignee},
+//     '${r.rfqNumber}',
+//     '${r.rfqDate}',
+//     '${r.dueDate}',
+//     '${r.description}',
+//     ${r.slId},
+//     ${r.accountId},
+//     '${r.paymentTerms}',
+//     '${r.notes}',
+//     ${r.subtotal},
+//     ${r.vat},
+//     ${r.grandTotal},
+//     NOW(),
+//     ${r.createdBy},
+//     NOW()
+//     )
+//     `
+//   );
+// }
 
 for (const v of vendors) {
   mem.public.none(
@@ -789,54 +790,54 @@ for (const v of vendors) {
   );
 }
 
-for (const item of rfqItems) {
-  mem.public.none(
-    `INSERT INTO rfq_items (rfq_id, description, brand, part_number, quantity, unit, lead_time, unit_price, amount)
-     VALUES (
-      ${item.rfqId},
-      '${esc(item.description)}',
-      '${esc(item.brand)}',
-      '${esc(item.partNumber)}',
-      ${item.quantity},
-      '${esc(item.unit)}',
-      '${esc(item.leadTime)}',
-      ${item.unitPrice},
-      ${item.amount}
-     )`
-  );
-}
+// for (const item of rfqItems) {
+//   mem.public.none(
+//     `INSERT INTO rfq_items (rfq_id, description, brand, part_number, quantity, unit, lead_time, unit_price, amount)
+//      VALUES (
+//       ${item.rfqId},
+//       '${esc(item.description)}',
+//       '${esc(item.brand)}',
+//       '${esc(item.partNumber)}',
+//       ${item.quantity},
+//       '${esc(item.unit)}',
+//       '${esc(item.leadTime)}',
+//       ${item.unitPrice},
+//       ${item.amount}
+//      )`
+//   );
+// }
 
-for (const q of rfqItemVendorQuotes) {
-  mem.public.none(
-    `INSERT INTO rfq_item_vendor_quotes (rfq_item_id, vendor_id, price, total, lead_time, lead_time_color, quote_date, status, notes)
-     VALUES (
-      ${q.rfqItemId},
-      ${q.vendorId},
-      ${q.price},
-      ${q.total},
-      '${esc(q.leadTime)}',
-      '${esc(q.leadTimeColor)}',
-      '${q.quoteDate}',
-      '${esc(q.status)}',
-      '${esc(q.notes)}'
-     )`
-  );
-}
+// for (const q of rfqItemVendorQuotes) {
+//   mem.public.none(
+//     `INSERT INTO rfq_item_vendor_quotes (rfq_item_id, vendor_id, price, total, lead_time, lead_time_color, quote_date, status, notes)
+//      VALUES (
+//       ${q.rfqItemId},
+//       ${q.vendorId},
+//       ${q.price},
+//       ${q.total},
+//       '${esc(q.leadTime)}',
+//       '${esc(q.leadTimeColor)}',
+//       '${q.quoteDate}',
+//       '${esc(q.status)}',
+//       '${esc(q.notes)}'
+//      )`
+//   );
+// }
 
-for (const rv of rfqVendors) {
-  mem.public.none(
-    `INSERT INTO rfq_vendors (rfq_id, vendor_id, contact_person, status, quote_date, grand_total, notes)
-     VALUES (
-      ${rv.rfqId},
-      ${rv.vendorId},
-      '${esc(rv.contactPerson)}',
-      '${esc(rv.status)}',
-      ${rv.quoteDate ? `'${rv.quoteDate}'` : 'NULL'},
-      ${rv.grandTotal},
-      '${esc(rv.notes)}'
-     )`
-  );
-}
+// for (const rv of rfqVendors) {
+//   mem.public.none(
+//     `INSERT INTO rfq_vendors (rfq_id, vendor_id, contact_person, status, quote_date, grand_total, notes)
+//      VALUES (
+//       ${rv.rfqId},
+//       ${rv.vendorId},
+//       '${esc(rv.contactPerson)}',
+//       '${esc(rv.status)}',
+//       ${rv.quoteDate ? `'${rv.quoteDate}'` : 'NULL'},
+//       ${rv.grandTotal},
+//       '${esc(rv.notes)}'
+//      )`
+//   );
+// }
 
 for (const ws of workflowStages) {
   mem.public.none(

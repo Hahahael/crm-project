@@ -22,20 +22,21 @@ const ApprovalsPage = () => {
     const [modalData, setModalData] = useState({ assignee: "", dueDate: "", fromTime: "", toTime: "", remarks: "" });
     const [submitting, setSubmitting] = useState(false);
 
+    const fetchApprovals = async () => {
+        try {
+            const approvalsRes = await apiBackendFetch("/api/workflow-stages/latest-submitted");
+            if (!approvalsRes.ok) throw new Error("Failed to fetch approvals");
+            const approvalsData = await approvalsRes.json();
+            console.log("Fetched approvals:", approvalsData);
+            setApprovals(approvalsData);
+        } catch (err) {
+            setError("Failed to fetch approvals");
+        } finally {
+            setLoading(false);
+        }
+    };
+
     useEffect(() => {
-        const fetchApprovals = async () => {
-            try {
-                const approvalsRes = await apiBackendFetch("/api/workflow-stages/latest-submitted");
-                if (!approvalsRes.ok) throw new Error("Failed to fetch approvals");
-                const approvalsData = await approvalsRes.json();
-                console.log("Fetched approvals:", approvalsData);
-                setApprovals(approvalsData);
-            } catch (err) {
-                setError("Failed to fetch approvals");
-            } finally {
-                setLoading(false);
-            }
-        };
         fetchApprovals();
     }, []);
 
@@ -98,12 +99,14 @@ const ApprovalsPage = () => {
     // Modal submit handler
     const handleModalSubmit = async (form) => {
         if (!actionApproval) return;
+        console.log("Submitting modal with data:", form);
+        console.log("Submitting modal with approval:", actionApproval);
         setSubmitting(true);
         try {
             const { assignee, dueDate, fromTime, toTime, remarks, nextStage } = form;
             let nextModuleType = null;
             let endpoint = "";
-            let payload = { assignee, dueDate, fromTime, toTime };
+            let payload = { woId: actionApproval.woId, assignee, dueDate, fromTime, toTime };
             const currentType = actionApproval.stageName || actionApproval.module;
             if (modalType === "approve") {
                 if (currentType === "Sales Lead" || currentType === "sales_lead" || currentType === "Technical Recommendation" || currentType === "technical_recommendation") {
@@ -116,7 +119,7 @@ const ApprovalsPage = () => {
                             const woRes = await apiBackendFetch(`/api/workorders/${actionApproval.woId}`);
                             if (woRes.ok) {
                                 const woData = await woRes.json();
-                                woIsNew = !!woData.isNew;
+                                woIsNew = !!woData.isNewAccount;
                             }
                         } catch {}
                     }
@@ -154,37 +157,32 @@ const ApprovalsPage = () => {
                         endpoint = null;
                 }
                 if (endpoint) {
-                    await apiBackendFetch(endpoint, {
+                    // Create workflow stage for current stage (Approved)
+                    await apiBackendFetch("/api/workflow-stages", {
+                        method: "POST",
+                        body: JSON.stringify({
+                            woId: actionApproval.woId,
+                            stageName: currentType,
+                            status: "Approved",
+                            assignedTo: assignee,
+                            notified: false,
+                            remarks,
+                            nextStage: nextModuleType
+                        })
+                    });
+
+                    // Create skeletal record for next module
+                    const nextModuleRes = await apiBackendFetch(endpoint, {
                         method: "POST",
                         body: JSON.stringify(payload)
                     });
+                    let nextModuleData = null;
+                    if (nextModuleRes.ok) {
+                        nextModuleData = await nextModuleRes.json();
+                    }
+                    console.log("Next module created with details", nextModuleData);
+                    // Create workflow stage for next module (Draft)
                 }
-                // Create workflow stage for current stage (Approved)
-                await apiBackendFetch("/api/workflow-stages", {
-                    method: "POST",
-                    body: JSON.stringify({
-                        woId: actionApproval.woId,
-                        stageName: currentType,
-                        status: "Approved",
-                        assignedTo: assignee,
-                        notified: false,
-                        remarks,
-                        nextStage: nextModuleType
-                    })
-                });
-                // Create workflow stage for next stage (Draft)
-                await apiBackendFetch("/api/workflow-stages", {
-                    method: "POST",
-                    body: JSON.stringify({
-                        woId: actionApproval.woId,
-                        stageName: nextModuleType,
-                        status: "Draft",
-                        assignedTo: assignee,
-                        notified: false,
-                        remarks: "",
-                        nextStage: null
-                    })
-                });
             } else {
                 // Rejection: only create workflow stage for current stage
                 await apiBackendFetch("/api/workflow-stages", {
@@ -200,12 +198,12 @@ const ApprovalsPage = () => {
                     })
                 });
             }
+
             setModalOpen(false);
             setActionApproval(null);
             setModalType(null);
             setModalData({ assignee: "", dueDate: "", fromTime: "", toTime: "", remarks: "" });
-            // Optionally, refresh approvals list
-            // ...existing code to refresh approvals...
+            await fetchApprovals();
         } catch (err) {
             setError("Failed to submit approval/rejection");
         } finally {

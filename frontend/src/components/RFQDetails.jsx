@@ -1,9 +1,9 @@
-import { LuArrowLeft, LuChartBar, LuMail, LuPencil, LuPrinter, LuUsers } from "react-icons/lu";
+import { LuArrowLeft, LuChartBar, LuFileCheck, LuMail, LuPencil, LuPrinter, LuUsers } from "react-icons/lu";
 import { useEffect, useState } from "react";
 import { apiBackendFetch } from "../services/api";
 import utils from "../helper/utils";
 
-const TechnicalDetails = ({ rfq, currentUser, onBack, onEdit, onRFQUpdated, onPrint }) => {
+const TechnicalDetails = ({ rfq, currentUser, onBack, onEdit, onSave, onPrint, onSubmit }) => {
     const [items, setItems] = useState([]);
     const [vendors, setVendors] = useState([]);
     const isAssignedToMe = currentUser && rfq.assignee === currentUser.id;
@@ -85,7 +85,7 @@ const TechnicalDetails = ({ rfq, currentUser, onBack, onEdit, onRFQUpdated, onPr
             })
                 .then((res) => res.json())
                 .then((updatedRFQ) => {
-                    if (onRFQUpdated) onRFQUpdated(updatedRFQ);
+                    if (onSave) onSave(updatedRFQ);
                 });
         }
         // eslint-disable-next-line
@@ -121,22 +121,16 @@ const TechnicalDetails = ({ rfq, currentUser, onBack, onEdit, onRFQUpdated, onPr
                         <LuChartBar className="mr-2" /> View Canvas Sheet
                     </button>
                     <button
-                        onClick={onPrint}
-                        className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-light shadow h-9 px-4 py-2 bg-gray-500 hover:bg-gray-600 text-white">
-                        <LuPrinter className="mr-2" />
-                        Print
-                    </button>
-                    <button
-                        onClick={onPrint}
-                        className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-light shadow h-9 px-4 py-2 bg-gray-500 hover:bg-gray-600 text-white">
-                        <LuMail className="mr-2" />
-                        Email
-                    </button>
-                    <button
                         onClick={() => onEdit(rfq, "details")}
                         className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-light shadow h-9 px-4 py-2 bg-purple-500 hover:bg-purple-600 text-white">
                         <LuPencil className="mr-2" />
                         Manage RFQ
+                    </button>
+                    <button
+                        onClick={() => onSubmit(rfq)}
+                        className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-light shadow h-9 px-4 py-2 bg-purple-500 hover:bg-purple-600 text-white">
+                        <LuFileCheck className="mr-2" />
+                        Submit for Approval
                     </button>
                 </div>
             </div>
@@ -244,6 +238,18 @@ const TechnicalDetails = ({ rfq, currentUser, onBack, onEdit, onRFQUpdated, onPr
                                     className="flex items-center justify-center whitespace-nowrap rounded-md text-xs font-light shadow h-9 px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white"
                                 >
                                     <LuChartBar className="h-4 w-4 mr-2" /> View Canvass
+                                </button>
+                                <button
+                                    onClick={onPrint}
+                                    className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-light shadow h-9 px-4 py-2 bg-gray-500 hover:bg-gray-600 text-white">
+                                    <LuPrinter className="mr-2" />
+                                    Print
+                                </button>
+                                <button
+                                    onClick={onPrint}
+                                    className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-light shadow h-9 px-4 py-2 bg-gray-500 hover:bg-gray-600 text-white">
+                                    <LuMail className="mr-2" />
+                                    Email
                                 </button>
                             </div>
                         </div>

@@ -1,9 +1,9 @@
-import { LuArrowLeft, LuPencil, LuPrinter } from "react-icons/lu";
+import { LuArrowLeft, LuFileCheck, LuPencil, LuPrinter } from "react-icons/lu";
 import { useEffect } from "react";
 import { apiBackendFetch } from "../services/api.js";
 import utils from "../helper/utils";
 
-const TechnicalDetails = ({ technicalReco, currentUser, onBack, onEdit, onTechnicalRecoUpdated, onPrint }) => {
+const TechnicalDetails = ({ technicalReco, currentUser, onBack, onEdit, onSave, onPrint, onSubmit }) => {
     const isAssignedToMe = currentUser && technicalReco.assignee === currentUser.id;
     const isCreator = currentUser && technicalReco.createdBy === currentUser.id;
 
@@ -34,7 +34,7 @@ const TechnicalDetails = ({ technicalReco, currentUser, onBack, onEdit, onTechni
             })
                 .then((res) => res.json())
                 .then((updatedTechnicalReco) => {
-                    if (onTechnicalRecoUpdated) onTechnicalRecoUpdated(updatedTechnicalReco);
+                    if (onSave) onSave(updatedTechnicalReco);
                 });
         }
         // eslint-disable-next-line
@@ -63,7 +63,7 @@ const TechnicalDetails = ({ technicalReco, currentUser, onBack, onEdit, onTechni
                     <p className="text-gray-500">{technicalReco.title}</p>
                 </div>
                 <div className="flex gap-2">
-                    <button
+                    {/* <button
                         className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-light shadow h-9 px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white"
                         // onClick={} // Add handler for move to RFQ
                     >
@@ -74,7 +74,7 @@ const TechnicalDetails = ({ technicalReco, currentUser, onBack, onEdit, onTechni
                         // onClick={} // Add handler for move to Quotation
                     >
                         Move to Quotation
-                    </button>
+                    </button> */}
                     <button
                         onClick={onPrint}
                         className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-light shadow h-9 px-4 py-2 bg-gray-500 hover:bg-gray-600 text-white">
@@ -82,10 +82,16 @@ const TechnicalDetails = ({ technicalReco, currentUser, onBack, onEdit, onTechni
                         Print
                     </button>
                     <button
-                        onClick={() => onEdit(technicalReco)}
+                        onClick={onEdit(technicalReco)}
                         className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-light shadow h-9 px-4 py-2 bg-purple-500 hover:bg-purple-600 text-white">
                         <LuPencil className="h-4 w-4 mr-2" />
                         Edit
+                    </button>
+                    <button
+                        onClick={onSubmit(technicalReco)}
+                        className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-light shadow h-9 px-4 py-2 bg-green-500 hover:bg-green-600 text-white">
+                        <LuFileCheck className="h-4 w-4 mr-2" />
+                        Submit for Approval
                     </button>
                 </div>
             </div>

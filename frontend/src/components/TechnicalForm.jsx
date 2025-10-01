@@ -3,14 +3,14 @@ import { LuArrowLeft, LuCheck, LuSave, LuX } from "react-icons/lu";
 import { apiBackendFetch } from "../services/api";
 import utils from "../helper/utils.js";
 
-const TechnicalForm = ({ technicalReco, mode = "create", onSave, onBack }) => {
+const TechnicalForm = ({ technicalReco, mode, onSave, onBack, onSubmitForApproval }) => {
+    console.log("TechnicalForm - mode:", mode, "technicalReco:", technicalReco);
     const [errors, setErrors] = useState(null);
     const [formData, setFormData] = useState({
         trNumber: "",
         status: "Draft",
         priority: "Medium",
         title: "",
-        slId: "",
         accountId: "",
         contactPerson: "",
         contactEmail: "",
@@ -72,7 +72,6 @@ const TechnicalForm = ({ technicalReco, mode = "create", onSave, onBack }) => {
                 status: "Draft",
                 priority: "Medium",
                 title: "",
-                slId: "",
                 accountId: "",
                 contactPerson: "",
                 contactEmail: "",
@@ -128,19 +127,19 @@ const TechnicalForm = ({ technicalReco, mode = "create", onSave, onBack }) => {
         } = formData;
 
         // Find missing required fields
-        const missing = Object.entries(requiredFields).filter(([, value]) => value === "" || value === null || value === undefined);
+        // const missing = Object.entries(requiredFields).filter(([, value]) => value === "" || value === null || value === undefined);
 
-        console.log("Missing fields:", missing);
+        // console.log("Missing fields:", missing);
 
-        if (missing.length > 0) {
-            // Mark missing fields as errors
-            const newErrors = {};
-            missing.forEach(([key]) => {
-                newErrors[key] = true;
-            });
-            setErrors(newErrors);
-            return;
-        }
+        // if (missing.length > 0) {
+        //     // Mark missing fields as errors
+        //     const newErrors = {};
+        //     missing.forEach(([key]) => {
+        //         newErrors[key] = true;
+        //     });
+        //     setErrors(newErrors);
+        //     return;
+        // }
 
         console.log("Form data is valid, submitting:", formData);
 
@@ -157,6 +156,43 @@ const TechnicalForm = ({ technicalReco, mode = "create", onSave, onBack }) => {
         };
 
         onSave(cleanedFormData, mode);
+    };
+
+    // Handler for submitting for approval
+    const handleSubmitForApproval = async (e) => {
+        e.preventDefault();
+        // Validate required fields as in handleSubmit
+        const {
+            products,
+            trNumber,
+            installationRequirements,
+            trainingRequirements,
+            maintenanceRequirements,
+            attachments,
+            additionalNotes,
+            ...requiredFields
+        } = formData;
+        const missing = Object.entries(requiredFields).filter(([, value]) => value === "" || value === null || value === undefined);
+        if (missing.length > 0) {
+            const newErrors = {};
+            missing.forEach(([key]) => {
+                newErrors[key] = true;
+            });
+            setErrors(newErrors);
+            return;
+        }
+        setErrors({});
+        const cleanedFormData = {
+            ...formData,
+            status: "Submitted",
+            installationRequirements: formData.installationRequirements || null,
+            trainingRequirements: formData.trainingRequirements || null,
+            maintenanceRequirements: formData.maintenanceRequirements || null,
+            additionalNotes: formData.additionalNotes || null,
+        };
+        if (onSubmitForApproval) {
+            onSubmitForApproval(cleanedFormData, mode);
+        }
     };
 
     return (
@@ -191,7 +227,7 @@ const TechnicalForm = ({ technicalReco, mode = "create", onSave, onBack }) => {
                     </button>
                     <button
                         type="button"
-                        onClick={onBack}
+                        onClick={handleSubmitForApproval}
                         className="flex border border-green-200 bg-green-500 hover:bg-green-600 transition-all duration-150 cursor-pointer px-4 py-2 rounded-md items-center text-sm text-white">
                         <LuCheck className="mr-2" /> For Approval
                     </button>
@@ -288,12 +324,11 @@ const TechnicalForm = ({ technicalReco, mode = "create", onSave, onBack }) => {
                                     Sales Lead Reference
                                 </label>
                                 <input
-                                    className="flex h-9 w-full rounded-md border border-input px-3 py-1 text-sm shadow-sm bg-yellow-50"
+                                    className="flex h-9 w-full rounded-md border border-gray-200 px-3 py-1 text-sm shadow-sm bg-yellow-50"
                                     id="salesLeadRef"
                                     name="salesLeadRef"
                                     value={formData.slNumber}
                                     onChange={handleChange}
-                                    placeholder="e.g., FSL-2023-1001"
                                     readOnly
                                 />
                             </div>

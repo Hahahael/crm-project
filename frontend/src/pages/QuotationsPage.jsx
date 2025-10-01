@@ -1,14 +1,14 @@
-//src/pages/RFQsPage
+//src/pages/QuotationsPage
 import { useState, useEffect, useRef, use } from "react";
 import { useLocation } from "react-router-dom";
 import { LuBell, LuCircleAlert, LuClipboard, LuFileText, LuMessageCircle, LuSearch, LuSend, LuX } from "react-icons/lu";
-import RFQsTable from "../components/RFQsTable";
+import QuotationsTable from "../components/QuotationsTable";
 import RFQDetails from "../components/RFQDetails";
 import RFQForm from "../components/RFQFormWrapper";
 import { apiBackendFetch } from "../services/api";
 import LoadingModal from "../components/LoadingModal";
 
-export default function RFQsPage() {
+export default function QuotationsPage() {
     const timeoutRef = useRef();
     const location = useLocation();
 
@@ -393,7 +393,7 @@ export default function RFQsPage() {
                             </div>
                         </div>
 
-                        <RFQsTable
+                        <QuotationsTable
                             rfqs={filtered}
                             onView={(rfq) => {
                                 setSelectedRFQ(rfq);
