@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef } from "react";
 import { createPortal } from "react-dom";
 import VendorSelectionModal from "./VendorSelectionModal";
+import VendorEditModal from "./VendorEditModal";
 import {
     LuActivity,
     LuCalendar,
@@ -20,10 +21,11 @@ import { apiBackendFetch } from "../services/api";
 
 const TRANSITION_MS = 150;
 
-export default function RFQVendorsForm({ rfq, items, rfqVendors, onAddVendor, onVendorAction, onSendRFQ }) {
+export default function RFQVendorsForm({ rfq, setFormData, rfqVendors, onAddVendor, onVendorAction, onSendRFQ }) {
+    console.log("RFQVendorsForm - rfqVendors:", rfq);
     // Modal state and selection logic
     const [modalOpen, setModalOpen] = useState(false);
-    const [selectedVendors, setSelectedVendors] = useState(rfqVendors);
+    const [selectedVendors, setSelectedVendors] = useState(rfq.vendors || []);
     const [modalSelection, setModalSelection] = useState(rfqVendors);
     const [allVendors, setAllVendors] = useState([]);
     const [filteredVendors, setFilteredVendors] = useState(rfqVendors || []);
@@ -31,6 +33,8 @@ export default function RFQVendorsForm({ rfq, items, rfqVendors, onAddVendor, on
     const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 });
     const [isMounted, setIsMounted] = useState(false);
     const [isVisible, setIsVisible] = useState(false);
+    const [editingVendor, setEditingVendor] = useState(null);
+    const [showVendorModal, setShowVendorModal] = useState(false);
     const buttonRefs = useRef({});
     const menuRef = useRef(null);
     const closeTimeoutRef = useRef(null);
@@ -109,6 +113,7 @@ export default function RFQVendorsForm({ rfq, items, rfqVendors, onAddVendor, on
     };
 
     const handleAddVendors = (vendors) => {
+        console.log("Selected vendors from modal:", vendors);
         // Find vendor objects from allVendors by matching id in vendorObj
         const addedVendors = allVendors.filter((v) => vendors.some((obj) => obj.id === v.id));
         // Only add vendors that are not already selected, and remove those not in modal selection
@@ -116,7 +121,13 @@ export default function RFQVendorsForm({ rfq, items, rfqVendors, onAddVendor, on
         const modalIds = vendors.map((v) => v.id);
         const newSelection = [
             ...selectedVendors.filter(v => modalIds.includes(v.id)), // keep only those still selected
-            ...addedVendors.filter(v => !prevIds.includes(v.id)) // add new ones
+            ...addedVendors.filter(v => !prevIds.includes(v.id)).map(v => ({
+                ...v,
+                paymentTerms: "",
+                validUntil: "",
+                items: rfq.items, // add items from rfq
+                notes: ""
+            }))
         ];
         setSelectedVendors(newSelection);
         if (onVendorAction) {
@@ -136,6 +147,7 @@ export default function RFQVendorsForm({ rfq, items, rfqVendors, onAddVendor, on
                 });
             }
         }
+        setFormData((prev) => ({ ...prev, vendors: newSelection }));
         setModalOpen(false);
     };
 
@@ -146,6 +158,25 @@ export default function RFQVendorsForm({ rfq, items, rfqVendors, onAddVendor, on
         startClose();
     };
 
+    const handleEditQuotation = (vendor) => {
+        console.log("Editing vendor:", vendor);
+        setEditingVendor(vendor);
+        setShowVendorModal(true);
+        setIsMounted(false);
+        setOpenMenuId(null); // Hide context menu
+    };
+
+    // Ensure vendor items are updated and reflected in formData
+    const handleVendorSave = (updatedVendor) => {
+        setSelectedVendors(prev => prev.map(v => v.id === updatedVendor.id ? updatedVendor : v));
+        setFormData(prev => {
+            const updatedVendors = (prev.vendors || []).map(v => v.id === updatedVendor.id ? updatedVendor : v);
+            return { ...prev, vendors: updatedVendors };
+        });
+        setShowVendorModal(false);
+    };
+
+    // In RFQVendorsForm, add a handler to update vendor items after editing
     // Outside click handler
     useEffect(() => {
         const handleClickOutside = (e) => {
@@ -170,6 +201,15 @@ export default function RFQVendorsForm({ rfq, items, rfqVendors, onAddVendor, on
                     selectedVendors={modalSelection}
                     onSelectVendor={handleSelectVendor}
                     onAddVendors={handleAddVendors}
+                />
+            )}
+            {showVendorModal && (
+                <VendorEditModal
+                    open={showVendorModal}
+                    vendor={editingVendor}
+                    items={editingVendor?.items || rfq.items}
+                    onClose={() => setShowVendorModal(false)}
+                    onSave={handleVendorSave}
                 />
             )}
             <div className="flex items-center justify-between mb-4">
@@ -293,12 +333,12 @@ export default function RFQVendorsForm({ rfq, items, rfqVendors, onAddVendor, on
                                 <ul className="flex flex-col text-sm text-gray-700 py-1">
                                     <li
                                         className="cursor-pointer px-2 mx-1 py-1.5 hover:bg-gray-100 flex transition-all duration-200 rounded-sm"
-                                        onClick={() => handleView(openMenuId)}>
+                                        >
                                         <LuSend className="my-auto mr-2" /> {sendLabel}
                                     </li>
                                     <li
                                         className="cursor-pointer px-2 mx-1 py-1.5 hover:bg-gray-100 flex transition-all duration-200 rounded-sm"
-                                        onClick={() => handleEdit(openMenuId)}>
+                                        onClick={() => handleEditQuotation(vendor)}>
                                         <LuSquarePen className="my-auto mr-2" /> Edit Quotation
                                     </li>
                                     <li

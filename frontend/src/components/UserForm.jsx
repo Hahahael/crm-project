@@ -232,7 +232,7 @@ const UserForm = ({ user, roles, departments, statuses, mode = "create", onBack,
                     onClick={() => setOpenRole(!openRole)}
                     className="flex pl-3 cursor-pointer w-full rounded-md border border-gray-300 bg-yellow-50 p-2 text-sm text-left focus:border-black"
                   >
-                    {formData.role || "Select a role"}{" "}
+                    {roles.find(role => role.id === formData.roleId)?.roleName || "Select a role"}{" "}
                     <LuChevronsUpDown className="my-auto ml-auto" />
                   </button>
 
@@ -245,7 +245,7 @@ const UserForm = ({ user, roles, departments, statuses, mode = "create", onBack,
                         key={role.id}
                         className="cursor-pointer px-3 py-2 hover:bg-yellow-100 text-sm"
                         onClick={() => {
-                          setFormData({ ...formData, role: role.roleName });
+                          setFormData({ ...formData, roleId: role.id });
                           setOpenRole(false);
                         }}
                       >
@@ -267,7 +267,7 @@ const UserForm = ({ user, roles, departments, statuses, mode = "create", onBack,
                     onClick={() => setOpenDepartment(!openDepartment)}
                     className="pl-3 cursor-pointer w-full rounded-md border border-gray-300 bg-yellow-50 p-2 text-sm text-left focus:border-black flex"
                   >
-                    {formData.department || "Select a department"} <LuChevronsUpDown className="my-auto ml-auto"/>
+                    {departments.find(department => department.id === formData.department)?.departmentName || "Select a department"} <LuChevronsUpDown className="my-auto ml-auto"/>
                   </button>
 
                   <ul
@@ -278,7 +278,7 @@ const UserForm = ({ user, roles, departments, statuses, mode = "create", onBack,
                         key={department.id}
                         className="cursor-pointer px-3 py-2 hover:bg-yellow-100 text-sm"
                         onClick={() => {
-                          setFormData({ ...formData, department: department.departmentName });
+                          setFormData({ ...formData, departmentId: department.id });
                           setOpenDepartment(false);
                         }}
                       >
@@ -300,7 +300,7 @@ const UserForm = ({ user, roles, departments, statuses, mode = "create", onBack,
                   onClick={() => setOpenStatus(!openStatus)}
                   className="pl-3 cursor-pointer w-full rounded-md border border-gray-300 bg-yellow-50 p-2 text-sm text-left focus:border-black flex"
                 >
-                  {formData.status || "Select a status"} <LuChevronsUpDown className="my-auto ml-auto"/>
+                  {statuses.find(status => status.id === formData.statusId)?.statusName || "Select a status"} <LuChevronsUpDown className="my-auto ml-auto"/>
                 </button>
 
                 <ul
@@ -311,7 +311,7 @@ const UserForm = ({ user, roles, departments, statuses, mode = "create", onBack,
                       key={status.id}
                       className="cursor-pointer px-3 py-2 hover:bg-yellow-100 text-sm"
                       onClick={() => {
-                        setFormData({ ...formData, status: status.statusName });
+                        setFormData({ ...formData, statusId: status.id });
                         setOpenStatus(false);
                       }}
                     >

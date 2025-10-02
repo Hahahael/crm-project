@@ -1,9 +1,12 @@
 import { useEffect, useState } from "react";
 import { LuPlus, LuTrash } from "react-icons/lu";
+import { useRef } from "react";
+import { apiBackendFetch } from "../services/api";
 import utils from "../helper/utils.js";
 
-export default function RFQDetailsForm({ rfq, setFormData, items, mode }) {
-    const [rfqItems, setRfqItems] = useState(items || []);
+export default function RFQDetailsForm({ rfq, setFormData, mode }) {
+    const [rfqItems, setRfqItems] = useState(rfq.items || []);
+    const [itemsList, setItemsList] = useState([]);
     const [errors, setErrors] = useState(null);
     // formData and setFormData are now managed by parent
     const formData = rfq;
@@ -11,6 +14,7 @@ export default function RFQDetailsForm({ rfq, setFormData, items, mode }) {
 
     const onItemChange = (itemId, field, value) => {
         setRfqItems((prevItems) => prevItems.map((item) => (item.id === itemId ? { ...item, [field]: value } : item)));
+        console.log(rfqItems);
     };
 
     const onRemoveItem = (itemId) => {
@@ -18,8 +22,50 @@ export default function RFQDetailsForm({ rfq, setFormData, items, mode }) {
     };
 
     const onAddItem = () => {
-        const newItem = { id: Date.now(), brand: "", partNo: "", qty: 1, unit: "", leadTime: "", unitPrice: 0, amount: 0 };
+        const newItem = { id: null, item_id: null, name: "", model: "", description: "", quantity: 1, price: 0 };
         setRfqItems((prevItems) => [...prevItems, newItem]);
+    };
+
+    const dropdownRefs = useRef({});
+
+    useEffect(() => {
+        const fetchItems = async () => {
+            try {
+                const res = await apiBackendFetch("/api/inventory/items");
+                const data = await res.json();
+                setItemsList(data);
+            } catch (err) {
+                console.error("Failed to fetch items", err);
+            }
+        };
+
+        fetchItems();
+    }, []);
+
+    // Close dropdown on outside click for product name dropdowns
+    useEffect(() => {
+        const handleClickOutside = (e) => {
+            setRfqItems((prevItems) => prevItems.map((item) => {
+                const ref = dropdownRefs.current[item.id];
+                if (item.showDropdown && ref && !ref.contains(e.target)) {
+                    return { ...item, showDropdown: false };
+                }
+                return item;
+            }));
+        };
+        document.addEventListener("mousedown", handleClickOutside);
+        return () => {
+            document.removeEventListener("mousedown", handleClickOutside);
+            handleSetRfqItems(rfqItems);
+        }
+    }, [rfqItems]);
+
+    // Example usage inside RFQDetailsForm:
+    const handleSetRfqItems = (newRfqItems) => {
+        setFormData(prev => ({
+            ...prev,
+            items: newRfqItems
+        }));
     };
 
     return (
@@ -125,12 +171,13 @@ export default function RFQDetailsForm({ rfq, setFormData, items, mode }) {
                 </div>
                 <div className="space-y-4">
                     <div className="rounded-md border border-gray-200">
-                        <div className="relative w-full overflow-auto">
+                        <div className="relative w-full overflow-overlay">
                             <table className="min-w-full border-collapse text-left text-sm">
                                 <thead className="border-b border-gray-200">
                                     <tr className="border-b border-gray-200 transition-colors hover:bg-gray-50">
-                                        <th className="p-2 font-normal text-sm text-gray-500 text-left align-middle">Description</th>
+                                        <th className="p-2 font-normal text-sm text-gray-500 text-left align-middle">Product Name</th>
                                         <th className="p-2 font-normal text-sm text-gray-500 text-left align-middle">Brand</th>
+                                        <th className="p-2 font-normal text-sm text-gray-500 text-left align-middle">Description</th>
                                         <th className="p-2 font-normal text-sm text-gray-500 text-left align-middle">Part No.</th>
                                         <th className="p-2 font-normal text-sm text-gray-500 text-left align-middle">Qty</th>
                                         <th className="p-2 font-normal text-sm text-gray-500 text-left align-middle">Unit</th>
@@ -145,66 +192,135 @@ export default function RFQDetailsForm({ rfq, setFormData, items, mode }) {
                                         <tr
                                             key={item.id}
                                             className="hover:bg-gray-100 transition-all duration-200">
-                                            <td className="text-sm p-2 align-middle">
-                                                <input
-                                                    type="text"
-                                                    value={item.description || ""}
-                                                    onChange={(e) => onItemChange(item.id, "description", e.target.value)}
-                                                    className="w-full rounded border border-gray-200 px-2 py-1 text-sm"
-                                                />
+                                            <td className="text-sm p-2 align-middle" style={{ position: 'relative', overflow: 'visible' }}>
+                                                <div className="relative" ref={el => { dropdownRefs.current[item.id] = el; }} style={{ overflow: 'visible' }}>
+                                                    <input
+                                                        type="text"
+                                                        value={item.name || ""}
+                                                        onChange={(e) => {
+                                                            onItemChange(item.id, "name", e.target.value);
+                                                            setRfqItems((prevItems) => prevItems.map((itm) =>
+                                                                itm.id === item.id ? { ...itm, showDropdown: true, searchQuery: e.target.value } : itm
+                                                            ));
+                                                        }}
+                                                        className="w-full rounded border border-gray-200 px-2 py-1 text-sm"
+                                                        onFocus={() => setRfqItems((prevItems) => prevItems.map((itm) =>
+                                                            itm.id === item.id ? { ...itm, showDropdown: true } : itm
+                                                        ))}
+                                                        autoComplete="off"
+                                                    />
+                                                    {item.showDropdown && (
+                                                        <div style={{ position: 'absolute', left: 0, bottom: '100%', zIndex: 20, width: 'max-content', minWidth: '100%', maxWidth: '400px', boxShadow: '0 4px 16px rgba(0,0,0,0.12)', background: 'white', borderRadius: '0.5rem', border: '1px solid #e5e7eb', overflow: 'visible' }}>
+                                                            <ul className="max-h-40 overflow-y-auto" style={{ margin: 0, padding: 0 }}>
+                                                                {(itemsList || [])
+                                                                    .filter(i =>
+                                                                        (i.name || i.description || "").toLowerCase().includes((item.searchQuery || item.name || "").toLowerCase()) &&
+                                                                        !rfqItems.some(tr => tr.item_id === i.id)
+                                                                    )
+                                                                    .map((itm) => (
+                                                                    <li
+                                                                        key={itm.id}
+                                                                        onClick={() => {
+                                                                            console.log("Selected item: ", itm);
+                                                                            setRfqItems((prevItems) => prevItems.map((it) =>
+                                                                                it === item ? {
+                                                                                    ...it,
+                                                                                    id: itm.id, // set id to selected item's id
+                                                                                    item_id: itm.id, // also store as item_id for backend
+                                                                                    name: itm.name,
+                                                                                    brand: itm.brand || "",
+                                                                                    partNumber: itm.partNumber || "",
+                                                                                    leadTime: itm.leadTime || "",
+                                                                                    unit: itm.unit || "",
+                                                                                    model: itm.model || "",
+                                                                                    description: itm.description || "",
+                                                                                    quantity: it.quantity || 1,
+                                                                                    price: itm.price || 0,
+                                                                                    showDropdown: false,
+                                                                                    searchQuery: ""
+                                                                                } : it
+                                                                            ));
+                                                                        }}
+                                                                        className="px-3 py-2 cursor-pointer hover:bg-gray-100 text-sm" style={{ listStyle: 'none' }}>
+                                                                        {itm.name || itm.description}
+                                                                    </li>
+                                                                ))}
+                                                                {(itemsList || []).filter(i => (i.name || i.description || "").toLowerCase().includes((item.searchQuery || item.name || "").toLowerCase())).length === 0 && (
+                                                                    <li className="px-3 py-2 text-gray-500 text-sm" style={{ listStyle: 'none' }}>No results found</li>
+                                                                )}
+                                                            </ul>
+                                                        </div>
+                                                    )}
+                                                </div>
                                             </td>
                                             <td className="text-sm p-2 align-middle">
                                                 <input
                                                     type="text"
                                                     value={item.brand || ""}
-                                                    onChange={(e) => onItemChange(item.id, "brand", e.target.value)}
-                                                    className="w-full rounded border border-gray-200 px-2 py-1 text-sm"
+                                                    readOnly
+                                                    className="w-full rounded border border-gray-200 px-2 py-1 text-sm bg-gray-100"
                                                 />
                                             </td>
                                             <td className="text-sm p-2 align-middle">
                                                 <input
                                                     type="text"
-                                                    value={item.partNo || ""}
-                                                    onChange={(e) => onItemChange(item.id, "partNo", e.target.value)}
-                                                    className="w-full rounded border border-gray-200 px-2 py-1 text-sm"
+                                                    value={item.description || ""}
+                                                    readOnly
+                                                    className="w-full rounded border border-gray-200 px-2 py-1 text-sm bg-gray-100"
+                                                />
+                                            </td>
+                                            <td className="text-sm p-2 align-middle">
+                                                <input
+                                                    type="text"
+                                                    value={item.partNumber || ""}
+                                                    readOnly
+                                                    className="w-full rounded border border-gray-200 px-2 py-1 text-sm bg-gray-100"
                                                 />
                                             </td>
                                             <td className="text-sm p-2 align-middle">
                                                 <input
                                                     type="number"
                                                     min="1"
-                                                    value={item.qty || 1}
-                                                    onChange={(e) => onItemChange(item.id, "qty", Number(e.target.value))}
-                                                    className="w-full rounded border border-gray-200 px-2 py-1 text-sm"
+                                                    value={item.quantity}
+                                                    className="w-full rounded border border-gray-200 px-2 py-1 text-sm bg-white"
+                                                    onChange={e => {
+                                                        const value = Math.max(1, Number(e.target.value));
+                                                        onItemChange(item.id, "quantity", value);
+                                                    }}
                                                 />
                                             </td>
                                             <td className="text-sm p-2 align-middle">
                                                 <input
                                                     type="text"
                                                     value={item.unit || ""}
-                                                    onChange={(e) => onItemChange(item.id, "unit", e.target.value)}
-                                                    className="w-full rounded border border-gray-200 px-2 py-1 text-sm"
+                                                    readOnly
+                                                    className="w-full rounded border border-gray-200 px-2 py-1 text-sm bg-gray-100"
+                                                />
+                                            </td>
+                                            <td className="text-sm p-2 align-middle">
+                                                <input
+                                                    type="text"
+                                                    value={item.price || ""}
+                                                    readOnly
+                                                    className="w-full rounded border border-gray-200 px-2 py-1 text-sm bg-gray-100"
                                                 />
                                             </td>
                                             <td className="text-sm p-2 align-middle">
                                                 <input
                                                     type="text"
                                                     value={item.leadTime || ""}
-                                                    onChange={(e) => onItemChange(item.id, "leadTime", e.target.value)}
-                                                    className="w-full rounded border border-gray-200 px-2 py-1 text-sm"
+                                                    readOnly
+                                                    className="w-full rounded border border-gray-200 px-2 py-1 text-sm bg-gray-100"
                                                 />
                                             </td>
                                             <td className="text-sm p-2 align-middle">
                                                 <input
-                                                    type="number"
-                                                    min="0"
-                                                    step="0.01"
-                                                    value={item.unitPrice || 0}
-                                                    onChange={(e) => onItemChange(item.id, "unitPrice", Number(e.target.value))}
-                                                    className="w-full rounded border border-gray-200 px-2 py-1 text-sm"
+                                                    type="text"
+                                                    value={`Php ${item.price * item.quantity || ""}`}
+                                                    readOnly
+                                                    className="w-full rounded border border-gray-200 px-2 py-1 text-sm bg-gray-100"
                                                 />
                                             </td>
-                                            <td className="text-sm p-2 align-middle">{item.amount || "Not set"}</td>
                                             <td className="text-sm p-2 align-middle">
                                                 <button
                                                     type="button"

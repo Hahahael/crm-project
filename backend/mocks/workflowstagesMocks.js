@@ -109,6 +109,83 @@ export const workflowStages = [
     updatedAt: "2025-10-01T12:26:08.778Z",
     id: 10
   },
+  {
+    woId: 2,
+    stageName: 'Work Order',
+    status: 'Pending',
+    assignedTo: 1,
+    notified: false,
+    remarks: null,
+    createdAt: "2025-10-01T11:37:14.821Z",
+    updatedAt: "2025-10-01T11:37:14.821Z",
+    id: 11
+  },
+  {
+    woId: 2,
+    stageName: 'Work Order',
+    status: 'In Progress',
+    assignedTo: 1,
+    notified: false,
+    remarks: null,
+    createdAt: "2025-10-01T11:38:00.045Z",
+    updatedAt: "2025-10-01T11:38:00.045Z",
+    id: 12
+  },
+  {
+    woId: 2,
+    stageName: 'Work Order',
+    status: 'Completed',
+    assignedTo: 1,
+    notified: false,
+    remarks: null,
+    createdAt: "2025-10-01T11:38:46.030Z",
+    updatedAt: "2025-10-01T11:38:46.030Z",
+    id: 13
+  },
+  {
+    woId: 2,
+    stageName: 'Sales Lead',
+    status: 'Draft',
+    assignedTo: 1,
+    notified: false,
+    remarks: null,
+    createdAt: "2025-10-01T11:38:46.039Z",
+    updatedAt: "2025-10-01T11:38:46.039Z",
+    id: 14
+  },
+  {
+    woId: 2,
+    stageName: 'Sales Lead',
+    status: 'Pending',
+    assignedTo: 1,
+    notified: false,
+    remarks: null,
+    createdAt: "2025-10-01T11:39:29.390Z",
+    updatedAt: "2025-10-01T11:39:29.390Z",
+    id: 15
+  },
+  {
+    woId: 2,
+    stageName: 'Sales Lead',
+    status: 'Pending',
+    assignedTo: 1,
+    notified: false,
+    remarks: null,
+    createdAt: "2025-10-01T11:39:56.712Z",
+    updatedAt: "2025-10-01T11:39:56.712Z",
+    id: 16
+  },
+  {
+    woId: 2,
+    stageName: 'Sales Lead',
+    status: 'Submitted',
+    assignedTo: 1,
+    notified: false,
+    remarks: null,
+    createdAt: "2025-10-01T11:40:11.583Z",
+    updatedAt: "2025-10-01T11:40:11.583Z",
+    id: 17
+  },
   // {
   //   woId: 1,
   //   stageName: 'Technical Recommendation',

@@ -7,6 +7,7 @@ import RFQDetails from "../components/RFQDetails";
 import RFQForm from "../components/RFQFormWrapper";
 import { apiBackendFetch } from "../services/api";
 import LoadingModal from "../components/LoadingModal";
+import RFQCanvassSheet from "../components/RFQCanvassSheet";
 
 export default function QuotationsPage() {
     const timeoutRef = useRef();
@@ -14,7 +15,7 @@ export default function QuotationsPage() {
 
     const [RFQs, setRFQs] = useState([]);
     const [search, setSearch] = useState("");
-    const [selectedRFQ, setSelectedRFQ] = useState(null);
+    const [selectedQuotation, setselectedQuotation] = useState(null);
     const [editingRFQ, setEditingRFQ] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
@@ -180,7 +181,7 @@ export default function QuotationsPage() {
             setSuccessMessage("RFQ saved successfully!"); // ✅ trigger success message
             await fetchAllData();
             await fetchNewAssignedRFQs();
-            setSelectedRFQ(rfqData);
+            setselectedQuotation(rfqData);
             setEditingRFQ(null);
         } catch (err) {
             console.error("Error saving RFQ:", err);
@@ -211,7 +212,7 @@ export default function QuotationsPage() {
             });
 
             setSuccessMessage("RFQ submitted for approval!");
-            setSelectedRFQ(null);
+            setselectedQuotation(null);
             setEditingRFQ(null);
             await fetchAllData();
             await fetchNewAssignedRFQs();
@@ -256,7 +257,7 @@ export default function QuotationsPage() {
             </div>
 
             {/* Sales Leads Table */}
-            {!selectedRFQ && !editingRFQ && (
+            {!selectedQuotation && !editingRFQ && (
                 <div className="transition-all duration-300 h-full w-full p-6 overflow-y-auto">
                     {/* Header */}
                     <div className="flex items-center mb-6">
@@ -285,7 +286,7 @@ export default function QuotationsPage() {
                                     </div>
                                     <div className="mt-3">
                                         <button
-                                            onClick={() => setSelectedRFQ(newAssignedRFQs[0])}
+                                            onClick={() => setselectedQuotation(newAssignedRFQs[0])}
                                             className="inline-flex items-center justify-center whitespace-nowrap font-medium transition-colors shadow h-8 rounded-md px-3 text-xs bg-amber-600 hover:bg-amber-700 text-white cursor-pointer">
                                             View First RFQ
                                         </button>
@@ -326,7 +327,7 @@ export default function QuotationsPage() {
                                         <button
                                             onClick={() => {
                                                 setEditingRFQ(newAssignedRFQs[0]);
-                                                setSelectedRFQ(null);
+                                                setselectedQuotation(null);
                                             }}
                                             className="inline-flex items-center justify-center whitespace-nowrap font-medium transition-colors shadow h-8 rounded-md px-3 text-xs bg-amber-600 hover:bg-amber-700 text-white cursor-pointer">
                                             Open Technical Recommendation
@@ -396,13 +397,13 @@ export default function QuotationsPage() {
                         <QuotationsTable
                             rfqs={filtered}
                             onView={(rfq) => {
-                                setSelectedRFQ(rfq);
+                                setselectedQuotation(rfq);
                                 setEditingRFQ(null);
                             }}
                             onEdit={(rfq, tab) => {
                                 setSelectedTab(tab || "details");
                                 setEditingRFQ(rfq);
-                                setSelectedRFQ(null);
+                                setselectedQuotation(null);
                             }}
                         />
                     </div>
@@ -412,41 +413,16 @@ export default function QuotationsPage() {
             {/* Details Drawer */}
             <div
                 className={`absolute overflow-auto top-0 right-0 h-full w-full bg-white shadow-xl transition-all duration-300 ${
-                    selectedRFQ && !editingRFQ ? "translate-x-0 opacity-100" : "translate-x-full opacity-0"
+                    selectedQuotation && !editingRFQ ? "translate-x-0 opacity-100" : "translate-x-full opacity-0"
                 }`}>
-                {selectedRFQ && !editingRFQ && (
-                    <RFQDetails
-                        rfq={selectedRFQ}
-                        currentUser={currentUser}
-                        onBack={() => setSelectedRFQ(null)}
-                        onEdit={(rfq, tab) => {
-                            setSelectedTab(tab || "details");
-                            setEditingRFQ(selectedRFQ);
-                        }}
-                        onSave={(updatedRFQ) => {
-                            setSelectedRFQ(updatedRFQ);
-                            // Optionally, update the RFQs array as well:
-                            setRFQs((prev) => prev.map((tr) => (tr.id === updatedRFQ.id ? updatedRFQ : tr)));
-                            fetchNewRFQs(); // <-- refresh from backend
-                        }}
-                        onSubmit={(selectedRFQ) => {handleSubmitForApproval(selectedRFQ)}}
-                    />
-                )}
-            </div>
-
-            {/* Form Drawer */}
-            <div
-                className={`absolute top-0 right-0 h-full w-full bg-white shadow-xl transition-all duration-300 ${
-                    editingRFQ && editingRFQ.id ? "translate-x-0 opacity-100" : "translate-x-full opacity-0"
-                }`}>
-                {editingRFQ && editingRFQ.id && (
-                    <RFQForm
-                        rfq={editingRFQ}
-                        tab={selectedTab}
-                        mode={editingRFQ?.id ? "edit" : "create"}
-                        onSave={(formData, mode) => handleSave(formData, mode)}
-                        onBack={() => setEditingRFQ(null)}
-                    />
+                {selectedQuotation && !editingRFQ && (
+                    <div>
+                        <TechnicalDetails
+                            technical={selectedQuotation}
+                            onBack={() => setselectedQuotation(null)}
+                        />
+                        <RFQCanvassSheet rfq={selectedQuotation} />
+                    </div>
                 )}
             </div>
         </div>

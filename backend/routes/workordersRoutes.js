@@ -11,12 +11,17 @@ router.get("/", async (req, res) => {
     const result = await db.query(`
       SELECT 
         w.*, 
-        assignee_user.username AS assignee_username,
-        assignee_user.department AS department,
-        creator_user.username AS creator_username
+        u.username AS assignee_username,
+        a.account_name,
+        ad.department_name AS account_department,
+        ai.industry_name AS account_industry,
+        apb.product_brand_name AS account_product_brand
       FROM workorders w
-      LEFT JOIN users assignee_user ON w.assignee = assignee_user.id
-      LEFT JOIN users creator_user ON w.created_by = creator_user.id
+      LEFT JOIN users u ON w.assignee = u.id
+      LEFT JOIN accounts a ON w.account_id = a.id
+      LEFT JOIN account_departments ad ON a.department_id = ad.id
+      LEFT JOIN account_industries ai ON a.industry_id = ai.id
+      LEFT JOIN account_product_brands apb ON a.product_id = apb.id
       ORDER BY w.id ASC
     `);
     return res.json(result.rows); // ✅ camelCase
@@ -29,15 +34,22 @@ router.get("/", async (req, res) => {
 router.get("/assigned", async (req, res) => {
   try {
     const username = req.user.username;
-    const result = await db.query(
-      `SELECT 
+    const result = await db.query(`
+      SELECT 
         w.*, 
         u.username AS assignee_username,
-        u.department AS department
-       FROM workorders w
-       LEFT JOIN users u ON w.assignee = u.id
-       WHERE u.username = $1
-       ORDER BY w.id ASC`,
+        a.account_name,
+        ad.department_name AS department,
+        ai.industry_name AS industry,
+        apb.product_brand_name AS product_brand
+      FROM workorders w
+      LEFT JOIN users u ON w.assignee = u.id
+      LEFT JOIN accounts a ON w.account_id = a.id
+      LEFT JOIN account_departments ad ON a.department_id = ad.id
+      LEFT JOIN account_industries ai ON a.industry_id = ai.id
+      LEFT JOIN account_product_brands apb ON a.product_id = apb.id
+      WHERE user.username = $1
+      ORDER BY w.id ASC`,
       [username]
     );
     return res.json(result.rows);
@@ -53,9 +65,11 @@ router.get("/assigned/new", async (req, res) => {
       `SELECT 
         w.*, 
         u.username AS assignee_username,
-        u.department AS department
+        u.department_id AS assignee_department_id,
+        d.department_name AS assignee_department_name
        FROM workorders w
        LEFT JOIN users u ON w.assignee = u.id
+       LEFT JOIN departments d ON u.department_id = d.id
        WHERE u.username = $1
          AND NOT EXISTS (
            SELECT 1 FROM workflow_stages ws
@@ -78,9 +92,16 @@ router.get("/:id", async (req, res) => {
       SELECT 
         w.*, 
         u.username AS assignee_username,
-        u.department AS department
+        a.account_name AS account_name,
+        ad.department_name AS department,
+        ai.industry_name AS industry,
+        apb.product_brand_name AS product_brand
       FROM workorders w
       LEFT JOIN users u ON w.assignee = u.id
+      LEFT JOIN accounts a ON w.account_id = a.id
+      LEFT JOIN account_departments ad ON a.department_id = ad.id
+      LEFT JOIN account_industries ai ON a.industry_id = ai.id
+      LEFT JOIN account_product_brands apb ON a.product_id = apb.id
       WHERE w.id = $1`,
       [id]
     );
@@ -100,11 +121,9 @@ router.post("/", async (req, res) => {
     const {
       work_description,
       assignee,
-      account_name,
+      account_id,
       is_new_account,
-      industry,
       mode,
-      product_brand,
       contact_person,
       contact_number,
       wo_date,
@@ -148,18 +167,16 @@ router.post("/", async (req, res) => {
     // 4️⃣ Insert into DB
     const insertResult = await db.query(
       `INSERT INTO workorders 
-        (wo_number, work_description, assignee, account_name, is_new_account, industry, mode, product_brand, contact_person, contact_number, wo_date, due_date, from_time, to_time, actual_date, actual_from_time, actual_to_time, objective, instruction, target_output, is_fsl, is_esl, created_at, created_by, updated_at)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,NOW(),$23,NOW())
+        (wo_number, work_description, assignee, account_id, is_new_account, mode, contact_person, contact_number, wo_date, due_date, from_time, to_time, actual_date, actual_from_time, actual_to_time, objective, instruction, target_output, is_fsl, is_esl, created_at, created_by, updated_at)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,NOW(),$21,NOW())
        RETURNING id`,
       [
         woNumber,
         work_description,
         assignee,
-        account_name,
+        account_id,
         is_new_account,
-        industry,
         mode,
-        product_brand,
         contact_person,
         contact_number,
         wo_date,
@@ -182,9 +199,10 @@ router.post("/", async (req, res) => {
 
     // 5️⃣ Return new row with assignee details
     const final = await db.query(
-      `SELECT w.*, u.username AS assignee_username, u.department
+      `SELECT w.*, u.username AS assignee_username, u.department_id AS assignee_department_id, d.department_name AS assignee_department_name
        FROM workorders w
        LEFT JOIN users u ON w.assignee = u.id
+       LEFT JOIN departments d ON u.department_id = d.id
        WHERE w.id = $1`,
       [newId]
     );
@@ -205,11 +223,9 @@ router.put("/:id", async (req, res) => {
       wo_number,
       work_description,
       assignee,
-      account_name,
+      account_id,
       is_new_account,
-      industry,
       mode,
-      product_brand,
       contact_person,
       contact_number,
       wo_date,
@@ -229,21 +245,19 @@ router.put("/:id", async (req, res) => {
     const updateResult = await db.query(
       `UPDATE workorders 
        SET 
-          wo_number=$1, work_description=$2, assignee=$3, account_name=$4, is_new_account=$5, industry=$6,
-          mode=$7, product_brand=$8, contact_person=$9, contact_number=$10, wo_date=$11, due_date=$12,
-          from_time=$13, to_time=$14, actual_date=$15, actual_from_time=$16, actual_to_time=$17, objective=$18,
-          instruction=$19, target_output=$20, is_fsl=$21, is_esl=$22, updated_at=NOW()
-       WHERE id=$23
+          wo_number=$1, work_description=$2, assignee=$3, account_id=$4, is_new_account=$5,
+          mode=$6, contact_person=$7, contact_number=$8, wo_date=$9, due_date=$10,
+          from_time=$11, to_time=$12, actual_date=$13, actual_from_time=$14, actual_to_time=$15, objective=$16,
+          instruction=$17, target_output=$18, is_fsl=$19, is_esl=$20, updated_at=NOW()
+       WHERE id=$21
        RETURNING id`,
       [
         wo_number,
         work_description,
         assignee,
-        account_name,
+        account_id,
         is_new_account,
-        industry,
         mode,
-        product_brand,
         contact_person,
         contact_number,
         wo_date,
@@ -268,9 +282,16 @@ router.put("/:id", async (req, res) => {
       `SELECT 
           w.*, 
           u.username AS assignee_username,
-          u.department as department
+          a.account_name AS account_name,
+          ad.department_name AS department,
+          ai.industry_name AS industry,
+          apb.product_brand_name AS product_brand
        FROM workorders w
        LEFT JOIN users u ON w.assignee = u.id
+       LEFT JOIN accounts a ON w.account_id = a.id
+       LEFT JOIN account_departments ad ON a.department_id = ad.id
+       LEFT JOIN account_industries ai ON a.industry_id = ai.id
+       LEFT JOIN account_product_brands apb ON a.product_id = apb.id
        WHERE w.id = $1`,
       [updatedId]
     );

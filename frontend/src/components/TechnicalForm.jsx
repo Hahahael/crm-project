@@ -1,11 +1,13 @@
 import { useState, useEffect, useRef } from "react";
-import { LuArrowLeft, LuCheck, LuSave, LuX } from "react-icons/lu";
+import { LuArrowLeft, LuCheck, LuPlus, LuSave, LuX, LuTrash } from "react-icons/lu";
 import { apiBackendFetch } from "../services/api";
 import utils from "../helper/utils.js";
+import { items } from "../../../backend/mocks/itemsMock.js";
 
 const TechnicalForm = ({ technicalReco, mode, onSave, onBack, onSubmitForApproval }) => {
-    console.log("TechnicalForm - mode:", mode, "technicalReco:", technicalReco);
     const [errors, setErrors] = useState(null);
+    const [itemsList, setItemsList] = useState([ {} ]);
+    const [trItems, setTrItems] = useState([]);
     const [formData, setFormData] = useState({
         trNumber: "",
         status: "Draft",
@@ -25,6 +27,7 @@ const TechnicalForm = ({ technicalReco, mode, onSave, onBack, onSubmitForApprova
         maintenanceRequirements: "",
         attachments: [],
         additionalNotes: "",
+        items: [],
         ...technicalReco,
     });
 
@@ -33,6 +36,20 @@ const TechnicalForm = ({ technicalReco, mode, onSave, onBack, onSubmitForApprova
     const [searchQuery, setSearchQuery] = useState("");
     const [dropdownOpen, setDropdownOpen] = useState(false);
     const assigneeRef = useRef(null);
+
+    const onItemChange = (itemId, field, value) => {
+        setTrItems((prevItems) => prevItems.map((item) => (item.id === itemId ? { ...item, [field]: value } : item)));
+        console.log(trItems);
+    };
+
+    const onRemoveItem = (itemId) => {
+        setTrItems((prevItems) => prevItems.filter((item) => item.id !== itemId));
+    };
+
+    const onAddItem = () => {
+        const newItem = { id: null, item_id: null, name: "", model: "", description: "", quantity: 1, price: 0 };
+        setTrItems((prevItems) => [...prevItems, newItem]);
+    };
 
     // fetch users once
     useEffect(() => {
@@ -45,7 +62,19 @@ const TechnicalForm = ({ technicalReco, mode, onSave, onBack, onSubmitForApprova
                 console.error("Failed to fetch users", err);
             }
         };
+        
+        const fetchItems = async () => {
+            try {
+                const res = await apiBackendFetch("/api/inventory/items");
+                const data = await res.json();
+                setItemsList(data);
+            } catch (err) {
+                console.error("Failed to fetch items", err);
+            }
+        };
+
         fetchUsers();
+        fetchItems();
     }, []);
 
     // filter users by search
@@ -86,11 +115,13 @@ const TechnicalForm = ({ technicalReco, mode, onSave, onBack, onSubmitForApprova
                 maintenanceRequirements: "",
                 attachments: [],
                 additionalNotes: "",
+                items: [],
             }));
         }
     }, [technicalReco]);
 
     const handleChange = (e) => {
+        console.log("Fetched items:", itemsList);
         const { name, value, type, checked } = e.target;
         const newValue = type === "checkbox" ? checked : value;
 
@@ -153,6 +184,7 @@ const TechnicalForm = ({ technicalReco, mode, onSave, onBack, onSubmitForApprova
             trainingRequirements: formData.trainingRequirements || null,
             maintenanceRequirements: formData.maintenanceRequirements || null,
             additionalNotes: formData.additionalNotes || null,
+            items: trItems
         };
 
         onSave(cleanedFormData, mode);
@@ -170,18 +202,19 @@ const TechnicalForm = ({ technicalReco, mode, onSave, onBack, onSubmitForApprova
             maintenanceRequirements,
             attachments,
             additionalNotes,
+            trItems,
             ...requiredFields
         } = formData;
-        const missing = Object.entries(requiredFields).filter(([, value]) => value === "" || value === null || value === undefined);
-        if (missing.length > 0) {
-            const newErrors = {};
-            missing.forEach(([key]) => {
-                newErrors[key] = true;
-            });
-            setErrors(newErrors);
-            return;
-        }
-        setErrors({});
+        // const missing = Object.entries(requiredFields).filter(([, value]) => value === "" || value === null || value === undefined);
+        // if (missing.length > 0) {
+        //     const newErrors = {};
+        //     missing.forEach(([key]) => {
+        //         newErrors[key] = true;
+        //     });
+        //     setErrors(newErrors);
+        //     return;
+        // }
+        // setErrors({});
         const cleanedFormData = {
             ...formData,
             status: "Submitted",
@@ -189,11 +222,31 @@ const TechnicalForm = ({ technicalReco, mode, onSave, onBack, onSubmitForApprova
             trainingRequirements: formData.trainingRequirements || null,
             maintenanceRequirements: formData.maintenanceRequirements || null,
             additionalNotes: formData.additionalNotes || null,
+            items: trItems
         };
+        console.log(trItems);
         if (onSubmitForApproval) {
             onSubmitForApproval(cleanedFormData, mode);
         }
     };
+
+    // Add a ref for dropdown
+    const dropdownRefs = useRef({});
+
+    // Close dropdown on outside click for product name dropdowns
+    useEffect(() => {
+        const handleClickOutside = (e) => {
+            setTrItems((prevItems) => prevItems.map((item) => {
+                const ref = dropdownRefs.current[item.id];
+                if (item.showDropdown && ref && !ref.contains(e.target)) {
+                    return { ...item, showDropdown: false };
+                }
+                return item;
+            }));
+        };
+        document.addEventListener("mousedown", handleClickOutside);
+        return () => document.removeEventListener("mousedown", handleClickOutside);
+    }, [trItems]);
 
     return (
         <form
@@ -474,6 +527,138 @@ const TechnicalForm = ({ technicalReco, mode, onSave, onBack, onSubmitForApprova
                                 onChange={handleChange}
                                 placeholder="Provide technical justification for the proposed solution"
                             />
+                        </div>
+                        <div className="rounded-md border border-gray-200">
+                            <div className="relative w-full overflow-overlay">
+                                <table className="min-w-full border-collapse text-left text-sm">
+                                    <thead className="border-b border-gray-200">
+                                        <tr className="border-b border-gray-200 transition-colors hover:bg-gray-50">
+                                            <th className="p-2 font-normal text-sm text-gray-500 text-left align-middle">Product Name</th>
+                                            <th className="p-2 font-normal text-sm text-gray-500 text-left align-middle">Model</th>
+                                            <th className="p-2 font-normal text-sm text-gray-500 text-left align-middle">Description</th>
+                                            <th className="p-2 font-normal text-sm text-gray-500 text-left align-middle">Quantity</th>
+                                            <th className="p-2 font-normal text-sm text-gray-500 text-left align-middle">Unit Price</th>
+                                            <th className="p-2 font-normal text-sm text-gray-500 text-left align-middle w-10"></th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-gray-200">
+                                        {trItems?.map((item) => (
+                                            <tr
+                                                key={item.id}
+                                                className="hover:bg-gray-100 transition-all duration-200">
+                                                <td className="text-sm p-2 align-middle" style={{ position: 'relative', overflow: 'visible' }}>
+                                                    <div className="relative" ref={el => { dropdownRefs.current[item.id] = el; }} style={{ overflow: 'visible' }}>
+                                                        <input
+                                                            type="text"
+                                                            value={item.name || ""}
+                                                            onChange={(e) => {
+                                                                onItemChange(item.id, "name", e.target.value);
+                                                                setTrItems((prevItems) => prevItems.map((itm) =>
+                                                                    itm.id === item.id ? { ...itm, showDropdown: true, searchQuery: e.target.value } : itm
+                                                                ));
+                                                            }}
+                                                            className="w-full rounded border border-gray-200 px-2 py-1 text-sm"
+                                                            onFocus={() => setTrItems((prevItems) => prevItems.map((itm) =>
+                                                                itm.id === item.id ? { ...itm, showDropdown: true } : itm
+                                                            ))}
+                                                            autoComplete="off"
+                                                        />
+                                                        {item.showDropdown && (
+                                                            <div style={{ position: 'absolute', left: 0, bottom: '100%', zIndex: 20, width: 'max-content', minWidth: '100%', maxWidth: '400px', boxShadow: '0 4px 16px rgba(0,0,0,0.12)', background: 'white', borderRadius: '0.5rem', border: '1px solid #e5e7eb', overflow: 'visible' }}>
+                                                                <ul className="max-h-40 overflow-y-auto" style={{ margin: 0, padding: 0 }}>
+                                                                    {(itemsList || [])
+                                                                        .filter(i =>
+                                                                            (i.name || i.description || "").toLowerCase().includes((item.searchQuery || item.name || "").toLowerCase()) &&
+                                                                            !trItems.some(tr => tr.item_id === i.id)
+                                                                        )
+                                                                        .map((itm) => (
+                                                                        <li
+                                                                            key={itm.id}
+                                                                            onClick={() => {
+                                                                                setTrItems((prevItems) => prevItems.map((it) =>
+                                                                                    it === item ? {
+                                                                                        ...it,
+                                                                                        id: itm.id, // set id to selected item's id
+                                                                                        item_id: itm.id, // also store as item_id for backend
+                                                                                        name: itm.name || itm.description,
+                                                                                        model: itm.model || "",
+                                                                                        description: itm.description || "",
+                                                                                        quantity: it.quantity || 1,
+                                                                                        price: itm.price || 0,
+                                                                                        showDropdown: false,
+                                                                                        searchQuery: ""
+                                                                                    } : it
+                                                                                ));
+                                                                            }}
+                                                                            className="px-3 py-2 cursor-pointer hover:bg-gray-100 text-sm" style={{ listStyle: 'none' }}>
+                                                                            {itm.name || itm.description}
+                                                                        </li>
+                                                                    ))}
+                                                                    {(itemsList || []).filter(i => (i.name || i.description || "").toLowerCase().includes((item.searchQuery || item.name || "").toLowerCase())).length === 0 && (
+                                                                        <li className="px-3 py-2 text-gray-500 text-sm" style={{ listStyle: 'none' }}>No results found</li>
+                                                                    )}
+                                                                </ul>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </td>
+                                                <td className="text-sm p-2 align-middle">
+                                                    <input
+                                                        type="text"
+                                                        value={item.model || ""}
+                                                        readOnly
+                                                        className="w-full rounded border border-gray-200 px-2 py-1 text-sm bg-gray-100"
+                                                    />
+                                                </td>
+                                                <td className="text-sm p-2 align-middle">
+                                                    <input
+                                                        type="text"
+                                                        value={item.description || ""}
+                                                        readOnly
+                                                        className="w-full rounded border border-gray-200 px-2 py-1 text-sm bg-gray-100"
+                                                    />
+                                                </td>
+                                                <td className="text-sm p-2 align-middle">
+                                                    <input
+                                                        type="number"
+                                                        min="1"
+                                                        value={item.quantity}
+                                                        className="w-full rounded border border-gray-200 px-2 py-1 text-sm bg-white"
+                                                        onChange={e => {
+                                                            const value = Math.max(1, Number(e.target.value));
+                                                            onItemChange(item.id, "quantity", value);
+                                                        }}
+                                                    />
+                                                </td>
+                                                <td className="text-sm p-2 align-middle">
+                                                    <input
+                                                        type="text"
+                                                        value={item.price}
+                                                        readOnly
+                                                        className="w-full rounded border border-gray-200 px-2 py-1 text-sm bg-gray-100"
+                                                    />
+                                                </td>
+                                                <td className="text-sm p-2 align-middle">
+                                                    <button
+                                                        type="button"
+                                                        className="text-red-600 hover:text-red-800 text-sm"
+                                                        onClick={() => onRemoveItem(item.id)}>
+                                                        <LuTrash />
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        <div>
+                            <button
+                                type="button"
+                                className="border border-gray-200 text-gray-800 rounded-md px-4 py-2 flex items-center shadow-xs hover:bg-gray-200 transition-all duration-200 cursor-pointer text-xs"
+                                onClick={onAddItem}>
+                                <LuPlus className="mr-2" /> Add Item
+                            </button>
                         </div>
                     </div>
                 </div>

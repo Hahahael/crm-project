@@ -11,7 +11,6 @@ router.get("/", async (req, res) => {
       SELECT 
         r.*, 
         u.username AS assignee_username,
-        u.department AS assignee_department,
         sl.sl_number AS sl_number
       FROM rfqs r
       LEFT JOIN users u ON r.assignee = u.id
@@ -131,7 +130,7 @@ router.post("/", async (req, res) => {
     );
 
     const final = await db.query(
-      `SELECT r.*, u.username AS assignee_username, u.department AS assignee_department
+      `SELECT r.*, u.username AS assignee_username
        FROM rfqs r
        LEFT JOIN users u ON r.assignee = u.id
        WHERE r.id = $1`,
@@ -178,7 +177,7 @@ router.put("/:id", async (req, res) => {
     );
     const updatedId = updateResult.rows[0].id;
     const result = await db.query(
-      `SELECT r.*, u.username AS assignee_username, u.department AS assignee_department
+      `SELECT r.*, u.username AS assignee_username
        FROM rfqs r
        LEFT JOIN users u ON r.assignee = u.id
        WHERE r.id = $1`,

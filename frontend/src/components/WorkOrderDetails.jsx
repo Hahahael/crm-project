@@ -7,6 +7,7 @@ import config from "../config.js";
 import utils from "../helper/utils.js";
 
 const WorkOrderDetails = ({ workOrder, currentUser, onBack, onEdit, onWorkOrderUpdated, toSalesLead }) => {
+    console.log("WorkOrderDetails - workOrder:", workOrder, "currentUser:", currentUser);
     const isAssignedToMe = currentUser && workOrder.assignee === currentUser.id;
     const isCreator = currentUser && workOrder.createdBy === currentUser.id;
     const [hasSalesLead, setHasSalesLead] = useState(false);
@@ -134,7 +135,7 @@ const WorkOrderDetails = ({ workOrder, currentUser, onBack, onEdit, onWorkOrderU
                             </label>
                             <div className="col-span-5 flex gap-6">
                                 <div className="col-span-5 w-full rounded-md bg-yellow-50 text-md border border-gray-200 px-3 py-3">
-                                    {workOrder.workDescription || ""}
+                                    {workOrder.accountName || ""}
                                 </div>
                                 <div className="flex items-center gap-2">
                                     <input

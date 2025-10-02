@@ -141,11 +141,11 @@ const UserDetails = ({ user, onBack, onEdit, onDelete }) => {
                 <div className="inline-flex items-center">
                   <span
                     className={`rounded-md my-auto px-2 py-1 text-xs font-semibold ${
-                      config.roleBadgeClasses[user.role] ||
+                      config.roleBadgeClasses[user.roleName] ||
                       "bg-gray-100 text-gray-700"
                     }`}
                   >
-                    {user.role}
+                    {user.roleName}
                   </span>
                 </div>
               </div>
@@ -154,7 +154,7 @@ const UserDetails = ({ user, onBack, onEdit, onDelete }) => {
               <label className="text-sm font-medium text-gray-500">
                 Department
               </label>
-              <p className="font-medium">{user.department}</p>
+              <p className="font-medium">{user.departmentName}</p>
             </div>
             <div>
               <label className="text-sm font-medium text-gray-500">Status</label>
@@ -162,11 +162,11 @@ const UserDetails = ({ user, onBack, onEdit, onDelete }) => {
                 <div className="inline-flex items-center">
                   <span
                     className={`rounded-md my-auto px-2 py-1 text-xs font-semibold ${
-                      config.statusBadgeClasses[user.status] ||
+                      config.statusBadgeClasses[user.statusName] ||
                       "bg-gray-100 text-gray-700"
                     }`}
                   >
-                    {user.status}
+                    {user.statusName}
                   </span>
                 </div>
               </div>

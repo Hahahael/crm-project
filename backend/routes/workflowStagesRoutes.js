@@ -279,7 +279,7 @@ router.get("/assigned/latest/:id/:stageName", async (req, res) => {
     } else if (stage.includes("workorder") || stage.includes("wo")) {
       // For workorders: join users for username/department, include woNumber
       query = `
-        SELECT ws.*, wo.*, wo.wo_number AS woNumber, u.username AS assigned_to_username, u.department AS assigned_to_department
+        SELECT ws.*, wo.*, wo.wo_number AS woNumber, u.username AS assigned_to_username, a.account_name AS account_name
         FROM workflow_stages ws
         INNER JOIN (
           SELECT wo_id, MAX(created_at) AS max_created
@@ -288,8 +288,10 @@ router.get("/assigned/latest/:id/:stageName", async (req, res) => {
           GROUP BY wo_id
         ) latest ON ws.wo_id = latest.wo_id AND ws.created_at = latest.max_created
         INNER JOIN workorders wo ON ws.wo_id = wo.id
+        LEFT JOIN accounts a ON wo.account_id = a.id
         LEFT JOIN users u ON ws.assigned_to = u.id
         WHERE ws.status = 'Pending' AND ws.stage_name = $2
+        -- Now includes a.account_name AS accountName
       `;
     } else {
       // For other tables: join sales_leads for sl_number, join users for username/department

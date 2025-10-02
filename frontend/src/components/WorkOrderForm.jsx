@@ -1,3 +1,4 @@
+/* eslint-disable no-unused-vars */
 import { useState, useEffect, useRef } from "react";
 import { LuArrowLeft, LuCheck, LuX } from "react-icons/lu";
 import { apiBackendFetch } from "../services/api";
@@ -11,7 +12,7 @@ const WorkOrderForm = ({ workOrder, mode = "create", onSave, onBack }) => {
         assignee: "",
         assigneeUsername: "", // 🔹 added for display
         department: "",
-        accountName: "",
+        accountId: "", // <-- use accountId instead of accountName
         isNewAccount: false,
         industry: "",
         mode: "",
@@ -34,9 +35,22 @@ const WorkOrderForm = ({ workOrder, mode = "create", onSave, onBack }) => {
 
     // 🔹 user search state
     const [users, setUsers] = useState([]);
+    const [accounts, setAccounts] = useState([]);
+    const [industries, setIndustries] = useState([]); // [{id, industryName}]
+    const [productBrands, setProductBrands] = useState([]); // [{id, productBrandName}]
+    const [departments, setDepartments] = useState([]); // [{id, departmentName}]
+    const [departmentDropdownOpen, setDepartmentDropdownOpen] = useState(false);
+    const departmentRef = useRef(null);
     const [searchQuery, setSearchQuery] = useState("");
-    const [dropdownOpen, setDropdownOpen] = useState(false);
+    // Distinct dropdown states
+    const [assigneeDropdownOpen, setAssigneeDropdownOpen] = useState(false);
+    const [accountDropdownOpen, setAccountDropdownOpen] = useState(false);
+    const [industryDropdownOpen, setIndustryDropdownOpen] = useState(false);
+    const [productBrandDropdownOpen, setProductBrandDropdownOpen] = useState(false);
     const assigneeRef = useRef(null);
+    const accountRef = useRef(null);
+    const industryRef = useRef(null);
+    const productBrandRef = useRef(null);
 
     // fetch users once
     useEffect(() => {
@@ -49,22 +63,85 @@ const WorkOrderForm = ({ workOrder, mode = "create", onSave, onBack }) => {
                 console.error("Failed to fetch users", err);
             }
         };
+
+        const fetchAccounts = async () => {
+            try {
+                const res = await apiBackendFetch("/api/accounts");
+                const data = await res.json();
+                console.log("Fetched accounts:", data);
+                setAccounts(data);
+            } catch (err) {
+                console.error("Failed to fetch accounts", err);
+            }
+        };
+
+        const fetchAccountIndustries = async () => {
+            try {
+                const res = await apiBackendFetch("/api/accounts/industries");
+                const data = await res.json();
+                setIndustries(data);
+            } catch (err) {
+                console.error("Failed to fetch account industries", err);
+            }
+        };
+
+        const fetchAccountProductBrands = async () => {
+            try {
+                const res = await apiBackendFetch("/api/accounts/product-brands");
+                const data = await res.json();
+                setProductBrands(data);
+            } catch (err) {
+                console.error("Failed to fetch account product brands", err);
+            }
+        };
+
+        const fetchDepartments = async () => {
+            try {
+                const res = await apiBackendFetch("/api/accounts/departments");
+                const data = await res.json();
+                setDepartments(data);
+            } catch (err) {
+                console.error("Failed to fetch account departments", err);
+            }
+        };
+
         fetchUsers();
+        fetchAccounts();
+        fetchAccountIndustries();
+        fetchAccountProductBrands();
+        fetchDepartments();
+    }, []);
+
+    // fetch accounts once
+    useEffect(() => {
     }, []);
 
     // filter users by search
     const filteredUsers = users.filter((u) => u.username.toLowerCase().includes(searchQuery.toLowerCase()));
+    const filteredAccounts = accounts.filter((a) => a.accountName.toLowerCase().includes(searchQuery.toLowerCase()));
 
     // close dropdown on outside click
     useEffect(() => {
         const handleClickOutside = (e) => {
-            if (assigneeRef.current && !assigneeRef.current.contains(e.target)) {
-                setDropdownOpen(false);
+            if (assigneeDropdownOpen && assigneeRef.current && !assigneeRef.current.contains(e.target)) {
+                setAssigneeDropdownOpen(false);
+            }
+            if (accountDropdownOpen && accountRef.current && !accountRef.current.contains(e.target)) {
+                setAccountDropdownOpen(false);
+            }
+            if (industryDropdownOpen && industryRef.current && !industryRef.current.contains(e.target)) {
+                setIndustryDropdownOpen(false);
+            }
+            if (productBrandDropdownOpen && productBrandRef.current && !productBrandRef.current.contains(e.target)) {
+                setProductBrandDropdownOpen(false);
+            }
+            if (departmentDropdownOpen && departmentRef.current && !departmentRef.current.contains(e.target)) {
+                setDepartmentDropdownOpen(false);
             }
         };
         document.addEventListener("mousedown", handleClickOutside);
         return () => document.removeEventListener("mousedown", handleClickOutside);
-    }, []);
+    }, [assigneeDropdownOpen, accountDropdownOpen, industryDropdownOpen, productBrandDropdownOpen, departmentDropdownOpen]);
 
     // load initial (editing) data
     useEffect(() => {
@@ -78,7 +155,7 @@ const WorkOrderForm = ({ workOrder, mode = "create", onSave, onBack }) => {
                 assignee: "",
                 assigneeUsername: "",
                 department: "",
-                accountName: "",
+                accountId: "",
                 isNewAccount: false,
                 industry: "",
                 mode: "",
@@ -127,17 +204,17 @@ const WorkOrderForm = ({ workOrder, mode = "create", onSave, onBack }) => {
         const { actualDate, actualFromTime, actualToTime, woNumber, ...requiredFields } = formData;
 
         // Find missing required fields
-        const missing = Object.entries(requiredFields).filter(([, value]) => value === "" || value === null || value === undefined);
+        // const missing = Object.entries(requiredFields).filter(([, value]) => value === "" || value === null || value === undefined);
 
-        if (missing.length > 0) {
-            // Mark missing fields as errors
-            const newErrors = {};
-            missing.forEach(([key]) => {
-                newErrors[key] = true;
-            });
-            setErrors(newErrors);
-            return;
-        }
+        // if (missing.length > 0) {
+        //     // Mark missing fields as errors
+        //     const newErrors = {};
+        //     missing.forEach(([key]) => {
+        //         newErrors[key] = true;
+        //     });
+        //     setErrors(newErrors);
+        //     return;
+        // }
 
         // ✅ Reset errors if all fields are valid
         setErrors({});
@@ -152,8 +229,16 @@ const WorkOrderForm = ({ workOrder, mode = "create", onSave, onBack }) => {
             toTime: formData.toTime || null,
         };
 
+        // Only send accountId, not accountName
+        delete cleanedFormData.accountName;
         onSave(cleanedFormData, mode);
     };
+
+    // Helper: get selected account object
+    const selectedAccountObj = accounts.find((a) => a.id === formData.accountId);
+    // Look up industry name and product brand name
+    const selectedIndustry = industries.find(i => i.id === selectedAccountObj?.industryId)?.industryName || "";
+    const selectedProductBrand = productBrands.find(p => p.id === selectedAccountObj?.productId)?.productBrandName || "";
 
     return (
         <form
@@ -211,14 +296,12 @@ const WorkOrderForm = ({ workOrder, mode = "create", onSave, onBack }) => {
                                 value={formData.workDescription}
                                 onChange={handleChange}
                                 className={`col-span-5 w-full rounded-md border px-3 py-2 focus:outline-1
-                  ${errors?.workDescription ? "border-red-500" : "border-gray-200"}`}
+                                    ${errors?.workDescription ? "border-red-500" : "border-gray-200"}`}
                             />
                         </div>
 
                         {/* Assignee + Dept */}
-                        <div
-                            className="grid grid-cols-6 gap-x-4 relative"
-                            ref={assigneeRef}>
+                        <div className="grid grid-cols-6 gap-x-4 relative" ref={assigneeRef}>
                             <label className="text-sm text-right my-auto">Assignee</label>
                             <div className="col-span-2 relative">
                                 <input
@@ -231,14 +314,13 @@ const WorkOrderForm = ({ workOrder, mode = "create", onSave, onBack }) => {
                                             assigneeUsername: q,
                                         }));
                                         setSearchQuery(q);
-                                        setDropdownOpen(true);
+                                        setAssigneeDropdownOpen(true);
                                     }}
-                                    onFocus={() => setDropdownOpen(true)}
+                                    onFocus={() => setAssigneeDropdownOpen(true)}
                                     placeholder="Search user..."
                                     className="w-full rounded-md border border-gray-200 px-3 py-2"
                                 />
-
-                                {dropdownOpen && (
+                                {assigneeDropdownOpen && (
                                     <ul className="absolute z-10 mt-1 w-full bg-white border border-gray-200 rounded-md shadow-lg max-h-40 overflow-y-auto">
                                         {filteredUsers.length > 0 ? (
                                             filteredUsers.map((user) => (
@@ -249,9 +331,8 @@ const WorkOrderForm = ({ workOrder, mode = "create", onSave, onBack }) => {
                                                             ...prev,
                                                             assignee: user.id, // store FK
                                                             assigneeUsername: user.username, // display username
-                                                            department: user.department,
                                                         }));
-                                                        setDropdownOpen(false);
+                                                        setAssigneeDropdownOpen(false);
                                                     }}
                                                     className="px-3 py-2 cursor-pointer hover:bg-gray-100 text-sm">
                                                     {user.username}
@@ -263,34 +344,125 @@ const WorkOrderForm = ({ workOrder, mode = "create", onSave, onBack }) => {
                                     </ul>
                                 )}
                             </div>
-
                             <label className="text-sm text-right my-auto">Department</label>
-                            <input
-                                type="text"
-                                name="department"
-                                value={formData.department}
-                                onChange={handleChange}
-                                readOnly
-                                className="col-span-2 w-full rounded-md border border-gray-200 px-3 py-2"
-                            />
+                            <div className="col-span-2 relative" ref={departmentRef}>
+                                {formData.isNewAccount ? (
+                                    <input
+                                        type="text"
+                                        name="department"
+                                        value={formData.department}
+                                        onChange={(e) => {
+                                            setFormData((prev) => ({ ...prev, department: e.target.value }));
+                                            setDepartmentDropdownOpen(true);
+                                        }}
+                                        onFocus={() => setDepartmentDropdownOpen(true)}
+                                        placeholder="Search department..."
+                                        className="w-full rounded-md border border-gray-200 px-3 py-2"
+                                    />
+                                ) : (
+                                    <input
+                                        type="text"
+                                        name="department"
+                                        value={formData.department}
+                                        onChange={handleChange}
+                                        className="w-full rounded-md border border-gray-200 px-3 py-2"
+                                        readOnly
+                                    />
+                                )}
+                                {formData.isNewAccount && departmentDropdownOpen && (
+                                    <ul className="absolute z-10 mt-1 w-full bg-white border border-gray-200 rounded-md shadow-lg max-h-40 overflow-y-auto">
+                                        {departments.length > 0 ? (
+                                            departments.filter(d => d.departmentName.toLowerCase().includes(formData.department.toLowerCase())).map((dept) => (
+                                                <li
+                                                    key={dept.id}
+                                                    onClick={() => {
+                                                        setFormData((prev) => ({ ...prev, department: dept.departmentName }));
+                                                        setDepartmentDropdownOpen(false);
+                                                    }}
+                                                    className="px-3 py-2 cursor-pointer hover:bg-gray-100 text-sm">
+                                                    {dept.departmentName}
+                                                </li>
+                                            ))
+                                        ) : (
+                                            <li className="px-3 py-2 text-gray-500 text-sm">No results found</li>
+                                        )}
+                                    </ul>
+                                )}
+                            </div>
                         </div>
 
                         {/* Account + New Flag */}
-                        <div className="grid grid-cols-6 gap-x-4">
+                        <div className="grid grid-cols-6 gap-x-4" ref={accountRef}>
                             <label className="text-sm text-right my-auto">Account</label>
-                            <input
-                                type="text"
-                                name="accountName"
-                                value={formData.accountName}
-                                onChange={handleChange}
-                                className="col-span-4 w-full rounded-md border border-gray-200 px-3 py-2"
-                            />
+                            <div className="col-span-4">
+                                {formData.isNewAccount ? (
+                                    <input
+                                        type="text"
+                                        name="accountName"
+                                        value={formData.accountName || ""}
+                                        onChange={handleChange}
+                                        className="w-full rounded-md border border-gray-200 px-3 py-2"
+                                        placeholder="Enter new account name"
+                                    />
+                                ) : (
+                                    <div className="relative">
+                                        <input
+                                            type="text"
+                                            name="accountSearch"
+                                            value={accounts.find(a => a.id === formData.accountId)?.accountName || ""}
+                                            onChange={(e) => {
+                                                setSearchQuery(e.target.value);
+                                                setAccountDropdownOpen(true);
+                                            }}
+                                            onFocus={() => setAccountDropdownOpen(true)}
+                                            placeholder="Search account..."
+                                            className="w-full rounded-md border border-gray-200 px-3 py-2"
+                                        />
+                                        {accountDropdownOpen && (
+                                            <ul className="absolute z-10 mt-1 w-full bg-white border border-gray-200 rounded-md shadow-lg max-h-40 overflow-y-auto">
+                                                {filteredAccounts.length > 0 ? (
+                                                    filteredAccounts.map((account) => (
+                                                        <li
+                                                            key={account.id}
+                                                            onClick={() => {
+                                                                setFormData((prev) => ({
+                                                                    ...prev,
+                                                                    accountId: account.id,
+                                                                    department: departments.find(d => d.id === account.departmentId)?.departmentName || "",
+                                                                    industry: industries.find(i => i.id === account.industryId)?.industryName || "",
+                                                                    productBrand: productBrands.find(p => p.id === account.productId)?.productBrandName || "",
+                                                                }));
+                                                                setAccountDropdownOpen(false);
+                                                            }}
+                                                            className="px-3 py-2 cursor-pointer hover:bg-gray-100 text-sm">
+                                                            {account.accountName}
+                                                        </li>
+                                                    ))
+                                                ) : (
+                                                    <li className="px-3 py-2 text-gray-500 text-sm">No results found</li>
+                                                )}
+                                            </ul>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
                             <div className="flex items-center gap-2">
                                 <input
                                     type="checkbox"
                                     name="isNewAccount"
                                     checked={!!formData.isNewAccount}
-                                    onChange={handleChange}
+                                    onChange={e => {
+                                        const checked = e.target.checked;
+                                        setFormData(prev => ({
+                                            ...prev,
+                                            isNewAccount: checked,
+                                            department: "",
+                                            industry: "",
+                                            productBrand: "",
+                                            accountId: "",
+                                            accountName: "",
+                                        }));
+                                    }}
                                     className="h-4 w-4 border border-gray-400"
                                 />
                                 <label className="text-sm text-gray-600">New</label>
@@ -298,15 +470,52 @@ const WorkOrderForm = ({ workOrder, mode = "create", onSave, onBack }) => {
                         </div>
 
                         {/* Industry + Mode */}
-                        <div className="grid grid-cols-6 gap-x-4">
+                        <div className="grid grid-cols-6 gap-x-4" ref={industryRef}>
                             <label className="text-sm text-right my-auto">Industry</label>
-                            <input
-                                type="text"
-                                name="industry"
-                                value={formData.industry}
-                                onChange={handleChange}
-                                className="col-span-2 w-full rounded-md border border-gray-200 px-3 py-2"
-                            />
+                            <div className="col-span-2 relative" ref={industryRef}>
+                                {formData.isNewAccount ? (
+                                    <input
+                                        type="text"
+                                        name="industry"
+                                        value={formData.industry}
+                                        onChange={(e) => {
+                                            setFormData((prev) => ({ ...prev, industry: e.target.value }));
+                                            setIndustryDropdownOpen(true);
+                                        }}
+                                        onFocus={() => setIndustryDropdownOpen(true)}
+                                        placeholder="Search industry..."
+                                        className="w-full rounded-md border border-gray-200 px-3 py-2"
+                                    />
+                                ) : (
+                                    <input
+                                        type="text"
+                                        name="industry"
+                                        value={selectedIndustry || formData.industry}
+                                        onChange={handleChange}
+                                        className="w-full rounded-md border border-gray-200 px-3 py-2"
+                                        readOnly
+                                    />
+                                )}
+                                {formData.isNewAccount && industryDropdownOpen && (
+                                    <ul className="absolute z-10 mt-1 w-full bg-white border border-gray-200 rounded-md shadow-lg max-h-40 overflow-y-auto">
+                                        {industries.length > 0 ? (
+                                            industries.filter(i => i.industryName.toLowerCase().includes(formData.industry.toLowerCase())).map((ind) => (
+                                                <li
+                                                    key={ind.id}
+                                                    onClick={() => {
+                                                        setFormData((prev) => ({ ...prev, industry: ind.industryName }));
+                                                        setIndustryDropdownOpen(false);
+                                                    }}
+                                                    className="px-3 py-2 cursor-pointer hover:bg-gray-100 text-sm">
+                                                    {ind.industryName}
+                                                </li>
+                                            ))
+                                        ) : (
+                                            <li className="px-3 py-2 text-gray-500 text-sm">No results found</li>
+                                        )}
+                                    </ul>
+                                )}
+                            </div>
                             <label className="text-sm text-right my-auto">Mode</label>
                             <input
                                 type="text"
@@ -318,15 +527,52 @@ const WorkOrderForm = ({ workOrder, mode = "create", onSave, onBack }) => {
                         </div>
 
                         {/* Product/Brand */}
-                        <div className="grid grid-cols-6 gap-x-4">
-                            <label className="text-sm text-right my-auto">Product/Brand</label>
-                            <input
-                                type="text"
-                                name="productBrand"
-                                value={formData.productBrand}
-                                onChange={handleChange}
-                                className="col-span-5 w-full rounded-md border border-gray-200 px-3 py-2"
-                            />
+                        <div className="grid grid-cols-6 gap-x-4" ref={productBrandRef}>
+                            <label className="text-sm text-right my-auto">Product / Brand</label>
+                            <div className="col-span-5 relative" ref={productBrandRef}>
+                                {formData.isNewAccount ? (
+                                    <input
+                                        type="text"
+                                        name="productBrand"
+                                        value={formData.productBrand}
+                                        onChange={(e) => {
+                                            setFormData((prev) => ({ ...prev, productBrand: e.target.value }));
+                                            setProductBrandDropdownOpen(true);
+                                        }}
+                                        onFocus={() => setProductBrandDropdownOpen(true)}
+                                        placeholder="Search product/brand..."
+                                        className="w-full rounded-md border border-gray-200 px-3 py-2"
+                                    />
+                                ) : (
+                                    <input
+                                        type="text"
+                                        name="productBrand"
+                                        value={selectedProductBrand || formData.productBrand}
+                                        onChange={handleChange}
+                                        className="w-full rounded-md border border-gray-200 px-3 py-2"
+                                        readOnly
+                                    />
+                                )}
+                                {formData.isNewAccount && productBrandDropdownOpen && (
+                                    <ul className="absolute z-10 mt-1 w-full bg-white border border-gray-200 rounded-md shadow-lg max-h-40 overflow-y-auto">
+                                        {productBrands.length > 0 ? (
+                                            productBrands.filter(i => i.productBrandName.toLowerCase().includes(formData.productBrand.toLowerCase())).map((prod) => (
+                                                <li
+                                                    key={prod.id}
+                                                    onClick={() => {
+                                                        setFormData((prev) => ({ ...prev, productBrand: prod.productBrandName }));
+                                                        setProductBrandDropdownOpen(false);
+                                                    }}
+                                                    className="px-3 py-2 cursor-pointer hover:bg-gray-100 text-sm">
+                                                    {prod.productBrandName}
+                                                </li>
+                                            ))
+                                        ) : (
+                                            <li className="px-3 py-2 text-gray-500 text-sm">No results found</li>
+                                        )}
+                                    </ul>
+                                )}
+                            </div>
                         </div>
 
                         {/* Contact Person */}

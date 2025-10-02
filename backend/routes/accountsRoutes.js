@@ -16,6 +16,39 @@ router.get("/", async (req, res) => {
   }
 });
 
+// GET all account industries
+router.get("/industries", async (req, res) => {
+  try {
+    const result = await pool.query("SELECT * FROM account_industries");
+    console.log("Fetched account industries:", result.rows);
+    return res.json(result.rows); // ✅ camelCase
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET all accounts product brands
+router.get("/product-brands", async (req, res) => {
+  try {
+    const result = await pool.query("SELECT * FROM account_product_brands");
+    console.log("Fetched account product brands:", result.rows);
+    return res.json(result.rows); // ✅ camelCase
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET all accounts departments
+router.get("/departments", async (req, res) => {
+  try {
+    const result = await pool.query("SELECT * FROM account_departments");
+    console.log("Fetched account departments:", result.rows);
+    return res.json(result.rows); // ✅ camelCase
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // GET single account by id
 router.get("/:id", async (req, res) => {
   try {

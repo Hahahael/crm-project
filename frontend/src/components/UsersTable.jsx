@@ -92,18 +92,18 @@ export default function UsersTable({ users, onView, onEdit, onDelete }) {
   }, [openMenuId]);
 
   return (
-    <div className="relative overflow-x-auto rounded-lg border border-gray-200 bg-white">
+    <div className="relative overflow-x-auto rounded-lg border border-gray-200 bg-white min-w-4xl">
       {/* Table */}
-      <table className="min-w-full border-collapse text-left text-sm">
+      <table className="min-w-4xl border-collapse text-left text-sm">
         <thead className="hover:bg-gray-100 border-b border-gray-200">
           <tr>
-            <th className="px-4 py-2 font-normal text-sm text-gray-500">User</th>
-            <th className="px-4 py-2 font-normal text-sm text-gray-500">Username</th>
-            <th className="px-4 py-2 font-normal text-sm text-gray-500">Email</th>
-            <th className="px-4 py-2 font-normal text-sm text-gray-500">Role</th>
-            <th className="px-4 py-2 font-normal text-sm text-gray-500">Department</th>
-            <th className="px-4 py-2 font-normal text-sm text-gray-500">Status</th>
-            <th className="px-4 py-2 font-normal text-sm text-gray-500">Last Login</th>
+            <th className="px-4 py-2 font-normal text-sm text-gray-500 min-w-xs">User</th>
+            <th className="px-4 py-2 font-normal text-sm text-gray-500 w-[15%]">Username</th>
+            <th className="px-4 py-2 font-normal text-sm text-gray-500 w-[15%]">Email</th>
+            <th className="px-4 py-2 font-normal text-sm text-gray-500 w-[15%]">Role</th>
+            <th className="px-4 py-2 font-normal text-sm text-gray-500 w-[15%]">Department</th>
+            <th className="px-4 py-2 font-normal text-sm text-gray-500 w-[15%]">Status</th>
+            <th className="px-4 py-2 font-normal text-sm text-gray-500 w-[15%]">Last Login</th>
             <th className="px-4 py-2 font-normal text-sm text-gray-500 text-right">Actions</th>
           </tr>
         </thead>
@@ -127,21 +127,21 @@ export default function UsersTable({ users, onView, onEdit, onDelete }) {
               <td className="px-4 py-2 text-black text-sm">{user.email}</td>
               <td className="px-4 py-2 text-black text-sm">
                 <span
-                  className={`rounded-md px-3 py-1 text-xs font-semibold ${
-                    config.roleBadgeClasses[user.role] || "bg-gray-100 text-gray-700"
+                  className={`rounded-md px-3 py-1 text-xs font-semibold text-center block ${
+                    config.roleBadgeClasses[user.roleName] || "bg-gray-100 text-gray-700"
                   }`}
                 >
-                  {user.role}
+                  {user.roleName}
                 </span>
               </td>
-              <td className="px-4 py-2 text-black text-sm">{user.department}</td>
+              <td className="px-4 py-2 text-black text-sm">{user.departmentName}</td>
               <td className="px-4 py-2 text-black text-sm">
                 <span
-                  className={`rounded-md px-2 py-1 text-xs font-semibold ${
-                    config.statusBadgeClasses[user.status] || "bg-yellow-100 text-yellow-700"
+                  className={`rounded-md px-2 py-1 text-xs font-semibold text-center block ${
+                    config.statusBadgeClasses[user.statusName] || "bg-yellow-100 text-yellow-700"
                   }`}
                 >
-                  {user.status}
+                  {user.statusName}
                 </span>
               </td>
               <td className="px-4 py-2 text-black text-sm">{util.formatDate(user.lastLogin, "DD/MM/YYYY hh:mm A")}</td>

@@ -8,7 +8,14 @@ const router = express.Router();
 // Get all users
 router.get("/", async (req, res) => {
   try {
-    const result = await db.query("SELECT * FROM users ORDER BY id ASC");
+    const result = await db.query(`
+      SELECT u.*, r.role_name, d.department_name, s.status_name
+      FROM users u
+      LEFT JOIN roles r ON u.role_id = r.id
+      LEFT JOIN departments d ON u.department_id = d.id
+      LEFT JOIN statuses s ON u.status_id = s.id
+      ORDER BY u.id ASC
+    `);
     return res.json(result.rows); // ✅ camelCase
   } catch (err) {
     console.error(err);
@@ -20,7 +27,14 @@ router.get("/", async (req, res) => {
 router.get("/:id", async (req, res) => {
   try {
     const { id } = req.params;
-    const result = await db.query("SELECT * FROM users WHERE id = $1", [id]);
+    const result = await db.query(`
+      SELECT u.*, r.role_name, d.department_name, s.status_name
+      FROM users u
+      LEFT JOIN roles r ON u.role_id = r.id
+      LEFT JOIN departments d ON u.department_id = d.id
+      LEFT JOIN statuses s ON u.status_id = s.id
+      WHERE u.id = $1
+    `, [id]);
     if (result.rows.length === 0)
       return res.status(404).json({ error: "Not found" });
     return res.json(result.rows[0]);
@@ -40,9 +54,9 @@ router.post("/", async (req, res) => {
       username,
       email,
       phone_number,
-      role,
-      department,
-      status,
+      role_id,
+      department_id,
+      status_id,
       permissions,
       joined_date,
       avatar_url,
@@ -52,7 +66,7 @@ router.post("/", async (req, res) => {
 
     const result = await db.query(
       `INSERT INTO users 
-        (first_name, last_name, username, email, phone_number, role, department, status, permissions, 
+        (first_name, last_name, username, email, phone_number, role_id, department_id, status_id, permissions, 
          joined_date, avatar_url, password_hash, created_by, updated_at, last_login)
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,NOW(),NOW())
        RETURNING *`,
@@ -62,9 +76,9 @@ router.post("/", async (req, res) => {
         username,
         email,
         phone_number,
-        role,
-        department,
-        status,
+        role_id,
+        department_id,
+        status_id,
         toJsonbArray(permissions),
         joined_date,
         avatar_url,
@@ -91,9 +105,9 @@ router.put("/:id", async (req, res) => {
       username,
       email,
       phone_number,
-      role,
-      department,
-      status,
+      role_id,
+      department_id,
+      status_id,
       permissions,
       joined_date,
       avatar_url,
@@ -104,7 +118,7 @@ router.put("/:id", async (req, res) => {
     const result = await db.query(
       `UPDATE users 
        SET first_name=$1, last_name=$2, username=$3, email=$4, phone_number=$5,
-           role=$6, department=$7, status=$8, permissions=$9, joined_date=$10, avatar_url=$11,
+           role_id=$6, department_id=$7, status_id=$8, permissions=$9, joined_date=$10, avatar_url=$11,
            password_hash=COALESCE($12, password_hash),
            last_login=COALESCE($13, last_login),
            updated_at=NOW()
@@ -116,9 +130,9 @@ router.put("/:id", async (req, res) => {
         username,
         email,
         phone_number,
-        role,
-        department,
-        status,
+        role_id,
+        department_id,
+        status_id,
         toJsonbArray(permissions),
         joined_date,
         avatar_url,

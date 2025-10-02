@@ -117,6 +117,7 @@ export default function WorkOrdersPage() {
   );
 
   const handleSave = async (formData, mode) => {
+    console.log("Handle Save called with data:", formData, "Mode:", mode);
     try {
       const response = await apiBackendFetch(
         mode === "edit" ? `/api/workorders/${formData.id}` : "/api/workorders",
@@ -161,13 +162,15 @@ export default function WorkOrdersPage() {
   };
 
   const handleToSalesLead = async (passedWO) => {
+    console.log("Converting WO to Sales Lead:", passedWO);
     try {
       // 1. Create skeletal sales lead
       const res = await apiBackendFetch("/api/salesleads", {
         method: "POST",
         body: JSON.stringify({
-          wo_id: passedWO.id,
-          assignee: currentUser.id
+          accountId: passedWO.accountId,
+          woId: passedWO.id,
+          assignee: passedWO.assignee
         })
       });
       if (!res || !res.ok) throw new Error("Failed to create sales lead");
@@ -283,7 +286,7 @@ export default function WorkOrdersPage() {
                   <div className="mt-3">
                     <button
                       onClick={() => {
-                        setSelectedWO(newAssignedWorkOrders[0]);
+                        setSelectedWO(workOrders.find(wo => wo.id === newAssignedWorkOrders[0].woId))
                         addWorkFlowStage(newAssignedWorkOrders[0].id, "Work Order", currentUser.id, "edit");
                       }}
                       className="inline-flex items-center justify-center whitespace-nowrap font-medium transition-colors shadow h-8 rounded-md px-3 text-xs bg-orange-600 hover:bg-orange-700 text-white cursor-pointer"
@@ -324,7 +327,7 @@ export default function WorkOrdersPage() {
                   <div className="mt-3">
                     <button
                       onClick={() => {
-                        setSelectedWO(newAssignedWorkOrders[0])
+                        setSelectedWO(workOrders.find(wo => wo.id === newAssignedWorkOrders[0].woId))
                         addWorkFlowStage(newAssignedWorkOrders[0].woId, "Work Order", currentUser.id, "edit");
                       }}
                       className="inline-flex items-center justify-center whitespace-nowrap font-medium transition-colors shadow h-8 rounded-md px-3 text-xs bg-orange-600 hover:bg-orange-700 text-white cursor-pointer"

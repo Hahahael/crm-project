@@ -1,0 +1,46 @@
+export const items = [
+    {
+        id: 1,
+        name: 'Item 1',
+        model: 'Model A',
+        brand: 'Brand X',
+        partNumber: 'PX-100',
+        leadTime: '2 weeks',
+        description: 'Description for Item 1',
+        unit: 'pcs',
+        price: 100.00
+    },
+    {
+        id: 2,
+        name: 'Item 2',
+        model: 'Model B',
+        brand: 'Brand Y',
+        partNumber: 'PX-100',
+        leadTime: '2 weeks',
+        description: 'Description for Item 2',
+        unit: 'pcs',
+        price: 100.00
+    },
+    {
+        id: 3,
+        name: 'Item 3',
+        model: 'Model C',
+        brand: 'Brand Z',
+        partNumber: 'PX-100',
+        leadTime: '2 weeks',
+        description: 'Description for Item 3',
+        unit: 'pcs',
+        price: 100.00
+    },
+    {
+        id: 4,
+        name: 'Item 4',
+        model: 'Model D',
+        brand: 'Brand W',
+        partNumber: 'PX-100',
+        leadTime: '2 weeks',
+        description: 'Description for Item 4',
+        unit: 'pcs',
+        price: 100.00
+    }
+]

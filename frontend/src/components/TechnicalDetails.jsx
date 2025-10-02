@@ -82,13 +82,13 @@ const TechnicalDetails = ({ technicalReco, currentUser, onBack, onEdit, onSave, 
                         Print
                     </button>
                     <button
-                        onClick={onEdit(technicalReco)}
+                        onClick={() => onEdit(technicalReco)}
                         className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-light shadow h-9 px-4 py-2 bg-purple-500 hover:bg-purple-600 text-white">
                         <LuPencil className="h-4 w-4 mr-2" />
                         Edit
                     </button>
                     <button
-                        onClick={onSubmit(technicalReco)}
+                        onClick={() => onSubmit(technicalReco)}
                         className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-light shadow h-9 px-4 py-2 bg-green-500 hover:bg-green-600 text-white">
                         <LuFileCheck className="h-4 w-4 mr-2" />
                         Submit for Approval
@@ -194,14 +194,14 @@ const TechnicalDetails = ({ technicalReco, currentUser, onBack, onEdit, onSave, 
                                 </tr>
                             </thead>
                             <tbody>
-                                {utils.toArray(technicalReco.products).map((prod, idx) => (
+                                {technicalReco.items.map((prod, idx) => (
                                     <tr key={idx}>
                                         <td className="p-2">{prod.name}</td>
                                         <td className="p-2">{prod.model}</td>
                                         <td className="p-2">{prod.description}</td>
                                         <td className="p-2 text-right">{prod.quantity}</td>
-                                        <td className="p-2 text-right">{prod.unitPrice}</td>
-                                        <td className="p-2 text-right">{prod.totalPrice}</td>
+                                        <td className="p-2 text-right">Php {prod.price}</td>
+                                        <td className="p-2 text-right">Php {prod.quantity * prod.price}</td>
                                     </tr>
                                 ))}
                                 <tr>
@@ -210,7 +210,7 @@ const TechnicalDetails = ({ technicalReco, currentUser, onBack, onEdit, onSave, 
                                         className="p-2 text-right font-bold">
                                         Total
                                     </td>
-                                    <td className="p-2 text-right font-bold">{technicalReco.totalPrice}</td>
+                                    <td className="p-2 text-right font-bold">Php {(technicalReco.items || []).reduce((sum, i) => sum + (i.quantity * i.price), 0)}</td>
                                 </tr>
                             </tbody>
                         </table>

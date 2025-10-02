@@ -354,9 +354,22 @@ export default function TechnicalsPage() {
 
                         <TechnicalsTable
                             technicals={filtered}
-                            onView={(technicalReco) => {
-                                setSelectedTR(technicalReco);
-                                setEditingTR(null);
+                            onView={async (technicalReco) => {
+                                // Always fetch the latest details from backend to avoid stale state
+                                try {
+                                    const res = await apiBackendFetch(`/api/technicals/${technicalReco.id}`);
+                                    if (res.ok) {
+                                        const fullTR = await res.json();
+                                        setSelectedTR(fullTR);
+                                        setEditingTR(null);
+                                    } else {
+                                        setSelectedTR(technicalReco); // fallback to passed object
+                                        setEditingTR(null);
+                                    }
+                                } catch (err) {
+                                    setSelectedTR(technicalReco);
+                                    setEditingTR(null);
+                                }
                             }}
                             onEdit={(technicalReco) => {
                                 setEditingTR(technicalReco);
@@ -384,6 +397,7 @@ export default function TechnicalsPage() {
                             setTechnicalRecos((prev) => prev.map((tr) => (tr.id === updatedTR.id ? updatedTR : tr)));
                             fetchNewAssignedTechnicalRecos(); // <-- refresh from backend
                         }}
+                        onSubmit={handleSubmitForApproval}
                     />
                 )}
             </div>

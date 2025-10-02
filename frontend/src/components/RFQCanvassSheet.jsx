@@ -1,54 +1,82 @@
 import React from "react";
-import { LuDownload, LuPrinter, LuFileText, LuCircleCheckBig, LuTrendingDown, LuCircleAlert } from "react-icons/lu";
+import { LuDownload, LuPrinter, LuFileText, LuCircleCheckBig, LuTrendingDown, LuCircleAlert, LuClock } from "react-icons/lu";
 
-export default function RFQCanvassSheet({ rfq, items = [], selectedVendors = [], mode = "create", onSelectRecommended, onForApproval, onExportExcel, onExportPDF}) {
-    console.log("RFQCanvassSheet props:", { rfq, items, selectedVendors, mode });
-        // Calculate summary, vendorTotals, and recommendedVendor from props
-        const totalItems = items.length;
-        const quotedVendors = selectedVendors.filter(v => v.status === "Quoted").length;
+export default function RFQCanvassSheet({ rfq, mode = "create", onSelectRecommended, onForApproval, onExportExcel, onExportPDF}) {
+    console.log("RFQCanvassSheet props:", { rfq, mode });
+    // Calculate summary, vendorTotals, and recommendedVendor from props
+    const totalItems = rfq.items.length;
+    const quotedVendors = rfq.vendors.length;
 
-        // Calculate vendorTotals from items and selectedVendors
-        const vendorTotals = selectedVendors.map(vendor => {
-            // Sum up all item totals for this vendor
-            let total = items.reduce((sum, item) => {
-                const quote = Array.isArray(item.vendorQuotes)
-                  ? item.vendorQuotes.find(q => q.vendor_id === vendor.id)  
-                  : undefined;
-                return sum + (quote ? quote.total : 0);
-            }, 0);
-            return {
-                id: vendor.id,
-                name: vendor.name,
-                total: total,
-                recommended: vendor.id === items[0]?.bestVendorId, // Mark recommended for first item (update logic if needed)
-                diff: null // Will fill below
-            };
+    // Generate quotations array from items and vendors
+    const quotations = [];
+    rfq.items.forEach(item => {
+        rfq.vendors.forEach(vendor => {
+            // Find vendor's item for this rfq item
+            const vendorItem = Array.isArray(vendor.items)
+                ? vendor.items.find(vi => vi.id === item.id)
+                : undefined;
+            quotations.push({
+                itemId: item.id,
+                vendorId: vendor.id,
+                price: vendorItem ? (vendorItem.price ?? vendorItem.unitPrice ?? 0) : 0,
+                quantity: vendorItem ? (vendorItem.quantity ?? item.quantity ?? 1) : item.quantity ?? 1,
+                leadTime: vendorItem ? vendorItem.leadTime : '-',
+                leadTimeColor: vendorItem ? vendorItem.leadTimeColor : '',
+                total: vendorItem ? ((vendorItem.price ?? vendorItem.unitPrice ?? 0) * (vendorItem.quantity ?? item.quantity ?? 1)) : 0,
+                isSelected: item.bestVendorId === vendor.id // true if this vendor is selected for this item
+            });
         });
+    });
 
-        // Find lowest total
-        const lowestTotal = vendorTotals.length > 0 ? Math.min(...vendorTotals.map(v => v.total)) : 0;
-        // Mark recommended vendor (lowest total)
-        let recommendedVendor = {};
-        vendorTotals.forEach(v => {
-            if (v.total === lowestTotal) {
-                v.recommended = true;
-                recommendedVendor = selectedVendors.find(vendor => vendor.name === v.name) || {};
-            } else {
-                v.recommended = false;
-            }
+    // Mark best option per item
+    rfq.items.forEach(item => {
+        const itemQuotes = quotations.filter(q => q.itemId === item.id);
+        const minTotal = Math.min(...itemQuotes.map(q => q.total));
+        itemQuotes.forEach(q => {
+            q.isBestOption = q.total === minTotal;
         });
-        // Fill diff for non-recommended selectedVendors
-        vendorTotals.forEach(v => {
-            if (!v.recommended) {
-                v.diff = `+$${(v.total - lowestTotal).toFixed(2)}`;
-            }
-        });
+    });
 
-        const summary = {
-            totalItems,
-            quotedVendors,
-            lowestTotal,
+    console.log(quotations);
+
+    // Calculate vendorTotals from quotations array
+    const vendorTotals = rfq.vendors.map(vendor => {
+        let total = quotations
+            .filter(q => q.vendorId === vendor.id)
+            .reduce((sum, q) => sum + q.total, 0);
+        return {
+            id: vendor.id,
+            name: vendor.name,
+            total: total,
+            recommended: false, // will be set below
+            diff: null // will be set below
         };
+    });
+
+    // Find lowest total
+    const lowestTotal = vendorTotals.length > 0 ? Math.min(...vendorTotals.map(v => v.total)) : 0;
+    // Mark recommended vendor (lowest total)
+    let recommendedVendor = {};
+    vendorTotals.forEach(v => {
+        if (v.total === lowestTotal) {
+            v.recommended = true;
+            recommendedVendor = rfq.vendors.find(vendorObj => vendorObj.name === v.name) || {};
+        } else {
+            v.recommended = false;
+        }
+    });
+    // Fill diff for non-recommended selectedVendors
+    vendorTotals.forEach(v => {
+        if (!v.recommended) {
+            v.diff = `+$${(v.total - lowestTotal).toFixed(2)}`;
+        }
+    });
+
+    const summary = {
+        totalItems,
+        quotedVendors,
+        lowestTotal,
+    };
     return (
         <div className="space-y-6">
             {/* Header */}
@@ -147,11 +175,11 @@ export default function RFQCanvassSheet({ rfq, items = [], selectedVendors = [],
                 </div>
                 <div className="p-6 pt-0 overflow-x-auto">
                     <table className="w-full text-sm">
-                        <thead>
+                        <thead className="border-b border-gray-200">
                             <tr>
                                 <th></th>
-                                <th>Item Details</th>
-                                {selectedVendors.map((v) => (
+                                <th className="text-left font-light">Item Details</th>
+                                {rfq.vendors.map((v) => (
                                     <th
                                         key={v.name}
                                         className="text-center min-w-[150px]">
@@ -165,36 +193,33 @@ export default function RFQCanvassSheet({ rfq, items = [], selectedVendors = [],
                             </tr>
                         </thead>
                         <tbody>
-                            {items.map((item, idx) => (
-                                <tr key={item.id}>
+                            {rfq.items.map((item, idx) => (
+                                <tr key={item.id} className="divide-y divide-gray-200">
                                     <td>{/* Checkbox or selection logic here */}</td>
                                     <td>
                                         <div>
                                             <p className="font-medium">{item.label}</p>
                                             <p className="text-sm text-muted-foreground">
-                                                {item.brand} - {item.partNo}
+                                                {item.brand} - {item.partNumber}
                                             </p>
                                             <p className="text-xs text-muted-foreground">
-                                                Qty: {item.qty} {item.unit}
+                                                Qty: {item.quantity} {item.unit}
                                             </p>
                                         </div>
                                     </td>
-                                    {selectedVendors.map((v) => (
-                                        <td
-                                            key={v.id}
-                                            className="text-center">
+                                    {rfq.vendors.map((v) => (
+                                        <td key={v.id} className="text-center">
                                             {(() => {
-                                                const quote = Array.isArray(item.vendorQuotes)
-                                                  ? item.vendorQuotes.find(q => q.vendor_id === v.id)
-                                                  : undefined;
+                                                // Find the quotations for this item and vendor
+                                                const quote = quotations.find(q => q.itemId === item.id && q.vendorId === v.id);
                                                 return (
-                                                    <div className={`p-2 rounded ${item.bestVendorId === v.id ? "bg-green-50 border border-green-200" : ""}`}>
+                                                    <div className={`p-2 rounded ${quote?.isSelected ? "bg-green-50 border border-green-200" : ""}`}>
                                                         <p className="font-bold text-lg">{quote ? `$${quote.price}` : '-'}</p>
                                                         <p className="text-sm text-muted-foreground">Total: {quote ? `$${quote.total}` : '-'}</p>
                                                         <div className="flex items-center justify-center space-x-1 mt-1">
-                                                            <span className={`text-xs ${quote ? quote.lead_time_color : ''}`}>{quote ? quote.lead_time : '-'}</span>
+                                                            <LuClock /> <span className={`text-xs ${quote?.leadTimeColor ?? ''}`}>{quote?.leadTime ?? '-'}</span>
                                                         </div>
-                                                        {item.bestVendorId === v.id && (
+                                                        {quote?.isSelected && (
                                                             <div className="inline-flex items-center rounded-md border px-2.5 py-0.5 font-semibold bg-green-100 text-green-800 text-xs mt-1">
                                                                 Lowest
                                                             </div>
@@ -204,17 +229,21 @@ export default function RFQCanvassSheet({ rfq, items = [], selectedVendors = [],
                                             })()}
                                         </td>
                                     ))}
-                                    <td>
+                                    <td className="border-b border-gray-200">
                                         <div className="text-center">
-                                            <p className="font-bold text-green-600">{item.bestVendor}</p>
                                             {(() => {
-                                                // Find the best vendor quote by vendor_id
-                                                const bestQuote = Array.isArray(item.vendorQuotes)
-                                                  ? item.vendorQuotes.find(q => q.vendor_id === item.bestVendorId)
-                                                  : undefined;
-                                                return (
-                                                    <p className="text-sm font-medium">{bestQuote ? `$${bestQuote.price}` : '-'}</p>
-                                                );
+                                                // Find the best option quote for this item
+                                                const bestQuote = quotations.find(q => q.itemId === item.id && q.isBestOption);
+                                                if (bestQuote) {
+                                                    const bestVendor = rfq.vendors.find(v => v.id === bestQuote.vendorId);
+                                                    return (
+                                                        <>
+                                                            <p className="font-bold text-green-600">{bestVendor ? bestVendor.name : '-'}</p>
+                                                            <p className="text-sm font-medium">{`$${bestQuote.price}`}</p>
+                                                        </>
+                                                    );
+                                                }
+                                                return <p className="text-sm font-medium">-</p>;
                                             })()}
                                         </div>
                                     </td>

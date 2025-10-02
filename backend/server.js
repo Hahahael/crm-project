@@ -13,6 +13,7 @@ import workordersRouter from "./routes/workordersRoutes.js";
 import salesleadsRouter from "./routes/salesleadsRoutes.js";
 import technicalsRouter from "./routes/technicalsRoutes.js";
 import rfqsRouter from "./routes/rfqsRoutes.js";
+import inventoryRouter from "./routes/inventoryRoutes.js";
 
 
 const PORT = process.env.PORT || 5000;
@@ -62,6 +63,7 @@ app.use("/api/workorders", workordersRouter);
 app.use("/api/salesleads", salesleadsRouter);
 app.use("/api/technicals", technicalsRouter);
 app.use("/api/rfqs", rfqsRouter);
+app.use("/api/inventory", inventoryRouter);
 
 app.get("/", (req, res) => {
   res.send("🚀 Server is alive!");

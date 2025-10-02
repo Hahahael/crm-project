@@ -8,13 +8,17 @@ import { roles } from "./rolesMock.js";
 import { departments } from "./departmentsMock.js";
 import { statuses } from "./statusesMock.js";
 import { accounts } from "./accountsMock.js";
+import { accountsIndustries } from "./accountsIndustriesMock.js";
+import { accountsProductBrands } from "./accountsProductBrandsMock.js";
+import { accountsDepartments } from "./accountsDepartmentsMock.js";
 import { workorders } from "./workordersMock.js";
-import { salesLeads } from "./salesleadsMocks.js";
+import { salesLeads } from "./salesleadsMock.js";
 import { technicalRecommendations } from "./technicalrecommendationsMock.js";
-import { rfqs } from "./rfqsMocks.js";
+import { rfqs } from "./rfqsMock.js";
 import { rfqItems } from "./rfqItemsMock.js";
 import { rfqVendors } from "./rfqVendorsMock.js";
 import { vendors } from "./vendorsMock.js";
+import { items } from "./itemsMock.js";
 import { rfqItemVendorQuotes } from "./rfqItemVendorQuotesMock.js";
 import { workflowStages } from "./workflowstagesMocks.js";
 
@@ -29,25 +33,6 @@ const adapter = mem.adapters.createPg();
 
 // Users, Roles, Departments, Statuses Table
 mem.public.none(`
-  -- USERS TABLE
-  CREATE TABLE users (
-    id SERIAL PRIMARY KEY,
-    avatar_url VARCHAR (255),
-    first_name VARCHAR (100),
-    last_name VARCHAR (100),
-    username VARCHAR (100) UNIQUE,
-    email VARCHAR (255) UNIQUE,
-    phone_number VARCHAR (20),
-    role VARCHAR (50),
-    department VARCHAR (100),
-    status VARCHAR (50),
-    permissions JSONB,
-    password_hash VARCHAR (255),
-    joined_date TIMESTAMP,
-    updated_at TIMESTAMP,
-    last_login TIMESTAMP,
-    created_by VARCHAR (100)
-  );
 
   -- ROLES TABLE
   CREATE TABLE roles (
@@ -66,10 +51,73 @@ mem.public.none(`
     id SERIAL PRIMARY KEY,
     status_name TEXT
   );
+
+  -- USERS TABLE
+  CREATE TABLE users (
+    id SERIAL PRIMARY KEY,
+    avatar_url VARCHAR (255),
+    first_name VARCHAR (100),
+    last_name VARCHAR (100),
+    username VARCHAR (100) UNIQUE,
+    email VARCHAR (255) UNIQUE,
+    phone_number VARCHAR (20),
+    role_id INT REFERENCES roles(id) ON DELETE SET NULL,
+    department_id INT REFERENCES departments(id) ON DELETE SET NULL,
+    status_id INT REFERENCES statuses(id) ON DELETE SET NULL,
+    permissions JSONB,
+    password_hash VARCHAR (255),
+    joined_date TIMESTAMP,
+    updated_at TIMESTAMP,
+    last_login TIMESTAMP,
+    created_by VARCHAR (100)
+  );
+`);
+
+mem.public.none(`
+  CREATE TABLE vendors (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
+    contact_person VARCHAR(100),
+    phone VARCHAR(20),
+    email VARCHAR(100),
+    address TEXT
+  );
+`);
+
+mem.public.none(`
+  CREATE TABLE items (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
+    model VARCHAR(100),
+    brand VARCHAR(100),
+    part_number VARCHAR(100),
+    lead_time VARCHAR(100),
+    description TEXT,
+    unit VARCHAR(50),
+    price NUMERIC(12, 2) CHECK (price >= 0)
+  );
 `);
 
 // Accounts Table
 mem.public.none(`
+  -- ACCOUNT INDUSTRY TABLE
+  CREATE TABLE account_industries (
+    id SERIAL PRIMARY KEY,
+    industry_name TEXT
+  );
+
+  -- ACCOUNT PRODUCT BRAND TABLE
+  CREATE TABLE account_product_brands (
+    id SERIAL PRIMARY KEY,
+    product_brand_name TEXT
+  );
+
+  -- ACCOUNT DEPARTMENT TABLE
+  CREATE TABLE account_departments (
+    id SERIAL PRIMARY KEY,
+    department_name TEXT
+  );
+
   -- ACCOUNTS TABLE (commented out for now)
   CREATE TABLE accounts (
   id SERIAL PRIMARY KEY,
@@ -79,14 +127,14 @@ mem.public.none(`
     date_created TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     requested_by INT REFERENCES users(id) ON DELETE SET NULL,
     designation VARCHAR(100),
-    department VARCHAR(100),
+    department_id INT REFERENCES account_departments(id) ON DELETE SET NULL,
     validity_period VARCHAR(50),
     due_date DATE,
     account_name VARCHAR(255) NOT NULL,
     contract_period VARCHAR(50),
-    industry VARCHAR(100),
+    industry_id INT REFERENCES account_industries(id) ON DELETE SET NULL,
     account_designation VARCHAR(100),
-    product TEXT,
+    product_id INT REFERENCES account_product_brands(id) ON DELETE SET NULL,
     contact_number VARCHAR(20),
     location VARCHAR(255),
     email_address VARCHAR(100),
@@ -123,6 +171,34 @@ mem.public.none(`
   );
 `);
 
+// CREATE NAEF TABLE
+mem.public.none(`
+  CREATE TABLE naef (
+    id SERIAL PRIMARY KEY,
+    department_id INT REFERENCES account_departments(id) ON DELETE SET NULL,
+    industry_id INT REFERENCES account_industries(id) ON DELETE SET NULL,
+    product_brand_id INT REFERENCES account_product_brands(id) ON DELETE SET NULL,
+    naef_number VARCHAR(20) UNIQUE NOT NULL,
+    account_name VARCHAR(100) NOT NULL,
+    contact_person VARCHAR(100),
+    contact_number VARCHAR(20),
+    contact_email VARCHAR(100),
+    project_name VARCHAR(100),
+    project_description TEXT,
+    project_value NUMERIC(12,2) CHECK (project_value >= 0),
+    project_start_date DATE,
+    project_end_date DATE,
+    wo_id INT,
+    assignee INT REFERENCES users(id) ON DELETE SET NULL,
+    stage_status VARCHAR(20) DEFAULT 'draft',
+    title VARCHAR(255) DEFAULT '',
+    week_number INT NOT NULL,
+    update_description TEXT,
+    probability VARCHAR(50),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  );
+`);
+
 // Workorders Table
 mem.public.none(`
   -- WORKORDERS TABLE
@@ -135,11 +211,10 @@ mem.public.none(`
   stage_status VARCHAR(20) DEFAULT 'draft',
     
     -- Account Info
-    account_name VARCHAR(255) NOT NULL,
+    account_id INT REFERENCES accounts(id) ON DELETE SET NULL,
+    naef_id INT REFERENCES naef(id) ON DELETE SET NULL,
     is_new_account BOOLEAN DEFAULT FALSE,
-    industry VARCHAR(100),
     mode VARCHAR(50),
-    product_brand VARCHAR(100),
     contact_person VARCHAR(100),
     contact_number VARCHAR(20),
 
@@ -168,6 +243,11 @@ mem.public.none(`
   );
 `);
 
+mem.public.none(`
+  ALTER TABLE naef
+    ADD CONSTRAINT fk_wo_id FOREIGN KEY (wo_id) REFERENCES workorders(id) ON DELETE SET NULL;
+`);
+
 // Workflow Stages Table
 mem.public.none(`
   -- WORKFLOW STAGES TABLE
@@ -192,6 +272,7 @@ mem.public.none(`
   sl_number VARCHAR(20) UNIQUE NOT NULL,
   wo_id INT NOT NULL REFERENCES workorders(id) ON DELETE SET NULL,
   assignee INT REFERENCES users(id) ON DELETE SET NULL,
+  account_id INT REFERENCES accounts(id) ON DELETE SET NULL,
   stage_status VARCHAR(20) DEFAULT 'draft',
   end_user VARCHAR(100),
   department VARCHAR(75),
@@ -315,6 +396,15 @@ mem.public.none(`
   );
 `);
 
+mem.public.none(`
+  CREATE TABLE tr_items (
+    id SERIAL PRIMARY KEY,
+    tr_id INT REFERENCES technical_recommendations(id) ON DELETE CASCADE,
+    item_id INT REFERENCES items(id) ON DELETE SET NULL,
+    quantity INT
+  );
+`);
+
 // RFQs Table
 mem.public.none(`
   -- RFQS
@@ -356,17 +446,6 @@ mem.public.none(`
 `);
 
 mem.public.none(`
-  CREATE TABLE vendors (
-    id SERIAL PRIMARY KEY,
-    name VARCHAR(100) NOT NULL,
-    contact_person VARCHAR(100),
-    phone VARCHAR(20),
-    email VARCHAR(100),
-    address TEXT
-  );
-`);
-
-mem.public.none(`
   CREATE TABLE rfq_vendors (
     id SERIAL PRIMARY KEY,
     rfq_id INT REFERENCES rfqs(id) ON DELETE CASCADE,
@@ -394,48 +473,9 @@ mem.public.none(`
   );
 `);
 
-mem.public.none(`
-  CREATE TABLE naef_timelines (
-    id SERIAL PRIMARY KEY,
-  -- account_id INT REFERENCES accounts(id) ON DELETE CASCADE,
-    account_id TEXT,
-    week_number INT NOT NULL,
-    update_description TEXT,
-    probability VARCHAR(50),
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-  );
-`);
-
 // seed data ...
 const esc = (val) =>
   typeof val === "string" ? val.replace(/'/g, "''") : val;
-
-for (const u of users) {
-  mem.public.none(`
-    INSERT INTO users (
-      avatar_url, first_name, last_name, username, email,
-      phone_number, role, department, status, permissions,
-      password_hash, joined_date, updated_at, last_login, created_by
-    )
-    VALUES (
-      '${esc(u.avatarUrl)}',
-      '${esc(u.firstName)}',
-      '${esc(u.lastName)}',
-      '${esc(u.username)}',
-      '${esc(u.email)}',
-      '${esc(u.phoneNumber)}',
-      '${esc(u.role)}',
-      '${esc(u.department)}',
-      '${esc(u.status)}',
-      '${esc(toJsonbArray(u.permissions))}',
-      '${esc(u.password_hash)}',
-      '${u.joinedDate}',
-      '${u.updatedAt}',
-      '${u.lastLogin}',
-      '${esc(u.createdBy)}'
-    )
-  `);
-}
 
 for (const r of roles) {
   mem.public.none(
@@ -453,105 +493,164 @@ for (const s of statuses) {
   );
 }
 
-// for (const account of accounts) {
-//   mem.public.none(`
-//     INSERT INTO accounts (
-//       account_id,
-//       ref_number,
-//       date_created,
-//       requested_by,
-//       designation,
-//       department,
-//       validity_period,
-//       due_date,
-//       account_name,
-//       contract_period,
-//       industry,
-//       account_designation,
-//       product,
-//       contact_number,
-//       location,
-//       email_address,
-//       address,
-//       buyer_incharge,
-//       trunkline,
-//       contract_number,
-//       process,
-//       secondary_email_address,
-//       machines,
-//       reason_to_apply,
-//       automotive_section,
-//       source_of_inquiry,
-//       commodity,
-//       business_activity,
-//       model,
-//       annual_target_sales,
-//       population,
-//       source_of_target,
-//       existing_bellows,
-//       products_to_order,
-//       model_under,
-//       target_areas,
-//       analysis,
-//       from_date,
-//       to_date,
-//       activity_period,
-//       prepared_by,
-//       noted_by,
-//       approved_by,
-//       received_by,
-//       acknowledged_by,
-//       updated_at
-//     ) VALUES (
-//       '${esc(account.accountId)}',
-//       '${esc(account.refNumber)}',
-//       ${account.dateCreated ? `'${account.dateCreated}'` : 'NOW()'},
-//       ${account.requestedBy || 'NULL'},
-//       '${esc(account.designation)}',
-//       '${esc(account.department)}',
-//       '${esc(account.validityPeriod)}',
-//       ${account.dueDate ? `'${account.dueDate}'` : 'NULL'},
-//       '${esc(account.accountName)}',
-//       '${esc(account.contractPeriod)}',
-//       '${esc(account.industry)}',
-//       '${esc(account.accountDesignation)}',
-//       '${esc(account.product)}',
-//       '${esc(account.contactNumber)}',
-//       '${esc(account.location)}',
-//       '${esc(account.emailAddress)}',
-//       '${esc(account.address)}',
-//       '${esc(account.buyerIncharge)}',
-//       '${esc(account.trunkline)}',
-//       '${esc(account.contractNumber)}',
-//       '${esc(account.process)}',
-//       '${esc(account.secondaryEmailAddress)}',
-//       '${esc(account.machines)}',
-//       '${esc(account.reasonToApply)}',
-//       '${esc(account.automotiveSection)}',
-//       '${esc(account.sourceOfInquiry)}',
-//       '${esc(account.commodity)}',
-//       '${esc(account.businessActivity)}',
-//       '${esc(account.model)}',
-//       ${account.annualTargetSales || 0},
-//       '${esc(account.population)}',
-//       '${esc(account.sourceOfTarget)}',
-//       '${esc(account.existingBellows)}',
-//       '${esc(account.productsToOrder)}',
-//       '${esc(account.modelUnder)}',
-//       '${esc(account.targetAreas)}',
-//       '${esc(account.analysis)}',
-//       ${account.fromDate ? `'${account.fromDate}'` : 'NULL'},
-//       ${account.toDate ? `'${account.toDate}'` : 'NULL'},
-//       '${esc(account.activityPeriod)}',
-//       ${account.preparedBy || 'NULL'},
-//       ${account.notedBy || 'NULL'},
-//       ${account.approvedBy || 'NULL'},
-//       ${account.receivedBy || 'NULL'},
-//       ${account.acknowledgedBy || 'NULL'},
-//       ${account.updatedAt ? `'${account.updatedAt}'` : 'NOW()'}
-//     )
-//   `);
-// }
+for (const u of users) {
+  mem.public.none(`
+    INSERT INTO users (
+      avatar_url, first_name, last_name, username, email,
+      phone_number, role_id, department_id, status_id, permissions,
+      password_hash, joined_date, updated_at, last_login, created_by
+    )
+    VALUES (
+      '${esc(u.avatarUrl)}',
+      '${esc(u.firstName)}',
+      '${esc(u.lastName)}',
+      '${esc(u.username)}',
+      '${esc(u.email)}',
+      '${esc(u.phoneNumber)}',
+      '${esc(u.roleId)}',
+      '${esc(u.departmentId)}',
+      '${esc(u.statusId)}',
+      '${esc(toJsonbArray(u.permissions))}',
+      '${esc(u.password_hash)}',
+      '${u.joinedDate}',
+      '${u.updatedAt}',
+      '${u.lastLogin}',
+      '${esc(u.createdBy)}'
+    )
+  `);
+}
+
+for (const v of vendors) {
+  mem.public.none(
+    `INSERT INTO vendors (name, contact_person, phone, email, address)
+     VALUES ('${esc(v.name)}', '${esc(v.contactPerson)}', '${esc(v.phone)}', '${esc(v.email)}', '${esc(v.address)}')`
+  );
+}
+
+for (const i of items) {
+  mem.public.none(
+    `INSERT INTO items (name, model, brand, part_number, lead_time, description, unit, price)
+     VALUES ('${esc(i.name)}', '${esc(i.model)}', '${esc(i.brand)}', '${esc(i.partNumber)}', '${esc(i.leadTime)}', '${esc(i.description)}', '${esc(i.unit)}', ${i.price})`
+  );
+}
+
+for (const i of accountsIndustries) {
+  mem.public.none(
+    `INSERT INTO account_industries (industry_name) VALUES ('${esc(i.industryName)}')`
+  );
+}
+
+for (const pb of accountsProductBrands) {
+  mem.public.none(
+    `INSERT INTO account_product_brands (product_brand_name) VALUES ('${esc(pb.productBrandName)}')`
+  );
+}
+
+for (const d of accountsDepartments) {
+  mem.public.none(
+    `INSERT INTO account_departments (department_name) VALUES ('${esc(d.departmentName)}')`
+  );
+}
+
+for (const account of accounts) {
+  mem.public.none(`
+    INSERT INTO accounts (
+      account_id,
+      ref_number,
+      date_created,
+      requested_by,
+      designation,
+      department_id,
+      validity_period,
+      due_date,
+      account_name,
+      contract_period,
+      industry_id,
+      account_designation,
+      product_id,
+      contact_number,
+      location,
+      email_address,
+      address,
+      buyer_incharge,
+      trunkline,
+      contract_number,
+      process,
+      secondary_email_address,
+      machines,
+      reason_to_apply,
+      automotive_section,
+      source_of_inquiry,
+      commodity,
+      business_activity,
+      model,
+      annual_target_sales,
+      population,
+      source_of_target,
+      existing_bellows,
+      products_to_order,
+      model_under,
+      target_areas,
+      analysis,
+      from_date,
+      to_date,
+      activity_period,
+      prepared_by,
+      noted_by,
+      approved_by,
+      received_by,
+      acknowledged_by,
+      updated_at
+    ) VALUES (
+      '${esc(account.accountId)}',
+      '${esc(account.refNumber)}',
+      ${account.dateCreated ? `'${account.dateCreated}'` : 'NOW()'},
+      ${account.requestedBy || 'NULL'},
+      '${esc(account.designation)}',
+      '${esc(account.departmentId)}',
+      '${esc(account.validityPeriod)}',
+      ${account.dueDate ? `'${account.dueDate}'` : 'NULL'},
+      '${esc(account.accountName)}',
+      '${esc(account.contractPeriod)}',
+      '${esc(account.industryId)}',
+      '${esc(account.accountDesignation)}',
+      '${esc(account.productId)}',
+      '${esc(account.contactNumber)}',
+      '${esc(account.location)}',
+      '${esc(account.emailAddress)}',
+      '${esc(account.address)}',
+      '${esc(account.buyerIncharge)}',
+      '${esc(account.trunkline)}',
+      '${esc(account.contractNumber)}',
+      '${esc(account.process)}',
+      '${esc(account.secondaryEmailAddress)}',
+      '${esc(account.machines)}',
+      '${esc(account.reasonToApply)}',
+      '${esc(account.automotiveSection)}',
+      '${esc(account.sourceOfInquiry)}',
+      '${esc(account.commodity)}',
+      '${esc(account.businessActivity)}',
+      '${esc(account.model)}',
+      ${account.annualTargetSales || 0},
+      '${esc(account.population)}',
+      '${esc(account.sourceOfTarget)}',
+      '${esc(account.existingBellows)}',
+      '${esc(account.productsToOrder)}',
+      '${esc(account.modelUnder)}',
+      '${esc(account.targetAreas)}',
+      '${esc(account.analysis)}',
+      ${account.fromDate ? `'${account.fromDate}'` : 'NULL'},
+      ${account.toDate ? `'${account.toDate}'` : 'NULL'},
+      '${esc(account.activityPeriod)}',
+      ${account.preparedBy || 'NULL'},
+      ${account.notedBy || 'NULL'},
+      ${account.approvedBy || 'NULL'},
+      ${account.receivedBy || 'NULL'},
+      ${account.acknowledgedBy || 'NULL'},
+      ${account.updatedAt ? `'${account.updatedAt}'` : 'NOW()'}
+    )
+  `);
+}
 
 for (const wo of workorders) {
   mem.public.none(
@@ -561,11 +660,10 @@ for (const wo of workorders) {
       work_description,
       assignee,
       status,
-      account_name,
+      account_id,
+      naef_id,
       is_new_account,
-      industry,
       mode,
-      product_brand,
       contact_person,
       contact_number,
       wo_date,
@@ -588,11 +686,10 @@ for (const wo of workorders) {
       '${esc(wo.workDescription)}',
       '${wo.assignee}',
       '${wo.status}',
-      '${esc(wo.accountName)}',
+      '${esc(wo.accountId)}',
+      ${esc(wo.naefId) || 'NULL'},
       ${wo.isNewAccount ? 'TRUE' : 'FALSE'},
-      '${esc(wo.industry)}',
       '${esc(wo.mode)}',
-      '${esc(wo.productBrand)}',
       '${esc(wo.contactPerson)}',
       '${esc(wo.contactNumber)}',
       '${wo.woDate}',
@@ -782,13 +879,6 @@ for (const tr of technicalRecommendations) {
 //     `
 //   );
 // }
-
-for (const v of vendors) {
-  mem.public.none(
-    `INSERT INTO vendors (name, contact_person, phone, email, address)
-     VALUES ('${esc(v.name)}', '${esc(v.contactPerson)}', '${esc(v.phone)}', '${esc(v.email)}', '${esc(v.address)}')`
-  );
-}
 
 // for (const item of rfqItems) {
 //   mem.public.none(

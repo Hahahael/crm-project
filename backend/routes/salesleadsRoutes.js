@@ -11,9 +11,11 @@ router.get("/", async (req, res) => {
       SELECT 
         sl.*, 
         u.username AS se_username,
-        u.department AS se_department
+        u.department_id AS se_department_id,
+        d.department_name AS se_department_name
       FROM sales_leads sl
       LEFT JOIN users u ON sl.se_id = u.id
+      LEFT JOIN departments d ON u.department_id = d.id
       ORDER BY sl.id ASC
     `);
         return res.json(result.rows);
@@ -32,9 +34,11 @@ router.get("/:id", async (req, res) => {
       SELECT 
         sl.*, 
         u.username AS se_username,
-        u.department AS se_department
+        u.department_id AS se_department_id,
+        d.department_name AS se_department_name
       FROM sales_leads sl
       LEFT JOIN users u ON sl.se_id = u.id
+      LEFT JOIN departments d ON u.department_id = d.id
       WHERE sl.id = $1
     `,
             [id]
@@ -67,16 +71,17 @@ router.post("/", async (req, res) => {
         // Only require wo_id and assignee, set sales_stage to 'Draft' by default
         const wo_id = body.wo_id;
         const assignee = body.assignee;
+        const account_id = body.account_id;
         const sales_stage = body.sales_stage || "Draft";
 
         // Generate SL number
         const currentYear = new Date().getFullYear();
         const result = await db.query(
             `SELECT sl_number 
-       FROM sales_leads 
-       WHERE sl_number LIKE $1
-       ORDER BY sl_number DESC
-       LIMIT 1`,
+                FROM sales_leads 
+                WHERE sl_number LIKE $1
+                ORDER BY sl_number DESC
+                LIMIT 1`,
             [`FSL-${currentYear}-%`]
         );
 
@@ -92,19 +97,19 @@ router.post("/", async (req, res) => {
         // Insert skeletal sales lead, all other fields default to null
         const insertResult = await db.query(
             `INSERT INTO sales_leads 
-        (sl_number, sales_stage, wo_id, assignee, created_at, updated_at)
-        VALUES ($1, $2, $3, $4, NOW(), NOW())
-        RETURNING id`,
-            [sl_number, sales_stage, wo_id, assignee]
+                (sl_number, sales_stage, wo_id, assignee, created_at, updated_at, account_id)
+                VALUES ($1, $2, $3, $4, NOW(), NOW(), $5)
+                RETURNING id`,
+            [sl_number, sales_stage, wo_id, assignee, account_id]
         );
         const newId = insertResult.rows[0].id;
 
         // Return the new skeletal sales lead
         const final = await db.query(
-            `SELECT sl.*, u.username AS se_username, u.department AS se_department
-       FROM sales_leads sl
-       LEFT JOIN users u ON sl.se_id = u.id
-       WHERE sl.id = $1`,
+            `SELECT sl.*, u.username AS se_username
+                FROM sales_leads sl
+                LEFT JOIN users u ON sl.se_id = u.id
+                WHERE sl.id = $1`,
             [newId]
         );
 
@@ -177,10 +182,10 @@ router.put("/:id", async (req, res) => {
         );
         const updatedId = updateResult.rows[0].id;
         const result = await db.query(
-            `SELECT sl.*, u.username AS se_username, u.department AS se_department
-       FROM sales_leads sl
-       LEFT JOIN users u ON sl.se_id = u.id
-       WHERE sl.id = $1`,
+            `SELECT sl.*, u.username AS se_username
+                FROM sales_leads sl
+                LEFT JOIN users u ON sl.se_id = u.id
+                WHERE sl.id = $1`,
             [updatedId]
         );
         if (result.rows.length === 0) return res.status(404).json({ error: "Not found" });

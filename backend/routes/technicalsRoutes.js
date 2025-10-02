@@ -11,10 +11,12 @@ router.get("/", async (req, res) => {
       SELECT 
         tr.*, 
         u.username AS assignee_username,
-        u.department AS assignee_department,
+        u.department_id AS assignee_department_id,
+        d.department_name AS assignee_department_name,
         sl.sl_number AS sl_number
       FROM technical_recommendations tr
       LEFT JOIN users u ON tr.assignee = u.id
+      LEFT JOIN departments d ON u.department_id = d.id
       LEFT JOIN sales_leads sl ON tr.sl_id = sl.id
       ORDER BY tr.id ASC
     `);
@@ -33,17 +35,30 @@ router.get("/:id", async (req, res) => {
       SELECT 
         tr.*, 
         u.username AS assignee_username,
-        u.department AS assignee_department,
+        u.department_id AS assignee_department_id,
+        d.department_name AS assignee_department_name,
         sl.sl_number AS sl_number
       FROM technical_recommendations tr
       LEFT JOIN users u ON tr.assignee = u.id
+      LEFT JOIN departments d ON u.department_id = d.id
       LEFT JOIN sales_leads sl ON tr.sl_id = sl.id
       WHERE tr.id = $1
     `, [id]);
     if (result.rows.length === 0)
       return res.status(404).json({ error: "Not found" });
+    
+    // Fetch items assigned to this tr
+    const itemsRes = await db.query(
+      `SELECT
+        ti.*, i.name, i.model, i.description, i.brand, i.part_number, i.lead_time, i.unit, i.price
+      FROM tr_items ti
+      LEFT JOIN items i ON ti.item_id = i.id
+      WHERE ti.tr_id = $1`,
+      [id]
+    );
+    const response = { ...result.rows[0], items: itemsRes.rows };
     console.log("Fetched technical recommendation:", result.rows[0]);
-    return res.json(result.rows[0]);
+    return res.json(response);
   } catch (err) {
     console.error(err);
     return res.status(500).json({ error: "Failed to fetch technical recommendation" });
@@ -111,9 +126,10 @@ router.post("/", async (req, res) => {
     );
 
     const final = await db.query(
-      `SELECT tr.*, u.username AS assignee_username, u.department AS assignee_department
+      `SELECT tr.*, u.username AS assignee_username, u.department_id AS assignee_department_id, d.department_name AS assignee_department_name
        FROM technical_recommendations tr
        LEFT JOIN users u ON tr.assignee = u.id
+       LEFT JOIN departments d ON u.department_id = d.id
        WHERE tr.id = $1`,
       [newId]
     );
@@ -157,17 +173,67 @@ router.put("/:id", async (req, res) => {
         id
       ]
     );
+
+    // --- Update tr_items robustly ---
+    // 1. Fetch all existing items for this tr_id
+    const existingItemsRes = await db.query(
+      `SELECT id FROM tr_items WHERE tr_id = $1`, [id]
+    );
+    const existingItemIds = new Set(existingItemsRes.rows.map(row => row.id));
+
+    // 2. Get incoming items from request
+    const incomingItems = body.items || [];
+    const incomingItemIds = new Set(incomingItems.filter(it => it.id).map(it => it.id));
+
+    // 3. Delete items that exist in DB but not in incoming
+    for (const dbId of existingItemIds) {
+      if (!incomingItemIds.has(dbId)) {
+        await db.query(`DELETE FROM tr_items WHERE id = $1`, [dbId]);
+      }
+    }
+
+    // 4. Upsert incoming items
+    for (const item of incomingItems) {
+      if (item.id && existingItemIds.has(item.id)) {
+        // Update existing item
+        await db.query(
+          `UPDATE tr_items SET quantity=$1 WHERE id=$2`,
+          [item.quantity, item.id]
+        );
+      } else {
+        // Insert new item
+        await db.query(
+          `INSERT INTO tr_items (tr_id, item_id, quantity) VALUES ($1, $2, $3)`,
+          [id, item.id, item.quantity]
+        );
+      }
+    }
+
     const updatedId = updateResult.rows[0].id;
-    const result = await db.query(
-      `SELECT tr.*, u.username AS assignee_username, u.department AS assignee_department
-       FROM technical_recommendations tr
-       LEFT JOIN users u ON tr.assignee = u.id
-       WHERE tr.id = $1`,
+    const result = await db.query(`
+      SELECT
+        tr.*, u.username AS assignee_username, u.department_id AS assignee_department_id, d.department_name AS assignee_department_name, sl.sl_number AS sl_number
+      FROM technical_recommendations tr
+      LEFT JOIN users u ON tr.assignee = u.id
+      LEFT JOIN departments d ON u.department_id = d.id
+      LEFT JOIN sales_leads sl ON tr.sl_id = sl.id
+      WHERE tr.id = $1`,
       [updatedId]
     );
     if (result.rows.length === 0)
       return res.status(404).json({ error: "Not found" });
-    return res.json(result.rows[0]);
+
+    // Fetch items assigned to this tr
+    const itemsRes = await db.query(`
+      SELECT
+        ti.*, i.name, i.model, i.description, i.brand, i.part_number, i.lead_time, i.unit, i.price
+      FROM tr_items ti
+      LEFT JOIN items i ON ti.item_id = i.id
+      WHERE ti.tr_id = $1`,
+      [updatedId]
+    );
+    const response = { ...result.rows[0], items: itemsRes.rows };
+    return res.json(response);
   } catch (err) {
     console.error(err);
     return res.status(500).json({ error: "Failed to update technical recommendation" });

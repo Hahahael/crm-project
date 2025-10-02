@@ -30,7 +30,8 @@ export default function RFQFormWrapper({ rfq, tab, mode = "create", onBack, onSa
         subTotal: 0,
         vat: 0,
         grandTotal: 0,
-        additionalNotes: ""
+        additionalNotes: "",
+        items: []
     });
 
     // Sync formData with rfq prop
@@ -123,10 +124,7 @@ export default function RFQFormWrapper({ rfq, tab, mode = "create", onBack, onSa
         // Aggregate all form data and pass to parent for saving
         if (onSave) {
             onSave({
-                rfq: formData,
-                rfqItems,
-                vendors,
-                allQuotes: rfqItems?.flatMap(item => item.vendorQuotes || [])
+                rfq: formData
             }, mode);
         }
     };
@@ -207,8 +205,9 @@ export default function RFQFormWrapper({ rfq, tab, mode = "create", onBack, onSa
                     )}
                     {activeTab === "vendors" && (
                         <RFQVendorsForm
-                            rfq={rfq}
+                            rfq={formData}
                             items={rfqItems}
+                            setFormData={setFormData}
                             rfqVendors={vendors}
                             mode={mode}
                             onVendorAction={(vendorId, action, vendorObj) => {
@@ -225,9 +224,8 @@ export default function RFQFormWrapper({ rfq, tab, mode = "create", onBack, onSa
                     )}
                     {activeTab === "canvass" && (
                         <RFQCanvassSheet
-                            rfq={rfq}
-                            items={rfqItems}
-                            selectedVendors={vendors}
+                            rfq={formData}
+                            setFormData={setFormData}
                             mode={mode}
                         />
                     )}
