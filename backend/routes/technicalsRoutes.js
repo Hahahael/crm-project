@@ -13,11 +13,13 @@ router.get("/", async (req, res) => {
         u.username AS assignee_username,
         u.department_id AS assignee_department_id,
         d.department_name AS assignee_department_name,
-        sl.sl_number AS sl_number
+        sl.sl_number AS sl_number,
+        a.account_name AS account_name
       FROM technical_recommendations tr
       LEFT JOIN users u ON tr.assignee = u.id
       LEFT JOIN departments d ON u.department_id = d.id
       LEFT JOIN sales_leads sl ON tr.sl_id = sl.id
+      LEFT JOIN accounts a ON tr.account_id = a.id
       ORDER BY tr.id ASC
     `);
     return res.json(result.rows);
@@ -37,11 +39,13 @@ router.get("/:id", async (req, res) => {
         u.username AS assignee_username,
         u.department_id AS assignee_department_id,
         d.department_name AS assignee_department_name,
-        sl.sl_number AS sl_number
+        sl.sl_number AS sl_number,
+        a.account_name AS account_name
       FROM technical_recommendations tr
       LEFT JOIN users u ON tr.assignee = u.id
       LEFT JOIN departments d ON u.department_id = d.id
       LEFT JOIN sales_leads sl ON tr.sl_id = sl.id
+      LEFT JOIN accounts a ON tr.account_id = a.id
       WHERE tr.id = $1
     `, [id]);
     if (result.rows.length === 0)
@@ -50,7 +54,7 @@ router.get("/:id", async (req, res) => {
     // Fetch items assigned to this tr
     const itemsRes = await db.query(
       `SELECT
-        ti.*, i.name, i.model, i.description, i.brand, i.part_number, i.lead_time, i.unit, i.price
+        ti.*, i.name, i.model, i.description, i.brand, i.part_number, i.lead_time, i.unit, i.unit_price
       FROM tr_items ti
       LEFT JOIN items i ON ti.item_id = i.id
       WHERE ti.tr_id = $1`,
@@ -69,10 +73,17 @@ router.get("/:id", async (req, res) => {
 router.post("/", async (req, res) => {
   try {
     const body = toSnake(req.body);
+    console.log("Creating technical recommendation with data:", body);
     // Only require wo_id and assignee for skeletal creation, status defaults to 'Draft'
     const wo_id = body.wo_id;
+    const account_id = body.account_id;
     const assignee = body.assignee;
     const status = body.status || 'Draft';
+    const contact_person = body.contact_person || null;
+    const contact_number = body.contact_number || null;
+    const contact_email = body.contact_email || null;
+    const issues = body.issues || null;
+    const current = body.current || null;
 
     // Generate TR number
     const currentYear = new Date().getFullYear();
@@ -93,27 +104,34 @@ router.post("/", async (req, res) => {
     const tr_number = `TR-${currentYear}-${String(newCounter).padStart(4, "0")}`;
 
     // Find sl_id from sales_leads using wo_id
-    let slId = null;
+    let sl_id = null;
     const slRes = await db.query(
       `SELECT id FROM sales_leads WHERE wo_id = $1 LIMIT 1`,
       [wo_id]
     );
     if (slRes.rows.length > 0) {
-      slId = slRes.rows[0].id;
+      sl_id = slRes.rows[0].id;
     }
 
     // Insert skeletal technical recommendation, all other fields default to null
     const insertResult = await db.query(
       `INSERT INTO technical_recommendations 
-        (wo_id, assignee, tr_number, status, sl_id, created_at, created_by, updated_at)
-        VALUES ($1, $2, $3, $4, $5, NOW(), $2, NOW())
+        (wo_id, account_id, assignee, tr_number, status, stage_status, sl_id, contact_person, contact_number, contact_email, current_system_issues, current_system, created_at, created_by, updated_at)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, NOW(), $2, NOW())
         RETURNING id`,
       [
         wo_id,
+        account_id,
         assignee,
         tr_number,
+        'Open',
         status,
-        slId
+        sl_id,
+        contact_person,
+        contact_number,
+        contact_email,
+        issues,
+        current
       ]
     );
     const newId = insertResult.rows[0].id;
@@ -212,11 +230,12 @@ router.put("/:id", async (req, res) => {
     const updatedId = updateResult.rows[0].id;
     const result = await db.query(`
       SELECT
-        tr.*, u.username AS assignee_username, u.department_id AS assignee_department_id, d.department_name AS assignee_department_name, sl.sl_number AS sl_number
+        tr.*, u.username AS assignee_username, u.department_id AS assignee_department_id, d.department_name AS assignee_department_name, sl.sl_number AS sl_number, a.account_name = account_name
       FROM technical_recommendations tr
       LEFT JOIN users u ON tr.assignee = u.id
       LEFT JOIN departments d ON u.department_id = d.id
       LEFT JOIN sales_leads sl ON tr.sl_id = sl.id
+      LEFT JOIN accounts a ON tr.account_id = a.id
       WHERE tr.id = $1`,
       [updatedId]
     );
@@ -226,7 +245,7 @@ router.put("/:id", async (req, res) => {
     // Fetch items assigned to this tr
     const itemsRes = await db.query(`
       SELECT
-        ti.*, i.name, i.model, i.description, i.brand, i.part_number, i.lead_time, i.unit, i.price
+        ti.*, i.name, i.model, i.description, i.brand, i.part_number, i.lead_time, i.unit, i.unit_price
       FROM tr_items ti
       LEFT JOIN items i ON ti.item_id = i.id
       WHERE ti.tr_id = $1`,

@@ -8,7 +8,7 @@ export const items = [
         leadTime: '2 weeks',
         description: 'Description for Item 1',
         unit: 'pcs',
-        price: 100.00
+        unitPrice: 100.00
     },
     {
         id: 2,
@@ -19,7 +19,7 @@ export const items = [
         leadTime: '2 weeks',
         description: 'Description for Item 2',
         unit: 'pcs',
-        price: 100.00
+        unitPrice: 100.00
     },
     {
         id: 3,
@@ -30,7 +30,7 @@ export const items = [
         leadTime: '2 weeks',
         description: 'Description for Item 3',
         unit: 'pcs',
-        price: 100.00
+        unitPrice: 100.00
     },
     {
         id: 4,
@@ -41,6 +41,6 @@ export const items = [
         leadTime: '2 weeks',
         description: 'Description for Item 4',
         unit: 'pcs',
-        price: 100.00
+        unitPrice: 100.00
     }
 ]

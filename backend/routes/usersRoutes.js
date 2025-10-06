@@ -98,7 +98,9 @@ router.post("/", async (req, res) => {
 router.put("/:id", async (req, res) => {
   try {
     const { id } = req.params;
+    console.log("Request body:", req.body);
     const body = toSnake(req.body);
+    console.log("Updating user with data:", body);
     const {
       first_name,
       last_name,

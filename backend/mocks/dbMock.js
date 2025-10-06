@@ -19,7 +19,7 @@ import { rfqItems } from "./rfqItemsMock.js";
 import { rfqVendors } from "./rfqVendorsMock.js";
 import { vendors } from "./vendorsMock.js";
 import { items } from "./itemsMock.js";
-import { rfqItemVendorQuotes } from "./rfqItemVendorQuotesMock.js";
+import { rfqQuotations } from "./rfqQuotations.js";
 import { workflowStages } from "./workflowstagesMocks.js";
 
 let pool;
@@ -94,7 +94,7 @@ mem.public.none(`
     lead_time VARCHAR(100),
     description TEXT,
     unit VARCHAR(50),
-    price NUMERIC(12, 2) CHECK (price >= 0)
+    unit_price NUMERIC(12, 2)
   );
 `);
 
@@ -121,7 +121,7 @@ mem.public.none(`
   -- ACCOUNTS TABLE (commented out for now)
   CREATE TABLE accounts (
   id SERIAL PRIMARY KEY,
-  account_id VARCHAR(20) UNIQUE NOT NULL,
+  naef_number VARCHAR(20) UNIQUE,
   stage_status VARCHAR(20) DEFAULT 'draft',
     ref_number VARCHAR(20) UNIQUE,
     date_created TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -151,7 +151,7 @@ mem.public.none(`
     commodity TEXT,
     business_activity VARCHAR(100),
     model VARCHAR(100),
-    annual_target_sales NUMERIC(12, 2) CHECK (annual_target_sales >= 0),
+    annual_target_sales NUMERIC(12, 2),
     population TEXT,
     source_of_target VARCHAR(100),
     existing_bellows TEXT,
@@ -167,7 +167,9 @@ mem.public.none(`
     approved_by INT REFERENCES users(id) ON DELETE SET NULL,
     received_by INT REFERENCES users(id) ON DELETE SET NULL,
     acknowledged_by INT REFERENCES users(id) ON DELETE SET NULL,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    is_naef BOOLEAN DEFAULT FALSE
   );
 `);
 
@@ -185,7 +187,7 @@ mem.public.none(`
     contact_email VARCHAR(100),
     project_name VARCHAR(100),
     project_description TEXT,
-    project_value NUMERIC(12,2) CHECK (project_value >= 0),
+    project_value NUMERIC(12,2),
     project_start_date DATE,
     project_end_date DATE,
     wo_id INT,
@@ -276,7 +278,7 @@ mem.public.none(`
   stage_status VARCHAR(20) DEFAULT 'draft',
   end_user VARCHAR(100),
   department VARCHAR(75),
-  contact_no VARCHAR(20),
+  contact_number VARCHAR(20),
   sales_stage VARCHAR(30) NOT NULL DEFAULT 'Sales Lead',
   designation VARCHAR(50),
   immediate_support VARCHAR(100),
@@ -296,7 +298,7 @@ mem.public.none(`
   support_needed TEXT,
   urgency VARCHAR(100) DEFAULT 'Medium',
   model_to_quote VARCHAR(100),
-  quantity INT DEFAULT 1 CHECK (quantity > 0),
+  quantity INT DEFAULT 1,
   quantity_attention VARCHAR(100),
   qr_cc VARCHAR(100),
   qr_email_to TEXT,
@@ -361,26 +363,25 @@ mem.public.none(`
   tr_number VARCHAR(20) UNIQUE NOT NULL, -- TR-YYYY-NNNN, auto-generated
   status VARCHAR(50) DEFAULT 'Open',
   stage_status VARCHAR(20) DEFAULT 'draft',
-    priority VARCHAR(50) DEFAULT 'Medium',
-    title VARCHAR(255) DEFAULT '',
-    sl_id INT REFERENCES sales_leads(id) ON DELETE SET NULL,
-  -- account_id INT REFERENCES accounts(id) ON DELETE SET NULL,
-    account_id TEXT,
-    contact_person VARCHAR(100),
-    contact_number VARCHAR(20),
-    contact_email VARCHAR(100),
-    current_system TEXT,
-    current_system_issues TEXT,
-    proposed_solution TEXT,
-    technical_justification TEXT,
-    installation_requirements TEXT,
-    training_requirements TEXT,
-    maintenance_requirements TEXT,
-    attachments JSONB,
-    additional_notes TEXT,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    created_by INT REFERENCES users(id) ON DELETE SET NULL,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  priority VARCHAR(50) DEFAULT 'Medium',
+  title VARCHAR(255) DEFAULT '',
+  sl_id INT REFERENCES sales_leads(id) ON DELETE SET NULL,
+  account_id INT REFERENCES accounts(id) ON DELETE SET NULL,
+  contact_person VARCHAR(100),
+  contact_number VARCHAR(20),
+  contact_email VARCHAR(100),
+  current_system TEXT,
+  current_system_issues TEXT,
+  proposed_solution TEXT,
+  technical_justification TEXT,
+  installation_requirements TEXT,
+  training_requirements TEXT,
+  maintenance_requirements TEXT,
+  attachments JSONB,
+  additional_notes TEXT,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  created_by INT REFERENCES users(id) ON DELETE SET NULL,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
   );
 
   -- TECHNICAL RECOMMENDATION PRODUCTS
@@ -390,8 +391,8 @@ mem.public.none(`
     product_name VARCHAR(100) NOT NULL,
     model VARCHAR(100),
     description TEXT,
-    quantity INT NOT NULL DEFAULT 1 CHECK (quantity > 0),
-    unit_price NUMERIC(12, 2) CHECK (unit_price >= 0),
+    quantity INT NOT NULL DEFAULT 1,
+    unit_price NUMERIC(12, 2),
     total_price NUMERIC(12, 2)
   );
 `);
@@ -407,70 +408,76 @@ mem.public.none(`
 
 // RFQs Table
 mem.public.none(`
-  -- RFQS
   CREATE TABLE rfqs (
-  id SERIAL PRIMARY KEY,
-  wo_id INT REFERENCES workorders(id) ON DELETE SET NULL,
-  assignee INT REFERENCES users(id) ON DELETE SET NULL,
-  rfq_number VARCHAR(20) UNIQUE NOT NULL,
-  stage_status VARCHAR(20) DEFAULT 'draft',
-    rfq_date DATE NOT NULL,
-    due_date DATE,
-    description TEXT,
-    sl_id INT REFERENCES sales_leads(id) ON DELETE SET NULL,
-  -- account_id INT REFERENCES accounts(id) ON DELETE SET NULL,
-    account_id TEXT,
-    payment_terms VARCHAR(100),
-    notes TEXT,
-    subtotal NUMERIC(12, 2) CHECK (subtotal >= 0),
-    vat NUMERIC(12, 2) CHECK (vat >= 0),
-    grand_total NUMERIC(12, 2) CHECK (grand_total >= 0),
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    created_by INT REFERENCES users(id) ON DELETE SET NULL,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_by INT REFERENCES users(id) ON DELETE SET NULL
+      id SERIAL PRIMARY KEY,
+      rfq_number VARCHAR(50) NOT NULL,
+      due_date DATE,
+      description TEXT,
+      payment_terms TEXT,
+      notes TEXT,
+      wo_id INT REFERENCES workorders(id),
+      assignee INT REFERENCES users(id),
+      stage_status VARCHAR(50),
+      sl_id INT REFERENCES sales_leads(id),
+      account_id INT REFERENCES accounts(id) ON DELETE SET NULL,
+      subtotal NUMERIC(12,2),
+      vat NUMERIC(12,2),
+      grand_total NUMERIC(12,2),
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      created_by INT REFERENCES users(id),
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_by INT REFERENCES users(id)
   );
 
+  -- RFQ Items table
   CREATE TABLE rfq_items (
-    id SERIAL PRIMARY KEY,
-    rfq_id INT REFERENCES rfqs(id) ON DELETE CASCADE,
-    description TEXT NOT NULL,
-    brand VARCHAR(100),
-    part_number VARCHAR(100),
-    quantity INT NOT NULL DEFAULT 1 CHECK (quantity > 0),
-    unit VARCHAR(50),
-    lead_time VARCHAR(100),
-    unit_price NUMERIC(12, 2) CHECK (unit_price >= 0),
-    amount NUMERIC(12, 2)
+      id SERIAL PRIMARY KEY,
+      rfq_id INT REFERENCES rfqs(id) ON DELETE CASCADE,
+      item_id INT REFERENCES items(id),
+      selected_vendor INT REFERENCES vendors(id),
+      lead_time VARCHAR(100),
+      quantity INT NOT NULL,
+      unit_price NUMERIC(12,2)
   );
-`);
 
-mem.public.none(`
+  -- RFQ Vendors table
   CREATE TABLE rfq_vendors (
-    id SERIAL PRIMARY KEY,
-    rfq_id INT REFERENCES rfqs(id) ON DELETE CASCADE,
-    vendor_id INT REFERENCES vendors(id) ON DELETE SET NULL,
-    contact_person VARCHAR(100),
-    status VARCHAR(50) DEFAULT 'Pending', -- Quoted, Pending, etc.
-    quote_date DATE,
-    grand_total NUMERIC(12,2) DEFAULT 0,
-    notes TEXT
+      id SERIAL PRIMARY KEY,
+      rfq_id INT REFERENCES rfqs(id) ON DELETE CASCADE,
+      vendor_id INT REFERENCES vendors(id),
+      valid_until DATE,
+      payment_terms TEXT,
+      notes TEXT
   );
+
+  -- RFQ Quotations table
+  CREATE TABLE rfq_quotations (
+      id SERIAL PRIMARY KEY,
+      rfq_id INT REFERENCES rfqs(id) ON DELETE CASCADE,
+      item_id INT REFERENCES items(id),
+      vendor_id INT REFERENCES vendors(id),
+      lead_time INT,
+      unit_price NUMERIC(12, 2),
+      is_selected BOOLEAN DEFAULT FALSE,
+      quantity INT NOT NULL DEFAULT 1
+);
 `);
 
+// Quotations Table
 mem.public.none(`
-  CREATE TABLE rfq_item_vendor_quotes (
-    id SERIAL PRIMARY KEY,
-    rfq_item_id INT REFERENCES rfq_items(id) ON DELETE CASCADE,
-    vendor_id INT REFERENCES vendors(id) ON DELETE SET NULL,
-    price NUMERIC(12,2) NOT NULL,
-    total NUMERIC(12,2),
-    lead_time VARCHAR(100),
-    lead_time_color VARCHAR(30),
-    quote_date DATE,
-    status VARCHAR(50),
-    notes TEXT
-  );
+  -- Quotations table
+  CREATE TABLE quotations (
+      id SERIAL PRIMARY KEY,
+      rfq_id INT REFERENCES rfqs(id) ON DELETE CASCADE,
+      tr_id INT REFERENCES technical_recommendations(id),
+      wo_id INT REFERENCES workorders(id),
+      account_id INT REFERENCES accounts(id) ON DELETE SET NULL,
+      assignee INT REFERENCES users(id),
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      created_by INT REFERENCES users(id),
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_by INT REFERENCES users(id)
+);
 `);
 
 // seed data ...
@@ -529,8 +536,8 @@ for (const v of vendors) {
 
 for (const i of items) {
   mem.public.none(
-    `INSERT INTO items (name, model, brand, part_number, lead_time, description, unit, price)
-     VALUES ('${esc(i.name)}', '${esc(i.model)}', '${esc(i.brand)}', '${esc(i.partNumber)}', '${esc(i.leadTime)}', '${esc(i.description)}', '${esc(i.unit)}', ${i.price})`
+    `INSERT INTO items (name, model, brand, part_number, lead_time, description, unit, unit_price)
+     VALUES ('${esc(i.name)}', '${esc(i.model)}', '${esc(i.brand)}', '${esc(i.partNumber)}', '${esc(i.leadTime)}', '${esc(i.description)}', '${esc(i.unit)}', ${i.unitPrice})`
   );
 }
 
@@ -555,7 +562,6 @@ for (const d of accountsDepartments) {
 for (const account of accounts) {
   mem.public.none(`
     INSERT INTO accounts (
-      account_id,
       ref_number,
       date_created,
       requested_by,
@@ -600,54 +606,55 @@ for (const account of accounts) {
       approved_by,
       received_by,
       acknowledged_by,
-      updated_at
+      updated_at,
+      is_naef
     ) VALUES (
-      '${esc(account.accountId)}',
-      '${esc(account.refNumber)}',
+      '${esc(account.refNumber || '')}',
       ${account.dateCreated ? `'${account.dateCreated}'` : 'NOW()'},
-      ${account.requestedBy || 'NULL'},
-      '${esc(account.designation)}',
-      '${esc(account.departmentId)}',
-      '${esc(account.validityPeriod)}',
+      ${account.requestedBy ? `'${esc(account.requestedBy)}'` : 'NULL'},
+      '${esc(account.designation || '')}',
+      ${account.departmentId ? `'${esc(account.departmentId)}'` : 'NULL'},
+      '${esc(account.validityPeriod || '')}',
       ${account.dueDate ? `'${account.dueDate}'` : 'NULL'},
-      '${esc(account.accountName)}',
-      '${esc(account.contractPeriod)}',
-      '${esc(account.industryId)}',
-      '${esc(account.accountDesignation)}',
-      '${esc(account.productId)}',
-      '${esc(account.contactNumber)}',
-      '${esc(account.location)}',
-      '${esc(account.emailAddress)}',
-      '${esc(account.address)}',
-      '${esc(account.buyerIncharge)}',
-      '${esc(account.trunkline)}',
-      '${esc(account.contractNumber)}',
-      '${esc(account.process)}',
-      '${esc(account.secondaryEmailAddress)}',
-      '${esc(account.machines)}',
-      '${esc(account.reasonToApply)}',
-      '${esc(account.automotiveSection)}',
-      '${esc(account.sourceOfInquiry)}',
-      '${esc(account.commodity)}',
-      '${esc(account.businessActivity)}',
-      '${esc(account.model)}',
+      '${esc(account.accountName || '')}',
+      '${esc(account.contractPeriod || '')}',
+      ${account.industryId ? `'${esc(account.industryId)}'` : 'NULL'},
+      '${esc(account.accountDesignation || '')}',
+      ${account.productId ? `'${esc(account.productId)}'` : 'NULL'},
+      '${esc(account.contactNumber || '')}',
+      '${esc(account.location || '')}',
+      '${esc(account.emailAddress || '')}',
+      '${esc(account.address || '')}',
+      '${esc(account.buyerIncharge || '')}',
+      '${esc(account.trunkline || '')}',
+      '${esc(account.contractNumber || '')}',
+      '${esc(account.process || '')}',
+      '${esc(account.secondaryEmailAddress || '')}',
+      '${esc(account.machines || '')}',
+      '${esc(account.reasonToApply || '')}',
+      '${esc(account.automotiveSection || '')}',
+      '${esc(account.sourceOfInquiry || '')}',
+      '${esc(account.commodity || '')}',
+      '${esc(account.businessActivity || '')}',
+      '${esc(account.model || '')}',
       ${account.annualTargetSales || 0},
-      '${esc(account.population)}',
-      '${esc(account.sourceOfTarget)}',
-      '${esc(account.existingBellows)}',
-      '${esc(account.productsToOrder)}',
-      '${esc(account.modelUnder)}',
-      '${esc(account.targetAreas)}',
-      '${esc(account.analysis)}',
+      '${esc(account.population || '')}',
+      '${esc(account.sourceOfTarget || '')}',
+      '${esc(account.existingBellows || '')}',
+      '${esc(account.productsToOrder || '')}',
+      '${esc(account.modelUnder || '')}',
+      '${esc(account.targetAreas || '')}',
+      '${esc(account.analysis || '')}',
       ${account.fromDate ? `'${account.fromDate}'` : 'NULL'},
       ${account.toDate ? `'${account.toDate}'` : 'NULL'},
-      '${esc(account.activityPeriod)}',
-      ${account.preparedBy || 'NULL'},
-      ${account.notedBy || 'NULL'},
-      ${account.approvedBy || 'NULL'},
-      ${account.receivedBy || 'NULL'},
-      ${account.acknowledgedBy || 'NULL'},
-      ${account.updatedAt ? `'${account.updatedAt}'` : 'NOW()'}
+      '${esc(account.activityPeriod || '')}',
+      ${account.preparedBy ? `'${esc(account.preparedBy)}'` : 'NULL'},
+      ${account.notedBy ? `'${esc(account.notedBy)}'` : 'NULL'},
+      ${account.approvedBy ? `'${esc(account.approvedBy)}'` : 'NULL'},
+      ${account.receivedBy ? `'${esc(account.receivedBy)}'` : 'NULL'},
+      ${account.acknowledgedBy ? `'${esc(account.acknowledgedBy)}'` : 'NULL'},
+      ${account.updatedAt ? `'${account.updatedAt}'` : 'NOW()'},
+      'FALSE'
     )
   `);
 }
@@ -714,6 +721,7 @@ for (const sl of salesLeads) {
     `
     INSERT INTO sales_leads (
       sl_number,
+      account_id,
       wo_id,
       assignee,
       sales_stage,
@@ -721,7 +729,7 @@ for (const sl of salesLeads) {
       designation,
       department,
       immediate_support,
-      contact_no,
+      contact_number,
       email_address,
       category,
       application,
@@ -764,6 +772,7 @@ for (const sl of salesLeads) {
       updated_at
     ) VALUES (
       '${esc(sl.slNumber)}',
+      ${sl.accountId},
       ${sl.woId},
       ${sl.assignee},
       '${esc(sl.salesStage)}',
@@ -771,7 +780,7 @@ for (const sl of salesLeads) {
       '${esc(sl.designation)}',
       '${esc(sl.department)}',
       '${esc(sl.immediateSupport)}',
-      '${esc(sl.contactNo)}',
+      '${esc(sl.contactNumber)}',
       '${esc(sl.emailAddress)}',
       '${esc(sl.category)}',
       '${esc(sl.application)}',
@@ -854,80 +863,91 @@ for (const tr of technicalRecommendations) {
   );
 }
 
-// for (const r of rfqs) {
-//   mem.public.none(
-//     `INSERT INTO rfqs 
-//     (wo_id, assignee, rfq_number, rfq_date, due_date, description, sl_id, account_id, payment_terms, notes, subtotal, vat, grand_total, created_at, created_by, updated_at)
-//     VALUES (
-//     ${r.woId},
-//     ${r.assignee},
-//     '${r.rfqNumber}',
-//     '${r.rfqDate}',
-//     '${r.dueDate}',
-//     '${r.description}',
-//     ${r.slId},
-//     ${r.accountId},
-//     '${r.paymentTerms}',
-//     '${r.notes}',
-//     ${r.subtotal},
-//     ${r.vat},
-//     ${r.grandTotal},
-//     NOW(),
-//     ${r.createdBy},
-//     NOW()
-//     )
-//     `
-//   );
-// }
+for (const r of rfqs) {
+  mem.public.none(
+    `INSERT INTO rfqs (
+  wo_id,
+  assignee,
+  rfq_number,
+  due_date,
+  sl_id,
+  account_id,
+  created_at,
+  created_by,
+  updated_at,
+  description,
+  payment_terms,
+  notes,
+  stage_status,
+  updated_by
+)
+    VALUES (
+    ${r.woId},
+    ${r.assignee},
+    '${r.rfqNumber}',
+    '${r.dueDate}',
+    ${r.slId},
+    ${r.accountId},
+    '${r.createdAt}',
+    ${r.createdBy},
+    '${r.updatedAt}',
+    '${r.description}',
+    '${r.paymentTerms}',
+    '${r.notes}',
+    '${r.stageStatus}',
+    ${r.updatedBy}
+    )`
+  );
+}
 
-// for (const item of rfqItems) {
-//   mem.public.none(
-//     `INSERT INTO rfq_items (rfq_id, description, brand, part_number, quantity, unit, lead_time, unit_price, amount)
-//      VALUES (
-//       ${item.rfqId},
-//       '${esc(item.description)}',
-//       '${esc(item.brand)}',
-//       '${esc(item.partNumber)}',
-//       ${item.quantity},
-//       '${esc(item.unit)}',
-//       '${esc(item.leadTime)}',
-//       ${item.unitPrice},
-//       ${item.amount}
-//      )`
-//   );
-// }
+for (const item of rfqItems) {
+  mem.public.none(
+    `INSERT INTO rfq_items (
+  rfq_id,
+  item_id,
+  selected_vendor,
+  quantity,
+  lead_time,
+  unit_price
+)
+     VALUES (
+      ${item.rfqId},
+      ${item.itemId},
+      ${item.selectedVendor || 'NULL'},
+      ${item.quantity},
+      '${esc(item.leadTime)}',
+      ${item.unitPrice}
+     )`
+  );
+}
 
-// for (const q of rfqItemVendorQuotes) {
-//   mem.public.none(
-//     `INSERT INTO rfq_item_vendor_quotes (rfq_item_id, vendor_id, price, total, lead_time, lead_time_color, quote_date, status, notes)
-//      VALUES (
-//       ${q.rfqItemId},
-//       ${q.vendorId},
-//       ${q.price},
-//       ${q.total},
-//       '${esc(q.leadTime)}',
-//       '${esc(q.leadTimeColor)}',
-//       '${q.quoteDate}',
-//       '${esc(q.status)}',
-//       '${esc(q.notes)}'
-//      )`
-//   );
-// }
+for (const rv of rfqVendors) {
+  mem.public.none(
+    `INSERT INTO rfq_vendors (rfq_id, vendor_id, valid_until, payment_terms, notes)
+      VALUES (
+      ${rv.rfqId},
+      ${rv.vendorId},
+      '${esc(rv.validUntil)}',
+      '${esc(rv.paymentTerms)}',
+      '${esc(rv.notes)}'
+      )`
+  );
+}
 
-// for (const rv of rfqVendors) {
-//   mem.public.none(
-//     `INSERT INTO rfq_vendors (rfq_id, vendor_id, contact_person, status, quote_date, grand_total, notes)
-//      VALUES (
-//       ${rv.rfqId},
-//       ${rv.vendorId},
-//       '${esc(rv.contactPerson)}',
-//       '${esc(rv.status)}',
-//       ${rv.quoteDate ? `'${rv.quoteDate}'` : 'NULL'},
-//       ${rv.grandTotal},
-//       '${esc(rv.notes)}'
-//      )`
-//   );
-// }
+for (const rv of rfqQuotations) {
+  mem.public.none(
+    `INSERT INTO rfq_quotations (rfq_id, item_id, vendor_id, is_selected, lead_time, unit_price, quantity)
+      VALUES (
+      ${rv.rfqId},
+      ${rv.itemId},
+      ${rv.vendorId},
+      ${rv.isSelected ? 'TRUE' : 'FALSE'},
+      '${esc(rv.leadTime)}',
+      ${rv.unitPrice},
+      ${rv.quantity}
+      )`
+  );
+}
 
 for (const ws of workflowStages) {
   mem.public.none(

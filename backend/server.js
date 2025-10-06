@@ -14,6 +14,7 @@ import salesleadsRouter from "./routes/salesleadsRoutes.js";
 import technicalsRouter from "./routes/technicalsRoutes.js";
 import rfqsRouter from "./routes/rfqsRoutes.js";
 import inventoryRouter from "./routes/inventoryRoutes.js";
+import quotationsRouter from "./routes/quotationsRoutes.js";
 
 
 const PORT = process.env.PORT || 5000;
@@ -23,6 +24,7 @@ const app = express();
 
 app.use(cookieParser());
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 // Allow multiple Vercel preview URLs and production
 const allowedOrigins = [
   "https://crm-project-git-dev-raphaels-projects-763450c5.vercel.app",
@@ -64,6 +66,7 @@ app.use("/api/salesleads", salesleadsRouter);
 app.use("/api/technicals", technicalsRouter);
 app.use("/api/rfqs", rfqsRouter);
 app.use("/api/inventory", inventoryRouter);
+app.use("/api/quotations", quotationsRouter);
 
 app.get("/", (req, res) => {
   res.send("🚀 Server is alive!");

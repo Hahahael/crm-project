@@ -186,15 +186,92 @@ export const workflowStages = [
     updatedAt: "2025-10-01T11:40:11.583Z",
     id: 17
   },
-  // {
-  //   woId: 1,
-  //   stageName: 'Technical Recommendation',
-  //   status: 'Approved',
-  //   assignedTo: 1,
-  //   notified: false,
-  //   remarks: '1',
-  //   createdAt: "2025-10-01T12:26:55.407Z",
-  //   updatedAt: "2025-10-01T12:26:55.407Z",
-  //   id: 11
-  // }
+  {
+    woId: 1,
+    stageName: 'Sales Lead',
+    status: 'Approved',
+    assignedTo: 1,
+    notified: false,
+    createdAt: "2025-10-01T12:25:53.484Z",
+    updatedAt: "2025-10-01T12:25:53.484Z",
+    id: 8,
+    remarks: null
+  },
+  {
+    woId: 1,
+    stageName: 'Technical Recommendation',
+    status: 'Draft',
+    assignedTo: 1,
+    notified: false,
+    createdAt: "2025-10-01T12:25:53.547Z",
+    updatedAt: "2025-10-01T12:25:53.547Z",
+    id: 9,
+    remarks: null
+  },
+  {
+    woId: 1,
+    stageName: 'Technical Recommendation',
+    status: 'Submitted',
+    assignedTo: 1,
+    notified: false,
+    createdAt: "2025-10-01T12:26:08.778Z",
+    updatedAt: "2025-10-01T12:26:08.778Z",
+    id: 10,
+    remarks: null
+  },
+  {
+    woId: 1,
+    stageName: 'Technical Recommendation',
+    status: 'Approved',
+    assignedTo: 1,
+    notified: false,
+    remarks: 'asd',
+    createdAt: "2025-10-03T09:31:25.453Z",
+    updatedAt: "2025-10-03T09:31:25.453Z",
+    id: 18
+  },
+  {
+    woId: 1,
+    stageName: 'RFQ',
+    status: 'Draft',
+    assignedTo: 1,
+    createdAt: "2025-10-03T09:31:25.475Z",
+    updatedAt: "2025-10-03T09:31:25.475Z",
+    id: 19,
+    notified: false,
+    remarks: null
+  },
+  {
+    woId: 1,
+    stageName: 'RFQ',
+    status: 'Pending',
+    assignedTo: 1,
+    notified: false,
+    remarks: null,
+    createdAt: "2025-10-03T09:31:48.387Z",
+    updatedAt: "2025-10-03T09:31:48.387Z",
+    id: 20
+  },
+  {
+    woId: 1,
+    stageName: 'RFQ',
+    status: 'Submitted',
+    assignedTo: 1,
+    notified: false,
+    remarks: null,
+    createdAt: "2025-10-03T09:31:50.613Z",
+    updatedAt: "2025-10-03T09:31:50.613Z",
+    id: 21
+  },
+  {
+    woId: 3,
+    stageName: 'Work Order',
+    status: 'Pending',
+    assignedTo: 1,
+    notified: false,
+    remarks: null,
+    createdAt: "2025-10-01T11:37:14.821Z",
+    updatedAt: "2025-10-01T11:37:14.821Z",
+    id: 22
+  }
 ];

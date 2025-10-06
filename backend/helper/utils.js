@@ -18,7 +18,7 @@ export function toSnake(obj) {
   if (obj && typeof obj === "object") {
     return Object.keys(obj).reduce((acc, key) => {
       const snakeKey = key.replace(/[A-Z]/g, (c) => `_${c.toLowerCase()}`);
-      acc[snakeKey] = obj[key];
+      acc[snakeKey] = toSnake(obj[key]); // 👈 recursive call for nested objects
       return acc;
     }, {});
   }

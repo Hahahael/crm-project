@@ -12,10 +12,18 @@ router.get("/", async (req, res) => {
         sl.*, 
         u.username AS se_username,
         u.department_id AS se_department_id,
-        d.department_name AS se_department_name
+        d.department_name AS se_department_name,
+        a.account_name AS account_name,
+        ai.industry_name AS industry_name,
+        apb.product_brand_name AS product_brand_name,
+        ad.department_name AS account_department_name
       FROM sales_leads sl
       LEFT JOIN users u ON sl.se_id = u.id
       LEFT JOIN departments d ON u.department_id = d.id
+      LEFT JOIN accounts a ON sl.account_id = a.id
+      LEFT JOIN account_industries ai ON a.industry_id = ai.id
+      LEFT JOIN account_product_brands apb ON a.product_id = apb.id
+      LEFT JOIN account_departments ad ON a.department_id = ad.id
       ORDER BY sl.id ASC
     `);
         return res.json(result.rows);
@@ -35,10 +43,18 @@ router.get("/:id", async (req, res) => {
         sl.*, 
         u.username AS se_username,
         u.department_id AS se_department_id,
-        d.department_name AS se_department_name
+        d.department_name AS se_department_name,
+        a.account_name AS account_name,
+        ai.industry_name AS industry_name,
+        apb.product_brand_name AS product_brand_name,
+        ad.department_name AS account_department_name
       FROM sales_leads sl
       LEFT JOIN users u ON sl.se_id = u.id
       LEFT JOIN departments d ON u.department_id = d.id
+      LEFT JOIN accounts a ON sl.account_id = a.id
+      LEFT JOIN account_industries ai ON a.industry_id = ai.id
+      LEFT JOIN account_product_brands apb ON a.product_id = apb.id
+      LEFT JOIN account_departments ad ON a.department_id = ad.id
       WHERE sl.id = $1
     `,
             [id]
@@ -73,6 +89,8 @@ router.post("/", async (req, res) => {
         const assignee = body.assignee;
         const account_id = body.account_id;
         const sales_stage = body.sales_stage || "Draft";
+        const contact_person = body.contact_person || null;
+        const contact_number = body.contact_number || null;
 
         // Generate SL number
         const currentYear = new Date().getFullYear();
@@ -97,10 +115,10 @@ router.post("/", async (req, res) => {
         // Insert skeletal sales lead, all other fields default to null
         const insertResult = await db.query(
             `INSERT INTO sales_leads 
-                (sl_number, sales_stage, wo_id, assignee, created_at, updated_at, account_id)
-                VALUES ($1, $2, $3, $4, NOW(), NOW(), $5)
+                (sl_number, sales_stage, wo_id, assignee, created_at, updated_at, account_id, immediate_support, contact_number)
+                VALUES ($1, $2, $3, $4, NOW(), NOW(), $5, $6, $7)
                 RETURNING id`,
-            [sl_number, sales_stage, wo_id, assignee, account_id]
+            [sl_number, sales_stage, wo_id, assignee, account_id, contact_person, contact_number]
         );
         const newId = insertResult.rows[0].id;
 
@@ -129,7 +147,7 @@ router.put("/:id", async (req, res) => {
         const updateResult = await db.query(
             `UPDATE sales_leads 
        SET 
-        sales_stage=$1, end_user=$2, designation=$3, department=$4, immediate_support=$5, contact_no=$6, email_address=$7, category=$8, application=$9, machine=$10, machine_process=$11, needed_product=$12, existing_specifications=$13, issues_with_existing=$14, consideration=$15, support_needed=$16, urgency=$17, model_to_quote=$18, quantity=$19, quantity_attention=$20, qr_cc=$21, qr_email_to=$22, next_followup_date=$23, due_date=$24, done_date=$25, account=$26, industry=$27, se_id=$28, sales_plan_rep=$29, fsl_ref=$30, fsl_date=$31, fsl_time=$32, fsl_location=$33, ww=$34, requirement=$35, requirement_category=$36, deadline=$37, product_application=$38, customer_issues=$39, existing_setup_items=$40, customer_suggested_setup=$41, remarks=$42, actual_picture=$43, draft_design_layout=$44, updated_at=NOW()
+        sales_stage=$1, end_user=$2, designation=$3, department=$4, immediate_support=$5, contact_number=$6, email_address=$7, category=$8, application=$9, machine=$10, machine_process=$11, needed_product=$12, existing_specifications=$13, issues_with_existing=$14, consideration=$15, support_needed=$16, urgency=$17, model_to_quote=$18, quantity=$19, quantity_attention=$20, qr_cc=$21, qr_email_to=$22, next_followup_date=$23, due_date=$24, done_date=$25, account=$26, industry=$27, se_id=$28, sales_plan_rep=$29, fsl_ref=$30, fsl_date=$31, fsl_time=$32, fsl_location=$33, ww=$34, requirement=$35, requirement_category=$36, deadline=$37, product_application=$38, customer_issues=$39, existing_setup_items=$40, customer_suggested_setup=$41, remarks=$42, actual_picture=$43, draft_design_layout=$44, updated_at=NOW()
        WHERE id=$45
        RETURNING id`,
             [
@@ -138,7 +156,7 @@ router.put("/:id", async (req, res) => {
                 body.designation,
                 body.department,
                 body.immediate_support,
-                body.contact_no,
+                body.contact_number,
                 body.email_address,
                 body.category,
                 body.application,

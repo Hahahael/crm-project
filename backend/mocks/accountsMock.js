@@ -145,5 +145,15 @@ export const accounts = [
     receivedBy: 1,
     acknowledgedBy: 1,
     updatedAt: "2025-09-01T08:10:00Z"
+  },
+  {
+    id: 4,
+    accountName: "Test",
+    stage_status: "draft",
+    industryId: 3,
+    productId: 3,
+    departmentId: 3,
+    createdAt: "2025-09-15T10:00:00Z",
+    updatedAt: "2025-09-15T10:00:00Z",
   }
 ];

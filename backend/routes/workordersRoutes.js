@@ -139,7 +139,23 @@ router.post("/", async (req, res) => {
       is_fsl,
       is_esl,
       created_by,
+      account_name,
+      department_id,
+      industry_id,
+      product_brand_id,
     } = body;
+
+    let finalAccountId = account_id;
+    if (is_new_account) {
+      const draftAccount = await db.query(
+        `INSERT INTO accounts 
+          (account_name, department_id, industry_id, product_id, stage_status, created_at, updated_at, is_naef)
+         VALUES ($1, $2, $3, $4, 'Draft', NOW(), NOW(), TRUE)
+         RETURNING id`,
+        [account_name, department_id, industry_id, product_brand_id]
+      );
+      finalAccountId = draftAccount.rows[0].id;
+    }
 
     // 1️⃣ Figure out the current year
     const currentYear = new Date().getFullYear();
@@ -174,7 +190,7 @@ router.post("/", async (req, res) => {
         woNumber,
         work_description,
         assignee,
-        account_id,
+        finalAccountId,   // 👈 draft or existing account
         is_new_account,
         mode,
         contact_person,
