@@ -26,9 +26,9 @@ export default function TechnicalsTable({ technicals, onView, onEdit }) {
           {technicals.map((tr) => (
             <tr key={tr.id} className="hover:bg-gray-50 transition-all duration-200">
               <td className="px-4 py-2 text-black text-sm">{tr.trNumber}</td>
-              <td className="px-4 py-2 text-black text-sm">{tr.accountId}</td>
+              <td className="px-4 py-2 text-black text-sm">{tr.accountName}</td>
               <td className="px-4 py-2 text-black text-sm">{tr.title}</td>
-              <td className="px-4 py-2 text-black text-sm">{tr.status}</td>
+              <td className="px-4 py-2 text-black text-sm">{tr.stageStatus}</td>
               <td className="px-4 py-2 text-black text-sm">{tr.priority}</td>
               <td className="px-4 py-2 text-black text-sm">{util.formatDate(tr.createdAt, "DD/MM/YYYY")}</td>
               <td className="px-4 py-2 text-black text-sm">{util.formatDate(tr.updatedAt, "DD/MM/YYYY")}</td>

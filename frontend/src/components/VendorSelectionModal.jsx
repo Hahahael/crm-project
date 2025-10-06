@@ -2,7 +2,6 @@ import React, { useState, useEffect } from "react";
 import { LuUser, LuPhone, LuMail, LuSearch, LuX } from "react-icons/lu";
 
 export default function VendorSelectionModal({ open, onClose, allVendors, selectedVendors, onSelectVendor, onAddVendors }) {
-    console.log("VendorSelectionModal - allVendors:", allVendors, "selectedVendors:", selectedVendors);
     const [search, setSearch] = useState("");
     const [visible, setVisible] = useState(open);
     const [isAnimating, setIsAnimating] = useState(false); // Initialize isAnimating state

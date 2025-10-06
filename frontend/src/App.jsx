@@ -10,6 +10,7 @@ import TechnicalsPage from "./pages/TechnicalsPage";
 import RFQsPage from "./pages/RFQsPage";
 import AccountsPage from "./pages/AccountsPage";
 import ApprovalsPage from "./pages/ApprovalsPage";
+import QuotationsPage from "./pages/QuotationsPage";
 
 function App() {
   return (
@@ -60,6 +61,14 @@ function App() {
             element={
               <ProtectedRoute>
                 <RFQsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/quotations"
+            element={
+              <ProtectedRoute>
+                <QuotationsPage />
               </ProtectedRoute>
             }
           />

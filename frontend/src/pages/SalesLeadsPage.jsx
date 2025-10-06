@@ -122,6 +122,8 @@ export default function SalesLeadsPage() {
                 });
             }
 
+            console.log("Fetched sales leads:", salesLeadsData);
+
             setTimeout(() => setLoading(false), 500);
         } catch (err) {
             console.error("Error retrieving salesleads:", err);

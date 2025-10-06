@@ -58,6 +58,19 @@ export function toArray(val) {
   return Array.isArray(val) ? val : [];
 }
 
+export function getVendorStatus(items) {
+  if (!Array.isArray(items) || items.length === 0) return "Pending";
+  const allHavePriceAndLeadTime = items.every(item =>
+      item.unitPrice && item.leadTime && item.unitPrice !== "" && item.leadTime !== ""
+  );
+  const someHavePriceOrLeadTime = items.some(item =>
+      item.unitPrice && item.leadTime && item.unitPrice !== "" && item.leadTime !== ""
+  );
+  if (allHavePriceAndLeadTime) return "Quoted";
+  if (someHavePriceOrLeadTime) return "In Progress";
+  return "Pending";
+}
+
 // ✅ Default export with all helpers
 export default {
   toCamel,
@@ -68,4 +81,5 @@ export default {
   formatDateTime,
   formatDateOnly,
   formatTimeOnly,
+  getVendorStatus
 };

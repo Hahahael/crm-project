@@ -13,8 +13,9 @@ const SalesLeadForm = ({ salesLead, mode = "create", onSave, onBack, onSubmit })
         endUser: "",
         designation: "",
         department: "",
+        accountDepartmentName: "",
         immediateSupport: "",
-        contactNo: "",
+        contactNumber: "",
         emailAddress: "",
 
         // Application Details
@@ -41,7 +42,10 @@ const SalesLeadForm = ({ salesLead, mode = "create", onSave, onBack, onSubmit })
 
         // Field Sales Lead Details
         account: "",
+        accountId: "",
+        accountName: "",
         industry: "",
+        industryName: "",
         seId: 0, // You may want to map "Michael Johnson" to a user ID in your users mock
         salesPlanRep: "",
         fslDate: "",
@@ -112,8 +116,9 @@ const SalesLeadForm = ({ salesLead, mode = "create", onSave, onBack, onSubmit })
                 endUser: "",
                 designation: "",
                 department: "",
+                accountDepartmentName: "",
                 immediateSupport: "",
-                contactNo: "",
+                contactNumber: "",
                 emailAddress: "",
 
                 // Application Details
@@ -141,6 +146,7 @@ const SalesLeadForm = ({ salesLead, mode = "create", onSave, onBack, onSubmit })
                 // Field Sales Lead Details
                 account: "",
                 industry: "",
+                industryName: "",
                 seId: 0, // You may want to map "Michael Johnson" to a user ID in your users mock
                 salesPlanRep: "",
                 fslDate: "",
@@ -337,10 +343,9 @@ const SalesLeadForm = ({ salesLead, mode = "create", onSave, onBack, onSubmit })
                         <input
                             id="endUser"
                             name="endUser"
-                            value={formData.endUser}
-                            onChange={handleChange}
-                            className={`col-span-5 w-full rounded-md border px-3 py-2 focus:outline-1
-                ${errors?.endUser ? "border-red-500" : "border-gray-200"}`}
+                            value={formData.accountName}
+                            readOnly
+                            className={`col-span-5 w-full rounded-md border border-gray-200 px-3 py-2 focus:outline-1 focus:outline-gray-200 focus:border-gray-400 text-gray-600`}
                         />
                     </div>
                     <div>
@@ -350,6 +355,7 @@ const SalesLeadForm = ({ salesLead, mode = "create", onSave, onBack, onSubmit })
                             name="salesStage"
                             value={formData.salesStage}
                             onChange={handleChange}
+                            placeholder="Select Sales Stage"
                             className={`col-span-5 w-full rounded-md border px-3 py-2 focus:outline-1
                 ${errors?.salesStage ? "border-red-500" : "border-gray-200"}`}>
                             <option value="Sales Lead">Sales Lead</option>
@@ -362,18 +368,15 @@ const SalesLeadForm = ({ salesLead, mode = "create", onSave, onBack, onSubmit })
                     </div>
                     <div>
                         <label htmlFor="department">Department</label>
-                        <select
+                        <input
                             id="department"
                             name="department"
-                            value={formData.department}
-                            onChange={handleChange}
-                            className={`col-span-5 w-full rounded-md border px-3 py-2 focus:outline-1
-                ${errors?.department ? "border-red-500" : "border-gray-200"}`}>
-                            <option value="Manufacturing">Manufacturing</option>
-                            <option value="Sales">Sales</option>
-                            <option value="Engineering">Engineering</option>
-                            <option value="Operations">Operations</option>
-                        </select>
+                            value={formData.accountDepartmentName}
+                            readOnly
+                            // onChange={handleChange}
+                            className={`col-span-5 w-full rounded-md border border-gray-200 px-3 py-2 focus:outline-1 focus:outline-gray-200 focus:border-gray-400 text-gray-600`}
+                            >
+                        </input>
                     </div>
                     <div>
                         <label htmlFor="designation">Designation</label>
@@ -387,14 +390,14 @@ const SalesLeadForm = ({ salesLead, mode = "create", onSave, onBack, onSubmit })
                         />
                     </div>
                     <div>
-                        <label htmlFor="contactNo">Contact No.</label>
+                        <label htmlFor="contactNumber">Contact No.</label>
                         <input
-                            id="contactNo"
-                            name="contactNo"
-                            value={formData.contactNo}
+                            id="contactNumber"
+                            name="contactNumber"
+                            value={formData.contactNumber}
                             onChange={handleChange}
                             className={`col-span-5 w-full rounded-md border px-3 py-2 focus:outline-1
-                ${errors?.contactNo ? "border-red-500" : "border-gray-200"}`}
+                ${errors?.contactNumber ? "border-red-500" : "border-gray-200"}`}
                         />
                     </div>
                     <div>
@@ -666,10 +669,10 @@ const SalesLeadForm = ({ salesLead, mode = "create", onSave, onBack, onSubmit })
                         <input
                             id="account"
                             name="account"
-                            value={formData.account}
-                            onChange={handleChange}
-                            className={`col-span-5 w-full rounded-md border px-3 py-2 focus:outline-1
-                ${errors?.account ? "border-red-500" : "border-gray-200"}`}
+                            value={formData.accountName}
+                            readOnly
+                            // onChange={handleChange}
+                            className={`col-span-5 w-full rounded-md border border-gray-200 px-3 py-2 focus:outline-1 focus:outline-gray-200 focus:border-gray-400 text-gray-600`}
                         />
                     </div>
                     <div>
@@ -677,26 +680,23 @@ const SalesLeadForm = ({ salesLead, mode = "create", onSave, onBack, onSubmit })
                         <input
                             id="endUser"
                             name="endUser"
-                            value={formData.endUser}
-                            onChange={handleChange}
-                            className={`col-span-5 w-full rounded-md border px-3 py-2 focus:outline-1
-                ${errors?.endUser ? "border-red-500" : "border-gray-200"}`}
+                            value={formData.accountName}
+                            // onChange={handleChange}
+                            readOnly
+                            className={`col-span-5 w-full rounded-md border border-gray-200 px-3 py-2 focus:outline-1 focus:outline-gray-200 focus:border-gray-400 text-gray-600`}
                         />
                     </div>
                     <div>
                         <label htmlFor="industry">Industry</label>
-                        <select
+                        <input
                             id="industry"
                             name="industry"
-                            value={formData.industry}
-                            onChange={handleChange}
-                            className={`col-span-5 w-full rounded-md border px-3 py-2 focus:outline-1
-                ${errors?.industry ? "border-red-500" : "border-gray-200"}`}>
-                            <option value="Manufacturing">Manufacturing</option>
-                            <option value="Automotive">Automotive</option>
-                            <option value="Pharmaceutical">Pharmaceutical</option>
-                            <option value="Food & Beverage">Food & Beverage</option>
-                        </select>
+                            value={formData.industryName}
+                            // onChange={handleChange}
+                            readOnly
+                            className={`col-span-5 w-full rounded-md border border-gray-200 px-3 py-2 focus:outline-1 focus:outline-gray-200 focus:border-gray-400 text-gray-600`}
+                            >
+                        </input>
                     </div>
                     <div>
                         <label htmlFor="designation">Designation</label>
@@ -710,14 +710,14 @@ const SalesLeadForm = ({ salesLead, mode = "create", onSave, onBack, onSubmit })
                         />
                     </div>
                     <div>
-                        <label htmlFor="contactNo">Contact No.</label>
+                        <label htmlFor="contactNumber">Contact No.</label>
                         <input
-                            id="contactNo"
-                            name="contactNo"
-                            value={formData.contactNo}
+                            id="contactNumber"
+                            name="contactNumber"
+                            value={formData.contactNumber}
                             onChange={handleChange}
                             className={`col-span-5 w-full rounded-md border px-3 py-2 focus:outline-1
-                ${errors?.contactNo ? "border-red-500" : "border-gray-200"}`}
+                ${errors?.contactNumber ? "border-red-500" : "border-gray-200"}`}
                         />
                     </div>
                     <div>
@@ -747,7 +747,7 @@ const SalesLeadForm = ({ salesLead, mode = "create", onSave, onBack, onSubmit })
                             <option value="New Installation">New Installation</option>
                         </select>
                     </div>
-                    <div>
+                    {/* <div>
                         <label htmlFor="seId">SE (Sales Engineer)</label>
                         <input
                             id="seId"
@@ -768,16 +768,16 @@ const SalesLeadForm = ({ salesLead, mode = "create", onSave, onBack, onSubmit })
                             onChange={handleChange}
                             className="col-span-5 w-full rounded-md border px-3 py-2 focus:outline-1 border-gray-200"
                         />
-                    </div>
+                    </div> */}
                     <div>
                         <label htmlFor="fslRef">FSL Ref</label>
                         <input
-                            id="fslRef"
-                            name="fslRef"
-                            value={formData.fslRef}
-                            onChange={handleChange}
-                            className="col-span-5 w-full rounded-md border px-3 py-2 focus:outline-1 border-gray-200"
-                            readOnly={true}
+                            id="slNumber"
+                            name="slNumber"
+                            value={formData.slNumber}
+                            // onChange={handleChange}
+                            className={`col-span-5 w-full rounded-md border border-gray-200 px-3 py-2 focus:outline-1 focus:outline-gray-200 focus:border-gray-400 text-gray-600`}
+                            readOnly
                         />
                     </div>
                     <div>

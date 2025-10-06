@@ -36,7 +36,66 @@ const ApprovalsPage = () => {
         }
     };
 
+    const fetchAllApprovals = async () => {
+        try {
+            const approvalsRes = await apiBackendFetch("/api/workflow-stages/");
+            if (!approvalsRes.ok) throw new Error("Failed to fetch all approvals");
+            const approvalsData = await approvalsRes.json();
+            console.log("Fetched all approvals:", approvalsData);
+        } catch (err) {
+            console.error("Failed to fetch all approvals");
+        }
+    }
+
+    
+    const fetchDetails = async () => {
+        console.log("fetchDetails called with selectedApproval:", selectedApproval, "actionApproval:", actionApproval);
+        let endpoint = "";
+        let moduleId = selectedApproval?.moduleId || actionApproval?.moduleId || null;
+        let stageName = selectedApproval?.stageName || actionApproval?.stageName || null;
+        console.log("Determined moduleId:", moduleId);
+        switch (stageName) {
+            case "Sales Lead":
+            case "sales_lead":
+                endpoint = `/api/salesleads/${moduleId}`;
+                break;
+            case "Technical Recommendation":
+            case "technical_recommendation":
+                endpoint = `/api/technicals/${moduleId}`;
+                break;
+            case "RFQ":
+            case "rfq":
+                endpoint = `/api/rfqs/${moduleId}`;
+                break;
+            case "Work Order":
+            case "workorder":
+                endpoint = `/api/workorders/${moduleId}`;
+                break;
+            case "Account":
+            case "account":
+            case "NAEF":
+                endpoint = `/api/accounts/${moduleId}`;
+                break;
+            default:
+                endpoint = null;
+        }
+        if (!endpoint) {
+            setDetailsData(null);
+            return;
+        }
+        try {
+            const res = await apiBackendFetch(endpoint);
+            if (!res.ok) throw new Error("Failed to fetch details");
+            const data = await res.json();
+            console.log("Fetched details for", endpoint, ":", data);
+            setDetailsData(data);
+        } catch {
+            setDetailsData(null);
+        }
+    };
+
     useEffect(() => {
+        fetchAllApprovals();
         fetchApprovals();
     }, []);
 
@@ -46,51 +105,22 @@ const ApprovalsPage = () => {
             setDetailsData(null);
             return;
         }
-        const fetchDetails = async () => {
-            let endpoint = "";
-            switch (selectedApproval.stageName || selectedApproval.module) {
-                case "Sales Lead":
-                case "sales_lead":
-                    endpoint = `/api/salesleads/${selectedApproval.moduleId}`;
-                    break;
-                case "Technical Recommendation":
-                case "technical_recommendation":
-                    endpoint = `/api/technicals/${selectedApproval.moduleId}`;
-                    break;
-                case "RFQ":
-                case "rfq":
-                    endpoint = `/api/rfqs/${selectedApproval.moduleId}`;
-                    break;
-                case "Work Order":
-                case "workorder":
-                    endpoint = `/api/workorders/${selectedApproval.moduleId}`;
-                    break;
-                case "Account":
-                case "account":
-                case "NAEF":
-                    endpoint = `/api/accounts/${selectedApproval.moduleId}`;
-                    break;
-                default:
-                    endpoint = null;
-            }
-            if (!endpoint) {
-                setDetailsData(null);
-                return;
-            }
-            try {
-                const res = await apiBackendFetch(endpoint);
-                if (!res.ok) throw new Error("Failed to fetch details");
-                const data = await res.json();
-                setDetailsData(data);
-            } catch {
-                setDetailsData(null);
-            }
-        };
         fetchDetails();
     }, [selectedApproval]);
 
+    // Fetch details when actionApproval changes
+    useEffect(() => {
+        if (!actionApproval) {
+            setDetailsData(null);
+            return;
+        }
+        fetchDetails();
+    }, [actionApproval]);
+
     // Modal open handler
     const handleAction = (row, type) => {
+        console.log("handleAction called with row:", row, "type:", type);
+        fetchDetails();
         setActionApproval(row);
         setModalType(type);
         setModalOpen(true);
@@ -101,12 +131,28 @@ const ApprovalsPage = () => {
         if (!actionApproval) return;
         console.log("Submitting modal with data:", form);
         console.log("Submitting modal with approval:", actionApproval);
+        console.log("Submitting modal with details:", detailsData);
         setSubmitting(true);
         try {
             const { assignee, dueDate, fromTime, toTime, remarks, nextStage } = form;
             let nextModuleType = null;
             let endpoint = "";
-            let payload = { woId: actionApproval.woId, assignee, dueDate, fromTime, toTime };
+            let payload = {
+                woId: actionApproval.woId,
+                accountId: actionApproval.accountId,
+                contactPerson: detailsData?.contactPerson || detailsData?.immediateSupport || '',
+                contactNumber: detailsData?.contactNumber || '',
+                contactEmail: detailsData?.contactEmail || detailsData?.emailAddress || '',
+                issues: detailsData?.issuesWithExisting || detailsData?.currentSystemIssues || '',
+                current: detailsData?.existingSpecifications || detailsData?.currentSystem || '',
+                priority: detailsData?.priority || '',
+                items: detailsData?.items || [],
+                assignee,
+                dueDate,
+                fromTime,
+                toTime,
+            };
+            let accountId;
             const currentType = actionApproval.stageName || actionApproval.module;
             if (modalType === "approve") {
                 if (currentType === "Sales Lead" || currentType === "sales_lead" || currentType === "Technical Recommendation" || currentType === "technical_recommendation") {
@@ -120,6 +166,7 @@ const ApprovalsPage = () => {
                             if (woRes.ok) {
                                 const woData = await woRes.json();
                                 woIsNew = !!woData.isNewAccount;
+                                accountId = woData.accountId
                             }
                         } catch {}
                     }
@@ -139,7 +186,13 @@ const ApprovalsPage = () => {
                         break;
                     case "NAEF":
                     case "naef":
-                        endpoint = "/api/accounts";
+                        endpoint = `/api/accounts/${accountId}`;
+                        payload = { 
+                            isNaef: true,
+                            stageStatus: "Draft",
+                            dueDate: form.dueDate,
+                            woId: actionApproval.woId,
+                            assignee };
                         break;
                     case "Quotations":
                     case "quotations":
@@ -171,9 +224,11 @@ const ApprovalsPage = () => {
                         })
                     });
 
+                    console.log("Creating next module at", endpoint, "with payload", payload);
+
                     // Create skeletal record for next module
                     const nextModuleRes = await apiBackendFetch(endpoint, {
-                        method: "POST",
+                        method: nextModuleType === "NAEF" ? "PUT" : "POST",
                         body: JSON.stringify(payload)
                     });
                     let nextModuleData = null;

@@ -12,11 +12,9 @@ const TABS = [
 ];
 
 export default function RFQFormWrapper({ rfq, tab, mode = "create", onBack, onSave }) {
-    console.log("RFQFormWrapper render", { rfq, tab, mode });
+    //console.log("RFQFormWrapper render", { rfq, tab, mode });
     const [activeTab, setActiveTab] = useState(tab);
-    const [vendors, setVendors] = useState([]);
     const [errors, setErrors] = useState([]);
-    const [rfqItems, setRfqItems] = useState([]);
     // LIFTED details form state
     const [formData, setFormData] = useState({
         rfqNumber: "",
@@ -31,8 +29,26 @@ export default function RFQFormWrapper({ rfq, tab, mode = "create", onBack, onSa
         vat: 0,
         grandTotal: 0,
         additionalNotes: "",
-        items: []
+        items: [],
+        vendors: []
     });
+
+    useEffect(() => {
+        if (formData.vendors && Array.isArray(formData.vendors)) {
+            const selectedVendorsByItem = {};
+            formData.vendors.forEach(vendor => {
+                if (Array.isArray(vendor.quotes)) {
+                    vendor.quotes.forEach(quote => {
+                        console.log("Quote:", quote);
+                        if (quote.isSelected) {
+                            selectedVendorsByItem[quote.itemId] = vendor.vendorId;
+                        }
+                    });
+                }
+            });
+            setFormData(prev => ({ ...prev, selectedVendorsByItem }));
+        }
+    }, [formData.vendors]);
 
     // Sync formData with rfq prop
     useEffect(() => {
@@ -56,60 +72,40 @@ export default function RFQFormWrapper({ rfq, tab, mode = "create", onBack, onSa
         }
     }, [rfq]);
 
-    // Always fetch vendors when rfq.id changes, and also when switching to vendors tab
     useEffect(() => {
-        async function fetchVendors() {
-            if (!rfq?.id) return;
-            try {
-                const rfqVendorsRes = await apiBackendFetch(`/api/rfqs/${rfq.id}/vendors`);
-                if (!rfqVendorsRes.ok) throw new Error("Failed to fetch RFQ Vendors");
-                const data = await rfqVendorsRes.json();
-                setVendors(data);
-            } catch (err) {
-                console.error("Failed to fetch vendors", err);
-            }
-        }
-        fetchVendors();
-    }, [rfq?.id]);
-
-    useEffect(() => {
-        if (activeTab === 'vendors' && rfq?.id) {
-            async function fetchVendors() {
-                try {
-                    const rfqVendorsRes = await apiBackendFetch(`/api/rfqs/${rfq.id}/vendors`);
-                    if (!rfqVendorsRes.ok) throw new Error("Failed to fetch RFQ Vendors");
-                    const data = await rfqVendorsRes.json();
-                    setVendors(data);
-                } catch (err) {
-                    console.error("Failed to fetch vendors", err);
+        if (formData.items && Array.isArray(formData.vendors) && formData.vendors.length > 0) {
+            const rfqItemIds = formData.items.map(item => item.itemId);
+            let needsUpdate = false;
+            const updatedVendors = formData.vendors.map(vendor => {
+                const vendorItemIds = vendor.quotes ? vendor.quotes.map(item => item.itemId) : [];
+                const missingItems = formData.items.filter(item => !vendorItemIds.includes(item.itemId));
+                const filteredItems = (vendor.quotes || []).filter(item => rfqItemIds.includes(item.itemId));
+                console.log("Vendor items sync check", { vendorId: vendor.id, rfqItemIds, vendorItemIds, missingItems });
+                console.log("Needs update?", { needsUpdate });
+                console.log("Vendor before update", vendor);
+                if (missingItems.length > 0 || vendorItemIds.some(id => !rfqItemIds.includes(id))) {
+                    needsUpdate = true;
                 }
-            }
-            fetchVendors();
-        }
-    }, [activeTab, rfq?.id]);
-
-    useEffect(() => {
-        async function fetchItems() {
-            if (!rfq?.id) return;
-            try {
-                const rfqItemsRes = await apiBackendFetch(`/api/rfqs/${rfq.id}/items`);
-                if (!rfqItemsRes.ok) throw new Error("Failed to fetch RFQ Items");
-                const data = await rfqItemsRes.json();
-                setRfqItems(data);
-            } catch (err) {
-                console.error("Failed to fetch items", err);
+                return {
+                    ...vendor,
+                    quotes: [...filteredItems, ...missingItems.map(item => ({ ...item, unitPrice: null, leadTime: "" }))]
+                };
+            });
+            if (needsUpdate) {
+                console.log("Updating vendors with synced items", updatedVendors);
+                setFormData(prev => ({ ...prev, vendors: updatedVendors }));
             }
         }
-        fetchItems();
-    }, [rfq?.id]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [formData.items, formData.vendors]);
 
     // Aggregated validation before save
     const validateAll = () => {
         const aggErrors = [];
         // Details validation
-        if (!formData?.rfqDate) aggErrors.push("RFQ Date is required.");
-        if (!formData?.dueDate) aggErrors.push("Due Date is required.");
-        if (!formData?.description) aggErrors.push("Description is required.");
+        // if (!formData?.rfqDate) aggErrors.push("RFQ Date is required.");
+        // if (!formData?.dueDate) aggErrors.push("Due Date is required.");
+        // if (!formData?.description) aggErrors.push("Description is required.");
         // // Items validation
         // if (!rfqItems || rfqItems.length === 0) aggErrors.push("At least one RFQ item is required.");
         // // Vendors validation
@@ -123,9 +119,7 @@ export default function RFQFormWrapper({ rfq, tab, mode = "create", onBack, onSa
         if (!validateAll()) return;
         // Aggregate all form data and pass to parent for saving
         if (onSave) {
-            onSave({
-                rfq: formData
-            }, mode);
+            onSave(formData, mode);
         }
     };
 
@@ -199,27 +193,14 @@ export default function RFQFormWrapper({ rfq, tab, mode = "create", onBack, onSa
                         <RFQDetailsForm
                             rfq={formData}
                             setFormData={setFormData}
-                            items={rfqItems}
                             mode={mode}
                         />
                     )}
                     {activeTab === "vendors" && (
                         <RFQVendorsForm
                             rfq={formData}
-                            items={rfqItems}
                             setFormData={setFormData}
-                            rfqVendors={vendors}
                             mode={mode}
-                            onVendorAction={(vendorId, action, vendorObj) => {
-                                if (action === "delete") {
-                                    setVendors((vendors) => vendors.filter((v) => v.id !== vendorId));
-                                } else if (action === "add" && vendorObj) {
-                                    setVendors((vendors) => {
-                                        if (vendors.some((v) => v.id === vendorObj.id)) return vendors;
-                                        return [...vendors, vendorObj];
-                                    });
-                                }
-                            }}
                         />
                     )}
                     {activeTab === "canvass" && (

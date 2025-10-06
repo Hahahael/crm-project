@@ -1,38 +1,127 @@
-import React from "react";
-import { LuDownload, LuPrinter, LuFileText, LuCircleCheckBig, LuTrendingDown, LuCircleAlert, LuClock } from "react-icons/lu";
+import { useState, useEffect } from "react";
+import { LuDownload, LuPrinter, LuFileText, LuCircleCheckBig, LuTrendingDown, LuCircleAlert, LuClock, LuCheck } from "react-icons/lu";
 
-export default function RFQCanvassSheet({ rfq, mode = "create", onSelectRecommended, onForApproval, onExportExcel, onExportPDF}) {
-    console.log("RFQCanvassSheet props:", { rfq, mode });
-    // Calculate summary, vendorTotals, and recommendedVendor from props
-    const totalItems = rfq.items.length;
-    const quotedVendors = rfq.vendors.length;
-
-    // Generate quotations array from items and vendors
-    const quotations = [];
-    rfq.items.forEach(item => {
-        rfq.vendors.forEach(vendor => {
-            // Find vendor's item for this rfq item
-            const vendorItem = Array.isArray(vendor.items)
-                ? vendor.items.find(vi => vi.id === item.id)
-                : undefined;
-            quotations.push({
-                itemId: item.id,
-                vendorId: vendor.id,
-                price: vendorItem ? (vendorItem.price ?? vendorItem.unitPrice ?? 0) : 0,
-                quantity: vendorItem ? (vendorItem.quantity ?? item.quantity ?? 1) : item.quantity ?? 1,
-                leadTime: vendorItem ? vendorItem.leadTime : '-',
-                leadTimeColor: vendorItem ? vendorItem.leadTimeColor : '',
-                total: vendorItem ? ((vendorItem.price ?? vendorItem.unitPrice ?? 0) * (vendorItem.quantity ?? item.quantity ?? 1)) : 0,
-                isSelected: item.bestVendorId === vendor.id // true if this vendor is selected for this item
-            });
+export default function RFQCanvassSheet({ rfq, mode = "create", setFormData, onForApproval, onExportExcel, onExportPDF }) {
+    const formData = rfq;
+    // Handler to select best vendor per item
+    const handleSelectRecommendedVendors = () => {
+        const newSelection = {};
+        const updatedItems = formData.items.map((item) => {
+            const itemQuotes = generateQuotations(selectedVendorsByItem).filter((q) => q.itemId === item.itemId);
+            const minTotal = Math.min(...itemQuotes.map((q) => q.total));
+            const bestQuote = itemQuotes.find((q) => q.total === minTotal);
+            if (bestQuote) {
+                newSelection[item.itemId] = bestQuote.vendorId;
+                // Update item fields with best quote
+                return {
+                    ...item,
+                    unitPrice: bestQuote.unitPrice,
+                    leadTime: bestQuote.leadTime,
+                    quantity: bestQuote.quantity,
+                    total: bestQuote.unitPrice * bestQuote.quantity
+                };
+            }
+            return item;
         });
+        setSelectedVendorsByItem(newSelection);
+        setFormData((prev) => ({ ...prev, items: updatedItems, selectedVendorsByItem: newSelection }));
+    };
+
+    const [selectedVendorsByItem, setSelectedVendorsByItem] = useState(() => {
+        // Initialize from formData.selectedVendorsByItem if available, else use bestVendorId
+        if (formData.selectedVendorsByItem && Object.keys(formData.selectedVendorsByItem).length > 0) {
+            return formData.selectedVendorsByItem;
+        }
+        const initial = {};
+        formData.items.forEach((item) => {
+            if (item.bestVendorId) initial[item.itemId] = item.bestVendorId;
+        });
+        return initial;
     });
 
+    // Generate quotations array from items and vendors as state, derived from rfq.items and rfq.vendors
+    const generateQuotations = (selectedVendorsByItem) => {
+        const arr = [];
+        formData.items.forEach((item) => {
+            formData.vendors.forEach((vendor) => {
+                const vendorItem = Array.isArray(vendor.quotes) ? vendor.quotes.find((q) => q.itemId === item.itemId) : undefined;
+                arr.push({
+                    itemId: item.itemId,
+                    vendorId: vendor.vendorId,
+                    unitPrice: vendorItem ? vendorItem.unitPrice ?? 0 : 0,
+                    quantity: vendorItem ? vendorItem.quantity ?? item.quantity ?? 1 : item.quantity ?? 1,
+                    leadTime: vendorItem ? vendorItem.leadTime : "-",
+                    leadTimeColor: vendorItem ? vendorItem.leadTimeColor : "",
+                    total: vendorItem ? (vendorItem.unitPrice ?? 0) * (vendorItem.quantity ?? item.quantity ?? 1) : 0,
+                    // FIX: isSelected should compare selected vendorId for this item
+                    isSelected: selectedVendorsByItem[item.itemId] === vendor.vendorId,
+                });
+            });
+        });
+        // Mark best option per item
+        formData.items.forEach((item) => {
+            const itemQuotes = arr.filter((q) => q.itemId === item.itemId);
+            const minTotal = Math.min(...itemQuotes.map((q) => q.total));
+            itemQuotes.forEach((q) => {
+                q.isBestOption = q.total === minTotal;
+            });
+        });
+        return arr;
+    };
+
+    const [quotations, setQuotations] = useState(() =>
+        generateQuotations(
+            {
+                ...formData.items.reduce((acc, item) => {
+                    if (item.bestVendorId) acc[item.itemId] = item.bestVendorId;
+                    return acc;
+                }, {}),
+            }
+        )
+    );
+
+    // Sync quotations when selectedVendorsByItem changes
+    useEffect(() => {
+        setQuotations(generateQuotations(selectedVendorsByItem));
+        // Persist selected vendors for each item in formData
+        setFormData(prev => ({ ...prev, selectedVendorsByItem }));
+    }, [selectedVendorsByItem, formData.items, formData.vendors]);
+
+    // Handler for selecting a vendor for an item
+    const handleSelectVendor = (itemId, vendorId) => {
+        // Find the selected quotation
+        const selectedQuote = quotations.find(q => q.itemId === itemId && q.vendorId === vendorId);
+        // Update all relevant fields in the item
+        const updatedItems = formData.items.map(item =>
+            item.itemId === itemId
+                ? {
+                    ...item,
+                    unitPrice: selectedQuote?.unitPrice ?? item.unitPrice,
+                    leadTime: selectedQuote?.leadTime ?? item.leadTime,
+                    quantity: selectedQuote?.quantity ?? item.quantity,
+                    total: selectedQuote ? selectedQuote.unitPrice * selectedQuote.quantity : item.total
+                }
+                : item
+        );
+        // Update selected vendors
+        const newSelection = { ...selectedVendorsByItem, [itemId]: vendorId };
+        setSelectedVendorsByItem(newSelection);
+        // Persist selected vendors for each item in formData
+        setFormData(prev => ({ ...prev, items: updatedItems, selectedVendorsByItem: newSelection }));
+    };
+
+    console.log("RFQCanvassSheet props:", { formData, mode });
+    // Calculate summary, vendorTotals, and recommendedVendor from props
+    const totalItems = formData.items?.length || 0;
+    const quotedVendors = formData.vendors?.length || 0;
+
+    console.log("Quotations:", quotations);
+
     // Mark best option per item
-    rfq.items.forEach(item => {
-        const itemQuotes = quotations.filter(q => q.itemId === item.id);
-        const minTotal = Math.min(...itemQuotes.map(q => q.total));
-        itemQuotes.forEach(q => {
+    formData.items.forEach((item) => {
+        const itemQuotes = quotations.filter((q) => q.itemId === item.itemId);
+        const minTotal = Math.min(...itemQuotes.map((q) => q.total));
+        itemQuotes.forEach((q) => {
             q.isBestOption = q.total === minTotal;
         });
     });
@@ -40,33 +129,31 @@ export default function RFQCanvassSheet({ rfq, mode = "create", onSelectRecommen
     console.log(quotations);
 
     // Calculate vendorTotals from quotations array
-    const vendorTotals = rfq.vendors.map(vendor => {
-        let total = quotations
-            .filter(q => q.vendorId === vendor.id)
-            .reduce((sum, q) => sum + q.total, 0);
+    const vendorTotals = formData.vendors.map((vendor) => {
+        let total = quotations.filter((q) => q.vendorId === vendor.vendorId).reduce((sum, q) => sum + q.total, 0);
         return {
-            id: vendor.id,
+            id: vendor.vendorId,
             name: vendor.name,
             total: total,
             recommended: false, // will be set below
-            diff: null // will be set below
+            diff: null, // will be set below
         };
     });
 
     // Find lowest total
-    const lowestTotal = vendorTotals.length > 0 ? Math.min(...vendorTotals.map(v => v.total)) : 0;
+    const lowestTotal = vendorTotals.length > 0 ? Math.min(...vendorTotals.map((v) => v.total)) : 0;
     // Mark recommended vendor (lowest total)
     let recommendedVendor = {};
-    vendorTotals.forEach(v => {
+    vendorTotals.forEach((v) => {
         if (v.total === lowestTotal) {
             v.recommended = true;
-            recommendedVendor = rfq.vendors.find(vendorObj => vendorObj.name === v.name) || {};
+            recommendedVendor = formData.vendors.find((vendorObj) => vendorObj.name === v.name) || {};
         } else {
             v.recommended = false;
         }
     });
     // Fill diff for non-recommended selectedVendors
-    vendorTotals.forEach(v => {
+    vendorTotals.forEach((v) => {
         if (!v.recommended) {
             v.diff = `+$${(v.total - lowestTotal).toFixed(2)}`;
         }
@@ -95,7 +182,9 @@ export default function RFQCanvassSheet({ rfq, mode = "create", onSelectRecommen
                         <LuDownload className="h-5 w-5 mr-1" />
                         Export Excel
                     </button>
-                    <button className="bg-primary text-white rounded-md px-4 py-2 flex items-center cursor-pointer" onClick={onExportPDF}>
+                    <button
+                        className="bg-primary text-white rounded-md px-4 py-2 flex items-center cursor-pointer"
+                        onClick={onExportPDF}>
                         type="button"
                         <LuPrinter className="h-5 w-5 mr-1" />
                         Export PDF
@@ -108,22 +197,22 @@ export default function RFQCanvassSheet({ rfq, mode = "create", onSelectRecommen
                 <SummaryCard
                     label="Total Items"
                     value={summary?.totalItems}
-                    icon={<LuFileText className='h-5 w-5 text-blue-500' />}
+                    icon={<LuFileText className="h-5 w-5 text-blue-500" />}
                 />
                 <SummaryCard
                     label="Quoted Vendors"
                     value={summary?.quotedVendors}
-                    icon={<LuCircleCheckBig className='h-5 w-5 text-green-500' />}
+                    icon={<LuCircleCheckBig className="h-5 w-5 text-green-500" />}
                 />
                 <SummaryCard
                     label="Lowest Total"
                     value={`$${summary?.lowestTotal}`}
-                    icon={<LuTrendingDown className='h-5 w-5 text-green-500' />}
+                    icon={<LuTrendingDown className="h-5 w-5 text-green-500" />}
                 />
                 <SummaryCard
                     label="Recommended"
                     value={recommendedVendor?.name}
-                    icon={<LuCircleAlert className='h-5 w-5 text-orange-500' />}
+                    icon={<LuCircleAlert className="h-5 w-5 text-orange-500" />}
                     highlight
                 />
             </div>
@@ -179,7 +268,7 @@ export default function RFQCanvassSheet({ rfq, mode = "create", onSelectRecommen
                             <tr>
                                 <th></th>
                                 <th className="text-left font-light">Item Details</th>
-                                {rfq.vendors.map((v) => (
+                                {formData.vendors.map((v) => (
                                     <th
                                         key={v.name}
                                         className="text-center min-w-[150px]">
@@ -193,12 +282,14 @@ export default function RFQCanvassSheet({ rfq, mode = "create", onSelectRecommen
                             </tr>
                         </thead>
                         <tbody>
-                            {rfq.items.map((item, idx) => (
-                                <tr key={item.id} className="divide-y divide-gray-200">
+                            {formData.items.map((item) => (
+                                <tr
+                                    key={item.itemId}
+                                    className="divide-y divide-gray-200">
                                     <td>{/* Checkbox or selection logic here */}</td>
                                     <td>
                                         <div>
-                                            <p className="font-medium">{item.label}</p>
+                                            <p className="font-medium">{item.name}</p>
                                             <p className="text-sm text-muted-foreground">
                                                 {item.brand} - {item.partNumber}
                                             </p>
@@ -207,39 +298,43 @@ export default function RFQCanvassSheet({ rfq, mode = "create", onSelectRecommen
                                             </p>
                                         </div>
                                     </td>
-                                    {rfq.vendors.map((v) => (
-                                        <td key={v.id} className="text-center">
-                                            {(() => {
-                                                // Find the quotations for this item and vendor
-                                                const quote = quotations.find(q => q.itemId === item.id && q.vendorId === v.id);
-                                                return (
-                                                    <div className={`p-2 rounded ${quote?.isSelected ? "bg-green-50 border border-green-200" : ""}`}>
-                                                        <p className="font-bold text-lg">{quote ? `$${quote.price}` : '-'}</p>
-                                                        <p className="text-sm text-muted-foreground">Total: {quote ? `$${quote.total}` : '-'}</p>
-                                                        <div className="flex items-center justify-center space-x-1 mt-1">
-                                                            <LuClock /> <span className={`text-xs ${quote?.leadTimeColor ?? ''}`}>{quote?.leadTime ?? '-'}</span>
-                                                        </div>
-                                                        {quote?.isSelected && (
-                                                            <div className="inline-flex items-center rounded-md border px-2.5 py-0.5 font-semibold bg-green-100 text-green-800 text-xs mt-1">
-                                                                Lowest
-                                                            </div>
-                                                        )}
+                                    {formData.vendors.map((v) => {
+                                        const quote = quotations.find((q) => q.itemId === item.itemId && q.vendorId === v.vendorId);
+                                        console.log("Quote", quote, "is selected:", quote?.isSelected);
+                                        return (
+                                            <td
+                                                key={v.vendorId}
+                                                className={`text-center cursor-pointer align-middle relative hover:bg-gray-100 transition-all duration-150 hover:bg-gray-50 ${
+                                                    quote?.isSelected ? "bg-blue-50" : ""
+                                                }`}
+                                                onClick={() => handleSelectVendor(item.itemId, v.vendorId)}>
+                                                <div className={`p-2 rounded transition-all duration-150 align-stretch relative`}>
+                                                    <p className="font-bold text-lg">{quote ? `$${quote.unitPrice}` : "-"}</p>
+                                                    <p className="text-sm text-muted-foreground">Total: {quote ? `$${quote.total}` : "-"}</p>
+                                                    <div className="flex items-center justify-center space-x-1 mt-1">
+                                                        <LuClock />{" "}
+                                                        <span className={`text-xs ${quote?.leadTimeColor ?? ""}`}>{quote?.leadTime ?? "-"}</span>
                                                     </div>
-                                                );
-                                            })()}
-                                        </td>
-                                    ))}
+                                                    {quote?.isBestOption && (
+                                                        <div className="inline-flex items-center rounded-md border px-2.5 py-0.5 font-semibold bg-green-100 text-green-800 text-xs mt-1">
+                                                            Best Option
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </td>
+                                        );
+                                    })}
                                     <td className="border-b border-gray-200">
                                         <div className="text-center">
                                             {(() => {
                                                 // Find the best option quote for this item
-                                                const bestQuote = quotations.find(q => q.itemId === item.id && q.isBestOption);
+                                                const bestQuote = quotations.find((q) => q.itemId === item.itemId && q.isBestOption);
                                                 if (bestQuote) {
-                                                    const bestVendor = rfq.vendors.find(v => v.id === bestQuote.vendorId);
+                                                    const bestVendor = formData.vendors.find((v) => v.vendorId === bestQuote.vendorId);
                                                     return (
                                                         <>
-                                                            <p className="font-bold text-green-600">{bestVendor ? bestVendor.name : '-'}</p>
-                                                            <p className="text-sm font-medium">{`$${bestQuote.price}`}</p>
+                                                            <p className="font-bold text-green-600">{bestVendor ? bestVendor.name : "-"}</p>
+                                                            <p className="text-sm font-medium">{`$${bestQuote.unitPrice}`}</p>
                                                         </>
                                                     );
                                                 }
@@ -260,8 +355,8 @@ export default function RFQCanvassSheet({ rfq, mode = "create", onSelectRecommen
                     <button
                         type="button"
                         className="bg-green-600 hover:bg-green-700 text-white rounded-md px-8 h-10"
-                        onClick={onSelectRecommended}>
-                        Select Recommended Vendor ({recommendedVendor.name})
+                        onClick={handleSelectRecommendedVendors}>
+                        Select Recommended Vendor
                     </button>
                 </div>
                 <button

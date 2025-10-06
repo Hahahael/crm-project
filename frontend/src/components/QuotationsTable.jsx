@@ -10,16 +10,17 @@ export default function QuotationsTable({ quotations, onView, onEdit }) {
       <table className="w-full border-collapse text-left text-sm min-w-4xl">
         <thead className="border-gray-200 border-b hover:bg-gray-100 transition-all duration-200">
           <tr>
-            <th className="px-4 py-2 font-normal text-gray-500 text-sm w-[8%]">Ref#</th>
-            <th className="px-4 py-2 font-normal text-gray-500 text-sm w-[8%]">Account</th>
+            <th className="px-4 py-2 font-normal text-gray-500 text-sm w-[8%]">Quotation #</th>
+            <th className="px-4 py-2 font-normal text-gray-500 text-sm w-[8%]">Type</th>
             <th className="px-4 py-2 font-normal text-gray-500 text-sm ">Title</th>
-            <th className="px-4 py-2 font-normal text-gray-500 text-sm w-[10%]">Status</th>
-            <th className="px-4 py-2 font-normal text-gray-500 text-sm w-[8%]">Priority</th>
-            <th className="px-4 py-2 font-normal text-gray-500 text-sm">Created Date</th>
-            <th className="px-4 py-2 font-normal text-gray-500 text-sm w-[7%]">Last Modified</th>
+            <th className="px-4 py-2 font-normal text-gray-500 text-sm w-[10%]">Customer</th>
+            <th className="px-4 py-2 font-normal text-gray-500 text-sm w-[8%]">Status</th>
+            <th className="px-4 py-2 font-normal text-gray-500 text-sm">Amount</th>
+            <th className="px-4 py-2 font-normal text-gray-500 text-sm w-[7%]">Submitted Date</th>
             <th className="px-4 py-2 font-normal text-gray-500 text-sm w-[7%]">Due Date</th>
             <th className="px-4 py-2 font-normal text-gray-500 text-sm w-[7%]">Done Date</th>
             <th className="px-4 py-2 font-normal text-gray-500 text-sm">Task Status</th>
+            <th className="px-4 py-2 font-normal text-gray-500 text-sm">Assigned To</th>
             <th className="px-4 py-2 font-normal text-gray-500 text-sm text-right w-[5%]">Actions</th>
           </tr>
         </thead>

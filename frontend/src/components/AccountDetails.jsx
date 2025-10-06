@@ -1,4 +1,4 @@
-import { LuArrowLeft, LuPencil, LuPrinter } from "react-icons/lu";
+import { LuArrowLeft, LuPencil, LuPrinter, LuFileCheck } from "react-icons/lu";
 import { useEffect } from "react";
 import { apiBackendFetch } from "../services/api.js";
 import utils from "../helper/utils";
@@ -11,6 +11,7 @@ const AccountDetails = ({
     onEdit,
     onAccountUpdated,
     onPrint,
+    onSubmit
 }) => {
     const isAssignedToMe = currentUser && account.preparedBy === currentUser.id;
     const isCreator = currentUser && account.preparedBy === currentUser.id;
@@ -81,6 +82,12 @@ const AccountDetails = ({
                         <LuPencil className="h-4 w-4 mr-2" />
                         Edit
                     </button>
+                    <button
+                        onClick={() => onSubmit(account)}
+                        className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-light shadow h-9 px-4 py-2 bg-purple-500 hover:bg-purple-600 text-white">
+                        <LuFileCheck className="mr-2" />
+                        Submit for Approval
+                    </button>
                 </div>
             </div>
 
@@ -95,15 +102,15 @@ const AccountDetails = ({
                     </div>
                     <div className="p-6">
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                            <Detail label="Date" value={account.date} />
-                            <Detail label="Requestor" value={account.requestor} />
+                            <Detail label="Date" value={utils.formatDate(account.createdAt, "DD/MM/YYYY")} />
+                            <Detail label="Requestor" value={account.requestBy} />
                             <Detail label="Ref #" value={account.refNumber} />
-                            <Detail label="Date" value={account.date} />
-                            <Detail label="Requestor" value={account.requestor} />
-                            <Detail label="Ref #" value={account.refNumber} />
-                            <Detail label="Date" value={account.date} />
-                            <Detail label="Requestor" value={account.requestor} />
-                            <Detail label="Ref #" value={account.refNumber} />
+                            <Detail label="Designation" value={account.designation} />
+                            <Detail label="Department" value={account.departmentName} />
+                            <Detail label="Validity Period" value={account.validityPeriod} />
+                            <Detail label="Due Date" value={utils.formatDate(account.dueDate, "DD/MM/YYYY") || "-"} />
+                            <Detail label="Done Date" value={utils.formatDate(account.doneDate, "DD/MM/YYYY") || "-"} />
+                            <Detail label="Delay Status" value={account.refNumber} />
                         </div>
                     </div>
                 </div>
@@ -112,20 +119,26 @@ const AccountDetails = ({
                 <div className="rounded-xl border border-gray-200 shadow-sm">
                     <div className="flex flex-col space-y-1.5 px-6 py-4 bg-blue-800 rounded-t-xl">
                         <h3 className="text-lg font-semibold leading-none tracking-tight text-white">
-                            Requestor Details
+                            Account Details
                         </h3>
                     </div>
                     <div className="p-6">
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                            <Detail label="Date" value={account.date} />
-                            <Detail label="Requestor" value={account.requestor} />
-                            <Detail label="Ref #" value={account.refNumber} />
-                            <Detail label="Date" value={account.date} />
-                            <Detail label="Requestor" value={account.requestor} />
-                            <Detail label="Ref #" value={account.refNumber} />
-                            <Detail label="Date" value={account.date} />
-                            <Detail label="Requestor" value={account.requestor} />
-                            <Detail label="Ref #" value={account.refNumber} />
+                            <Detail label="Account" value={account.accountName} />
+                            <Detail label="Contract Period" value={account.contractPeriod} />
+                            <Detail label="Industry" value={account.industryName} />
+                            <Detail label="Designation" value={account.designation} />
+                            <Detail label="Product" value={account.productBrandName} />
+                            <Detail label="Contact No." value={account.contactNumber} />
+                            <Detail label="Location" value={account.location} />
+                            <Detail label="Email Address" value={account.emailAddress} />
+                            <Detail label="Address" value={account.address} />
+                            <Detail label="Buyer Incharge" value={account.buyerIncharge} />
+                            <Detail label="Trunkline" value={account.trunkline} />
+                            <Detail label="Contract No" value={account.contractNumber} />
+                            <Detail label="Process" value={account.process} />
+                            <Detail label="Email Address" value={account.emailAddress} />
+                            <Detail label="Machines" value={account.machines} />
                         </div>
                     </div>
                 </div>
@@ -134,20 +147,26 @@ const AccountDetails = ({
                 <div className="rounded-xl border border-gray-200 shadow-sm">
                     <div className="flex flex-col space-y-1.5 px-6 py-4 bg-blue-800 rounded-t-xl">
                         <h3 className="text-lg font-semibold leading-none tracking-tight text-white">
-                            Requestor Details
+                            Justification
                         </h3>
                     </div>
                     <div className="p-6">
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                            <Detail label="Date" value={account.date} />
-                            <Detail label="Requestor" value={account.requestor} />
-                            <Detail label="Ref #" value={account.refNumber} />
-                            <Detail label="Date" value={account.date} />
-                            <Detail label="Requestor" value={account.requestor} />
-                            <Detail label="Ref #" value={account.refNumber} />
-                            <Detail label="Date" value={account.date} />
-                            <Detail label="Requestor" value={account.requestor} />
-                            <Detail label="Ref #" value={account.refNumber} />
+                            <Detail label="Reason to Apply" value={account.reasonToApply} />
+                            <Detail label="Automotive Section" value={account.automotiveSection} />
+                            <Detail label="Source of Inquiry" value={account.sourceOfInquiry} />
+                            <Detail label="Commodity" value={account.date} />
+                            <Detail label="Business Activity" value={account.requestor} />
+                            <Detail label="Model" value={account.refNumber} />
+                            <Detail label="Annual Target Sales" value={account.date} />
+                            <Detail label="Population" value={account.requestor} />
+                            <Detail label="Source of Target" value={account.refNumber} />
+                            <Detail label="Existing Bellow" value={account.date} />
+                            <Detail label="Products to Order" value={account.requestor} />
+                            <Detail label="Model Under" value={account.refNumber} />
+                            <Detail label="Target Areas" value={account.date} />
+                            <Detail label="Additional" value={account.requestor} />
+                            <Detail label="Analysis" value={account.refNumber} />
                         </div>
                     </div>
                 </div>
@@ -244,8 +263,11 @@ const AccountDetails = ({
                         </h3>
                     </div>
                     <div className="p-6 pt-0 grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <Detail label="Approved By" value={account.approvedBy} />
-                        <Detail label="Approved Date" value={account.approvedDate} />
+                        <Detail label="Prepared by" value={account.approvedBy} />
+                        <Detail label="Noted by" value={account.approvedDate} />
+                        <Detail label="Approved by" value={account.approvedDate} />
+                        <Detail label="Received by" value={account.approvedDate} />
+                        <Detail label="Acknowledge Approved by" value={account.approvedDate} />
                     </div>
                 </div>
             </div>

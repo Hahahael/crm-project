@@ -2,6 +2,7 @@ import { LuArrowLeft, LuPencil } from "react-icons/lu";
 import { useEffect } from "react";
 import { apiBackendFetch } from "../services/api";
 import config from "../config.js";
+import { formatDate } from "../helper/utils.js";
 
 const SalesLeadDetails = ({ salesLead, currentUser, onBack, onEdit, onSalesLeadUpdated, onSubmit }) => {
     const isAssignedToMe = currentUser && salesLead.assignee === currentUser.id;
@@ -105,7 +106,7 @@ const SalesLeadDetails = ({ salesLead, currentUser, onBack, onEdit, onSalesLeadU
                             />
                             <Detail
                                 label="End User"
-                                value={salesLead.endUser}
+                                value={salesLead.accountName}
                             />
                             <Detail
                                 label="Designation"
@@ -121,7 +122,7 @@ const SalesLeadDetails = ({ salesLead, currentUser, onBack, onEdit, onSalesLeadU
                             />
                             <Detail
                                 label="Contact Number"
-                                value={salesLead.contactNo}
+                                value={salesLead.contactNumber}
                             />
                             <Detail
                                 label="Email Address"
@@ -215,7 +216,7 @@ const SalesLeadDetails = ({ salesLead, currentUser, onBack, onEdit, onSalesLeadU
                             />
                             <Detail
                                 label="Next Follow-up Date"
-                                value={salesLead.nextFollowupDate}
+                                value={formatDate(salesLead.nextFollowupDate, "DD/MM/YYYY")}
                             />
                         </div>
                     </div>
@@ -231,15 +232,15 @@ const SalesLeadDetails = ({ salesLead, currentUser, onBack, onEdit, onSalesLeadU
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                             <Detail
                                 label="Account"
-                                value={salesLead.account}
+                                value={salesLead.accountName}
                             />
-                            <Detail
+                            {/* <Detail
                                 label="Sales Engineer"
                                 value={salesLead.seUsername || salesLead.seId}
-                            />
+                            /> */}
                             <Detail
                                 label="Date"
-                                value={salesLead.fslDate}
+                                value={formatDate(salesLead.fslDate, "DD/MM/YYYY")}
                             />
                             <Detail
                                 label="Time"
@@ -249,10 +250,10 @@ const SalesLeadDetails = ({ salesLead, currentUser, onBack, onEdit, onSalesLeadU
                                 label="Location"
                                 value={salesLead.fslLocation}
                             />
-                            <Detail
+                            {/* <Detail
                                 label="PO Ref"
-                                value={salesLead.fslRef}
-                            />
+                                value={salesLead.slNumber}
+                            /> */}
                             <Detail
                                 label="Concept"
                                 value={salesLead.requirement}
@@ -263,7 +264,7 @@ const SalesLeadDetails = ({ salesLead, currentUser, onBack, onEdit, onSalesLeadU
                             />
                             <Detail
                                 label="Deadline"
-                                value={salesLead.deadline}
+                                value={formatDate(salesLead.deadline, "DD/MM/YYYY")}
                             />
                         </div>
                         <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">

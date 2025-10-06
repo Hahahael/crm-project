@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
+import { LuX } from "react-icons/lu";
 
 export default function VendorEditModal({ open, onClose, vendor, onSave }) {
-    console.log("VendorEditModal - vendor:", vendor);
     // Local state for transitions
     const [visible, setVisible] = useState(open);
     const [isAnimating, setIsAnimating] = useState(false);
@@ -10,7 +10,20 @@ export default function VendorEditModal({ open, onClose, vendor, onSave }) {
     const [paymentTerms, setPaymentTerms] = useState(vendor?.paymentTerms || "");
     const [validUntil, setValidUntil] = useState(vendor?.validUntil || "");
     const [notes, setNotes] = useState(vendor?.notes || "");
-    const [items, setItems] = useState(vendor?.items || []);
+    const [quotes, setQuotes] = useState(vendor?.quotes || []);
+    const [subtotal, setSubtotal] = useState(vendor?.subtotal || 0);
+    const [vat, setVat] = useState(vendor?.vat || 0);
+    const [grandTotal, setGrandTotal] = useState(vendor?.grandTotal || 0);
+    console.log("VendorEditModal - initial quotes:", quotes);
+    const hasInitialized = useRef(false);
+
+    useEffect(() => {
+    if (!hasInitialized.current && Array.isArray(vendor?.quotes) && vendor.quotes.length > 0) {
+        setQuotes(vendor.quotes);
+        hasInitialized.current = true;
+    }
+
+    }, [vendor]);
     useEffect(() => {
         if (open) {
             setVisible(true);
@@ -22,11 +35,14 @@ export default function VendorEditModal({ open, onClose, vendor, onSave }) {
         }
     }, [open]);
 
-    console.log("VendorEditModal - visible:", visible, "isAnimating:", isAnimating);
+    useEffect(() => {
+        const sub = quotes.reduce((sum, item) => sum + item.quantity * item.unitPrice, 0);
+        setSubtotal(sub);
+        setVat(sub * 0.05);
+        setGrandTotal(sub * 1.05);
+    }, [quotes]);
 
     if (!open && !visible) return null;
-
-    console.log("2. VendorEditModal - visible:", visible, "isAnimating:", isAnimating);
 
     // Overlay transition
     const overlayClass = `fixed inset-0 z-40 bg-black bg-opacity-40 transition-opacity duration-300 ease-in-out ${
@@ -40,7 +56,7 @@ export default function VendorEditModal({ open, onClose, vendor, onSave }) {
 
     // Handlers
     const handleItemChange = (idx, field, value) => {
-        setItems((items) => items.map((item, i) => (i === idx ? { ...item, [field]: value } : item)));
+        setQuotes((quotes) => quotes.map((item, i) => (i === idx ? { ...item, [field]: value } : item)));
     };
 
     const handleSave = () => {
@@ -49,7 +65,10 @@ export default function VendorEditModal({ open, onClose, vendor, onSave }) {
             paymentTerms,
             validUntil,
             notes,
-            items
+            quotes,
+            subtotal,
+            vat,
+            grandTotal
         });
 
         console.log("Saved vendor data:", {
@@ -57,7 +76,10 @@ export default function VendorEditModal({ open, onClose, vendor, onSave }) {
             paymentTerms,
             validUntil,
             notes,
-            items
+            quotes,
+            subtotal,
+            vat,
+            grandTotal
         });
     };
 
@@ -79,20 +101,8 @@ export default function VendorEditModal({ open, onClose, vendor, onSave }) {
                     type="button"
                     className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
                     onClick={onClose}>
-                    <svg
-                        width="15"
-                        height="15"
-                        viewBox="0 0 15 15"
-                        fill="none"
-                        xmlns="http://www.w3.org/2000/svg"
-                        className="h-4 w-4">
-                        <path
-                            d="M11.7816 4.03157C12.0062 3.80702 12.0062 3.44295 11.7816 3.2184C11.5571 2.99385 11.193 2.99385 10.9685 3.2184L7.50005 6.68682L4.03164 3.2184C3.80708 2.99385 3.44301 2.99385 3.21846 3.2184C2.99391 3.44295 2.99391 3.80702 3.21846 4.03157L6.68688 7.49999L3.21846 10.9684C2.99391 11.193 2.99391 11.557 3.21846 11.7816C3.44301 12.0061 3.80708 12.0061 4.03164 11.7816L7.50005 8.31316L10.9685 11.7816C11.193 12.0061 11.5571 12.0061 11.7816 11.7816C12.0062 11.557 12.0062 11.193 11.7816 10.9684L8.31322 7.49999L11.7816 4.03157Z"
-                            fill="currentColor"
-                            fillRule="evenodd"
-                            clipRule="evenodd"></path>
-                    </svg>
-                    <span className="sr-only">Close</span>
+                        <LuX className="h-4 w-4" />
+                        <span className="sr-only">Close</span>
                 </button>
                 {/* Header */}
                 <div className="flex flex-col space-y-1.5 text-center sm:text-left">
@@ -152,19 +162,19 @@ export default function VendorEditModal({ open, onClose, vendor, onSave }) {
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y">
-                                        {items.map((item, idx) => (
+                                        {quotes.map((q, idx) => (
                                             <tr key={idx}>
-                                                <td className="p-3">{item.name}</td>
-                                                <td className="p-3">{item.brand}</td>
-                                                <td className="p-3">{item.description}</td>
-                                                <td className="p-3">{item.partNumber}</td>
-                                                <td className="p-3">{item.quantity}</td>
-                                                <td className="p-3">{item.unit}</td>
+                                                <td className="p-3">{q.name}</td>
+                                                <td className="p-3">{q.brand}</td>
+                                                <td className="p-3">{q.description}</td>
+                                                <td className="p-3">{q.partNumber}</td>
+                                                <td className="p-3">{q.quantity}</td>
+                                                <td className="p-3">{q.unit}</td>
                                                 <td className="p-3">
                                                     <input
                                                         className="flex h-9 rounded-md border border-gray-300 bg-white px-3 py-1 text-sm shadow-sm w-24 focus:outline-none focus:ring-1 focus:ring-blue-500"
                                                         placeholder="Lead time"
-                                                        value={item.leadTime}
+                                                        value={q.leadTime}
                                                         onChange={(e) => handleItemChange(idx, "leadTime", e.target.value)}
                                                     />
                                                 </td>
@@ -173,11 +183,11 @@ export default function VendorEditModal({ open, onClose, vendor, onSave }) {
                                                         type="number"
                                                         className="flex h-9 rounded-md border border-gray-300 bg-white px-3 py-1 text-sm shadow-sm w-24 focus:outline-none focus:ring-1 focus:ring-blue-500"
                                                         step="0.01"
-                                                        value={item.price}
-                                                        onChange={(e) => handleItemChange(idx, "price", e.target.value)}
+                                                        value={q.unitPrice}
+                                                        onChange={(e) => handleItemChange(idx, "unitPrice", e.target.value)}
                                                     />
                                                 </td>
-                                                <td className="p-3 font-medium">Php {(item.quantity * item.price).toFixed(2)}</td>
+                                                <td className="p-3 font-medium">Php {(q.quantity * q.unitPrice).toFixed(2)}</td>
                                             </tr>
                                         ))}
                                     </tbody>
@@ -190,18 +200,18 @@ export default function VendorEditModal({ open, onClose, vendor, onSave }) {
                                         <div className="flex justify-between w-48">
                                             <span>Subtotal:</span>
                                             <span className="font-medium">
-                                                ${items.reduce((sum, item) => sum + item.quantity * item.price, 0).toFixed(2)}
+                                                ${subtotal.toFixed(2)}
                                             </span>
                                         </div>
                                         <div className="flex justify-between w-48">
-                                            <span>VAT (7%):</span>
+                                            <span>VAT (5%):</span>
                                             <span className="font-medium">
-                                                ${(items.reduce((sum, item) => sum + item.quantity * item.price, 0) * 0.07).toFixed(2)}
+                                                ${vat.toFixed(2)}
                                             </span>
                                         </div>
                                         <div className="flex justify-between w-48 text-lg font-bold border-t pt-1">
                                             <span>Grand Total:</span>
-                                            <span>${(items.reduce((sum, item) => sum + item.quantity * item.price, 0) * 1.07).toFixed(2)}</span>
+                                            <span>${grandTotal.toFixed(2)}</span>
                                         </div>
                                     </div>
                                 </div>

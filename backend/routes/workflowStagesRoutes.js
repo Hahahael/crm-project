@@ -78,6 +78,20 @@ router.get("/latest-submitted", async (req, res) => {
             LEFT JOIN users u ON ws.assigned_to = u.id
             LEFT JOIN accounts a ON wo.account_id = a.id
             WHERE ws.status = 'Submitted' AND ws.stage_name = 'Work Order'
+
+            UNION ALL
+
+        SELECT ws.id AS workflow_stage_id, ws.created_at AS submitted_date, ws.stage_name, ws.status, ws.wo_id, ws.assigned_to, ws.remarks, u.username AS submitted_by, 'account' AS module, a.ref_number AS transaction_number, a.id AS module_id, a.id AS account_id, a.account_name AS account_name
+            FROM workflow_stages ws
+            INNER JOIN (
+                SELECT wo_id, MAX(created_at) AS max_created
+                FROM workflow_stages
+                GROUP BY wo_id
+            ) latest ON ws.wo_id = latest.wo_id AND ws.created_at = latest.max_created
+            LEFT JOIN workorders wo ON ws.wo_id = wo.id
+            LEFT JOIN accounts a ON wo.account_id = a.id
+            LEFT JOIN users u ON ws.assigned_to = u.id
+            WHERE ws.status = 'Submitted' AND (ws.stage_name = 'Account' OR ws.stage_name = 'NAEF')
         `;
         const { rows } = await db.query(unionQuery);
         console.log("Latest submitted workflow stages:", rows);

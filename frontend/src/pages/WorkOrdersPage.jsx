@@ -170,7 +170,9 @@ export default function WorkOrdersPage() {
         body: JSON.stringify({
           accountId: passedWO.accountId,
           woId: passedWO.id,
-          assignee: passedWO.assignee
+          assignee: passedWO.assignee,
+          contactPerson: passedWO.contactPerson,
+          contactNumber: passedWO.contactNumber
         })
       });
       if (!res || !res.ok) throw new Error("Failed to create sales lead");

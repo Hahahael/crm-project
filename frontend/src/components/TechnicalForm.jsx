@@ -303,7 +303,7 @@ const TechnicalForm = ({ technicalReco, mode, onSave, onBack, onSubmitForApprova
                                     TR#
                                 </label>
                                 <input
-                                    className="flex h-9 w-full rounded-md border border-input px-3 py-1 text-sm shadow-sm bg-yellow-50"
+                                    className={`col-span-5 text-sm w-full rounded-md border border-gray-200 px-3 py-2 focus:outline-1 focus:outline-gray-200 focus:border-gray-400 text-gray-600`}
                                     id="trNumber"
                                     name="trNumber"
                                     value={formData.trNumber}
@@ -361,7 +361,7 @@ const TechnicalForm = ({ technicalReco, mode, onSave, onBack, onSubmitForApprova
                                     Title
                                 </label>
                                 <input
-                                    className={`flex h-9 w-full rounded-md border border-input px-3 py-1 text-sm shadow-sm bg-yellow-50
+                                    className={`flex h-9 w-full rounded-md border border-input px-3 py-2 text-sm shadow-sm bg-yellow-50
                                         ${errors?.title ? "border-red-500" : "border-gray-200"}`}
                                     id="title"
                                     name="title"
@@ -377,7 +377,7 @@ const TechnicalForm = ({ technicalReco, mode, onSave, onBack, onSubmitForApprova
                                     Sales Lead Reference
                                 </label>
                                 <input
-                                    className="flex h-9 w-full rounded-md border border-gray-200 px-3 py-1 text-sm shadow-sm bg-yellow-50"
+                                    className={`col-span-5 text-sm w-full rounded-md border border-gray-200 px-3 py-2 focus:outline-1 focus:outline-gray-200 focus:border-gray-400 text-gray-600`}
                                     id="salesLeadRef"
                                     name="salesLeadRef"
                                     value={formData.slNumber}
@@ -397,9 +397,9 @@ const TechnicalForm = ({ technicalReco, mode, onSave, onBack, onSubmitForApprova
                                 <input
                                     id="accountId"
                                     name="accountId"
-                                    value={formData.accountId}
-                                    className={`flex h-9 w-full rounded-md border border-input px-3 py-1 text-sm shadow-sm bg-yellow-50
-                                        ${errors?.accountId ? "border-red-500" : "border-gray-200"}`}
+                                    value={formData.accountName}
+                                    readOnly
+                                    className={`col-span-5 text-sm w-full rounded-md border border-gray-200 px-3 py-2 focus:outline-1 focus:outline-gray-200 focus:border-gray-400 text-gray-600`}
                                     onChange={handleChange}
                                 />
                             </div>
@@ -413,7 +413,7 @@ const TechnicalForm = ({ technicalReco, mode, onSave, onBack, onSubmitForApprova
                                     id="contactPerson"
                                     name="contactPerson"
                                     value={formData.contactPerson}
-                                    className={`flex h-9 w-full rounded-md border border-input px-3 py-1 text-sm shadow-sm bg-yellow-50
+                                    className={`flex h-9 w-full rounded-md border border-input px-3 py-2 text-sm shadow-sm bg-yellow-50
                                         ${errors?.contactPerson ? "border-red-500" : "border-gray-200"}`}
                                     onChange={handleChange}
                                 />
@@ -429,7 +429,7 @@ const TechnicalForm = ({ technicalReco, mode, onSave, onBack, onSubmitForApprova
                                     id="contactEmail"
                                     name="contactEmail"
                                     value={formData.contactEmail}
-                                    className={`flex h-9 w-full rounded-md border border-input px-3 py-1 text-sm shadow-sm bg-yellow-50
+                                    className={`flex h-9 w-full rounded-md border border-input px-3 py-2 text-sm shadow-sm bg-yellow-50
                                         ${errors?.contactEmail ? "border-red-500" : "border-gray-200"}`}
                                     onChange={handleChange}
                                 />
@@ -444,7 +444,7 @@ const TechnicalForm = ({ technicalReco, mode, onSave, onBack, onSubmitForApprova
                                     id="contactNumber"
                                     name="contactNumber"
                                     value={formData.contactNumber}
-                                    className={`flex h-9 w-full rounded-md border border-input px-3 py-1 text-sm shadow-sm bg-yellow-50
+                                    className={`flex h-9 w-full rounded-md border border-input px-3 py-2 text-sm shadow-sm bg-yellow-50
                                         ${errors?.contactNumber ? "border-red-500" : "border-gray-200"}`}
                                     onChange={handleChange}
                                 />
@@ -557,7 +557,7 @@ const TechnicalForm = ({ technicalReco, mode, onSave, onBack, onSubmitForApprova
                                                                     itm.id === item.id ? { ...itm, showDropdown: true, searchQuery: e.target.value } : itm
                                                                 ));
                                                             }}
-                                                            className="w-full rounded border border-gray-200 px-2 py-1 text-sm"
+                                                            className="w-full rounded border border-gray-200 px-2 py-2 text-sm"
                                                             onFocus={() => setTrItems((prevItems) => prevItems.map((itm) =>
                                                                 itm.id === item.id ? { ...itm, showDropdown: true } : itm
                                                             ))}
@@ -584,7 +584,7 @@ const TechnicalForm = ({ technicalReco, mode, onSave, onBack, onSubmitForApprova
                                                                                         model: itm.model || "",
                                                                                         description: itm.description || "",
                                                                                         quantity: it.quantity || 1,
-                                                                                        price: itm.price || 0,
+                                                                                        unitPrice: itm.unitPrice || 0,
                                                                                         showDropdown: false,
                                                                                         searchQuery: ""
                                                                                     } : it
@@ -607,7 +607,7 @@ const TechnicalForm = ({ technicalReco, mode, onSave, onBack, onSubmitForApprova
                                                         type="text"
                                                         value={item.model || ""}
                                                         readOnly
-                                                        className="w-full rounded border border-gray-200 px-2 py-1 text-sm bg-gray-100"
+                                                        className="w-full rounded border border-gray-200 px-2 py-2 text-sm bg-gray-100"
                                                     />
                                                 </td>
                                                 <td className="text-sm p-2 align-middle">
@@ -615,7 +615,7 @@ const TechnicalForm = ({ technicalReco, mode, onSave, onBack, onSubmitForApprova
                                                         type="text"
                                                         value={item.description || ""}
                                                         readOnly
-                                                        className="w-full rounded border border-gray-200 px-2 py-1 text-sm bg-gray-100"
+                                                        className="w-full rounded border border-gray-200 px-2 py-2 text-sm bg-gray-100"
                                                     />
                                                 </td>
                                                 <td className="text-sm p-2 align-middle">
@@ -623,7 +623,7 @@ const TechnicalForm = ({ technicalReco, mode, onSave, onBack, onSubmitForApprova
                                                         type="number"
                                                         min="1"
                                                         value={item.quantity}
-                                                        className="w-full rounded border border-gray-200 px-2 py-1 text-sm bg-white"
+                                                        className="w-full rounded border border-gray-200 px-2 py-2 text-sm bg-white"
                                                         onChange={e => {
                                                             const value = Math.max(1, Number(e.target.value));
                                                             onItemChange(item.id, "quantity", value);
@@ -633,9 +633,9 @@ const TechnicalForm = ({ technicalReco, mode, onSave, onBack, onSubmitForApprova
                                                 <td className="text-sm p-2 align-middle">
                                                     <input
                                                         type="text"
-                                                        value={item.price}
+                                                        value={item.unitPrice}
                                                         readOnly
-                                                        className="w-full rounded border border-gray-200 px-2 py-1 text-sm bg-gray-100"
+                                                        className="w-full rounded border border-gray-200 px-2 py-2 text-sm bg-gray-100"
                                                     />
                                                 </td>
                                                 <td className="text-sm p-2 align-middle">
@@ -716,33 +716,6 @@ const TechnicalForm = ({ technicalReco, mode, onSave, onBack, onSubmitForApprova
                                 value={formData.maintenanceRequirements}
                                 onChange={handleChange}
                                 placeholder="Describe the proposed solution in detail"
-                            />
-                        </div>
-                    </div>
-                </div>
-
-                {/* Products Recommendation */}
-                <div className="rounded-xl border border-gray-200 p-6 shadow-sm">
-                    <div className="flex flex-col space-y-1.5 p-6">
-                        <h3 className="font-bold leading-none tracking-tight">Product Recommendations</h3>
-                        <p className="text-sm text-gray-500">Specify the products recommended for this solution</p>
-                    </div>
-                    <div className="p-6 pt-0 space-y-4">
-                        <div>
-                            <label
-                                className="text-sm font-medium"
-                                htmlFor="productsPlaceholder">
-                                Products Placeholder
-                            </label>
-                            <textarea
-                                className="flex min-h-[60px] w-full rounded-md border border-input px-3 py-2 text-sm shadow-sm bg-yellow-50"
-                                id="productsPlaceholder"
-                                name="productsPlaceholder"
-                                rows={3}
-                                value={formData.productsPlaceholder}
-                                onChange={handleChange}
-                                placeholder="Describe the current system in detail"
-                                isReadOnly={true}
                             />
                         </div>
                     </div>

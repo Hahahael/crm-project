@@ -56,6 +56,8 @@ export default function AccountsPage() {
             // }
             setTimeout(() => setLoading(false), 500);
         } catch (err) {
+            setAccounts([]);
+            setTimeout(() => setLoading(false), 500);
             console.error("Error retrieving accounts:", err);
             setError("Failed to fetch accounts.");
         }
@@ -119,46 +121,26 @@ export default function AccountsPage() {
     );
 
     const handleSave = async (formData, mode) => {
-        console.log("Saving technical recommendation:", formData, "Mode:", mode);
+        console.log("Saving account:", formData, "Mode:", mode);
         try {
             console.log(formData.id);
-            const response = await apiBackendFetch(mode === "edit" ? `/api/technicals/${formData.id}` : "/api/technicals", {
+            const response = await apiBackendFetch(`/api/accounts/${formData.id}`, {
                 method: mode === "edit" ? "PUT" : "POST",
-                body: mode === "edit" ? JSON.stringify(formData) : JSON.stringify({ ...formData, woId: formData.id, assignee: currentUser.id }), // include woId for backend processing
+                body: JSON.stringify(formData)
             });
 
-            if (!response.ok) throw new Error("Failed to save technical recommendation");
+            if (!response.ok) throw new Error("Failed to save account");
             const savedAccount = await response.json();
 
-            if (mode === "edit") {
-                // Fetch the workflow stage for this workorder and stage name
-                const wsRes = await apiBackendFetch(`/api/workflowstages/workorder/${savedAccount.woId}`);
-                if (wsRes.ok) {
-                    const stages = await wsRes.json();
-                    // Find the "NAEF" stage
-                    const naefStage = stages.find((s) => s.stage_name === "NAEF");
-                    if (naefStage) {
-                        await apiBackendFetch(`/api/workflowstages/${naefStage.woId}`, {
-                            method: "PUT",
-                            body: JSON.stringify({
-                                status: savedAccount.status || "Pending",
-                                assigned_to: savedAccount.assignee,
-                            }),
-                        });
-                    }
-                }
-            } else {
-                // Create a new workflow stage for this sales lead
-                await apiBackendFetch("/api/workflowstages", {
-                    method: "POST",
-                    body: JSON.stringify({
-                        wo_id: savedAccount.woId,
-                        stage_name: "NAEF",
-                        status: savedAccount.status || "Pending",
-                        assigned_to: savedAccount.assignee,
-                    }),
-                });
-            }
+            await apiBackendFetch("/api/workflowstages", {
+                method: "POST",
+                body: JSON.stringify({
+                    wo_id: savedAccount.woId,
+                    stage_name: "NAEF",
+                    status: savedAccount.status || "Pending",
+                    assigned_to: savedAccount.assignee,
+                }),
+            });
 
             // Fetch all workflow stages and log them
             const stagesRes = await apiBackendFetch("/api/workflow-stages");
@@ -176,6 +158,41 @@ export default function AccountsPage() {
             setError("Failed to save NAEF Stage");
         }
     };
+
+    const handleSubmitForApproval = async (formData) => {
+        try {
+            // Set status to Submitted
+            const submitData = { ...formData, status: "Submitted" };
+            const response = await apiBackendFetch(`/api/accounts/${formData.id}`, {
+                method: "PUT",
+                body: JSON.stringify(submitData),
+            });
+            if (!response.ok) throw new Error("Failed to submit account for approval");
+            const savedAccount = await response.json();
+
+            // Create workflow stage for new account
+            const result = await apiBackendFetch("/api/workflow-stages", {
+                method: "POST",
+                body: JSON.stringify({
+                    wo_id: savedAccount.id,
+                    stage_name: "NAEF",
+                    status: "Submitted",
+                    assigned_to: savedAccount.assignee,
+                }),
+            });
+
+            console.log("Workflow stage created:", result);
+
+            setSuccessMessage("Account submitted for approval!");
+            setSelectedAccount(null);
+            setEditingAccount(null);
+            await fetchAllData();
+            await fetchNewAssignedNAEFs();
+        } catch (err) {
+            console.error("Error submitting for approval:", err);
+            setError("Failed to submit technical recommendation for approval");
+        }
+    }
   // Placeholder for state and logic
   return (
     <div className="relative w-full h-full overflow-hidden bg-white">
@@ -363,6 +380,7 @@ export default function AccountsPage() {
                         setAccounts((prev) => prev.map((tr) => (tr.id === updatedTR.id ? updatedTR : tr)));
                         fetchNewAssignedNAEFs(); // <-- refresh from backend
                     }}
+                    onSubmit={(formData) => handleSubmitForApproval(formData)}
                 />
             )}
         </div>

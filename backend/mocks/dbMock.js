@@ -125,7 +125,7 @@ mem.public.none(`
   stage_status VARCHAR(20) DEFAULT 'draft',
     ref_number VARCHAR(20) UNIQUE,
     date_created TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    requested_by INT REFERENCES users(id) ON DELETE SET NULL,
+    requested_by VARCHAR(100),
     designation VARCHAR(100),
     department_id INT REFERENCES account_departments(id) ON DELETE SET NULL,
     validity_period VARCHAR(50),
@@ -654,7 +654,7 @@ for (const account of accounts) {
       ${account.receivedBy ? `'${esc(account.receivedBy)}'` : 'NULL'},
       ${account.acknowledgedBy ? `'${esc(account.acknowledgedBy)}'` : 'NULL'},
       ${account.updatedAt ? `'${account.updatedAt}'` : 'NOW()'},
-      'FALSE'
+      FALSE
     )
   `);
 }

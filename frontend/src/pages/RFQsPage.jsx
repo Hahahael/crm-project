@@ -68,6 +68,7 @@ export default function RFQsPage() {
     };
 
     const fetchNewAssignedRFQs = async () => {
+        console.log("fetchNewRFQs called");
         if (!currentUser) return;
         try {
             const res = await apiBackendFetch(`/api/workflow-stages/assigned/latest/${currentUser.id}/${encodeURIComponent("RFQ")}`);
@@ -119,55 +120,36 @@ export default function RFQsPage() {
     const handleSave = async (formData, mode) => {
         console.log("Saving RFQ:", formData, "Mode:", mode);
         try {
-            // 1. Save RFQ details
-            const isEdit = mode === "edit";
-            const rfq = formData.rfq;
-            const rfqItems = formData.rfqItems;
-            const vendors = formData.vendors;
-            const allQuotes = formData.allQuotes;
-            const rfqEndpoint = isEdit ? `/api/rfqs/${rfq.id}` : "/api/rfqs";
-            const rfqMethod = isEdit ? "PUT" : "POST";
-            const rfqPayload = isEdit ? JSON.stringify(rfq) : JSON.stringify(rfq);
-            const rfqRes = await apiBackendFetch(rfqEndpoint, {
-                method: rfqMethod,
-                headers: { 'Content-Type': 'application/json' },
-                body: rfqPayload
+            const rfqRes = await apiBackendFetch(`/api/rfqs/${formData.id}`, {
+                method: "PUT",
+                body: JSON.stringify(formData)
             });
             if (!rfqRes.ok) throw new Error("Failed to save RFQ");
+
+            // const rfqItemsRes = await apiBackendFetch(`/api/rfqs/${formData.id}/items`, {
+            //     method: "PUT",
+            //     body: JSON.stringify(formData.items)
+            // });
+            // if (!rfqItemsRes.ok) throw new Error("Failed to save RFQ Items");
+
+            // const rfqVendorsRes = await apiBackendFetch(`/api/rfqs/${formData.id}/vendors`, {
+            //     method: "PUT",
+            //     body: JSON.stringify(formData.vendors)
+            // });
+            // if (!rfqVendorsRes.ok) throw new Error("Failed to save RFQ Vendors andQ Quotations");
+
             const rfqData = await rfqRes.json();
-            const rfqId = isEdit ? rfq.id : rfqData.id;
-
-            // 2. Save RFQ items
-            await apiBackendFetch(`/api/rfqs/${rfqId}/items`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(rfqItems)
-            });
-
-            // 3. Save RFQ vendors
-            await apiBackendFetch(`/api/rfqs/${rfqId}/vendors`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(vendors)
-            });
-
-            // 4. Save RFQ item vendor quotes
-            if (allQuotes && allQuotes.length > 0) {
-                await apiBackendFetch(`/api/rfqs/${rfqId}/item-quotes`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(allQuotes)
-                });
-            }
+            console.log("Saved RFQ data:", rfqData);
+            const rfqWOId = rfqData.woId;
             
             // Create a new workflow stage for this sales lead
             await apiBackendFetch("/api/workflow-stages", {
                 method: "POST",
                 body: JSON.stringify({
-                    woId: rfqId,
-                    stage_name: "RFQ",
-                    status: "Pending",
-                    assigned_to: currentUser.id,
+                    woId: rfqWOId,
+                    stageName: "RFQ",
+                    status: "In Progress",
+                    assignedTo: currentUser.id,
                 }),
             });
             
@@ -180,7 +162,7 @@ export default function RFQsPage() {
             setSuccessMessage("RFQ saved successfully!"); // ✅ trigger success message
             await fetchAllData();
             await fetchNewAssignedRFQs();
-            setSelectedRFQ(rfqData);
+            setSelectedRFQ(fetchRFQById(rfqData.id));
             setEditingRFQ(null);
         } catch (err) {
             console.error("Error saving RFQ:", err);
@@ -222,6 +204,7 @@ export default function RFQsPage() {
     }
 
     const fetchNewRFQs = async () => {
+        console.log("fetchNewRFQs called");
         if (!currentUser) return;
         try {
             const res = await apiBackendFetch(`/api/workflow-stages/assigned/latest/${currentUser.id}/${encodeURIComponent("RFQ")}`);
@@ -234,6 +217,54 @@ export default function RFQsPage() {
             console.error("Failed to fetch assigned RFQs", err);
         }
     };
+
+    const fetchRFQById = async (rfqId) => {
+        if (!currentUser) return;
+        try {
+            const res = await apiBackendFetch(`/api/rfqs/${rfqId}`);
+
+            if (res.ok) {
+                const data = await res.json();
+                setSelectedRFQ(data);
+                setEditingRFQ(null);
+            }
+        } catch (err) {
+            console.error("Failed to fetch assigned RFQ", err);
+        }
+    }
+
+    const fetchEditingRFQById = async (rfqId) => {
+        if (!currentUser) return;
+        try {
+            const res = await apiBackendFetch(`/api/rfqs/${rfqId}`);
+
+            if (res.ok) {
+                const data = await res.json();
+                setSelectedRFQ(data);
+                setEditingRFQ(data);
+                console.log("Data", data);
+            }
+        } catch (err) {
+            console.error("Failed to fetch assigned RFQ", err);
+        }
+    }
+
+    const saveRFQById = async (formData) => {
+        try {
+            const res = await apiBackendFetch(`/api/rfqs/${formData.id}`, {
+                method: "PUT",
+                body: JSON.stringify(formData)
+            });
+
+            if (res.ok) {
+                const data = await res.json();
+                setSelectedRFQ(data);
+                setEditingRFQ(data);
+            }
+        } catch (err) {
+            console.error("Failed to fetch assigned RFQ", err);
+        }
+    }
 
     return (
         <div className="relative w-full h-full overflow-hidden bg-white">
@@ -285,7 +316,7 @@ export default function RFQsPage() {
                                     </div>
                                     <div className="mt-3">
                                         <button
-                                            onClick={() => setSelectedRFQ(newAssignedRFQs[0])}
+                                            onClick={() => fetchRFQById(newAssignedRFQs[0].id)}
                                             className="inline-flex items-center justify-center whitespace-nowrap font-medium transition-colors shadow h-8 rounded-md px-3 text-xs bg-amber-600 hover:bg-amber-700 text-white cursor-pointer">
                                             View First RFQ
                                         </button>
@@ -325,8 +356,7 @@ export default function RFQsPage() {
                                     <div className="mt-3">
                                         <button
                                             onClick={() => {
-                                                setEditingRFQ(newAssignedRFQs[0]);
-                                                setSelectedRFQ(null);
+                                                fetchRFQById(newAssignedRFQs[0].id);
                                             }}
                                             className="inline-flex items-center justify-center whitespace-nowrap font-medium transition-colors shadow h-8 rounded-md px-3 text-xs bg-amber-600 hover:bg-amber-700 text-white cursor-pointer">
                                             Open Technical Recommendation
@@ -396,13 +426,11 @@ export default function RFQsPage() {
                         <RFQsTable
                             rfqs={filtered}
                             onView={(rfq) => {
-                                setSelectedRFQ(rfq);
-                                setEditingRFQ(null);
+                                fetchRFQById(rfq.id);
                             }}
                             onEdit={(rfq, tab) => {
                                 setSelectedTab(tab || "details");
-                                setEditingRFQ(rfq);
-                                setSelectedRFQ(null);
+                                fetchEditingRFQById(rfq.id);
                             }}
                         />
                     </div>
@@ -421,7 +449,7 @@ export default function RFQsPage() {
                         onBack={() => setSelectedRFQ(null)}
                         onEdit={(rfq, tab) => {
                             setSelectedTab(tab || "details");
-                            setEditingRFQ(selectedRFQ);
+                            fetchEditingRFQById(rfq.id);
                         }}
                         onSave={(updatedRFQ) => {
                             setSelectedRFQ(updatedRFQ);

@@ -56,7 +56,13 @@ export default function Layout() {
               to="/accounts"
               className="block rounded-md px-3 py-2 hover:bg-gray-700"
             >
-              Accounts
+              NAEF
+            </Link>
+            <Link
+              to="/quotations"
+              className="block rounded-md px-3 py-2 hover:bg-gray-700"
+            >
+              Quotations
             </Link>
             <Link
               to="/users"

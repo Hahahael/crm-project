@@ -24,10 +24,10 @@ export default function AccountsTable({ accounts, onView, onEdit }) {
           {accounts.map((account) => (
             <tr key={account.id} className="hover:bg-gray-50 transition-all duration-200">
               <td className="px-4 py-2 text-black text-sm">{account.refNumber}</td>
-              <td className="px-4 py-2 text-black text-sm">{account.date}</td>
+              <td className="px-4 py-2 text-black text-sm">{util.formatDate(account.createdAt, "DD/MM/YYYY")}</td>
               <td className="px-4 py-2 text-black text-sm">{account.accountName}</td>
-              <td className="px-4 py-2 text-black text-sm">{account.industry}</td>
-              <td className="px-4 py-2 text-black text-sm">{account.requestor}</td>
+              <td className="px-4 py-2 text-black text-sm">{account.industryName}</td>
+              <td className="px-4 py-2 text-black text-sm">{account.requestedBy}</td>
               <td className="px-4 py-2 text-black text-sm">{account.status}</td>
               <td className="px-4 py-2 text-black text-sm">{util.formatDate(account.dueDate, "DD/MM/YYYY")}</td>
               <td className="px-4 py-2 text-black text-sm">{util.formatDate(account.doneDate, "DD/MM/YYYY")}</td>

@@ -9,16 +9,17 @@ export default function SalesLeadsTable({ salesLeads, onView, onEdit }) {
       <table className="w-full border-collapse text-left text-sm min-w-4xl">
         <thead className="border-gray-200 border-b hover:bg-gray-100 transition-all duration-200">
           <tr>
-            <th className="px-4 py-2 font-normal text-gray-500 text-sm w-[8%]">WO#</th>
-            <th className="px-4 py-2 font-normal text-gray-500 text-sm w-[8%]">WO Date</th>
-            <th className="px-4 py-2 font-normal text-gray-500 text-sm ">Work Description</th>
-            <th className="px-4 py-2 font-normal text-gray-500 text-sm w-[10%]">Account</th>
-            <th className="px-4 py-2 font-normal text-gray-500 text-sm w-[8%]">Type</th>
-            <th className="px-4 py-2 font-normal text-gray-500 text-sm">Assignee</th>
-            <th className="px-4 py-2 font-normal text-gray-500 text-sm w-[7%]">Status</th>
-            <th className="px-4 py-2 font-normal text-gray-500 text-sm w-[7%]">Sub-status</th>
+            <th className="px-4 py-2 font-normal text-gray-500 text-sm w-[8%]">SL#</th>
+            <th className="px-4 py-2 font-normal text-gray-500 text-sm w-[8%]">Account</th>
+            <th className="px-4 py-2 font-normal text-gray-500 text-sm ">End User</th>
+            <th className="px-4 py-2 font-normal text-gray-500 text-sm w-[10%]">Application</th>
+            <th className="px-4 py-2 font-normal text-gray-500 text-sm w-[8%]">Machine</th>
+            <th className="px-4 py-2 font-normal text-gray-500 text-sm">Contact</th>
+            <th className="px-4 py-2 font-normal text-gray-500 text-sm w-[7%]">Stage</th>
+            <th className="px-4 py-2 font-normal text-gray-500 text-sm w-[7%]">Urgency</th>
+            <th className="px-4 py-2 font-normal text-gray-500 text-sm w-[7%]">Follow-up Date</th>
             <th className="px-4 py-2 font-normal text-gray-500 text-sm w-[7%]">Due Date</th>
-            <th className="px-4 py-2 font-normal text-gray-500 text-sm w-[7%]">Done Date</th>
+            <th className="px-4 py-2 font-normal text-gray-500 text-sm">Done Date</th>
             <th className="px-4 py-2 font-normal text-gray-500 text-sm">Task Status</th>
             <th className="px-4 py-2 font-normal text-gray-500 text-sm text-right w-[5%]">Actions</th>
           </tr>
@@ -27,11 +28,11 @@ export default function SalesLeadsTable({ salesLeads, onView, onEdit }) {
           {salesLeads.map((sl) => (
             <tr key={sl.id} className="hover:bg-gray-50 transition-all duration-200">
               <td className="px-4 py-2 text-black text-sm">{sl.slNumber}</td>
-              <td className="px-4 py-2 text-black text-sm">{sl.account}</td>
-              <td className="px-4 py-2 text-black text-sm">{sl.endUser}</td>
+              <td className="px-4 py-2 text-black text-sm">{sl.accountName}</td>
+              <td className="px-4 py-2 text-black text-sm">{sl.accountName}</td>
               <td className="px-4 py-2 text-black text-sm">{sl.application}</td>
               <td className="px-4 py-2 text-black text-sm">{sl.machine}</td>
-              <td className="px-4 py-2 text-black text-sm">{sl.contact}</td>
+              <td className="px-4 py-2 text-black text-sm">{sl.contactNumber}<br/><span className="text-gray-500 text-xs">{sl.emailAddress}</span></td>
               <td className="px-4 py-2 text-black text-sm">{sl.stage}</td>
               <td className="px-4 py-2 text-black text-sm">{sl.urgency}</td>
               <td className="px-4 py-2 text-black text-sm">{util.formatDate(sl.followUpDate, "DD/MM/YYYY")}</td>

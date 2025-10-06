@@ -4,6 +4,7 @@ import { apiBackendFetch } from "../services/api.js";
 import utils from "../helper/utils";
 
 const TechnicalDetails = ({ technicalReco, currentUser, onBack, onEdit, onSave, onPrint, onSubmit }) => {
+    console.log("TechnicalDetails - technicalReco:", technicalReco);
     const isAssignedToMe = currentUser && technicalReco.assignee === currentUser.id;
     const isCreator = currentUser && technicalReco.createdBy === currentUser.id;
 
@@ -131,7 +132,7 @@ const TechnicalDetails = ({ technicalReco, currentUser, onBack, onEdit, onSave, 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <Detail
                                 label="Customer Name"
-                                value={technicalReco.accountId}
+                                value={technicalReco.accountName}
                             />
                             <Detail
                                 label="Contact Person"
@@ -200,8 +201,8 @@ const TechnicalDetails = ({ technicalReco, currentUser, onBack, onEdit, onSave, 
                                         <td className="p-2">{prod.model}</td>
                                         <td className="p-2">{prod.description}</td>
                                         <td className="p-2 text-right">{prod.quantity}</td>
-                                        <td className="p-2 text-right">Php {prod.price}</td>
-                                        <td className="p-2 text-right">Php {prod.quantity * prod.price}</td>
+                                        <td className="p-2 text-right">Php {prod.unitPrice}</td>
+                                        <td className="p-2 text-right">Php {prod.quantity * prod.unitPrice}</td>
                                     </tr>
                                 ))}
                                 <tr>
@@ -210,7 +211,7 @@ const TechnicalDetails = ({ technicalReco, currentUser, onBack, onEdit, onSave, 
                                         className="p-2 text-right font-bold">
                                         Total
                                     </td>
-                                    <td className="p-2 text-right font-bold">Php {(technicalReco.items || []).reduce((sum, i) => sum + (i.quantity * i.price), 0)}</td>
+                                    <td className="p-2 text-right font-bold">Php {(technicalReco.items || []).reduce((sum, i) => sum + (i.quantity * i.unitPrice), 0)}</td>
                                 </tr>
                             </tbody>
                         </table>
@@ -286,7 +287,7 @@ const TechnicalDetails = ({ technicalReco, currentUser, onBack, onEdit, onSave, 
                     <div className="p-6 pt-0">
                         <Detail
                             label="Notes"
-                            value={technicalReco.notes}
+                            value={technicalReco.additionalNotes}
                         />
                     </div>
                 </div>

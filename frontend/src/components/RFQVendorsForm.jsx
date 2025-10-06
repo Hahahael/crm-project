@@ -18,17 +18,17 @@ import {
     LuUser,
 } from "react-icons/lu";
 import { apiBackendFetch } from "../services/api";
+import { getVendorStatus } from "../helper/utils";
 
 const TRANSITION_MS = 150;
 
-export default function RFQVendorsForm({ rfq, setFormData, rfqVendors, onAddVendor, onVendorAction, onSendRFQ }) {
-    console.log("RFQVendorsForm - rfqVendors:", rfq);
+export default function RFQVendorsForm({ rfq, setFormData, onAddVendor, onVendorAction, onSendRFQ }) {
+    const formData = rfq || {};
+    console.log("RFQVendorsForm render", { rfq, formData });
     // Modal state and selection logic
     const [modalOpen, setModalOpen] = useState(false);
-    const [selectedVendors, setSelectedVendors] = useState(rfq.vendors || []);
-    const [modalSelection, setModalSelection] = useState(rfqVendors);
+    const [modalSelection, setModalSelection] = useState();
     const [allVendors, setAllVendors] = useState([]);
-    const [filteredVendors, setFilteredVendors] = useState(rfqVendors || []);
     const [openMenuId, setOpenMenuId] = useState(null);
     const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 });
     const [isMounted, setIsMounted] = useState(false);
@@ -100,7 +100,7 @@ export default function RFQVendorsForm({ rfq, setFormData, rfqVendors, onAddVend
     // For demo, use all vendors not already added
 
     const handleAddVendorClick = () => {
-        setModalSelection(selectedVendors);
+        setModalSelection(formData.vendors || []);
         setModalOpen(true);
     };
 
@@ -113,34 +113,33 @@ export default function RFQVendorsForm({ rfq, setFormData, rfqVendors, onAddVend
     };
 
     const handleAddVendors = (vendors) => {
-        console.log("Selected vendors from modal:", vendors);
         // Find vendor objects from allVendors by matching id in vendorObj
         const addedVendors = allVendors.filter((v) => vendors.some((obj) => obj.id === v.id));
         // Only add vendors that are not already selected, and remove those not in modal selection
-        const prevIds = selectedVendors.map((v) => v.id);
+        const prevIds = formData.vendors.map((v) => v.id);
         const modalIds = vendors.map((v) => v.id);
         const newSelection = [
-            ...selectedVendors.filter(v => modalIds.includes(v.id)), // keep only those still selected
+            ...formData.vendors.filter(v => modalIds.includes(v.id)), // keep only those still selected
             ...addedVendors.filter(v => !prevIds.includes(v.id)).map(v => ({
                 ...v,
+                vendorId: v.id, // backend vendor id reference
                 paymentTerms: "",
                 validUntil: "",
-                items: rfq.items, // add items from rfq
+                items: (formData.items || []).map(item => ({ ...item, price: null, leadTime: "" })), // add items from rfq with null price and empty leadTime
                 notes: ""
             }))
         ];
-        setSelectedVendors(newSelection);
         if (onVendorAction) {
             // If none selected, remove all
             if (modalIds.length === 0) {
-                selectedVendors.forEach((vendor) => onVendorAction(vendor.id, "delete"));
+                formData.vendors.forEach((vendor) => onVendorAction(vendor.id, "delete"));
             } else {
                 addedVendors.forEach((vendor) => {
                     if (!prevIds.includes(vendor.id)) {
                         onVendorAction(vendor.id, "add", vendor);
                     }
                 });
-                selectedVendors.forEach((vendor) => {
+                formData.vendors.forEach((vendor) => {
                     if (!modalIds.includes(vendor.id)) {
                         onVendorAction(vendor.id, "delete");
                     }
@@ -153,13 +152,15 @@ export default function RFQVendorsForm({ rfq, setFormData, rfqVendors, onAddVend
 
     // Remove vendor handler
     const handleDelete = (vendorId) => {
-        setSelectedVendors((prev) => prev.filter((v) => v.id !== vendorId));
+        setFormData((prev) => ({
+            ...prev,
+            vendors: prev.vendors.filter((v) => v.id !== vendorId),
+        }));
         if (onVendorAction) onVendorAction(vendorId, "delete");
         startClose();
     };
 
     const handleEditQuotation = (vendor) => {
-        console.log("Editing vendor:", vendor);
         setEditingVendor(vendor);
         setShowVendorModal(true);
         setIsMounted(false);
@@ -168,7 +169,6 @@ export default function RFQVendorsForm({ rfq, setFormData, rfqVendors, onAddVend
 
     // Ensure vendor items are updated and reflected in formData
     const handleVendorSave = (updatedVendor) => {
-        setSelectedVendors(prev => prev.map(v => v.id === updatedVendor.id ? updatedVendor : v));
         setFormData(prev => {
             const updatedVendors = (prev.vendors || []).map(v => v.id === updatedVendor.id ? updatedVendor : v);
             return { ...prev, vendors: updatedVendors };
@@ -225,7 +225,7 @@ export default function RFQVendorsForm({ rfq, setFormData, rfqVendors, onAddVend
                 </button>
             </div>
             <div className="grid gap-4">
-                {selectedVendors.map((vendor, id) => (
+                {formData.vendors.map((vendor, id) => (
                     <div
                         key={id}
                         className="rounded-xl border border-gray-200 bg-card text-card-foreground shadow relative">
@@ -247,9 +247,9 @@ export default function RFQVendorsForm({ rfq, setFormData, rfqVendors, onAddVend
                                 <div className="flex items-center space-x-2">
                                     <div
                                         className={`inline-flex items-center rounded-md border px-2.5 py-0.5 text-xs font-semibold ${
-                                            vendor.status === "Quoted" ? "bg-green-100 text-green-800" : "bg-yellow-100 text-yellow-800"
+                                            getVendorStatus(vendor.quotes) === "Quoted" ? "bg-green-100 text-green-800" : "bg-yellow-100 text-yellow-800"
                                         }`}>
-                                        {vendor.status}
+                                        {getVendorStatus(vendor.quotes)}
                                     </div>
                                     <button
                                         ref={(el) => (buttonRefs.current[vendor.id] = el)}
@@ -262,12 +262,12 @@ export default function RFQVendorsForm({ rfq, setFormData, rfqVendors, onAddVend
                             </div>
                         </div>
                         <div className="p-6 pt-0">
-                            {vendor.status === "Quoted" ? (
+                            {getVendorStatus(vendor.quotes) === "Quoted" ? (
                                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 p-4 bg-gray-50 rounded-lg">
                                     <div className="flex items-center">
                                         <LuCoins className="h-5 w-5 text-gray-500 mr-2" />
                                         <div className="flex flex-col">
-                                            <p className="text-sm font-medium">${vendor.totalAmount}</p>
+                                            <p className="text-sm font-medium">Php {vendor.totalAmount}</p>
                                             <p className="text-xs text-muted-foreground">Total Amount</p>
                                         </div>
                                     </div>
@@ -317,7 +317,7 @@ export default function RFQVendorsForm({ rfq, setFormData, rfqVendors, onAddVend
             {isMounted &&
                 createPortal(
                     (() => {
-                        const vendor = selectedVendors.find((v) => v.id === openMenuId);
+                        const vendor = formData.vendors.find((v) => v.id === openMenuId);
                         const sendLabel = vendor?.status === "Quoted" ? "Resend RFQ" : "Send RFQ";
                         return (
                             <div

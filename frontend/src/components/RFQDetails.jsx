@@ -3,9 +3,10 @@ import { useEffect, useState } from "react";
 import { apiBackendFetch } from "../services/api";
 import utils from "../helper/utils";
 
-const TechnicalDetails = ({ rfq, currentUser, onBack, onEdit, onSave, onPrint, onSubmit }) => {
+const RFQDetails = ({ rfq, currentUser, onBack, onEdit, onSave, onPrint, onSubmit }) => {
     const [items, setItems] = useState([]);
     const [vendors, setVendors] = useState([]);
+    const [quotations, setQuotations] = useState([]);
     const isAssignedToMe = currentUser && rfq.assignee === currentUser.id;
     const isCreator = currentUser && rfq.createdBy === currentUser.id;
 
@@ -27,45 +28,21 @@ const TechnicalDetails = ({ rfq, currentUser, onBack, onEdit, onSave, onPrint, o
     }
 
     useEffect(() => {
-        async function fetchVendors() {
+        async function fetchLatestRFQ() {
             if (!rfq?.id) return;
             try {
-                const rfqVendorsRes = await apiBackendFetch(`/api/rfqs/${rfq.id}/vendors`);
-                if (!rfqVendorsRes.ok) throw new Error("Failed to fetch RFQ Vendors");
-                const data = await rfqVendorsRes.json();
-                setVendors(data);
+                const rfqRes = await apiBackendFetch(`/api/rfqs/${rfq.id}`);
+                if (!rfqRes.ok) throw new Error("Failed to fetch RFQ");
+                const data = await rfqRes.json();
+                console.log("Fetched RFQ details:", data);
+                setVendors(data.vendors || []);
+                setItems(data.items || []);
+                setQuotations(data.quotations || []);
             } catch (err) {
-                console.error("Failed to fetch vendors", err);
+                console.error("Failed to fetch RFQ", err);
             }
         }
-        fetchVendors();
-    }, [rfq?.id]);
-
-    useEffect(() => {
-        async function fetchItems() {
-            if (!rfq?.id) return;
-            try {
-                const rfqItemsRes = await apiBackendFetch(`/api/rfqs/${rfq.id}/items`);
-                if (!rfqItemsRes.ok) throw new Error("Failed to fetch RFQ Items");
-                const data = await rfqItemsRes.json();
-                // Map backend fields to frontend fields for display
-                const mappedItems = data.map(item => ({
-                    id: item.id,
-                    description: item.description,
-                    brand: item.brand,
-                    partNo: item.partNumber,
-                    qty: item.quantity,
-                    unit: item.unit,
-                    leadTime: item.leadTime,
-                    unitPrice: `$${Number(item.unitPrice).toFixed(2)}`,
-                    amount: `$${Number(item.amount).toFixed(2)}`
-                }));
-                setItems(mappedItems);
-            } catch (err) {
-                console.error("Failed to fetch items", err);
-            }
-        }
-        fetchItems();
+        fetchLatestRFQ();
     }, [rfq?.id]);
 
     useEffect(() => {
@@ -85,7 +62,7 @@ const TechnicalDetails = ({ rfq, currentUser, onBack, onEdit, onSave, onPrint, o
             })
                 .then((res) => res.json())
                 .then((updatedRFQ) => {
-                    if (onSave) onSave(updatedRFQ);
+                    // if (onSave) onSave(updatedRFQ);
                 });
         }
         // eslint-disable-next-line
@@ -109,7 +86,7 @@ const TechnicalDetails = ({ rfq, currentUser, onBack, onEdit, onSave, onPrint, o
                     <div className="flex flex-col gap-1">
                         <h1 className="text-2xl font-bold">Multi-Vendor RFQ {rfq.trNumber}</h1>
                         <h2 className="text-md text-gray-500">
-                            {rfq.description} • Created on {utils.formatDate(rfq.rfqDate, "DD/MM/YYYY")} by {rfq.username}
+                            {rfq.description} • Created on {utils.formatDate(rfq.createdAt, "DD/MM/YYYY")} by {rfq.assigneeUsername}
                         </h2>
                     </div>
                 </div>
@@ -146,11 +123,11 @@ const TechnicalDetails = ({ rfq, currentUser, onBack, onEdit, onSave, onPrint, o
                             <div className="grid grid-cols-1 gap-2">
                                 <Detail
                                     label="Status:"
-                                    value={rfq.trNumber}
+                                    value={rfq.stageStatus}
                                 />
                                 <Detail
                                     label="Account:"
-                                    value={rfq.accountId}
+                                    value={rfq.accountName}
                                 />
                                 <Detail
                                     label="RFQ Date:"
@@ -309,12 +286,12 @@ const TechnicalDetails = ({ rfq, currentUser, onBack, onEdit, onSave, onPrint, o
                                             <tr key={item.id} className="hover:bg-gray-100 transition-all duration-200">
                                                 <td className="text-sm p-2 align-middle">{item.description}</td>
                                                 <td className="text-sm p-2 align-middle">{item.brand}</td>
-                                                <td className="text-sm p-2 align-middle">{item.partNo}</td>
-                                                <td className="text-sm p-2 align-middle">{item.qty}</td>
+                                                <td className="text-sm p-2 align-middle">{item.partNumber}</td>
+                                                <td className="text-sm p-2 align-middle">{item.quantity}</td>
                                                 <td className="text-sm p-2 align-middle">{item.unit}</td>
                                                 <td className="text-sm p-2 align-middle">{item.leadTime}</td>
                                                 <td className="text-sm p-2 align-middle">{item.unitPrice}</td>
-                                                <td className="text-sm p-2 align-middle">{item.amount}</td>
+                                                <td className="text-sm p-2 align-middle">{item.unitPrice * item.quantity}</td>
                                             </tr>
                                         ))}
                                     </tbody>
@@ -421,4 +398,4 @@ const TechnicalDetails = ({ rfq, currentUser, onBack, onEdit, onSave, onPrint, o
     );
 };
 
-export default TechnicalDetails;
+export default RFQDetails;

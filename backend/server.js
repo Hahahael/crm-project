@@ -1,3 +1,10 @@
+import { sql, poolPromise } from './mssql.js';
+// Example MSSQL route
+
+
+// Add this router to your Express app
+
+
 import express from 'express';
 import cors from 'cors';
 import cookieParser from "cookie-parser";
@@ -56,6 +63,20 @@ app.get("/healthcheck", (req, res) => {
   res.json({ status: "ok" });
 });
 app.use(authMiddleware);
+
+const mssqlRouter = express.Router();
+
+mssqlRouter.get('/mssql-test', async (req, res) => {
+  try {
+    const pool = await poolPromise;
+    const result = await pool.request().query('SELECT TOP 10 * FROM [SPIDB_V49_UAT].INFORMATION_SCHEMA.TABLES');
+    res.json(result.recordset);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+app.use('/api/mssql', mssqlRouter);
+
 app.use("/dashboard", usersRouter);
 app.use("/api/users", usersRouter);
 app.use("/api/accounts", accountsRouter);

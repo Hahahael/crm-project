@@ -3,8 +3,7 @@ import { useState, useEffect, useRef, use } from "react";
 import { useLocation } from "react-router-dom";
 import { LuBell, LuCircleAlert, LuClipboard, LuFileText, LuMessageCircle, LuSearch, LuSend, LuX } from "react-icons/lu";
 import QuotationsTable from "../components/QuotationsTable";
-import RFQDetails from "../components/RFQDetails";
-import RFQForm from "../components/RFQFormWrapper";
+import TechnicalDetails from "../components/TechnicalDetails";
 import { apiBackendFetch } from "../services/api";
 import LoadingModal from "../components/LoadingModal";
 import RFQCanvassSheet from "../components/RFQCanvassSheet";
@@ -13,16 +12,17 @@ export default function QuotationsPage() {
     const timeoutRef = useRef();
     const location = useLocation();
 
-    const [RFQs, setRFQs] = useState([]);
+    const [quotations, setQuotations] = useState([]);
     const [search, setSearch] = useState("");
-    const [selectedQuotation, setselectedQuotation] = useState(null);
-    const [editingRFQ, setEditingRFQ] = useState(null);
+    const [selectedQuotation, setSelectedQuotation] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [successMessage, setSuccessMessage] = useState("");
     const [currentUser, setCurrentUser] = useState(null);
     const [selectedTab, setSelectedTab] = useState("details");
-    const [newAssignedRFQs, setNewAssignedRFQs] = useState([]);
+    const [newAssignedQuotations, setNewAssignedQuotations] = useState([]);
+    const [selectedTR, setSelectedTR] = useState(null);
+    const [selectedRFQ, setSelectedRFQ] = useState(null);
     const [statusSummary, setStatusSummary] = useState({
         total: 0,
         pending: 0,
@@ -32,11 +32,12 @@ export default function QuotationsPage() {
 
     const fetchAllData = async () => {
         try {
-            const RFQsRes = await apiBackendFetch("/api/rfqs");
-            if (!RFQsRes.ok) throw new Error("Failed to fetch Technical Recommendations");
+            const quotationsRes = await apiBackendFetch("/api/quotations");
+            if (!quotationsRes.ok) throw new Error("Failed to fetch Quotations");
 
-            const RFQsData = await RFQsRes.json();
-            setRFQs(RFQsData);
+            const quotationsData = await quotationsRes.json();
+            setQuotations(quotationsData);
+            console.log("Fetched Quotations:", quotationsData);
 
             // Fetch status summary
             // const summaryRes = await apiBackendFetch("/api/rfqs/summary/status");
@@ -51,8 +52,8 @@ export default function QuotationsPage() {
             // }
             setTimeout(() => setLoading(false), 500);
         } catch (err) {
-            console.error("Error retrieving RFQs:", err);
-            setError("Failed to fetch RFQs.");
+            console.error("Error retrieving Quotations:", err);
+            setError("Failed to fetch Quotations.");
         }
     };
 
@@ -68,19 +69,48 @@ export default function QuotationsPage() {
         }
     };
 
-    const fetchNewAssignedRFQs = async () => {
+    const fetchNewAssignedQuotations = async () => {
         if (!currentUser) return;
         try {
-            const res = await apiBackendFetch(`/api/workflow-stages/assigned/latest/${currentUser.id}/${encodeURIComponent("RFQ")}`);
+            const res = await apiBackendFetch(`/api/workflow-stages/assigned/latest/${currentUser.id}/${encodeURIComponent("Quotation")}`);
 
             if (res.ok) {
                 const data = await res.json();
-                setNewAssignedRFQs(data);
+                setNewAssignedQuotations(data);
             }
         } catch (err) {
-            console.error("Failed to fetch assigned workorders", err);
+            console.error("Failed to fetch assigned Quotations", err);
         }
     };
+
+    const getTRAndRFQ = async (quotation) => {
+        try {
+            console.log("Fetching TR and RFQ for quotation:", quotation);
+            const trId = quotation.trId || null;
+            const rfqId = quotation.rfqId || null;
+
+            if (trId) {
+                const trRes = await apiBackendFetch(`/api/technicals/${trId}`);
+                if (trRes.ok) {
+                    const trData = await trRes.json();
+                    setSelectedTR(trData);
+                    console.log("Fetched TR data:", trData);
+                }
+            }
+
+            if (rfqId) {
+                const rfqRes = await apiBackendFetch(`/api/rfqs/${rfqId}`);
+                if (rfqRes.ok) {
+                    const rfqData = await rfqRes.json();
+                    setSelectedRFQ(rfqData);
+                    console.log("Fetched RFQ data:", rfqData);
+                }
+            }
+            setTimeout(() => setLoading(false), 500);
+        } catch (err) {
+            console.error("Error fetching TR and RFQ:", err);
+        }
+    }
 
     useEffect(() => {
         fetchCurrentUser();
@@ -89,7 +119,7 @@ export default function QuotationsPage() {
 
     useEffect(() => {
         if (currentUser) {
-            fetchNewAssignedRFQs();
+            fetchNewAssignedQuotations();
         }
     }, [currentUser]);
 
@@ -113,128 +143,9 @@ export default function QuotationsPage() {
         );
     if (error) return <p className="p-4 text-red-600">{error}</p>;
 
-    const filtered = RFQs.filter(
+    const filtered = quotations.filter(
         (wo) => wo.woNumber?.toLowerCase().includes(search.toLowerCase()) || (wo.accountName || "").toLowerCase().includes(search.toLowerCase())
     );
-
-    const handleSave = async (formData, mode) => {
-        console.log("Saving RFQ:", formData, "Mode:", mode);
-        try {
-            // 1. Save RFQ details
-            const isEdit = mode === "edit";
-            const rfq = formData.rfq;
-            const rfqItems = formData.rfqItems;
-            const vendors = formData.vendors;
-            const allQuotes = formData.allQuotes;
-            const rfqEndpoint = isEdit ? `/api/rfqs/${rfq.id}` : "/api/rfqs";
-            const rfqMethod = isEdit ? "PUT" : "POST";
-            const rfqPayload = isEdit ? JSON.stringify(rfq) : JSON.stringify(rfq);
-            const rfqRes = await apiBackendFetch(rfqEndpoint, {
-                method: rfqMethod,
-                headers: { 'Content-Type': 'application/json' },
-                body: rfqPayload
-            });
-            if (!rfqRes.ok) throw new Error("Failed to save RFQ");
-            const rfqData = await rfqRes.json();
-            const rfqId = isEdit ? rfq.id : rfqData.id;
-
-            // 2. Save RFQ items
-            await apiBackendFetch(`/api/rfqs/${rfqId}/items`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(rfqItems)
-            });
-
-            // 3. Save RFQ vendors
-            await apiBackendFetch(`/api/rfqs/${rfqId}/vendors`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(vendors)
-            });
-
-            // 4. Save RFQ item vendor quotes
-            if (allQuotes && allQuotes.length > 0) {
-                await apiBackendFetch(`/api/rfqs/${rfqId}/item-quotes`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(allQuotes)
-                });
-            }
-            
-            // Create a new workflow stage for this sales lead
-            await apiBackendFetch("/api/workflow-stages", {
-                method: "POST",
-                body: JSON.stringify({
-                    woId: rfqId,
-                    stage_name: "RFQ",
-                    status: "Pending",
-                    assigned_to: currentUser.id,
-                }),
-            });
-            
-            const stagesRes = await apiBackendFetch("/api/workflow-stages");
-            if (stagesRes.ok) {
-                const allStages = await stagesRes.json();
-                console.log("All workflow stages:", allStages);
-            }
-
-            setSuccessMessage("RFQ saved successfully!"); // ✅ trigger success message
-            await fetchAllData();
-            await fetchNewAssignedRFQs();
-            setselectedQuotation(rfqData);
-            setEditingRFQ(null);
-        } catch (err) {
-            console.error("Error saving RFQ:", err);
-            setError("Failed to save RFQ");
-        }
-    };
-
-    const handleSubmitForApproval = async (formData) => {
-        try {
-            // Set status to Submitted
-            const submitData = { ...formData, status: "Submitted" };
-            const response = await apiBackendFetch(`/api/rfqs/${formData.id}`, {
-                method: "PUT",
-                body: JSON.stringify(submitData),
-            });
-            if (!response.ok) throw new Error("Failed to submit RFQ for approval");
-            const savedRFQ = await response.json();
-
-            // Create workflow stage for new RFQ
-            await apiBackendFetch("/api/workflow-stages", {
-                method: "POST",
-                body: JSON.stringify({
-                    wo_id: savedRFQ.id,
-                    stage_name: "RFQ",
-                    status: "Submitted",
-                    assigned_to: savedRFQ.assignee,
-                }),
-            });
-
-            setSuccessMessage("RFQ submitted for approval!");
-            setselectedQuotation(null);
-            setEditingRFQ(null);
-            await fetchAllData();
-            await fetchNewAssignedRFQs();
-        } catch (err) {
-            console.error("Error submitting for approval:", err);
-            setError("Failed to submit technical recommendation for approval");
-        }
-    }
-
-    const fetchNewRFQs = async () => {
-        if (!currentUser) return;
-        try {
-            const res = await apiBackendFetch(`/api/workflow-stages/assigned/latest/${currentUser.id}/${encodeURIComponent("RFQ")}`);
-
-            if (res.ok) {
-                const data = await res.json();
-                setNewAssignedRFQs(data);
-            }
-        } catch (err) {
-            console.error("Failed to fetch assigned RFQs", err);
-        }
-    };
 
     return (
         <div className="relative w-full h-full overflow-hidden bg-white">
@@ -257,18 +168,18 @@ export default function QuotationsPage() {
             </div>
 
             {/* Sales Leads Table */}
-            {!selectedQuotation && !editingRFQ && (
+            {!selectedQuotation && (
                 <div className="transition-all duration-300 h-full w-full p-6 overflow-y-auto">
                     {/* Header */}
                     <div className="flex items-center mb-6">
                         <div className="flex flex-col">
-                            <h1 className="text-2xl font-bold">Requests for Quotation Management</h1>
-                            <h2 className="text-md text-gray-700">View and manage all requests for quotation</h2>
+                            <h1 className="text-2xl font-bold">Quotations Management</h1>
+                            <h2 className="text-md text-gray-700">View and manage all quotations</h2>
                         </div>
                     </div>
 
                     {/* Banner Notifications */}
-                    {currentUser && newAssignedRFQs.length > 1 && (
+                    {currentUser && newAssignedQuotations.length > 1 && (
                         <div className="flex border-amber-200 border-2 rounded-xl p-4 mb-6 bg-amber-50 items-start justify-between text-card-foreground shadow-lg animate-pulse">
                             <div className="flex space-x-3">
                                 <div className="flex h-10 w-10 items-center justify-center rounded-full bg-amber-100">
@@ -278,15 +189,15 @@ export default function QuotationsPage() {
                                     <div className="flex items-center space-x-2 mb-2">
                                         <LuCircleAlert className="h-4 w-4 text-amber-600" />
                                         <p className="text-sm font-semibold text-amber-800">
-                                            {`You have ${newAssignedRFQs.length} new RFQ${newAssignedRFQs.length > 1 ? "s" : ""} assigned to you`}
+                                            {`You have ${newAssignedQuotations.length} new RFQ${newAssignedQuotations.length > 1 ? "s" : ""} assigned to you`}
                                         </p>
                                     </div>
                                     <div className="space-y-1">
-                                        <p className="text-sm text-gray-900">{newAssignedRFQs.map((rfq) => rfq.rfqNumber).join(", ")}</p>
+                                        <p className="text-sm text-gray-900">{newAssignedQuotations.map((rfq) => rfq.rfqNumber).join(", ")}</p>
                                     </div>
                                     <div className="mt-3">
                                         <button
-                                            onClick={() => setselectedQuotation(newAssignedRFQs[0])}
+                                            onClick={() => setSelectedQuotation(newAssignedQuotations[0])}
                                             className="inline-flex items-center justify-center whitespace-nowrap font-medium transition-colors shadow h-8 rounded-md px-3 text-xs bg-amber-600 hover:bg-amber-700 text-white cursor-pointer">
                                             View First RFQ
                                         </button>
@@ -302,7 +213,7 @@ export default function QuotationsPage() {
                             </button>
                         </div>
                     )}
-                    {currentUser && newAssignedRFQs.length === 1 && (
+                    {currentUser && newAssignedQuotations.length === 1 && (
                         <div className="flex border-amber-200 border-2 rounded-xl p-4 mb-6 bg-amber-50 items-start justify-between text-card-foreground shadow-lg animate-pulse">
                             <div className="flex space-x-3">
                                 <div className="flex h-10 w-10 items-center justify-center rounded-full bg-amber-100">
@@ -318,16 +229,15 @@ export default function QuotationsPage() {
                                     </div>
                                     <div className="space-y-1">
                                         <p className="text-sm font-medium text-gray-900">
-                                            {newAssignedRFQs[0].rfqNumber} - {newAssignedRFQs[0].workDescription}
+                                            {newAssignedQuotations[0].rfqNumber} - {newAssignedQuotations[0].workDescription}
                                         </p>
-                                        <p className="text-sm text-gray-600">Account: {newAssignedRFQs[0].accountName}</p>
-                                        <p className="text-sm text-gray-600">Contact: {newAssignedRFQs[0].contactPerson}</p>
+                                        <p className="text-sm text-gray-600">Account: {newAssignedQuotations[0].accountName}</p>
+                                        <p className="text-sm text-gray-600">Contact: {newAssignedQuotations[0].contactPerson}</p>
                                     </div>
                                     <div className="mt-3">
                                         <button
                                             onClick={() => {
-                                                setEditingRFQ(newAssignedRFQs[0]);
-                                                setselectedQuotation(null);
+                                                setSelectedQuotation(newAssignedQuotations[0]);
                                             }}
                                             className="inline-flex items-center justify-center whitespace-nowrap font-medium transition-colors shadow h-8 rounded-md px-3 text-xs bg-amber-600 hover:bg-amber-700 text-white cursor-pointer">
                                             Open Technical Recommendation
@@ -349,7 +259,7 @@ export default function QuotationsPage() {
                     <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
                         <div className="relative flex flex-col rounded-xl shadow-sm border border-gray-200 p-6">
                             <LuFileText className="absolute top-6 right-6 text-gray-600" />
-                            <p className="text-sm mb-1 mr-4">Total RFQs</p>
+                            <p className="text-sm mb-1 mr-4">Total Quotations</p>
                             <h2 className="text-2xl font-bold">{statusSummary.total}</h2>
                             <p className="text-xs text-gray-500">All requests for quotation</p>
                         </div>
@@ -357,25 +267,25 @@ export default function QuotationsPage() {
                             <LuClipboard className="absolute top-6 right-6 text-gray-600" />
                             <p className="text-sm mb-1 mr-4">Draft</p>
                             <h2 className="text-2xl font-bold">{statusSummary.pending}</h2>
-                            <p className="text-xs text-gray-500">RFQs in draft status</p>
+                            <p className="text-xs text-gray-500">Quotations in draft status</p>
                         </div>
                         <div className="relative flex flex-col rounded-xl shadow-sm border border-gray-200 p-6">
                             <LuSend className="absolute top-6 right-6 text-gray-600" />
                             <p className="text-sm mb-1 mr-4">Sent</p>
                             <h2 className="text-2xl font-bold">{statusSummary.inProgress}</h2>
-                            <p className="text-xs text-gray-500">RFQs sent to vendors</p>
+                            <p className="text-xs text-gray-500">Quotations sent to vendors</p>
                         </div>
                         <div className="relative flex flex-col rounded-xl shadow-sm border border-gray-200 p-6">
                             <LuMessageCircle className="absolute top-6 right-6 text-gray-600" />
                             <p className="text-sm mb-1 mr-4">Responded</p>
                             <h2 className="text-2xl font-bold">{statusSummary.inProgress}</h2>
-                            <p className="text-xs text-gray-500">RFQs with vendor responses</p>
+                            <p className="text-xs text-gray-500">Quotations with vendor responses</p>
                         </div>
                         <div className="relative flex flex-col rounded-xl shadow-sm border border-gray-200 p-6">
                             <LuCircleAlert className="absolute top-6 right-6 text-gray-600" />
                             <p className="text-sm mb-1 mr-4">Completed</p>
                             <h2 className="text-2xl font-bold">{statusSummary.completed}</h2>
-                            <p className="text-xs text-gray-500">Completed RFQs</p>
+                            <p className="text-xs text-gray-500">Completed Quotations</p>
                         </div>
                     </div>
 
@@ -395,15 +305,10 @@ export default function QuotationsPage() {
                         </div>
 
                         <QuotationsTable
-                            rfqs={filtered}
-                            onView={(rfq) => {
-                                setselectedQuotation(rfq);
-                                setEditingRFQ(null);
-                            }}
-                            onEdit={(rfq, tab) => {
-                                setSelectedTab(tab || "details");
-                                setEditingRFQ(rfq);
-                                setselectedQuotation(null);
+                            quotations={filtered}
+                            onView={(quotation) => {
+                                getTRAndRFQ(quotation);
+                                setSelectedQuotation(quotation);
                             }}
                         />
                     </div>
@@ -413,15 +318,33 @@ export default function QuotationsPage() {
             {/* Details Drawer */}
             <div
                 className={`absolute overflow-auto top-0 right-0 h-full w-full bg-white shadow-xl transition-all duration-300 ${
-                    selectedQuotation && !editingRFQ ? "translate-x-0 opacity-100" : "translate-x-full opacity-0"
+                    selectedQuotation  ? "translate-x-0 opacity-100" : "translate-x-full opacity-0"
                 }`}>
-                {selectedQuotation && !editingRFQ && (
-                    <div>
-                        <TechnicalDetails
-                            technical={selectedQuotation}
-                            onBack={() => setselectedQuotation(null)}
-                        />
-                        <RFQCanvassSheet rfq={selectedQuotation} />
+                {selectedQuotation && (
+                    <div className="w-full h-full p-6 overflow-auto">
+                        <button
+                            className="mb-4 inline-flex items-center justify-center font-medium transition-colors hover:bg-gray-100 h-8 rounded-md px-3 text-xs text-gray-400 hover:text-gray-600 cursor-pointer"
+                            onClick={() => {
+                                setSelectedQuotation(null);
+                                setSelectedTR(null);
+                                setSelectedRFQ(null);
+                            }}>
+                            <LuSend className="h-4 w-4 mr-2" />
+                                Submit Quotation
+                        </button>
+                        {selectedTR && (
+                            <TechnicalDetails
+                                technicalReco={selectedTR}
+                                onBack={() => {
+                                    setSelectedTR(null);
+                                    setSelectedRFQ(null);
+                                    setSelectedQuotation(null);
+                                }}
+                            />
+                        )}
+                        {selectedRFQ && (
+                            <RFQCanvassSheet rfq={selectedRFQ} />
+                        )}
                     </div>
                 )}
             </div>

@@ -198,6 +198,21 @@ export default function TechnicalsPage() {
         }
     }
 
+    const fetchAssignedTR = async (trId) => {
+        if (!currentUser) return;
+        try {
+            const res = await apiBackendFetch(`/api/technicals/${trId}`);
+
+            if (res.ok) {
+                const data = await res.json();
+                setSelectedTR(data);
+                setEditingTR(null);
+            }
+        } catch (err) {
+            console.error("Failed to fetch assigned RFQ", err);
+        }
+    }
+
     return (
         <div className="relative w-full h-full overflow-hidden bg-white">
             {/* Toast Notification */}
@@ -250,7 +265,7 @@ export default function TechnicalsPage() {
                                     </div>
                                     <div className="mt-3">
                                         <button
-                                            onClick={() => setSelectedTR(newAssignedTechnicalRecos[0])}
+                                            onClick={() => fetchAssignedTR(newAssignedTechnicalRecos[0].id)}
                                             className="inline-flex items-center justify-center whitespace-nowrap font-medium transition-colors shadow h-8 rounded-md px-3 text-xs bg-purple-600 hover:bg-purple-700 text-white cursor-pointer">
                                             View First Technical Recommendation
                                         </button>
@@ -284,14 +299,13 @@ export default function TechnicalsPage() {
                                         <p className="text-sm font-medium text-gray-900">
                                             {newAssignedTechnicalRecos[0].trNumber} - {newAssignedTechnicalRecos[0].title}
                                         </p>
-                                        <p className="text-sm text-gray-600">Account: {newAssignedTechnicalRecos[0].accountId}</p>
+                                        <p className="text-sm text-gray-600">Account: {newAssignedTechnicalRecos[0].accountName}</p>
                                         <p className="text-sm text-gray-600">Contact: {newAssignedTechnicalRecos[0].contactPerson}</p>
                                     </div>
                                     <div className="mt-3">
                                         <button
                                             onClick={() => {
-                                                setEditingTR(newAssignedTechnicalRecos[0]);
-                                                setSelectedTR(null);
+                                                fetchAssignedTR(newAssignedTechnicalRecos[0].id);
                                             }}
                                             className="inline-flex items-center justify-center whitespace-nowrap font-medium transition-colors shadow h-8 rounded-md px-3 text-xs bg-purple-600 hover:bg-purple-700 text-white cursor-pointer">
                                             Open Technical Recommendation

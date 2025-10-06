@@ -11,12 +11,12 @@ const WorkOrderForm = ({ workOrder, mode = "create", onSave, onBack }) => {
         workDescription: "",
         assignee: "",
         assigneeUsername: "", // 🔹 added for display
-        department: "",
+        departmentId: "",
         accountId: "", // <-- use accountId instead of accountName
         isNewAccount: false,
-        industry: "",
+        industryId: "",
         mode: "",
-        productBrand: "",
+        productBrandId: "",
         contactPerson: "",
         contactNumber: "",
         isFsl: false,
@@ -154,12 +154,12 @@ const WorkOrderForm = ({ workOrder, mode = "create", onSave, onBack }) => {
                 workDescription: "",
                 assignee: "",
                 assigneeUsername: "",
-                department: "",
+                departmentId: "",
                 accountId: "",
                 isNewAccount: false,
-                industry: "",
+                industryId: "",
                 mode: "",
-                productBrand: "",
+                productBrandId: "",
                 contactPerson: "",
                 contactNumber: "",
                 isFsl: false,
@@ -229,8 +229,10 @@ const WorkOrderForm = ({ workOrder, mode = "create", onSave, onBack }) => {
             toTime: formData.toTime || null,
         };
 
-        // Only send accountId, not accountName
-        delete cleanedFormData.accountName;
+        // For existing account, don't send accountName
+        if (!formData.isNewAccount) {
+            delete cleanedFormData.accountName;
+        }
         onSave(cleanedFormData, mode);
     };
 
@@ -376,7 +378,7 @@ const WorkOrderForm = ({ workOrder, mode = "create", onSave, onBack }) => {
                                                 <li
                                                     key={dept.id}
                                                     onClick={() => {
-                                                        setFormData((prev) => ({ ...prev, department: dept.departmentName }));
+                                                        setFormData((prev) => ({ ...prev, department: dept.departmentName, departmentId: dept.id }));
                                                         setDepartmentDropdownOpen(false);
                                                     }}
                                                     className="px-3 py-2 cursor-pointer hover:bg-gray-100 text-sm">
@@ -429,8 +431,11 @@ const WorkOrderForm = ({ workOrder, mode = "create", onSave, onBack }) => {
                                                                     ...prev,
                                                                     accountId: account.id,
                                                                     department: departments.find(d => d.id === account.departmentId)?.departmentName || "",
+                                                                    departmentId: account.departmentId || "",
                                                                     industry: industries.find(i => i.id === account.industryId)?.industryName || "",
+                                                                    industryId: account.industryId || "",
                                                                     productBrand: productBrands.find(p => p.id === account.productId)?.productBrandName || "",
+                                                                    productBrandId: account.productId || "",
                                                                 }));
                                                                 setAccountDropdownOpen(false);
                                                             }}
@@ -457,8 +462,11 @@ const WorkOrderForm = ({ workOrder, mode = "create", onSave, onBack }) => {
                                             ...prev,
                                             isNewAccount: checked,
                                             department: "",
+                                            departmentId: "",
                                             industry: "",
+                                            industryId: "",
                                             productBrand: "",
+                                            productBrandId: "",
                                             accountId: "",
                                             accountName: "",
                                         }));
@@ -503,7 +511,7 @@ const WorkOrderForm = ({ workOrder, mode = "create", onSave, onBack }) => {
                                                 <li
                                                     key={ind.id}
                                                     onClick={() => {
-                                                        setFormData((prev) => ({ ...prev, industry: ind.industryName }));
+                                                        setFormData((prev) => ({ ...prev, industry: ind.industryName, industryId: ind.id }));
                                                         setIndustryDropdownOpen(false);
                                                     }}
                                                     className="px-3 py-2 cursor-pointer hover:bg-gray-100 text-sm">
@@ -560,7 +568,7 @@ const WorkOrderForm = ({ workOrder, mode = "create", onSave, onBack }) => {
                                                 <li
                                                     key={prod.id}
                                                     onClick={() => {
-                                                        setFormData((prev) => ({ ...prev, productBrand: prod.productBrandName }));
+                                                        setFormData((prev) => ({ ...prev, productBrand: prod.productBrandName, productBrandId: prod.id }));
                                                         setProductBrandDropdownOpen(false);
                                                     }}
                                                     className="px-3 py-2 cursor-pointer hover:bg-gray-100 text-sm">

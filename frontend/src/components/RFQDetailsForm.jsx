@@ -4,29 +4,34 @@ import { useRef } from "react";
 import { apiBackendFetch } from "../services/api";
 import utils from "../helper/utils.js";
 
-export default function RFQDetailsForm({ rfq, setFormData, mode }) {
-    const [rfqItems, setRfqItems] = useState(rfq.items || []);
+export default function RFQDetailsForm({ rfq, setFormData }) {
+    const formData = rfq;
     const [itemsList, setItemsList] = useState([]);
     const [errors, setErrors] = useState(null);
-    // formData and setFormData are now managed by parent
-    const formData = rfq;
-    // setFormData is now passed as a prop
 
     const onItemChange = (itemId, field, value) => {
-        setRfqItems((prevItems) => prevItems.map((item) => (item.id === itemId ? { ...item, [field]: value } : item)));
-        console.log(rfqItems);
+        setFormData(prev => ({
+            ...prev,
+            items: prev.items.map(item => item.itemId === itemId ? { ...item, [field]: value } : item)
+        }));
     };
 
     const onRemoveItem = (itemId) => {
-        setRfqItems((prevItems) => prevItems.filter((item) => item.id !== itemId));
+        setFormData(prev => ({
+            ...prev,
+            items: prev.items.filter((item) => item.id !== itemId)
+        }));
     };
 
     const onAddItem = () => {
-        const newItem = { id: null, item_id: null, name: "", model: "", description: "", quantity: 1, price: 0 };
-        setRfqItems((prevItems) => [...prevItems, newItem]);
+        const newItem = { id: null, itemId: null, name: "", model: "", description: "", quantity: 1, price: "" };
+        setFormData(prev => ({
+            ...prev,
+            items: [...(prev.items || []), newItem]
+        }));
     };
 
-    const dropdownRefs = useRef({});
+    const dropdownRefs = useRef({});      
 
     useEffect(() => {
         const fetchItems = async () => {
@@ -45,28 +50,48 @@ export default function RFQDetailsForm({ rfq, setFormData, mode }) {
     // Close dropdown on outside click for product name dropdowns
     useEffect(() => {
         const handleClickOutside = (e) => {
-            setRfqItems((prevItems) => prevItems.map((item) => {
-                const ref = dropdownRefs.current[item.id];
-                if (item.showDropdown && ref && !ref.contains(e.target)) {
-                    return { ...item, showDropdown: false };
-                }
-                return item;
+            setFormData(prev => ({
+                ...prev,
+                items: prev.items.map(item => {
+                    const ref = dropdownRefs.current[item.id];
+                    if (item.showDropdown && ref && !ref.contains(e.target)) {
+                        return { ...item, showDropdown: false };
+                    }
+                    return item;
+                })
             }));
         };
         document.addEventListener("mousedown", handleClickOutside);
         return () => {
             document.removeEventListener("mousedown", handleClickOutside);
-            handleSetRfqItems(rfqItems);
-        }
-    }, [rfqItems]);
+        };
+    }, [setFormData, dropdownRefs]);
 
-    // Example usage inside RFQDetailsForm:
-    const handleSetRfqItems = (newRfqItems) => {
-        setFormData(prev => ({
-            ...prev,
-            items: newRfqItems
-        }));
-    };
+    // Recompute totals whenever rfqItems change
+    useEffect(() => {
+        const items = formData.items || [];
+        const allPriced = items.length > 0 && items.every(it => it.unitPrice !== null && it.unitPrice !== undefined && `${it.unitPrice}` !== "" && !isNaN(parseFloat(it.unitPrice)));
+        if (allPriced) {
+            const subTotal = items.reduce((sum, it) => sum + (parseFloat(it.unitPrice) * (Number(it.quantity) || 0)), 0);
+            const vat = subTotal * 0.05; // 5%
+            const grandTotal = subTotal + vat;
+            setFormData(prev => ({
+                ...prev,
+                items,
+                subTotal: Number(subTotal.toFixed(2)),
+                vat: Number(vat.toFixed(2)),
+                grandTotal: Number(grandTotal.toFixed(2)),
+            }));
+        } else {
+            setFormData(prev => ({
+                ...prev,
+                items,
+                subTotal: null,
+                vat: null,
+                grandTotal: null,
+            }));
+        }
+    }, [formData.items, setFormData]);
 
     return (
         <div className="w-full h-full space-y-6">
@@ -188,9 +213,9 @@ export default function RFQDetailsForm({ rfq, setFormData, mode }) {
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-gray-200">
-                                    {rfqItems?.map((item) => (
+                                    {formData.items?.map((item) => (
                                         <tr
-                                            key={item.id}
+                                            key={item.itemId}
                                             className="hover:bg-gray-100 transition-all duration-200">
                                             <td className="text-sm p-2 align-middle" style={{ position: 'relative', overflow: 'visible' }}>
                                                 <div className="relative" ref={el => { dropdownRefs.current[item.id] = el; }} style={{ overflow: 'visible' }}>
@@ -198,15 +223,21 @@ export default function RFQDetailsForm({ rfq, setFormData, mode }) {
                                                         type="text"
                                                         value={item.name || ""}
                                                         onChange={(e) => {
-                                                            onItemChange(item.id, "name", e.target.value);
-                                                            setRfqItems((prevItems) => prevItems.map((itm) =>
-                                                                itm.id === item.id ? { ...itm, showDropdown: true, searchQuery: e.target.value } : itm
-                                                            ));
+                                                            onItemChange(item.itemId, "name", e.target.value);
+                                                            setFormData((prev) => ({
+                                                                ...prev,
+                                                                items: prev.items.map((itm) =>
+                                                                    itm.itemId === item.itemId ? { ...itm, showDropdown: true, searchQuery: e.target.value } : itm
+                                                                )
+                                                            }));
                                                         }}
                                                         className="w-full rounded border border-gray-200 px-2 py-1 text-sm"
-                                                        onFocus={() => setRfqItems((prevItems) => prevItems.map((itm) =>
-                                                            itm.id === item.id ? { ...itm, showDropdown: true } : itm
-                                                        ))}
+                                                        onFocus={() => setFormData((prev) => ({
+                                                            ...prev,
+                                                            items: prev.items.map((itm) =>
+                                                                itm.itemId === item.itemId ? { ...itm, showDropdown: true } : itm
+                                                            )
+                                                        }))}
                                                         autoComplete="off"
                                                     />
                                                     {item.showDropdown && (
@@ -215,31 +246,31 @@ export default function RFQDetailsForm({ rfq, setFormData, mode }) {
                                                                 {(itemsList || [])
                                                                     .filter(i =>
                                                                         (i.name || i.description || "").toLowerCase().includes((item.searchQuery || item.name || "").toLowerCase()) &&
-                                                                        !rfqItems.some(tr => tr.item_id === i.id)
+                                                                        !formData.items.some(tr => tr.itemId === i.id)
                                                                     )
                                                                     .map((itm) => (
                                                                     <li
                                                                         key={itm.id}
                                                                         onClick={() => {
-                                                                            console.log("Selected item: ", itm);
-                                                                            setRfqItems((prevItems) => prevItems.map((it) =>
-                                                                                it === item ? {
-                                                                                    ...it,
-                                                                                    id: itm.id, // set id to selected item's id
-                                                                                    item_id: itm.id, // also store as item_id for backend
-                                                                                    name: itm.name,
-                                                                                    brand: itm.brand || "",
-                                                                                    partNumber: itm.partNumber || "",
-                                                                                    leadTime: itm.leadTime || "",
-                                                                                    unit: itm.unit || "",
-                                                                                    model: itm.model || "",
-                                                                                    description: itm.description || "",
-                                                                                    quantity: it.quantity || 1,
-                                                                                    price: itm.price || 0,
-                                                                                    showDropdown: false,
-                                                                                    searchQuery: ""
-                                                                                } : it
-                                                                            ));
+                                                                            setFormData((prev) => ({
+                                                                                ...prev,
+                                                                                items: prev.items.map((it) => 
+                                                                                    it.itemId === item.itemId ? {
+                                                                                        ...it,
+                                                                                        itemId: itm.id, // also store as itemId for backend
+                                                                                        name: itm.name,
+                                                                                        brand: itm.brand || "",
+                                                                                        partNumber: itm.partNumber || "",
+                                                                                        leadTime: "",
+                                                                                        unit: itm.unit || "",
+                                                                                        model: itm.model || "",
+                                                                                        description: itm.description || "",
+                                                                                        quantity: it.quantity || 1,
+                                                                                        price: "",
+                                                                                        showDropdown: false,
+                                                                                        searchQuery: ""
+                                                                                    } : it
+                                                                            )}));
                                                                         }}
                                                                         className="px-3 py-2 cursor-pointer hover:bg-gray-100 text-sm" style={{ listStyle: 'none' }}>
                                                                         {itm.name || itm.description}
@@ -285,7 +316,7 @@ export default function RFQDetailsForm({ rfq, setFormData, mode }) {
                                                     className="w-full rounded border border-gray-200 px-2 py-1 text-sm bg-white"
                                                     onChange={e => {
                                                         const value = Math.max(1, Number(e.target.value));
-                                                        onItemChange(item.id, "quantity", value);
+                                                        onItemChange(item.itemId, "quantity", value);
                                                     }}
                                                 />
                                             </td>
@@ -293,14 +324,6 @@ export default function RFQDetailsForm({ rfq, setFormData, mode }) {
                                                 <input
                                                     type="text"
                                                     value={item.unit || ""}
-                                                    readOnly
-                                                    className="w-full rounded border border-gray-200 px-2 py-1 text-sm bg-gray-100"
-                                                />
-                                            </td>
-                                            <td className="text-sm p-2 align-middle">
-                                                <input
-                                                    type="text"
-                                                    value={item.price || ""}
                                                     readOnly
                                                     className="w-full rounded border border-gray-200 px-2 py-1 text-sm bg-gray-100"
                                                 />
@@ -316,7 +339,15 @@ export default function RFQDetailsForm({ rfq, setFormData, mode }) {
                                             <td className="text-sm p-2 align-middle">
                                                 <input
                                                     type="text"
-                                                    value={`Php ${item.price * item.quantity || ""}`}
+                                                    value={item.unitPrice || ""}
+                                                    readOnly
+                                                    className="w-full rounded border border-gray-200 px-2 py-1 text-sm bg-gray-100"
+                                                />
+                                            </td>
+                                            <td className="text-sm p-2 align-middle">
+                                                <input
+                                                    type="text"
+                                                    value={`Php ${item.unitPrice * item.quantity || ""}`}
                                                     readOnly
                                                     className="w-full rounded border border-gray-200 px-2 py-1 text-sm bg-gray-100"
                                                 />
@@ -325,7 +356,7 @@ export default function RFQDetailsForm({ rfq, setFormData, mode }) {
                                                 <button
                                                     type="button"
                                                     className="text-red-600 hover:text-red-800 text-sm"
-                                                    onClick={() => onRemoveItem(item.id)}>
+                                                    onClick={() => onRemoveItem(item.itemId)}>
                                                     <LuTrash />
                                                 </button>
                                             </td>
@@ -338,8 +369,10 @@ export default function RFQDetailsForm({ rfq, setFormData, mode }) {
                     <div>
                         <button
                             type="button"
-                            className="border border-gray-200 text-gray-800 rounded-md px-4 py-2 flex items-center shadow-xs hover:bg-gray-200 transition-all duration-200 cursor-pointer text-xs"
-                            onClick={onAddItem}>
+                            className="border border-gray-200 text-gray-800 rounded-md px-4 py-2 flex items-center shadow-xs hover:bg-gray-200 transition-all duration-200 text-xs"
+                            onClick={onAddItem}
+                            disabled={formData.items.some(item => item.id == null)}
+                            style={formData.items.some(item => item.id == null) ? { opacity: 0.5, cursor: 'not-allowed' } : {}}>
                             <LuPlus className="mr-2" /> Add Item
                         </button>
                     </div>
@@ -347,15 +380,15 @@ export default function RFQDetailsForm({ rfq, setFormData, mode }) {
                         <div className="w-64">
                             <div className="flex justify-between py-2">
                                 <span className="font-medium">Subtotal:</span>
-                                <span>{formData.subTotal}</span>
+                                <span>{formData.subTotal != null ? formData.subTotal : "—"}</span>
                             </div>
                             <div className="flex justify-between py-2 border-t">
                                 <span className="font-medium">VAT (5%):</span>
-                                <span>{formData.vat}</span>
+                                <span>{formData.vat != null ? formData.vat : "—"}</span>
                             </div>
                             <div className="flex justify-between py-2 border-t font-bold">
                                 <span>Grand Total:</span>
-                                <span>{formData.grandTotal}</span>
+                                <span>{formData.grandTotal != null ? formData.grandTotal : "—"}</span>
                             </div>
                         </div>
                     </div>
