@@ -4,6 +4,22 @@ import { toSnake, toCamel } from "../helper/utils.js";
 
 const router = express.Router();
 
+// GET all accounts
+router.get("/all", async (req, res) => {
+  try {
+    const result = await db.query(`
+      SELECT accounts.*, ai.industry_name AS industry_name, apb.product_brand_name AS product_brand_name, ad.department_name AS department_name
+      FROM accounts
+      LEFT JOIN account_industries ai ON accounts.industry_id = ai.id
+      LEFT JOIN account_product_brands apb ON accounts.product_id = apb.id
+      LEFT JOIN account_departments ad ON accounts.department_id = ad.id
+    `);
+    console.log("Fetched accounts:", result.rows);
+    return res.json(result.rows); // ✅ camelCase
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
 
 // GET all accounts
 router.get("/", async (req, res) => {
@@ -157,7 +173,8 @@ router.put("/:id", async (req, res) => {
         `SELECT assigned_to FROM workflow_stages WHERE wo_id = $1 AND stage_name = 'NAEF' LIMIT 1`,
         [wo_id]
       );
-      assignee = stageResult.rows.length > 0 ? stageResult.rows[0].assigned_to : null;
+      console.log("Fetched assignee from workflow_stages:", stageResult.rows);
+      assignee = stageResult.rows.length > 0 ? stageResult.rows[0].assignedTo : null;
     }
     const keys = Object.keys(filteredData);
     const values = Object.values(filteredData);
@@ -180,7 +197,7 @@ router.put("/:id", async (req, res) => {
       [wo_id]
     );
     
-    const status = stageResult.rows.length === 0 ? 'Draft' : 'Pending';
+    const status =  data?.status ? data.status : stageResult.rows.length === 0 ? 'Draft' : 'Pending';
     
     await db.query(
       `INSERT INTO workflow_stages (wo_id, stage_name, status, assigned_to, created_at, updated_at)

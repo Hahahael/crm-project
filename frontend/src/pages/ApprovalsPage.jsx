@@ -171,6 +171,8 @@ const ApprovalsPage = () => {
                         } catch {}
                     }
                     nextModuleType = woIsNew ? "NAEF" : "Quotations";
+                } else if (currentType === "NAEF" || currentType === "naef") {
+                    nextModuleType = "Quotations";
                 } else {
                     nextModuleType = currentType;
                 }
@@ -231,6 +233,7 @@ const ApprovalsPage = () => {
                         method: nextModuleType === "NAEF" ? "PUT" : "POST",
                         body: JSON.stringify(payload)
                     });
+                    console.log("Next module creation response:", nextModuleRes);
                     let nextModuleData = null;
                     if (nextModuleRes.ok) {
                         nextModuleData = await nextModuleRes.json();

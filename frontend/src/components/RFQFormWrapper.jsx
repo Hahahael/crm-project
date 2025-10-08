@@ -25,7 +25,7 @@ export default function RFQFormWrapper({ rfq, tab, mode = "create", onBack, onSa
         accountName: "",
         terms: "",
         notes: "",
-        subTotal: 0,
+        subtotal: 0,
         vat: 0,
         grandTotal: 0,
         additionalNotes: "",
@@ -64,7 +64,7 @@ export default function RFQFormWrapper({ rfq, tab, mode = "create", onBack, onSa
                 accountName: "",
                 terms: "",
                 notes: "",
-                subTotal: 0,
+                subtotal: 0,
                 vat: 0,
                 grandTotal: 0,
                 additionalNotes: ""

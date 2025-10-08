@@ -66,7 +66,7 @@ const WorkOrderForm = ({ workOrder, mode = "create", onSave, onBack }) => {
 
         const fetchAccounts = async () => {
             try {
-                const res = await apiBackendFetch("/api/accounts");
+                const res = await apiBackendFetch("/api/accounts/all");
                 const data = await res.json();
                 console.log("Fetched accounts:", data);
                 setAccounts(data);

@@ -34,6 +34,7 @@ export default function RFQDetailsForm({ rfq, setFormData }) {
     const dropdownRefs = useRef({});      
 
     useEffect(() => {
+        console.log("RFQDetailsForm items", formData.items);
         const fetchItems = async () => {
             try {
                 const res = await apiBackendFetch("/api/inventory/items");
@@ -72,13 +73,13 @@ export default function RFQDetailsForm({ rfq, setFormData }) {
         const items = formData.items || [];
         const allPriced = items.length > 0 && items.every(it => it.unitPrice !== null && it.unitPrice !== undefined && `${it.unitPrice}` !== "" && !isNaN(parseFloat(it.unitPrice)));
         if (allPriced) {
-            const subTotal = items.reduce((sum, it) => sum + (parseFloat(it.unitPrice) * (Number(it.quantity) || 0)), 0);
-            const vat = subTotal * 0.05; // 5%
-            const grandTotal = subTotal + vat;
+            const subtotal = items.reduce((sum, it) => sum + (parseFloat(it.unitPrice) * (Number(it.quantity) || 0)), 0);
+            const vat = subtotal * 0.05; // 5%
+            const grandTotal = subtotal + vat;
             setFormData(prev => ({
                 ...prev,
                 items,
-                subTotal: Number(subTotal.toFixed(2)),
+                subtotal: Number(subtotal.toFixed(2)),
                 vat: Number(vat.toFixed(2)),
                 grandTotal: Number(grandTotal.toFixed(2)),
             }));
@@ -86,7 +87,7 @@ export default function RFQDetailsForm({ rfq, setFormData }) {
             setFormData(prev => ({
                 ...prev,
                 items,
-                subTotal: null,
+                subtotal: null,
                 vat: null,
                 grandTotal: null,
             }));
@@ -371,8 +372,8 @@ export default function RFQDetailsForm({ rfq, setFormData }) {
                             type="button"
                             className="border border-gray-200 text-gray-800 rounded-md px-4 py-2 flex items-center shadow-xs hover:bg-gray-200 transition-all duration-200 text-xs"
                             onClick={onAddItem}
-                            disabled={formData.items.some(item => item.id == null)}
-                            style={formData.items.some(item => item.id == null) ? { opacity: 0.5, cursor: 'not-allowed' } : {}}>
+                            disabled={formData.items.some(item => item.itemId == null)}
+                            style={formData.items.some(item => item.itemId == null) ? { opacity: 0.5, cursor: 'not-allowed' } : {}}>
                             <LuPlus className="mr-2" /> Add Item
                         </button>
                     </div>
@@ -380,7 +381,7 @@ export default function RFQDetailsForm({ rfq, setFormData }) {
                         <div className="w-64">
                             <div className="flex justify-between py-2">
                                 <span className="font-medium">Subtotal:</span>
-                                <span>{formData.subTotal != null ? formData.subTotal : "—"}</span>
+                                <span>{formData.subtotal != null ? formData.subtotal : "—"}</span>
                             </div>
                             <div className="flex justify-between py-2 border-t">
                                 <span className="font-medium">VAT (5%):</span>

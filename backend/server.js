@@ -1,15 +1,11 @@
-import { sql, poolPromise } from './mssql.js';
-// Example MSSQL route
-
-
-// Add this router to your Express app
+// MSSQL utilities are imported in the mssql route when needed
+import mssqlRoutes from './routes/mssqlRoutes.js';
 
 
 import express from 'express';
 import cors from 'cors';
 import cookieParser from "cookie-parser";
 
-import pool from './db.js';
 import authRoutes from "./routes/authRoutes.js";
 import authMiddleware from "./middleware/authMiddleware.js";
 import usersRouter from "./routes/usersRoutes.js"
@@ -64,18 +60,7 @@ app.get("/healthcheck", (req, res) => {
 });
 app.use(authMiddleware);
 
-const mssqlRouter = express.Router();
-
-mssqlRouter.get('/mssql-test', async (req, res) => {
-  try {
-    const pool = await poolPromise;
-    const result = await pool.request().query('SELECT TOP 10 * FROM [SPIDB_V49_UAT].INFORMATION_SCHEMA.TABLES');
-    res.json(result.recordset);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-app.use('/api/mssql', mssqlRouter);
+app.use('/api/mssql', mssqlRoutes);
 
 app.use("/dashboard", usersRouter);
 app.use("/api/users", usersRouter);

@@ -107,7 +107,7 @@ export default function RFQsPage() {
     if (loading)
         return (
             <LoadingModal
-                message="Loading Work Orders..."
+                message="Loading Requests for Quotation..."
                 subtext="Please wait while we fetch your data."
             />
         );
@@ -185,7 +185,7 @@ export default function RFQsPage() {
             await apiBackendFetch("/api/workflow-stages", {
                 method: "POST",
                 body: JSON.stringify({
-                    wo_id: savedRFQ.id,
+                    wo_id: savedRFQ.woId,
                     stage_name: "RFQ",
                     status: "Submitted",
                     assigned_to: savedRFQ.assignee,

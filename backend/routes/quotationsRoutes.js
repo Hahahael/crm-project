@@ -6,8 +6,27 @@ const router = express.Router();
 
 router.get("/", async (req, res) => {
   try {
-    const result = await db.query("SELECT * FROM quotations ORDER BY id ASC");
-    return res.json(result.rows);
+    // Fetch all quotations, then attach associated rfq, tr, and workorder for each
+    const qRes = await db.query("SELECT * FROM quotations ORDER BY id ASC");
+    const rows = qRes.rows;
+
+    const enriched = await Promise.all(
+      rows.map(async (quotation) => {
+        const [rfqRes, trRes, woRes] = await Promise.all([
+          quotation.rfq_id ? db.query("SELECT * FROM rfqs WHERE id = $1", [quotation.rfq_id]) : Promise.resolve({ rows: [] }),
+          quotation.tr_id ? db.query("SELECT * FROM technical_recommendations WHERE id = $1", [quotation.tr_id]) : Promise.resolve({ rows: [] }),
+          quotation.wo_id ? db.query("SELECT * FROM workorders WHERE id = $1", [quotation.wo_id]) : Promise.resolve({ rows: [] }),
+        ]);
+
+        quotation.rfq = rfqRes.rows[0] || null;
+        quotation.tr = trRes.rows[0] || null;
+        quotation.workorder = woRes.rows[0] || null;
+
+        return quotation;
+      })
+    );
+
+    return res.json(enriched);
   } catch (err) {
     console.error(err);
     return res.status(500).json({ error: "Failed to fetch quotations" });
@@ -20,7 +39,26 @@ router.get("/:id", async (req, res) => {
     const result = await db.query("SELECT * FROM quotations WHERE id = $1", [id]);
     if (result.rows.length === 0)
       return res.status(404).json({ error: "Not found" });
-    return res.json(result.rows[0]);
+
+    const quotation = result.rows[0];
+
+    // Fetch associated RFQ, TR, and Workorder in parallel (if ids present)
+    const [rfqRes, trRes, woRes] = await Promise.all([
+      quotation.rfq_id ? db.query("SELECT * FROM rfqs WHERE id = $1", [quotation.rfq_id]) : Promise.resolve({ rows: [] }),
+      quotation.tr_id ? db.query("SELECT * FROM technical_recommendations WHERE id = $1", [quotation.tr_id]) : Promise.resolve({ rows: [] }),
+      quotation.wo_id ? db.query("SELECT * FROM workorders WHERE id = $1", [quotation.wo_id]) : Promise.resolve({ rows: [] }),
+    ]);
+
+    const rfq = rfqRes.rows[0] || null;
+    const tr = trRes.rows[0] || null;
+    const workorder = woRes.rows[0] || null;
+
+    // Attach related records directly onto the quotation object
+    quotation.rfq = rfq;
+    quotation.tr = tr;
+    quotation.workorder = workorder;
+
+    return res.json(quotation);
   } catch (err) {
     console.error(err);
     return res.status(500).json({ error: "Failed to fetch quotation" });
@@ -140,10 +178,12 @@ router.post("/", async (req, res) => {
     const rfqRes = await db.query("SELECT id FROM rfqs WHERE wo_id = $1 LIMIT 1", [wo_id]);
     const trRes = await db.query("SELECT id FROM technical_recommendations WHERE wo_id = $1 LIMIT 1", [wo_id]);
 
+    console.log("Found RFQ and TR for WO:", { rfqRes: rfqRes.rows, trRes: trRes.rows });
+
     const rfq_id = rfqRes.rows[0]?.id || null;
     const tr_id = trRes.rows[0]?.id || null;
 
-    if (!rfq_id || !tr_id) {
+    if (!rfq_id && !tr_id) {
       return res.status(400).json({
         error: "Missing reference",
         rfq_id,
@@ -163,8 +203,8 @@ router.post("/", async (req, res) => {
     // Create workflow stage for new technical recommendation (Draft)
     await db.query(
       `INSERT INTO workflow_stages (wo_id, stage_name, status, assigned_to, created_at, updated_at)
-        VALUES ($1, $2, $3, $4, $5, NOW(), NOW())`,
-      [wo_id, 'RFQ', 'Draft', assignee]
+        VALUES ($1, $2, $3, $4, NOW(), NOW())`,
+      [wo_id, 'Quotations', 'Draft', assignee]
     );
 
     return res.status(201).json(result.rows[0]);

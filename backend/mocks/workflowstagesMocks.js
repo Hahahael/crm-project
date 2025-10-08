@@ -264,6 +264,17 @@ export const workflowStages = [
     id: 21
   },
   {
+    woId: 1,
+    stageName: 'RFQ',
+    status: 'Approved',
+    assignedTo: 1,
+    notified: false,
+    remarks: null,
+    createdAt: "2025-10-03T09:31:50.614Z",
+    updatedAt: "2025-10-03T09:31:50.614Z",
+    id: 22
+  },
+  {
     woId: 3,
     stageName: 'Work Order',
     status: 'Pending',
@@ -272,6 +283,39 @@ export const workflowStages = [
     remarks: null,
     createdAt: "2025-10-01T11:37:14.821Z",
     updatedAt: "2025-10-01T11:37:14.821Z",
-    id: 22
-  }
+    id: 23
+  },
+  {
+    woId: 1,
+    stageName: 'NAEF',
+    status: 'Draft',
+    assignedTo: 1,
+    notified: false,
+    remarks: null,
+    createdAt: "2025-10-03T09:31:50.615Z",
+    updatedAt: "2025-10-03T09:31:50.615Z",
+    id: 24
+  },
+  {
+    woId: 1,
+    stageName: 'NAEF',
+    status: 'Pending',
+    assignedTo: 1,
+    notified: false,
+    remarks: null,
+    createdAt: "2025-10-03T09:31:50.615Z",
+    updatedAt: "2025-10-03T09:31:50.615Z",
+    id: 25
+  },
+  {
+    woId: 1,
+    stageName: 'NAEF',
+    status: 'Submitted',
+    assignedTo: 1,
+    notified: false,
+    remarks: null,
+    createdAt: "2025-10-03T09:31:50.615Z",
+    updatedAt: "2025-10-03T09:31:50.615Z",
+    id: 26
+  },
 ];

@@ -181,7 +181,7 @@ router.post("/", async (req, res) => {
     const insertResult = await db.query(
       `INSERT INTO rfqs 
         (wo_id, assignee, rfq_number, stage_status, due_date, sl_id, account_id, created_at, created_by, updated_at)
-        VALUES ($1,$2,$3,$4,$5,$6,NOW(),$7,NOW())
+        VALUES ($1,$2,$3,$4,$5,$6,$7,NOW(),$8,NOW())
         RETURNING id`,
       [
         wo_id,
@@ -191,7 +191,7 @@ router.post("/", async (req, res) => {
         due_date,
         sl_id,
         account_id,
-        assignee,
+        assignee
       ]
     );
     const newId = insertResult.rows[0].id;

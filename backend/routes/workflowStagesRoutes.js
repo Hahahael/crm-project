@@ -54,19 +54,6 @@ router.get("/latest-submitted", async (req, res) => {
 
             UNION ALL
 
-        SELECT ws.id AS workflow_stage_id, ws.created_at AS submitted_date, ws.stage_name, ws.status, ws.wo_id, ws.assigned_to, ws.remarks, u.username AS submitted_by, 'account' AS module, a.ref_number AS transaction_number, a.id AS module_id, a.id AS account_id, a.account_name AS account_name
-            FROM workflow_stages ws
-            INNER JOIN (
-                SELECT wo_id, MAX(created_at) AS max_created
-                FROM workflow_stages
-                GROUP BY wo_id
-            ) latest ON ws.wo_id = latest.wo_id AND ws.created_at = latest.max_created
-            LEFT JOIN accounts a ON ws.wo_id = a.id
-            LEFT JOIN users u ON ws.assigned_to = u.id
-            WHERE ws.status = 'Submitted' AND (ws.stage_name = 'Account' OR ws.stage_name = 'NAEF')
-
-            UNION ALL
-
         SELECT ws.id AS workflow_stage_id, ws.created_at AS submitted_date, ws.stage_name, ws.status, ws.wo_id, ws.assigned_to, ws.remarks, u.username AS submitted_by, 'workorder' AS module, wo.wo_number AS transaction_number, wo.id AS module_id, wo.account_id AS account_id, a.account_name AS account_name
             FROM workflow_stages ws
             INNER JOIN (
@@ -298,9 +285,8 @@ router.get("/assigned/latest/:id/:stageName", async (req, res) => {
                 ) latest ON ws.wo_id = latest.wo_id AND ws.created_at = latest.max_created
                 INNER JOIN workorders wo ON ws.wo_id = wo.id
                 LEFT JOIN accounts a ON wo.account_id = a.id
-                LEFT JOIN users u ON ws.assigned_to = u.id
-                LEFT JOIN accounts a ON wo.account_id = a.id
-                WHERE ws.status = 'Pending' AND ws.stage_name = $2
+                LEFT JOIN users u ON wo.assignee = u.id
+                WHERE ws.status = 'Pending' AND ws.stage_name = $2 AND wo.assignee = $1
             `;
         } else {
             // For other tables: join sales_leads for sl_number, join users for username/department

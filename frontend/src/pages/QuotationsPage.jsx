@@ -1,6 +1,5 @@
 //src/pages/QuotationsPage
-import { useState, useEffect, useRef, use } from "react";
-import { useLocation } from "react-router-dom";
+import { useState, useEffect, useRef } from "react";
 import { LuBell, LuCircleAlert, LuClipboard, LuFileText, LuMessageCircle, LuSearch, LuSend, LuX } from "react-icons/lu";
 import QuotationsTable from "../components/QuotationsTable";
 import TechnicalDetails from "../components/TechnicalDetails";
@@ -10,20 +9,21 @@ import RFQCanvassSheet from "../components/RFQCanvassSheet";
 
 export default function QuotationsPage() {
     const timeoutRef = useRef();
-    const location = useLocation();
 
     const [quotations, setQuotations] = useState([]);
+    const [mssqlQuotations, setMssqlQuotations] = useState([]);
     const [search, setSearch] = useState("");
     const [selectedQuotation, setSelectedQuotation] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [successMessage, setSuccessMessage] = useState("");
     const [currentUser, setCurrentUser] = useState(null);
-    const [selectedTab, setSelectedTab] = useState("details");
+    // kept for future UI tabs (prefixed with _ to avoid unused-var lint)
+    const [_selectedTab, _setSelectedTab] = useState("details");
     const [newAssignedQuotations, setNewAssignedQuotations] = useState([]);
     const [selectedTR, setSelectedTR] = useState(null);
     const [selectedRFQ, setSelectedRFQ] = useState(null);
-    const [statusSummary, setStatusSummary] = useState({
+    const [statusSummary, _setStatusSummary] = useState({
         total: 0,
         pending: 0,
         inProgress: 0,
@@ -37,7 +37,10 @@ export default function QuotationsPage() {
 
             const quotationsData = await quotationsRes.json();
             setQuotations(quotationsData);
-            console.log("Fetched Quotations:", quotationsData);
+            console.log("Fetched Quotations (Postgres):", quotationsData);
+
+            // Fetch MSSQL quotations and merge (best-effort)
+            await fetchMssqlQuotations();
 
             // Fetch status summary
             // const summaryRes = await apiBackendFetch("/api/rfqs/summary/status");
@@ -54,6 +57,25 @@ export default function QuotationsPage() {
         } catch (err) {
             console.error("Error retrieving Quotations:", err);
             setError("Failed to fetch Quotations.");
+        }
+    };
+
+    const fetchMssqlQuotations = async () => {
+        try {
+            const res = await apiBackendFetch('/api/mssql/quotations');
+            if (!res.ok) {
+                console.warn('Failed to fetch MSSQL quotations', res.status);
+                return;
+            }
+            const data = await res.json();
+            setMssqlQuotations(data);
+            // Merge MSSQL results into the main quotations list (append)
+            if (Array.isArray(data) && data.length > 0) {
+                setQuotations((prev) => [...prev, ...data]);
+            }
+            console.log('Fetched MSSQL quotations:', data);
+        } catch (err) {
+            console.error('Error fetching MSSQL quotations:', err);
         }
     };
 
@@ -103,6 +125,7 @@ export default function QuotationsPage() {
                 if (rfqRes.ok) {
                     const rfqData = await rfqRes.json();
                     setSelectedRFQ(rfqData);
+                    console.log("rfqData:", rfqData)
                     console.log("Fetched RFQ data:", rfqData);
                 }
             }
@@ -112,15 +135,98 @@ export default function QuotationsPage() {
         }
     }
 
+    // Build MSSQL payload from our frontend quotation object
+    // Prefers RFQ data when available, falls back to TR when not.
+    // Maps RFQ/TR line items into MSSQL quotation_details using best-effort field mapping.
+    const buildMssqlPayload = (q) => {
+        // Source: prefer rfq, fallback to tr
+        const src = q.rfq || q.tr || q;
+
+        // Try to find a customer id from several possible locations
+        const customerId = q.accountId || q.account_id || q.account?.id || q.accountId || q.workorder?.account_id || q.wo_id || null;
+        const code = q.refNumber || (q.rfq && q.rfq.rfqNumber) || q.rfq?.rfq_number || q.Code || q.QuotationNo || null;
+        const totalQty = q.totalQty || q.TotalQty || src?.totalQty || src?.items?.reduce((s, it) => s + (Number(it.quantity) || 0), 0) || 0;
+        const validityDate = q.validityDate || q.ValidityDate || q.dueDate || src?.dueDate || null;
+        const dateModified = new Date().toISOString();
+        const notes = q.notes || q.title || q.description || src?.notes || null;
+
+        const quotation = {
+            Code: code,
+            Customer_Id: customerId ? Number(customerId) : null,
+            TotalQty: Number(totalQty) || 0,
+            ValidityDate: validityDate ? validityDate : null,
+            DateModified: dateModified,
+            Notes: notes,
+        };
+
+        // Map line items -> quotation_details
+        const items = Array.isArray(src?.items) ? src.items : [];
+        const details = items.map((item) => {
+            const qty = Number(item.quantity) || 0;
+            // unitPrice may come from selected vendor quote (rfqsRoutes sets item.unitPrice when a selected quote exists)
+            const unitPrice = item.unitPrice != null ? Number(item.unitPrice) : (item.price != null ? Number(item.price) : null);
+            const amount = unitPrice != null ? qty * unitPrice : null;
+
+            // Stock_Id: best-effort mapping. If frontend item has an inventory item id (item.itemId) use it.
+            // NOTE: If your MSSQL stock IDs differ from app item IDs, you should replace this mapping with a proper lookup.
+            const stockId = item.itemId != null ? Number(item.itemId) : null;
+
+            const detail = {
+                Qty: qty || null,
+                Unit_Price: unitPrice != null ? unitPrice : null,
+                Amount: amount != null ? amount : null,
+                Stock_Id: stockId,
+                // Quotation_Id will be set server-side after inserting the parent quotation
+            };
+
+            // Filter out keys with null/undefined so backend whitelist logic can decide what's allowed
+            Object.keys(detail).forEach(k => {
+                if (detail[k] === null || detail[k] === undefined) delete detail[k];
+            });
+
+            return detail;
+        }).filter(d => Object.keys(d).length > 0);
+
+        return { quotation, details };
+    };
+
+    const sendQuotationToMssql = async (quotation) => {
+        if (!quotation) return;
+        setLoading(true);
+        try {
+            const payload = buildMssqlPayload(quotation);
+            console.log('Sending MSSQL payload:', payload);
+            // Use quick endpoint for demo/testing that inserts quotation + details
+            const res = await apiBackendFetch('/api/mssql/quotations/quick', {
+                method: 'POST',
+                body: JSON.stringify(payload),
+            });
+            if (!res || !res.ok) {
+                const text = res ? await res.text() : 'No response';
+                throw new Error(text || 'Failed to POST to MSSQL');
+            }
+            const data = await res.json();
+            console.log('MSSQL insert result:', data);
+            setSuccessMessage('Quotation sent to MSSQL successfully');
+        } catch (err) {
+            console.error('Failed to send to MSSQL:', err);
+            setError('Failed to send quotation to MSSQL.');
+        } finally {
+            setLoading(false);
+        }
+    };
+
     useEffect(() => {
         fetchCurrentUser();
         fetchAllData();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     useEffect(() => {
         if (currentUser) {
             fetchNewAssignedQuotations();
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [currentUser]);
 
     useEffect(() => {
@@ -137,7 +243,7 @@ export default function QuotationsPage() {
     if (loading)
         return (
             <LoadingModal
-                message="Loading Work Orders..."
+                message="Loading Quotations..."
                 subtext="Please wait while we fetch your data."
             />
         );
@@ -173,9 +279,16 @@ export default function QuotationsPage() {
                     {/* Header */}
                     <div className="flex items-center mb-6">
                         <div className="flex flex-col">
-                            <h1 className="text-2xl font-bold">Quotations Management</h1>
-                            <h2 className="text-md text-gray-700">View and manage all quotations</h2>
-                        </div>
+                                <div className="flex items-center gap-3">
+                                    <h1 className="text-2xl font-bold">Quotations Management</h1>
+                                    {mssqlQuotations && mssqlQuotations.length > 0 && (
+                                        <span className="inline-flex items-center px-2 py-0.5 text-xs font-semibold rounded bg-sky-100 text-sky-800">
+                                            MSSQL: {mssqlQuotations.length}
+                                        </span>
+                                    )}
+                                </div>
+                                <h2 className="text-md text-gray-700">View and manage all quotations</h2>
+                            </div>
                     </div>
 
                     {/* Banner Notifications */}
@@ -310,6 +423,7 @@ export default function QuotationsPage() {
                                 getTRAndRFQ(quotation);
                                 setSelectedQuotation(quotation);
                             }}
+                            onSend={(q) => sendQuotationToMssql(q)}
                         />
                     </div>
                 </div>
@@ -325,6 +439,7 @@ export default function QuotationsPage() {
                         <button
                             className="mb-4 inline-flex items-center justify-center font-medium transition-colors hover:bg-gray-100 h-8 rounded-md px-3 text-xs text-gray-400 hover:text-gray-600 cursor-pointer"
                             onClick={() => {
+                                sendQuotationToMssql(selectedQuotation);
                                 setSelectedQuotation(null);
                                 setSelectedTR(null);
                                 setSelectedRFQ(null);
@@ -343,7 +458,10 @@ export default function QuotationsPage() {
                             />
                         )}
                         {selectedRFQ && (
-                            <RFQCanvassSheet rfq={selectedRFQ} />
+                            <RFQCanvassSheet
+                                rfq={selectedRFQ}
+                                setFormData={(data) => setSelectedRFQ(data)}
+                            />
                         )}
                     </div>
                 )}

@@ -1,9 +1,8 @@
 //src/components/QuotationsTable
-import { LuEllipsis, LuEye, LuPencil, LuTrash } from "react-icons/lu";
+import { LuEllipsis, LuEye, LuPencil, LuTrash, LuSend } from "react-icons/lu";
 import util from "../helper/utils.js"
-import config from "../config.js";
 
-export default function QuotationsTable({ quotations, onView, onEdit }) {
+export default function QuotationsTable({ quotations, onView, onSend }) {
   console.log("QuotationsTable - quotations:", quotations);
   return (
     <div className="relative overflow-x-auto rounded-lg border border-gray-200 bg-white">
@@ -44,6 +43,13 @@ export default function QuotationsTable({ quotations, onView, onEdit }) {
                     className="cursor-pointer rounded px-2 py-2 text-black border border-gray-200 bg-white hover:bg-gray-100 transition-all duration-200"
                   >
                     <LuEye className="my-auto" />
+                  </button>
+                  <button
+                    onClick={() => onSend && onSend(quotation)}
+                    className="cursor-pointer rounded px-2 py-2 text-black border border-gray-200 bg-white hover:bg-gray-100 transition-all duration-200"
+                    title="Send to MSSQL"
+                  >
+                    <LuSend className="my-auto" />
                   </button>
                 </div>
               </td>

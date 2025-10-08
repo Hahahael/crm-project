@@ -309,7 +309,7 @@ const RFQDetails = ({ rfq, currentUser, onBack, onEdit, onSave, onPrint, onSubmi
                                         Subtotal:
                                     </span>
                                     <span>
-                                        {rfq.subTotal}
+                                        {rfq.subtotal}
                                     </span>
                                 </div>
                                 <div

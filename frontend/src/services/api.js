@@ -3,7 +3,7 @@ const apiUrl = import.meta.env.VITE_API_URL;
 
 export async function apiBackendFetch(endpoint, options = {}) {
   console.log(`Endpoint: ${apiUrl}${endpoint}`);
-  console.log(`Options:`, options);
+  console.log(`Options:`, options.body ? JSON.parse((options.body)) : options); // Deep clone to avoid circular refs
   try {
     const res = await fetch(`${apiUrl}${endpoint}`, {
       ...options,

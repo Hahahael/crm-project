@@ -38,7 +38,7 @@ export default function SalesLeadsPage() {
             await apiBackendFetch("/api/workflow-stages", {
                 method: "POST",
                 body: JSON.stringify({
-                    wo_id: savedSalesLead.id,
+                    wo_id: savedSalesLead.woId,
                     stage_name: "Sales Lead",
                     status: "Submitted",
                     assigned_to: savedSalesLead.assignee,
@@ -180,7 +180,7 @@ export default function SalesLeadsPage() {
     if (loading)
         return (
             <LoadingModal
-                message="Loading Work Orders..."
+                message="Loading Sales Leads..."
                 subtext="Please wait while we fetch your data."
             />
         );

@@ -56,7 +56,7 @@ const UsersPage = () => {
     fetchAllData();
   }, []);
 
-  if (loading) return <LoadingModal message="Loading Work Orders..." subtext="Please wait while we fetch your data." />;
+  if (loading) return <LoadingModal message="Loading Users..." subtext="Please wait while we fetch your data." />;
   if (error) return <p className="p-4 text-red-600">{error}</p>;
 
   // Save (create/edit) user

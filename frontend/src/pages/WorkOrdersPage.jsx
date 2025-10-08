@@ -193,7 +193,7 @@ export default function WorkOrdersPage() {
       await apiBackendFetch("/api/workflow-stages", {
         method: "POST",
         body: JSON.stringify({
-          wo_id: newSalesLead.id,
+          wo_id: passedWO.id,
           stage_name: "Sales Lead",
           status: "Draft",
           assigned_to: currentUser.id
