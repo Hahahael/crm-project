@@ -1,6 +1,3 @@
-// MSSQL utilities are imported in the mssql route when needed
-import mssqlRoutes from './routes/mssqlRoutes.js';
-
 
 import express from 'express';
 import cors from 'cors';
@@ -60,7 +57,21 @@ app.get("/healthcheck", (req, res) => {
 });
 app.use(authMiddleware);
 
-app.use('/api/mssql', mssqlRoutes);
+// Conditionally mount MSSQL routes.
+// Set ENABLE_MSSQL=true in the environment when you are ready to connect to the real MSSQL server.
+if (process.env.ENABLE_MSSQL === 'true') {
+  // dynamic import so we don't attempt any MSSQL connections during development when using mocks
+  import('./routes/mssqlRoutes.js')
+    .then((mod) => {
+      app.use('/api/mssql', mod.default);
+      console.log('Mounted /api/mssql routes (ENABLE_MSSQL=true)');
+    })
+    .catch((err) => {
+      console.error('Failed to load MSSQL routes:', err);
+    });
+} else {
+  console.log('MSSQL routes not mounted (ENABLE_MSSQL not set).');
+}
 
 app.use("/dashboard", usersRouter);
 app.use("/api/users", usersRouter);
