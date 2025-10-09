@@ -203,18 +203,21 @@ const WorkOrderForm = ({ workOrder, mode = "create", onSave, onBack }) => {
         // Destructure optional + WO number
         const { actualDate, actualFromTime, actualToTime, woNumber, ...requiredFields } = formData;
 
-        // Find missing required fields
-        // const missing = Object.entries(requiredFields).filter(([, value]) => value === "" || value === null || value === undefined);
+        // Validate conditional required fields
+        const newErrors = {};
 
-        // if (missing.length > 0) {
-        //     // Mark missing fields as errors
-        //     const newErrors = {};
-        //     missing.forEach(([key]) => {
-        //         newErrors[key] = true;
-        //     });
-        //     setErrors(newErrors);
-        //     return;
-        // }
+        // If creating a new account, require department, industry, and product (by id)
+        if (formData.isNewAccount) {
+            if (!formData.departmentId) newErrors.department = true;
+            if (!formData.industryId) newErrors.industry = true;
+            if (!formData.productBrandId) newErrors.productBrand = true;
+        }
+
+        if (Object.keys(newErrors).length > 0) {
+            setErrors(newErrors);
+            // scroll to first error (optional)
+            return;
+        }
 
         // ✅ Reset errors if all fields are valid
         setErrors({});
@@ -359,7 +362,7 @@ const WorkOrderForm = ({ workOrder, mode = "create", onSave, onBack }) => {
                                         }}
                                         onFocus={() => setDepartmentDropdownOpen(true)}
                                         placeholder="Search department..."
-                                        className="w-full rounded-md border border-gray-200 px-3 py-2"
+                                        className={`w-full rounded-md border px-3 py-2 ${errors?.department ? "border-red-500" : "border-gray-200"}`}
                                     />
                                 ) : (
                                     <input
@@ -492,7 +495,7 @@ const WorkOrderForm = ({ workOrder, mode = "create", onSave, onBack }) => {
                                         }}
                                         onFocus={() => setIndustryDropdownOpen(true)}
                                         placeholder="Search industry..."
-                                        className="w-full rounded-md border border-gray-200 px-3 py-2"
+                                        className={`w-full rounded-md border px-3 py-2 ${errors?.industry ? "border-red-500" : "border-gray-200"}`}
                                     />
                                 ) : (
                                     <input
@@ -549,7 +552,7 @@ const WorkOrderForm = ({ workOrder, mode = "create", onSave, onBack }) => {
                                         }}
                                         onFocus={() => setProductBrandDropdownOpen(true)}
                                         placeholder="Search product/brand..."
-                                        className="w-full rounded-md border border-gray-200 px-3 py-2"
+                                        className={`w-full rounded-md border px-3 py-2 ${errors?.productBrand ? "border-red-500" : "border-gray-200"}`}
                                     />
                                 ) : (
                                     <input

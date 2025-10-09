@@ -54,6 +54,7 @@ router.get("/assigned", async (req, res) => {
     );
     return res.json(result.rows);
   } catch (err) {
+    console.error(err);
     res.status(500).json({ error: "Failed to fetch assigned workorders" });
   }
 });
@@ -80,6 +81,7 @@ router.get("/assigned/new", async (req, res) => {
     );
     return res.json(result.rows);
   } catch (err) {
+    console.error(err);
     res.status(500).json({ error: "Failed to fetch assigned workorders" });
   }
 });
@@ -118,7 +120,7 @@ router.get("/:id", async (req, res) => {
 router.post("/", async (req, res) => {
   try {
     const body = toSnake(req.body); // ✅ convert camelCase → snake_case
-    const {
+    let {
       work_description,
       assignee,
       account_id,
@@ -145,14 +147,30 @@ router.post("/", async (req, res) => {
       product_brand_id,
     } = body;
 
+    // Coalesce null/undefined text fields to empty string to avoid inserting nulls
+    work_description = work_description ?? "";
+    contact_person = contact_person ?? "";
+    contact_number = contact_number ?? "";
+    objective = objective ?? "";
+    instruction = instruction ?? "";
+    target_output = target_output ?? "";
+    mode = mode ?? "";
+    account_name = account_name ?? "";
+    created_by = created_by ?? null;
+
     let finalAccountId = account_id;
     if (is_new_account) {
+      // Use default id = 1 for missing department/industry/product
+      const resolvedDepartmentId = department_id ?? 1;
+      const resolvedIndustryId = industry_id ?? 1;
+      const resolvedProductId = product_brand_id ?? 1;
+
       const draftAccount = await db.query(
         `INSERT INTO accounts 
           (account_name, department_id, industry_id, product_id, stage_status, created_at, updated_at, is_naef)
          VALUES ($1, $2, $3, $4, 'Draft', NOW(), NOW(), TRUE)
          RETURNING id`,
-        [account_name, department_id, industry_id, product_brand_id]
+        [account_name, resolvedDepartmentId, resolvedIndustryId, resolvedProductId]
       );
       finalAccountId = draftAccount.rows[0].id;
     }
@@ -235,7 +253,7 @@ router.put("/:id", async (req, res) => {
   try {
     const { id } = req.params;
     const body = toSnake(req.body);
-    const {
+    let {
       wo_number,
       work_description,
       assignee,
@@ -257,6 +275,15 @@ router.put("/:id", async (req, res) => {
       is_fsl,
       is_esl,
     } = body;
+
+    // Coalesce null/undefined text fields to empty string on update as well
+    work_description = work_description ?? "";
+    contact_person = contact_person ?? "";
+    contact_number = contact_number ?? "";
+    objective = objective ?? "";
+    instruction = instruction ?? "";
+    target_output = target_output ?? "";
+    mode = mode ?? "";
 
     const updateResult = await db.query(
       `UPDATE workorders 
@@ -291,6 +318,10 @@ router.put("/:id", async (req, res) => {
         id,
       ]
     );
+
+    if (!updateResult || !updateResult.rows || updateResult.rows.length === 0) {
+      return res.status(404).json({ error: "Not found" });
+    }
 
     const updatedId = updateResult.rows[0].id;
 
