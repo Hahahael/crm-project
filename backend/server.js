@@ -47,6 +47,7 @@ app.post('/api/debug/echo', (req, res) => {
 const allowedOrigins = [
   "https://crm-project-git-dev-raphaels-projects-763450c5.vercel.app",
   "https://crm-project-ieqy6ib68-raphaels-projects-763450c5.vercel.app",
+  "https://crm-project-git-new-dev-raphaels-projects-763450c5.vercel.app",
   "https://crm-project-4ugu.onrender.com",
   "http://localhost:5173",
   FRONTEND_URL,
