@@ -18,6 +18,7 @@ import technicalsRouter from "./routes/technicalsRoutes.js";
 import rfqsRouter from "./routes/rfqsRoutes.js";
 import inventoryRouter from "./routes/inventoryRoutes.js";
 import quotationsRouter from "./routes/quotationsRoutes.js";
+import mssqlInventoryRoutes from './routes/mssqlInventoryRoutes.js';
 
 
 const PORT = process.env.PORT || 5000;
@@ -26,8 +27,22 @@ const FRONTEND_URL = process.env.FRONTEND_URL || "http://localhost:5173";
 const app = express();
 
 app.use(cookieParser());
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+// Allow larger request bodies for complex RFQ payloads during dev
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+// Temporary debug endpoint (DEV ONLY): echo raw request body so clients can
+// verify exactly what the server receives. Remove or protect in production.
+app.post('/api/debug/echo', (req, res) => {
+  try {
+    console.log('[DEBUG ECHO] headers:', { 'content-type': req.get('content-type'), 'content-length': req.get('content-length') });
+    console.log('[DEBUG ECHO] body keys:', Object.keys(req.body || {}));
+    return res.json({ ok: true, body: req.body });
+  } catch (err) {
+    console.error('[DEBUG ECHO] error:', err);
+    return res.status(500).json({ ok: false, error: err.message });
+  }
+});
 // Allow multiple Vercel preview URLs and production
 const allowedOrigins = [
   "https://crm-project-git-dev-raphaels-projects-763450c5.vercel.app",
@@ -61,6 +76,7 @@ app.get("/healthcheck", (req, res) => {
 app.use(authMiddleware);
 
 app.use('/api/mssql', mssqlRoutes);
+app.use('/api/mssql/inventory', mssqlInventoryRoutes);
 
 app.use("/dashboard", usersRouter);
 app.use("/api/users", usersRouter);
