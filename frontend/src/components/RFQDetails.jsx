@@ -3,12 +3,10 @@ import { useEffect, useState } from "react";
 import { apiBackendFetch } from "../services/api";
 import utils from "../helper/utils";
 
-const RFQDetails = ({ rfq, currentUser, onBack, onEdit, onSave, onPrint, onSubmit }) => {
+const RFQDetails = ({ rfq, currentUser, onBack, onEdit, onPrint, onSubmit }) => {
     const [items, setItems] = useState([]);
     const [vendors, setVendors] = useState([]);
-    const [quotations, setQuotations] = useState([]);
     const isAssignedToMe = currentUser && rfq.assignee === currentUser.id;
-    const isCreator = currentUser && rfq.createdBy === currentUser.id;
 
     function Detail({ label, value }) {
         return (
@@ -37,7 +35,6 @@ const RFQDetails = ({ rfq, currentUser, onBack, onEdit, onSave, onPrint, onSubmi
                 console.log("Fetched RFQ details:", data);
                 setVendors(data.vendors || []);
                 setItems(data.items || []);
-                setQuotations(data.quotations || []);
             } catch (err) {
                 console.error("Failed to fetch RFQ", err);
             }
@@ -61,9 +58,9 @@ const RFQDetails = ({ rfq, currentUser, onBack, onEdit, onSave, onPrint, onSubmi
                 headers: { "Content-Type": "application/json" },
             })
                 .then((res) => res.json())
-                .then((updatedRFQ) => {
-                    // if (onSave) onSave(updatedRFQ);
-                });
+                    .then(() => {
+                        // updated
+                    });
         }
         // eslint-disable-next-line
     }, [rfq?.id, isAssignedToMe]);
@@ -72,6 +69,16 @@ const RFQDetails = ({ rfq, currentUser, onBack, onEdit, onSave, onPrint, onSubmi
     const totalVendors = vendors.length;
     const quotedVendors = vendors.filter(v => v.status === "Quoted").length;
     const pendingVendors = vendors.filter(v => v.status === "Pending").length;
+
+    const vendorDisplayName = (v) => {
+        return v?.name || v?.vendor?.Name || v?.vendor?.Name || "-";
+    };
+
+    const vendorContactPerson = (v) => {
+        return v?.contactPerson || v?.vendor?.details?.[0]?.Name || v?.vendor?.details?.[0]?.EmailAddress || "-";
+    };
+
+    // Phone is displayed directly via vendor.phone or via vendor.vendor.PhoneNumber when needed
 
     return (
         <div className="container mx-auto p-6 overflow-auto">
@@ -347,8 +354,8 @@ const RFQDetails = ({ rfq, currentUser, onBack, onEdit, onSave, onPrint, onSubmi
                             <div key={vendor.id} className="flex rounded-md border border-gray-200 p-4 justify-between">
                                 <div className="flex flex-col items-center mb-2">
                                     <div>
-                                        <h4 className="text-md">{vendor.name}</h4>
-                                        <p className="text-sm text-gray-600">{vendor.contactPerson}</p>
+                                        <h4 className="text-md">{vendorDisplayName(vendor)}</h4>
+                                        <p className="text-sm text-gray-600">{vendorContactPerson(vendor)}</p>
                                     </div>
                                 </div>
                                 <div className="flex">
@@ -367,15 +374,6 @@ const RFQDetails = ({ rfq, currentUser, onBack, onEdit, onSave, onPrint, onSubmi
                                         </div>
                                     ) : (
                                         null
-                                        // <div className="flex items-center justify-between p-4 bg-yellow-50 rounded-lg">
-                                        //     <div className="flex items-center space-x-2">
-                                        //         <LuMail className="h-5 w-5 text-yellow-600" />
-                                        //         <p className="text-sm text-yellow-800">Quotation pending from this vendor.</p>
-                                        //     </div>
-                                        //     <button className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-light shadow h-9 px-4 py-2 bg-yellow-500 hover:bg-yellow-600 text-white">
-                                        //         Send Reminder
-                                        //     </button>
-                                        // </div>
                                         )
                                     }
                                 </div>

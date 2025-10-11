@@ -65,9 +65,19 @@ const TechnicalForm = ({ technicalReco, mode, onSave, onBack, onSubmitForApprova
         
         const fetchItems = async () => {
             try {
-                const res = await apiBackendFetch("/api/inventory/items");
+                const res = await apiBackendFetch("/api/mssql/inventory/stocks?limit=1000");
                 const data = await res.json();
-                setItemsList(data);
+                const rows = data?.rows || data || [];
+                const mapped = rows.map((s) => ({
+                    id: s.Id,
+                    name: s.Description || s.Code || "",
+                    description: s.Description || "",
+                    brand: s.BRAND_ID || "",
+                    partNumber: s.Code || "",
+                    unit: s.SK_UOM || "",
+                    model: "",
+                }));
+                setItemsList(mapped);
             } catch (err) {
                 console.error("Failed to fetch items", err);
             }

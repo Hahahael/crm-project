@@ -1,7 +1,6 @@
 //src/components/RFQsTable
 import { LuEllipsis, LuEye, LuPencil, LuTrash } from "react-icons/lu";
 import util from "../helper/utils.js"
-import config from "../config.js";
 
 export default function RFQsTable({ rfqs, onView, onEdit }) {
   console.log("RFQsTable - rfqs:", rfqs);
@@ -30,8 +29,8 @@ export default function RFQsTable({ rfqs, onView, onEdit }) {
               <td className="px-4 py-2 text-black text-sm">{rfq.rfqNumber}</td>
               <td className="px-4 py-2 text-black text-sm">{util.formatDate(rfq.rfqDate, "DD/MM/YYYY")}</td>
               <td className="px-4 py-2 text-black text-sm">{rfq.accountId}</td>
-              <td className="px-4 py-2 text-black text-sm">{rfq.vendor || "-"}</td>
-              <td className="px-4 py-2 text-black text-sm">{rfq.contactPerson || "-"}</td>
+              <td className="px-4 py-2 text-black text-sm">{rfq.vendor || rfq.vendorObj?.Name || "-"}</td>
+              <td className="px-4 py-2 text-black text-sm">{rfq.contactPerson || rfq.vendorObj?.PhoneNumber || "-"}</td>
               <td className="px-4 py-2 text-black text-sm">{rfq.slNumber || "-"}</td>
               <td className="px-4 py-2 text-black text-sm">{rfq.status || "-"}</td>
               <td className="px-4 py-2 text-black text-sm">{rfq.grandTotal}</td>

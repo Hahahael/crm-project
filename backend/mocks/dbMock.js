@@ -433,7 +433,9 @@ mem.public.none(`
   CREATE TABLE rfq_items (
       id SERIAL PRIMARY KEY,
       rfq_id INT REFERENCES rfqs(id) ON DELETE CASCADE,
-      item_id INT REFERENCES items(id),
+    item_id INT REFERENCES items(id),
+    -- External MSSQL stock id (if this item references an inventory stock from MSSQL)
+    item_external_id BIGINT,
       selected_vendor INT REFERENCES vendors(id),
       lead_time VARCHAR(100),
       quantity INT NOT NULL,
@@ -444,7 +446,9 @@ mem.public.none(`
   CREATE TABLE rfq_vendors (
       id SERIAL PRIMARY KEY,
       rfq_id INT REFERENCES rfqs(id) ON DELETE CASCADE,
-      vendor_id INT REFERENCES vendors(id),
+    vendor_id INT REFERENCES vendors(id),
+    -- External MSSQL vendor id (spidb.vendor.Id) when vendor is sourced from MSSQL
+    vendor_external_id INT,
       valid_until DATE,
       payment_terms TEXT,
       notes TEXT
@@ -454,12 +458,14 @@ mem.public.none(`
   CREATE TABLE rfq_quotations (
       id SERIAL PRIMARY KEY,
       rfq_id INT REFERENCES rfqs(id) ON DELETE CASCADE,
-      item_id INT REFERENCES items(id),
-      vendor_id INT REFERENCES vendors(id),
-      lead_time INT,
-      unit_price NUMERIC(12, 2),
-      is_selected BOOLEAN DEFAULT FALSE,
-      quantity INT NOT NULL DEFAULT 1
+    item_id INT REFERENCES items(id),
+    item_external_id BIGINT,
+    vendor_id INT REFERENCES vendors(id),
+    vendor_external_id INT,
+    lead_time INT,
+    unit_price NUMERIC(12, 2),
+    is_selected BOOLEAN DEFAULT FALSE,
+    quantity INT NOT NULL DEFAULT 1
 );
 `);
 
@@ -905,6 +911,7 @@ for (const item of rfqItems) {
     `INSERT INTO rfq_items (
   rfq_id,
   item_id,
+  item_external_id,
   selected_vendor,
   quantity,
   lead_time,
@@ -913,6 +920,7 @@ for (const item of rfqItems) {
      VALUES (
       ${item.rfqId},
       ${item.itemId},
+      ${item.itemExternalId ?? 'NULL'},
       ${item.selectedVendor || 'NULL'},
       ${item.quantity},
       '${esc(item.leadTime)}',
@@ -927,6 +935,7 @@ for (const rv of rfqVendors) {
       VALUES (
       ${rv.rfqId},
       ${rv.vendorId},
+      ${rv.vendorExternalId ?? 'NULL'},
       '${esc(rv.validUntil)}',
       '${esc(rv.paymentTerms)}',
       '${esc(rv.notes)}'
@@ -936,11 +945,13 @@ for (const rv of rfqVendors) {
 
 for (const rv of rfqQuotations) {
   mem.public.none(
-    `INSERT INTO rfq_quotations (rfq_id, item_id, vendor_id, is_selected, lead_time, unit_price, quantity)
+    `INSERT INTO rfq_quotations (rfq_id, item_id, item_external_id, vendor_id, vendor_external_id, is_selected, lead_time, unit_price, quantity)
       VALUES (
       ${rv.rfqId},
       ${rv.itemId},
+      ${rv.itemExternalId ?? 'NULL'},
       ${rv.vendorId},
+      ${rv.vendorExternalId ?? 'NULL'},
       ${rv.isSelected ? 'TRUE' : 'FALSE'},
       '${esc(rv.leadTime)}',
       ${rv.unitPrice},

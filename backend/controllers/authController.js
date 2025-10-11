@@ -1,8 +1,6 @@
 // controllers/authController.js
-import { compare } from "bcryptjs";
-import pool from "../db.js";
+import { sql, crmPoolPromise } from "../mssql.js";
 import pkg from "jsonwebtoken";
-import { toSnake } from "../helper/utils.js";
 
 const { sign, verify } = pkg;
 
@@ -10,24 +8,23 @@ export async function login(req, res) {
   const { username, password } = req.body;
 
   try {
-    const result = await pool.query(
-      "SELECT * FROM users WHERE username = $1",
-      [username]
-    );
-    if (result.rows.length === 0) {
+    const pool = await crmPoolPromise;
+    const result = await pool.request().input('username', sql.NVarChar, username).query('SELECT * FROM crmdb.users WHERE username = @username');
+    const user = (result.recordset || [])[0];
+    if (!user) {
       return res.status(400).json({ message: "Invalid username or password" });
     }
 
-    const user = result.rows[0];
-    const isMatch = await compare(password, user.passwordHash);
-    if (!isMatch) {
+    // Plain-text password comparison (per new requirement)
+    const stored = user.password || user.password_hash || user.passwordHash || null;
+    if (!stored || String(stored) !== String(password)) {
       return res.status(400).json({ message: "Invalid username or password" });
     }
 
     const token = sign(
       {
         userId: user.id,
-        role: user.role,
+        role: user.role || user.role_id || null,
         username: user.username,
         permissions: user.permissions,
       },
@@ -38,7 +35,7 @@ export async function login(req, res) {
     res.cookie("token", token, {
       httpOnly: true,
       secure: true,
-      sameSite: "None", // <-- important!
+      sameSite: "None",
       maxAge: 60 * 60 * 1000,
     });
 
@@ -46,7 +43,7 @@ export async function login(req, res) {
       user: {
         id: user.id,
         username: user.username,
-        role: user.role,
+        role: user.role || user.role_id || null,
         permissions: user.permissions,
       },
     });

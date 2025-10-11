@@ -1,14 +1,15 @@
 // routes/hierarchicalRoutes.js
 import express from "express";
-import db from "../db.js";
+import { crmPoolPromise } from "../mssql.js";
 import authMiddleware from "../middleware/authMiddleware.js";
 
 const router = express.Router();
 
 router.get("/roles", authMiddleware, async (req, res) => {
   try {
-    const result = await db.query("SELECT * FROM roles ORDER BY id ASC");
-    return res.json(result.rows); // ✅ already camelCase
+    const pool = await crmPoolPromise;
+    const result = await pool.request().query('SELECT * FROM crmdb.roles ORDER BY id ASC');
+    return res.json(result.recordset || []);
   } catch (err) {
     console.error(err);
     return res.status(500).json({ error: "Failed to fetch roles" });
@@ -17,8 +18,9 @@ router.get("/roles", authMiddleware, async (req, res) => {
 
 router.get("/departments", authMiddleware, async (req, res) => {
   try {
-    const result = await db.query("SELECT * FROM departments ORDER BY id ASC");
-    return res.json(result.rows);
+    const pool = await crmPoolPromise;
+    const result = await pool.request().query('SELECT * FROM crmdb.departments ORDER BY id ASC');
+    return res.json(result.recordset || []);
   } catch (err) {
     console.error(err);
     return res.status(500).json({ error: "Failed to fetch departments" });
@@ -27,8 +29,9 @@ router.get("/departments", authMiddleware, async (req, res) => {
 
 router.get("/statuses", authMiddleware, async (req, res) => {
   try {
-    const result = await db.query("SELECT * FROM statuses ORDER BY id ASC");
-    return res.json(result.rows);
+    const pool = await crmPoolPromise;
+    const result = await pool.request().query('SELECT * FROM crmdb.statuses ORDER BY id ASC');
+    return res.json(result.recordset || []);
   } catch (err) {
     console.error(err);
     return res.status(500).json({ error: "Failed to fetch statuses" });

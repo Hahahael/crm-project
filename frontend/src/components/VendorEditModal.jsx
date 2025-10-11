@@ -60,12 +60,22 @@ export default function VendorEditModal({ open, onClose, vendor, onSave }) {
     };
 
     const handleSave = () => {
+        // Normalize quotes to include vendor_id and item_id for backend
+        const normalizedQuotes = quotes.map(q => ({
+            ...q,
+            vendor_id: q.vendor_id || q.vendorId || vendor.vendorId || vendor.vendor?.Id || vendor.vendor_id || vendor.id || null,
+            item_id: q.item_id || q.itemId || q.item?.itemId || q.item?.item_id || q.itemId || null,
+            unit_price: q.unit_price ?? q.unitPrice ?? q.unitPrice ?? null,
+            lead_time: q.lead_time ?? q.leadTime ?? q.leadTime ?? null,
+            is_selected: q.is_selected ?? q.isSelected ?? false,
+        }));
+
         onSave({
             ...vendor,
             paymentTerms,
             validUntil,
             notes,
-            quotes,
+            quotes: normalizedQuotes,
             subtotal,
             vat,
             grandTotal

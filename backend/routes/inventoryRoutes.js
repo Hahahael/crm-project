@@ -1,57 +1,58 @@
 // routes/usersRoutes.js
 import express from "express";
-import db from "../db.js";
-import { toSnake, toJsonbArray } from "../helper/utils.js";
+import { spidbPoolPromise, sql } from "../mssql.js";
 
 const router = express.Router();
 
-// Get all vendors
+// Get all vendors (from SPIDB inventory DB)
 router.get("/vendors", async (req, res) => {
   try {
-    const result = await db.query(`SELECT * FROM vendors`);
-    return res.json(result.rows); // ✅ camelCase
+    const pool = await spidbPoolPromise;
+    const result = await pool.request().query('SELECT * FROM vendors');
+    return res.json(result.recordset || []);
   } catch (err) {
     console.error(err);
-    return res.status(500).json({ error: "Failed to fetch users" });
+    return res.status(500).json({ error: "Failed to fetch vendors" });
   }
 });
 
-// Get single vendor
-router.get("/vendor/:id", async (req, res) => {
+// Get single vendor (from SPIDB inventory DB)
+router.get("/vendors/:id", async (req, res) => {
   try {
     const { id } = req.params;
-    const result = await db.query(`SELECT * FROM vendors WHERE id = $1`, [id]);
-    if (result.rows.length === 0)
-      return res.status(404).json({ error: "Not found" });
-    return res.json(result.rows[0]);
+    const pool = await spidbPoolPromise;
+    const result = await pool.request().input('id', sql.Int, parseInt(id, 10)).query('SELECT * FROM vendors WHERE id = @id');
+    if (((result.recordset || []).length) === 0) return res.status(404).json({ error: 'Not found' });
+    return res.json(result.recordset[0]);
   } catch (err) {
     console.error(err);
-    return res.status(500).json({ error: "Failed to fetch user" });
+    return res.status(500).json({ error: "Failed to fetch vendor" });
   }
 });
 
-// Get all items
+// Get all items (from SPIDB inventory DB)
 router.get("/items", async (req, res) => {
   try {
-    const result = await db.query(`SELECT * FROM items`);
-    return res.json(result.rows); // ✅ camelCase
+    const pool = await spidbPoolPromise;
+    const result = await pool.request().query('SELECT * FROM items');
+    return res.json(result.recordset || []);
   } catch (err) {
     console.error(err);
-    return res.status(500).json({ error: "Failed to fetch users" });
+    return res.status(500).json({ error: "Failed to fetch items" });
   }
 });
 
-// Get single item
+// Get single item (from SPIDB inventory DB)
 router.get("/items/:id", async (req, res) => {
   try {
     const { id } = req.params;
-    const result = await db.query(`SELECT * FROM items WHERE id = $1`, [id]);
-    if (result.rows.length === 0)
-      return res.status(404).json({ error: "Not found" });
-    return res.json(result.rows[0]);
+    const pool = await spidbPoolPromise;
+    const result = await pool.request().input('id', sql.Int, parseInt(id, 10)).query('SELECT * FROM items WHERE id = @id');
+    if (((result.recordset || []).length) === 0) return res.status(404).json({ error: 'Not found' });
+    return res.json(result.recordset[0]);
   } catch (err) {
     console.error(err);
-    return res.status(500).json({ error: "Failed to fetch user" });
+    return res.status(500).json({ error: "Failed to fetch item" });
   }
 });
 

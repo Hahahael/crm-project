@@ -1,5 +1,6 @@
 // MSSQL utilities are imported in the mssql route when needed
 import mssqlRoutes from './routes/mssqlRoutes.js';
+import mssqlInventoryRoutes from './routes/mssqlInventoryRoutes.js';
 
 
 import express from 'express';
@@ -61,6 +62,7 @@ app.get("/healthcheck", (req, res) => {
 app.use(authMiddleware);
 
 app.use('/api/mssql', mssqlRoutes);
+app.use('/api/mssql/inventory', mssqlInventoryRoutes);
 
 app.use("/dashboard", usersRouter);
 app.use("/api/users", usersRouter);

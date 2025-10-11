@@ -1,6 +1,6 @@
 // routes/workflowStagesRoutes.js
 import express from "express";
-import db from "../db.js";
+import { crmPoolPromise, sql } from "../mssql.js";
 import { toSnake } from "../helper/utils.js";
 
 const router = express.Router();
@@ -80,9 +80,10 @@ router.get("/latest-submitted", async (req, res) => {
             LEFT JOIN users u ON ws.assigned_to = u.id
             WHERE ws.status = 'Submitted' AND (ws.stage_name = 'Account' OR ws.stage_name = 'NAEF')
         `;
-        const { rows } = await db.query(unionQuery);
-        console.log("Latest submitted workflow stages:", rows);
-        return res.json(rows);
+        const pool = await crmPoolPromise;
+        const result = await pool.request().query(unionQuery);
+        console.log("Latest submitted workflow stages:", result.recordset);
+        return res.json(result.recordset || []);
     } catch (err) {
         console.error(err);
         return res.status(500).json({ error: "Failed to fetch latest submitted workflow stages" });
@@ -92,13 +93,9 @@ router.get("/latest-submitted", async (req, res) => {
 // Get all workflow stages
 router.get("/", async (req, res) => {
     try {
-        const result = await db.query(
-            `SELECT ws.*, u.username AS assigned_to_username
-       FROM workflow_stages ws
-       LEFT JOIN users u ON ws.assigned_to = u.id
-       ORDER BY ws.created_at ASC`
-        );
-        return res.json(result.rows);
+        const pool = await crmPoolPromise;
+        const result = await pool.request().query(`SELECT ws.*, u.username AS assigned_to_username FROM crmdb.workflow_stages ws LEFT JOIN crmdb.users u ON ws.assigned_to = u.id ORDER BY ws.created_at ASC`);
+        return res.json(result.recordset || []);
     } catch (err) {
         console.error(err);
         return res.status(500).json({ error: "Failed to fetch workflow stages" });
@@ -109,15 +106,9 @@ router.get("/", async (req, res) => {
 router.get("/workorder/:woId", async (req, res) => {
     try {
         const { woId } = req.params;
-        const result = await db.query(
-            `SELECT ws.*, u.username AS assigned_to_username
-       FROM workflow_stages ws
-       LEFT JOIN users u ON ws.assigned_to = u.id
-       WHERE ws.wo_id = $1
-       ORDER BY ws.created_at ASC`,
-            [woId]
-        );
-        return res.json(result.rows);
+        const pool = await crmPoolPromise;
+        const result = await pool.request().input('woId', sql.Int, parseInt(woId, 10)).query(`SELECT ws.*, u.username AS assigned_to_username FROM crmdb.workflow_stages ws LEFT JOIN crmdb.users u ON ws.assigned_to = u.id WHERE ws.wo_id = @woId ORDER BY ws.created_at ASC`);
+        return res.json(result.recordset || []);
     } catch (err) {
         console.error(err);
         return res.status(500).json({ error: "Failed to fetch workflow stages" });
@@ -128,15 +119,10 @@ router.get("/workorder/:woId", async (req, res) => {
 router.get("/:id", async (req, res) => {
     try {
         const { id } = req.params;
-        const result = await db.query(
-            `SELECT ws.*, u.username AS assigned_to_username
-                FROM workflow_stages ws
-                LEFT JOIN users u ON ws.assigned_to = u.id
-                WHERE ws.id = $1`,
-            [id]
-        );
-        if (result.rows.length === 0) return res.status(404).json({ error: "Not found" });
-        return res.json(result.rows[0]);
+        const pool = await crmPoolPromise;
+        const result = await pool.request().input('id', sql.Int, parseInt(id, 10)).query(`SELECT ws.*, u.username AS assigned_to_username FROM crmdb.workflow_stages ws LEFT JOIN crmdb.users u ON ws.assigned_to = u.id WHERE ws.id = @id`);
+        if (((result.recordset || []).length) === 0) return res.status(404).json({ error: "Not found" });
+        return res.json(result.recordset[0]);
     } catch (err) {
         console.error(err);
         return res.status(500).json({ error: "Failed to fetch workflow stage" });
@@ -146,67 +132,67 @@ router.get("/:id", async (req, res) => {
 // Create a new workflow stage
 router.post("/", async (req, res) => {
     console.log(req.body);
+    const pool = await crmPoolPromise;
+    const transaction = pool.transaction();
     try {
         const body = toSnake(req.body);
-        const {
-            wo_id,
-            stage_name,
-            status,
-            assigned_to,
-            notified = false,
-            remarks, // <-- add remarks from body
-        } = body;
-        // Start transaction
-        await db.query("BEGIN");
-        let insertedStage;
-        try {
-            const result = await db.query(
-                `INSERT INTO workflow_stages
-                    (wo_id, stage_name, status, assigned_to, notified, remarks, created_at, updated_at)
-                VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())
-                RETURNING *`,
-                [wo_id, stage_name, status, assigned_to, notified, remarks]
-            );
-            insertedStage = result.rows[0];
+        const { wo_id, stage_name, status, assigned_to, notified = false, remarks } = body;
+        await transaction.begin();
+        const tr = transaction.request();
+        tr.input('wo_id', sql.Int, wo_id == null ? null : parseInt(wo_id, 10));
+        tr.input('stage_name', sql.NVarChar, stage_name);
+        tr.input('status', sql.NVarChar, status);
+        tr.input('assigned_to', sql.Int, assigned_to == null ? null : parseInt(assigned_to, 10));
+        tr.input('notified', sql.Bit, notified ? 1 : 0);
+        tr.input('remarks', sql.NVarChar, remarks || null);
+        const result = await tr.query('INSERT INTO crmdb.workflow_stages (wo_id, stage_name, status, assigned_to, notified, remarks, created_at, updated_at) OUTPUT INSERTED.* VALUES (@wo_id, @stage_name, @status, @assigned_to, @notified, @remarks, SYSUTCDATETIME(), SYSUTCDATETIME())');
+        const insertedStage = (result.recordset || [])[0];
 
-            // Update stage_status in the relevant module only
-            switch (stage_name) {
-                case "Sales Lead":
-                    await db.query("UPDATE sales_leads SET stage_status = $1 WHERE wo_id = $2", [status, wo_id]);
-                    break;
-                case "RFQ":
-                    await db.query("UPDATE rfqs SET stage_status = $1 WHERE wo_id = $2", [status, wo_id]);
-                    break;
-                case "Technical Recommendation":
-                    await db.query("UPDATE technical_recommendations SET stage_status = $1 WHERE wo_id = $2", [status, wo_id]);
-                    break;
-                case "Account":
-                case "NAEF":
-                    if (body.account_id) {
-                        await db.query("UPDATE accounts SET stage_status = $1 WHERE id = $2", [status, body.account_id]);
-                    }
-                    break;
-                case "Work Order":
-                    await db.query("UPDATE workorders SET stage_status = $1 WHERE id = $2", [status, wo_id]);
-                    break;
-                default:
-                    // No action for unknown stage_name
-                    break;
-            }
-
-            // Log all workflow stages after insert
-            const allStages = await db.query("SELECT * FROM workflow_stages ORDER BY created_at ASC");
-            console.log("All workflow stages:", allStages.rows);
-
-            await db.query("COMMIT");
-        } catch (err) {
-            await db.query("ROLLBACK");
-            throw err;
+        // Update stage_status in the relevant module only
+        const updateReq = transaction.request();
+        updateReq.input('status', sql.NVarChar, status);
+        switch (stage_name) {
+            case 'Sales Lead':
+                updateReq.input('wo', sql.Int, wo_id == null ? null : parseInt(wo_id, 10));
+                await updateReq.query('UPDATE crmdb.sales_leads SET stage_status = @status WHERE wo_id = @wo');
+                break;
+            case 'RFQ':
+                updateReq.input('wo', sql.Int, wo_id == null ? null : parseInt(wo_id, 10));
+                await updateReq.query('UPDATE crmdb.rfqs SET stage_status = @status WHERE wo_id = @wo');
+                break;
+            case 'Technical Recommendation':
+                updateReq.input('wo', sql.Int, wo_id == null ? null : parseInt(wo_id, 10));
+                await updateReq.query('UPDATE crmdb.technical_recommendations SET stage_status = @status WHERE wo_id = @wo');
+                break;
+            case 'Account':
+            case 'NAEF':
+                if (body.account_id) {
+                    updateReq.input('accountId', sql.Int, parseInt(body.account_id, 10));
+                    await updateReq.query('UPDATE crmdb.accounts SET stage_status = @status WHERE id = @accountId');
+                }
+                break;
+            case 'Work Order':
+                updateReq.input('wo', sql.Int, wo_id == null ? null : parseInt(wo_id, 10));
+                await updateReq.query('UPDATE crmdb.workorders SET stage_status = @status WHERE id = @wo');
+                break;
+            default:
+                break;
         }
+
+        // Log all workflow stages after insert
+        const allStages = await transaction.request().query('SELECT * FROM crmdb.workflow_stages ORDER BY created_at ASC');
+        console.log('All workflow stages:', allStages.recordset);
+
+        await transaction.commit();
         return res.status(201).json(insertedStage);
     } catch (err) {
+        try {
+            await transaction.rollback();
+        } catch (e) {
+            console.error('Rollback failed', e);
+        }
         console.error(err);
-        return res.status(500).json({ error: "Failed to create workflow stage" });
+        return res.status(500).json({ error: 'Failed to create workflow stage' });
     }
 });
 
@@ -216,18 +202,10 @@ router.put("/:id", async (req, res) => {
         const { id } = req.params;
         const body = toSnake(req.body);
         const { status, assigned_to, notified } = body;
-        const result = await db.query(
-            `UPDATE workflow_stages
-            SET status = COALESCE($1, status),
-                assigned_to = COALESCE($2, assigned_to),
-                notified = COALESCE($3, notified),
-                updated_at = NOW()
-            WHERE id = $4
-            RETURNING *`,
-            [status, assigned_to, notified, id]
-        );
-        if (result.rows.length === 0) return res.status(404).json({ error: "Not found" });
-        return res.json(result.rows[0]);
+        const pool = await crmPoolPromise;
+        const result = await pool.request().input('status', sql.NVarChar, status).input('assigned_to', sql.Int, assigned_to == null ? null : parseInt(assigned_to, 10)).input('notified', sql.Bit, typeof notified === 'boolean' ? (notified ? 1 : 0) : null).input('id', sql.Int, parseInt(id, 10)).query('UPDATE crmdb.workflow_stages SET status = COALESCE(@status, status), assigned_to = COALESCE(@assigned_to, assigned_to), notified = COALESCE(@notified, notified), updated_at = SYSUTCDATETIME() OUTPUT INSERTED.* WHERE id = @id');
+        if (((result.recordset || []).length) === 0) return res.status(404).json({ error: "Not found" });
+        return res.json(result.recordset[0]);
     } catch (err) {
         console.error(err);
         return res.status(500).json({ error: "Failed to update workflow stage" });
@@ -238,8 +216,10 @@ router.put("/:id", async (req, res) => {
 router.delete("/:id", async (req, res) => {
     try {
         const { id } = req.params;
-        const result = await db.query(`DELETE FROM workflow_stages WHERE id = $1 RETURNING *`, [id]);
-        if (result.rows.length === 0) return res.status(404).json({ error: "Not found" });
+        const pool = await crmPoolPromise;
+        const result = await pool.request().input('id', sql.Int, parseInt(id, 10)).query('DELETE FROM crmdb.workflow_stages WHERE id = @id');
+        // mssql returns rowsAffected; we'll assume success if rowsAffected > 0
+        if (!result.rowsAffected || result.rowsAffected[0] === 0) return res.status(404).json({ error: "Not found" });
         return res.json({ message: "Workflow stage deleted" });
     } catch (err) {
         console.error(err);
@@ -352,9 +332,10 @@ router.get("/assigned/latest/:id/:stageName", async (req, res) => {
             }
         }
 
-        const result = await db.query(query, [id, stageName]);
-        console.log("Latest assigned workflow stages result:", result.rows);
-        return res.json(result.rows);
+        const pool = await crmPoolPromise;
+        const result = await pool.request().input('userId', sql.Int, parseInt(id, 10)).input('stageName', sql.NVarChar, stageName).query(query);
+        console.log("Latest assigned workflow stages result:", result.recordset);
+        return res.json(result.recordset || []);
     } catch (err) {
         console.error(err);
         return res.status(500).json({ error: "Failed to fetch workflow stage" });

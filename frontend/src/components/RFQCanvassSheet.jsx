@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { LuDownload, LuPrinter, LuFileText, LuCircleCheckBig, LuTrendingDown, LuCircleAlert, LuClock, LuCheck } from "react-icons/lu";
 
 export default function RFQCanvassSheet({ rfq, mode = "create", setFormData, onForApproval, onExportExcel, onExportPDF }) {
@@ -40,21 +40,30 @@ export default function RFQCanvassSheet({ rfq, mode = "create", setFormData, onF
     });
 
     // Generate quotations array from items and vendors as state, derived from rfq.items and rfq.vendors
-    const generateQuotations = (selectedVendorsByItem) => {
+    const generateQuotations = useCallback((selectedVendorsByItem) => {
         const arr = [];
         formData.items.forEach((item) => {
             formData.vendors.forEach((vendor) => {
-                const vendorItem = Array.isArray(vendor.quotes) ? vendor.quotes.find((q) => q.itemId === item.itemId) : undefined;
+                // vendor.quotes may come from different sources and use snake_case (item_id) or camelCase (itemId)
+                const vendorItem = Array.isArray(vendor.quotes)
+                    ? vendor.quotes.find((q) => (q.itemId || q.item_id) === (item.itemId || item.item_id))
+                    : undefined;
+
+                const unitPrice = vendorItem ? (vendorItem.unitPrice ?? vendorItem.unit_price ?? 0) : 0;
+                const quantity = vendorItem
+                    ? (vendorItem.quantity ?? vendorItem.Qty ?? vendorItem.qty ?? item.quantity ?? 1)
+                    : (item.quantity ?? 1);
+
                 arr.push({
-                    itemId: item.itemId,
-                    vendorId: vendor.vendorId,
-                    unitPrice: vendorItem ? vendorItem.unitPrice ?? 0 : 0,
-                    quantity: vendorItem ? vendorItem.quantity ?? item.quantity ?? 1 : item.quantity ?? 1,
-                    leadTime: vendorItem ? vendorItem.leadTime : "-",
-                    leadTimeColor: vendorItem ? vendorItem.leadTimeColor : "",
-                    total: vendorItem ? (vendorItem.unitPrice ?? 0) * (vendorItem.quantity ?? item.quantity ?? 1) : 0,
+                    itemId: item.itemId ?? item.item_id,
+                    vendorId: vendor.vendorId ?? vendor.vendor_id,
+                    unitPrice,
+                    quantity,
+                    leadTime: vendorItem ? (vendorItem.leadTime ?? vendorItem.lead_time) : "-",
+                    leadTimeColor: vendorItem ? vendorItem.leadTimeColor ?? vendorItem.lead_time_color : "",
+                    total: unitPrice * quantity,
                     // FIX: isSelected should compare selected vendorId for this item
-                    isSelected: selectedVendorsByItem[item.itemId] === vendor.vendorId,
+                    isSelected: selectedVendorsByItem[item.itemId ?? item.item_id] === (vendor.vendorId ?? vendor.vendor_id),
                 });
             });
         });
@@ -67,7 +76,7 @@ export default function RFQCanvassSheet({ rfq, mode = "create", setFormData, onF
             });
         });
         return arr;
-    };
+    }, [formData.items, formData.vendors]);
 
     const [quotations, setQuotations] = useState(() =>
         generateQuotations(
@@ -85,7 +94,7 @@ export default function RFQCanvassSheet({ rfq, mode = "create", setFormData, onF
         setQuotations(generateQuotations(selectedVendorsByItem));
         // Persist selected vendors for each item in formData
         setFormData(prev => ({ ...prev, selectedVendorsByItem }));
-    }, [selectedVendorsByItem, formData.items, formData.vendors]);
+    }, [selectedVendorsByItem, formData.items, formData.vendors, generateQuotations, setFormData]);
 
     // Handler for selecting a vendor for an item
     const handleSelectVendor = (itemId, vendorId) => {
@@ -133,7 +142,7 @@ export default function RFQCanvassSheet({ rfq, mode = "create", setFormData, onF
         let total = quotations.filter((q) => q.vendorId === vendor.vendorId).reduce((sum, q) => sum + q.total, 0);
         return {
             id: vendor.vendorId,
-            name: vendor.name,
+            name: vendor.name || vendor.vendor?.Name || "-",
             total: total,
             recommended: false, // will be set below
             diff: null, // will be set below
