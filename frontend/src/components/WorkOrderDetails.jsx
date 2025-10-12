@@ -58,11 +58,11 @@ const WorkOrderDetails = ({ workOrder, currentUser, onBack, onEdit, onWorkOrderU
                     <h2 className="text-md text-gray-500">
                         <span
                             className={`rounded-full px-2 py-1 text-xs mr-2 ${
-                                config.statusBadgeClasses[workOrder.status] || "bg-yellow-100 text-yellow-700"
+                                config.statusBadgeClasses[workOrder.stageStatus] || "bg-yellow-100 text-yellow-700"
                             }`}>
                             {workOrder.status}
                         </span>
-                        TechCorp Industries
+                        {workOrder.accountName}
                     </h2>
                 </div>
                 <div className={`flex flex-col gap-x-2 gap-y-2 ml-auto lg:flex-row `}>
@@ -327,7 +327,7 @@ const WorkOrderDetails = ({ workOrder, currentUser, onBack, onEdit, onWorkOrderU
                         <div
                             className="col-span-5 min-h-[100px] rounded-md border border-gray-200 bg-yellow-50 px-3 py-3 cursor-default"
                             readOnly="">
-                            No objective provided
+                            {workOrder.objective || "No objectives provided"}
                         </div>
                     </div>
                     <div className="grid grid-cols-6 gap-4">
@@ -339,7 +339,7 @@ const WorkOrderDetails = ({ workOrder, currentUser, onBack, onEdit, onWorkOrderU
                         <div
                             className="col-span-5 min-h-[100px] rounded-md border border-gray-200 bg-yellow-50 px-3 py-3 cursor-default"
                             readOnly="">
-                            No instructions provided
+                            {workOrder.instruction || "No Instructions provided"}
                         </div>
                     </div>
                     <div className="grid grid-cols-6 gap-4">
@@ -351,7 +351,7 @@ const WorkOrderDetails = ({ workOrder, currentUser, onBack, onEdit, onWorkOrderU
                         <div
                             className="col-span-5 min-h-[100px] rounded-md border border-gray-200 bg-yellow-50 px-3 py-3 cursor-default"
                             readOnly="">
-                            Complete field assessment and provide technical recommendations for system upgrade.
+                            {workOrder.targetOutput || "No Target Output provided"}
                         </div>
                     </div>
                 </div>

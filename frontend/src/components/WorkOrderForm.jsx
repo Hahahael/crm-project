@@ -358,19 +358,19 @@ const WorkOrderForm = ({ workOrder, mode = "create", onSave, onBack }) => {
                     <div className="flex flex-col xl:col-span-2 gap-y-5 gap-x-4">
                         <div className="grid grid-cols-12 gap-y-5 gap-x-4">
                             {/* WO# */}
-                            <div className={`grid-cols-6 gap-x-4 col-span-12 ${mode === "create" ? "hidden" : "grid"}`}>
+                            <div className={`grid-cols-12 gap-x-4 col-span-12 ${mode === "create" ? "hidden" : "grid"}`}>
                                 <label className="text-sm text-right my-auto">WO#</label>
                                 <input
                                     type="text"
                                     name="woNumber"
                                     value={formData.woNumber}
-                                    className="col-span-5 w-full rounded-md border border-gray-200 bg-gray-100 px-3 py-2 text-gray-400 focus:outline-none focus:ring-0 cursor-not-allowed"
+                                    className="col-span-11 w-full rounded-md border border-gray-200 bg-gray-100 px-3 py-2 text-gray-400 focus:outline-none focus:ring-0 cursor-not-allowed"
                                     placeholder="WO-2025-0001"
                                     readOnly
                                 />
                             </div>
                             {/* Work Description */}
-                            <div className={`grid-cols-11 gap-x-4 col-span-11 ${mode === "create" ? "grid" : "hidden"}`}>
+                            <div className={`grid-cols-11 gap-x-4 col-span-11 grid`}>
                                 <label className="text-sm text-right my-auto break-words hyphens-auto">Work Description</label>
                                 <input
                                     type="text"
@@ -382,34 +382,36 @@ const WorkOrderForm = ({ workOrder, mode = "create", onSave, onBack }) => {
                                 />
                                 {errors?.workDescription && <p className="text-xs text-red-600 mt-1">{errors.workDescription}</p>}
                             </div>
-                            {/* FSL / ESL checkboxes */}
-                            <div className="flex items-center justify-end gap-4">
-                                <label className="flex items-center gap-2">
-                                    <input
-                                        type="checkbox"
-                                        name="isFsl"
-                                        checked={formData.isFsl}
-                                        onChange={(e) => {
-                                            const checked = e.target.checked;
-                                            setFormData(prev => ({ ...prev, isFsl: checked, isEsl: checked ? false : prev.isEsl }));
-                                        }}
-                                        className="h-4 w-4 border border-gray-400 rounded"
-                                    />
-                                    <span className="text-sm">FSL</span>
-                                </label>
-                                <label className="flex items-center gap-2">
-                                    <input
-                                        type="checkbox"
-                                        name="isEsl"
-                                        checked={formData.isEsl}
-                                        onChange={(e) => {
-                                            const checked = e.target.checked;
-                                            setFormData(prev => ({ ...prev, isEsl: checked, isFsl: checked ? false : prev.isFsl }));
-                                        }}
-                                        className="h-4 w-4 border border-gray-400 rounded"
-                                    />
-                                    <span className="text-sm">ESL</span>
-                                </label>
+                            <div>
+                                {/* FSL / ESL checkboxes */}
+                                <div className="flex items-center justify-end gap-4">
+                                    <label className="flex items-center gap-2">
+                                        <input
+                                            type="checkbox"
+                                            name="isFsl"
+                                            checked={formData.isFsl}
+                                            onChange={(e) => {
+                                                const checked = e.target.checked;
+                                                setFormData(prev => ({ ...prev, isFsl: checked, isEsl: checked ? false : prev.isEsl }));
+                                            }}
+                                            className="h-4 w-4 border border-gray-400 rounded"
+                                        />
+                                        <span className="text-sm">FSL</span>
+                                    </label>
+                                    <label className="flex items-center gap-2">
+                                        <input
+                                            type="checkbox"
+                                            name="isEsl"
+                                            checked={formData.isEsl}
+                                            onChange={(e) => {
+                                                const checked = e.target.checked;
+                                                setFormData(prev => ({ ...prev, isEsl: checked, isFsl: checked ? false : prev.isFsl }));
+                                            }}
+                                            className="h-4 w-4 border border-gray-400 rounded"
+                                        />
+                                        <span className="text-sm">ESL</span>
+                                    </label>
+                                </div>
                                 {errors?.fslEsl && <p className="text-xs text-red-600 mt-1">{errors.fslEsl}</p>}
                             </div>
                         </div>
@@ -707,6 +709,7 @@ const WorkOrderForm = ({ workOrder, mode = "create", onSave, onBack }) => {
                                 onChange={handleChange}
                                 className="col-span-5 w-full h-10 rounded-md border border-gray-200 px-3 py-2"
                             />
+                            {errors?.fslEsl && <p className="text-xs text-red-600 mt-1 col-span-5 col-start-2">{errors.fslEsl}</p>}
                         </div>
                     </div>
 

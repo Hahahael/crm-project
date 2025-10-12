@@ -306,6 +306,8 @@ router.put("/:id", async (req, res) => {
         target_output = target_output ?? "";
         mode = mode ?? "";
 
+        console.log("Updating workorder", { id, ...body });
+
         const updateResult = await db.query(
             `UPDATE workorders 
             SET 

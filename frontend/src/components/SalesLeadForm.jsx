@@ -1,5 +1,6 @@
 /* eslint-disable no-unused-vars */
 import { useState, useEffect, useRef } from "react";
+import dayjs from "dayjs";
 import { LuArrowLeft, LuCheck, LuSave, LuX } from "react-icons/lu";
 import { apiBackendFetch } from "../services/api";
 import utils from "../helper/utils.js";
@@ -9,7 +10,7 @@ const SalesLeadForm = ({ salesLead, mode = "create", onSave, onBack, onSubmit })
     const [errors, setErrors] = useState(null);
     const [formData, setFormData] = useState({
         slNumber: "",
-        salesStage: "Sales Lead",
+        salesStage: "",
         endUser: "",
         designation: "",
         department: "",
@@ -191,9 +192,83 @@ const SalesLeadForm = ({ salesLead, mode = "create", onSave, onBack, onSubmit })
         });
     };
 
+    // ---------- Validation helpers ----------
+    const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const TIME_RE = /^([01]\d|2[0-3]):([0-5]\d)$/;
+
+    function isValidDate(val) {
+        return !!val && dayjs(val).isValid();
+    }
+
+    function isValidTime(val) {
+        return !!val && TIME_RE.test(val);
+    }
+
+    function validateForm(data) {
+        const errors = {};
+
+        // required simple fields
+        if (!data.salesStage) errors.salesStage = "Sales stage is required.";
+        if (!data.designation || String(data.designation).trim().length < 2) errors.designation = "Designation is required.";
+        if (!data.emailAddress || !EMAIL_RE.test(String(data.emailAddress))) errors.emailAddress = "Valid email is required.";
+        if (!data.category) errors.category = "Category is required.";
+        if (!data.application) errors.application = "Application is required.";
+        if (!data.machine || String(data.machine).trim().length === 0) errors.machine = "Machine is required.";
+        if (!data.machineProcess) errors.machineProcess = "Machine process is required.";
+        if (!data.neededProduct || String(data.neededProduct).trim() === "") errors.neededProduct = "Needed product is required.";
+        if (!data.supportNeeded) errors.supportNeeded = "Support needed is required.";
+        if (!data.urgency) errors.urgency = "Urgency is required.";
+        if (!data.modelToQuote || String(data.modelToQuote).trim().length === 0) errors.modelToQuote = "Model to quote is required.";
+
+        // quantity
+        if (data.quantity === null || data.quantity === undefined || data.quantity === "" || Number(data.quantity) <= 0) {
+            errors.quantity = "Quantity must be greater than 0.";
+        }
+
+        // qrEmailTo optional but if present must be valid
+        if (data.qrEmailTo && !EMAIL_RE.test(String(data.qrEmailTo))) errors.qrEmailTo = "Invalid email address.";
+
+        // dates
+        if (!isValidDate(data.nextFollowupDate)) errors.nextFollowupDate = "Next follow-up date is required and must be valid.";
+        if (!isValidDate(data.dueDate)) errors.dueDate = "Due date is required and must be valid.";
+        else {
+            const today = dayjs().startOf("day");
+            const due = dayjs(data.dueDate).startOf("day");
+            if (!due.isAfter(today)) errors.dueDate = "Due date must be later than today.";
+        }
+
+        // sales engineer: either seId (>0) or salesPlanRep present
+        if ((!data.seId || Number(data.seId) <= 0) && (!data.salesPlanRep || String(data.salesPlanRep).trim() === "")) {
+            errors.salesEngineer = "Sales engineer is required.";
+        }
+
+        // FSL details
+        if (!isValidDate(data.fslDate)) errors.fslDate = "Date is required.";
+        if (!isValidTime(data.fslTime)) errors.fslTime = "Valid time is required.";
+        if (!data.fslLocation || String(data.fslLocation).trim() === "") errors.fslLocation = "Location is required.";
+
+        // requirement & deadline
+        if (!data.requirement || String(data.requirement).trim().length === 0) errors.requirement = "Requirement is required.";
+        if (!isValidDate(data.deadline)) errors.deadline = "Deadline is required and must be a valid date.";
+
+        return { valid: Object.keys(errors).length === 0, errors };
+    }
+
     const handleSubmit = (e) => {
         e.preventDefault();
-        // ...existing code...
+        // validate
+        const { valid, errors: validationErrors } = validateForm(formData);
+        if (!valid) {
+            setErrors(validationErrors);
+            const first = Object.keys(validationErrors)[0];
+            try {
+                const el = document.querySelector(`[name="${first}"]`);
+                if (el && el.focus) el.focus();
+            } catch (err) {
+                console.error("focus error", err);
+            }
+            return;
+        }
         // Destructure optional + WO number
         const {
             slNumber,
@@ -278,7 +353,12 @@ const SalesLeadForm = ({ salesLead, mode = "create", onSave, onBack, onSubmit })
         //     setErrors(newErrors);
         //     return;
         // }
-        // setErrors({});
+        const { valid, errors: validationErrors } = validateForm(formData);
+        if (!valid) {
+            setErrors(validationErrors);
+            return;
+        }
+        setErrors({});
         const cleanedFormData = {
             ...formData,
             immediateSupport: formData.immediateSupport || null,
@@ -358,6 +438,7 @@ const SalesLeadForm = ({ salesLead, mode = "create", onSave, onBack, onSubmit })
                             placeholder="Select Sales Stage"
                             className={`col-span-5 w-full rounded-md border px-3 py-2 focus:outline-1
                 ${errors?.salesStage ? "border-red-500" : "border-gray-200"}`}>
+                            <option value="" disabled hidden>Select Sales Stage</option>
                             <option value="Sales Lead">Sales Lead</option>
                             <option value="Qualified Lead">Qualified Lead</option>
                             <option value="Proposal">Proposal</option>
@@ -365,6 +446,7 @@ const SalesLeadForm = ({ salesLead, mode = "create", onSave, onBack, onSubmit })
                             <option value="Closed Won">Closed Won</option>
                             <option value="Closed Lost">Closed Lost</option>
                         </select>
+                        {errors?.salesStage && <p className="text-xs text-red-600 mt-1">{errors.salesStage}</p>}
                     </div>
                     <div>
                         <label htmlFor="department">Department</label>
@@ -388,6 +470,7 @@ const SalesLeadForm = ({ salesLead, mode = "create", onSave, onBack, onSubmit })
                             className={`col-span-5 w-full rounded-md border px-3 py-2 focus:outline-1
                 ${errors?.designation ? "border-red-500" : "border-gray-200"}`}
                         />
+                        {errors?.designation && <p className="text-xs text-red-600 mt-1">{errors.designation}</p>}
                     </div>
                     <div>
                         <label htmlFor="contactNumber">Contact No.</label>
@@ -421,6 +504,7 @@ const SalesLeadForm = ({ salesLead, mode = "create", onSave, onBack, onSubmit })
                             className={`col-span-5 w-full rounded-md border px-3 py-2 focus:outline-1
                 ${errors?.emailAddress ? "border-red-500" : "border-gray-200"}`}
                         />
+                        {errors?.emailAddress && <p className="text-xs text-red-600 mt-1">{errors.emailAddress}</p>}
                     </div>
                 </div>
             </div>
@@ -438,11 +522,13 @@ const SalesLeadForm = ({ salesLead, mode = "create", onSave, onBack, onSubmit })
                             onChange={handleChange}
                             className={`col-span-5 w-full rounded-md border px-3 py-2 focus:outline-1
                 ${errors?.category ? "border-red-500" : "border-gray-200"}`}>
+                            <option value="" disabled hidden>Select Category</option>
                             <option value="Direct Application">Direct Application</option>
                             <option value="Replacement">Replacement</option>
                             <option value="Upgrade">Upgrade</option>
                             <option value="New Installation">New Installation</option>
                         </select>
+                        {errors?.category && <p className="text-xs text-red-600 mt-1">{errors.category}</p>}
                     </div>
                     <div>
                         <label htmlFor="application">Application</label>
@@ -453,10 +539,12 @@ const SalesLeadForm = ({ salesLead, mode = "create", onSave, onBack, onSubmit })
                             onChange={handleChange}
                             className={`col-span-5 w-full rounded-md border px-3 py-2 focus:outline-1
                 ${errors?.application ? "border-red-500" : "border-gray-200"}`}>
+                            <option value="" disabled hidden>Select Application</option>
                             <option value="Industrial Automation">Industrial Automation</option>
                             <option value="Process Control">Process Control</option>
                             <option value="Manufacturing">Manufacturing</option>
                         </select>
+                        {errors?.application && <p className="text-xs text-red-600 mt-1">{errors.application}</p>}
                     </div>
                     <div>
                         <label htmlFor="machine">Machine</label>
@@ -468,6 +556,7 @@ const SalesLeadForm = ({ salesLead, mode = "create", onSave, onBack, onSubmit })
                             className={`col-span-5 w-full rounded-md border px-3 py-2 focus:outline-1
                 ${errors?.machine ? "border-red-500" : "border-gray-200"}`}
                         />
+                        {errors?.machine && <p className="text-xs text-red-600 mt-1">{errors.machine}</p>}
                     </div>
                     <div>
                         <label htmlFor="machineProcess">Machine Process</label>
@@ -478,10 +567,12 @@ const SalesLeadForm = ({ salesLead, mode = "create", onSave, onBack, onSubmit })
                             onChange={handleChange}
                             className={`col-span-5 w-full rounded-md border px-3 py-2 focus:outline-1
                 ${errors?.machineProcess ? "border-red-500" : "border-gray-200"}`}>
+                            <option value="" disabled hidden>Select Machine Process</option>
                             <option value="Assembly Line">Assembly Line</option>
                             <option value="Packaging">Packaging</option>
                             <option value="Quality Control">Quality Control</option>
                         </select>
+                        {errors?.machineProcess && <p className="text-xs text-red-600 mt-1">{errors.machineProcess}</p>}
                     </div>
                     <div>
                         <label htmlFor="neededProduct">Needed Product</label>
@@ -493,6 +584,7 @@ const SalesLeadForm = ({ salesLead, mode = "create", onSave, onBack, onSubmit })
                             className={`col-span-5 w-full rounded-md border px-3 py-2 focus:outline-1
                 ${errors?.neededProduct ? "border-red-500" : "border-gray-200"}`}
                         />
+                        {errors?.neededProduct && <p className="text-xs text-red-600 mt-1">{errors.neededProduct}</p>}
                     </div>
                     <div>
                         <label htmlFor="existingSpecifications">Existing Specifications</label>
@@ -546,11 +638,13 @@ const SalesLeadForm = ({ salesLead, mode = "create", onSave, onBack, onSubmit })
                             onChange={handleChange}
                             className={`col-span-5 w-full rounded-md border px-3 py-2 focus:outline-1
                 ${errors?.supportNeeded ? "border-red-500" : "border-gray-200"}`}>
+                            <option value="" disabled hidden>Select Support Needed</option>
                             <option value="Technical Consultation">Technical Consultation</option>
                             <option value="Installation Support">Installation Support</option>
                             <option value="Training">Training</option>
                             <option value="Maintenance">Maintenance</option>
                         </select>
+                        {errors?.supportNeeded && <p className="text-xs text-red-600 mt-1">{errors.supportNeeded}</p>}
                     </div>
                     <div>
                         <label htmlFor="urgency">Urgency</label>
@@ -561,11 +655,13 @@ const SalesLeadForm = ({ salesLead, mode = "create", onSave, onBack, onSubmit })
                             onChange={handleChange}
                             className={`col-span-5 w-full rounded-md border px-3 py-2 focus:outline-1
                 ${errors?.urgency ? "border-red-500" : "border-gray-200"}`}>
+                            <option value="" disabled hidden>Select Urgency</option>
                             <option value="Low">Low</option>
                             <option value="Medium">Medium</option>
                             <option value="High - Production Affected">High - Production Affected</option>
                             <option value="Critical">Critical</option>
                         </select>
+                        {errors?.urgency && <p className="text-xs text-red-600 mt-1">{errors.urgency}</p>}
                     </div>
                     <div>
                         <label htmlFor="modelToQuote">Model to Quote</label>
@@ -577,6 +673,7 @@ const SalesLeadForm = ({ salesLead, mode = "create", onSave, onBack, onSubmit })
                             className={`col-span-5 w-full rounded-md border px-3 py-2 focus:outline-1
                 ${errors?.modelToQuote ? "border-red-500" : "border-gray-200"}`}
                         />
+                        {errors?.modelToQuote && <p className="text-xs text-red-600 mt-1">{errors.modelToQuote}</p>}
                     </div>
                     <div>
                         <label htmlFor="quantity">Quantity</label>
@@ -589,6 +686,7 @@ const SalesLeadForm = ({ salesLead, mode = "create", onSave, onBack, onSubmit })
                             className={`col-span-5 w-full rounded-md border px-3 py-2 focus:outline-1
                 ${errors?.quantity ? "border-red-500" : "border-gray-200"}`}
                         />
+                        {errors?.quantity && <p className="text-xs text-red-600 mt-1">{errors.quantity}</p>}
                     </div>
                     <div>
                         <label htmlFor="quantityAttention">Quantity Attention</label>
@@ -620,6 +718,7 @@ const SalesLeadForm = ({ salesLead, mode = "create", onSave, onBack, onSubmit })
                             className={`col-span-5 w-full rounded-md border px-3 py-2 focus:outline-1
                 ${errors?.qrEmailTo ? "border-red-500" : "border-gray-200"}`}
                         />
+                        {errors?.qrEmailTo && <p className="text-xs text-red-600 mt-1">{errors.qrEmailTo}</p>}
                     </div>
                     <div>
                         <label htmlFor="nextFollowupDate">Next Follow-up Date</label>
@@ -632,6 +731,7 @@ const SalesLeadForm = ({ salesLead, mode = "create", onSave, onBack, onSubmit })
                             className={`col-span-5 w-full rounded-md border px-3 py-2 focus:outline-1
                 ${errors?.nextFollowupDate ? "border-red-500" : "border-gray-200"}`}
                         />
+                        {errors?.nextFollowupDate && <p className="text-xs text-red-600 mt-1">{errors.nextFollowupDate}</p>}
                     </div>
                     <div>
                         <label htmlFor="dueDate">Due Date</label>
@@ -644,6 +744,7 @@ const SalesLeadForm = ({ salesLead, mode = "create", onSave, onBack, onSubmit })
                             className={`col-span-5 w-full rounded-md border px-3 py-2 focus:outline-1
                 ${errors?.dueDate ? "border-red-500" : "border-gray-200"}`}
                         />
+                        {errors?.dueDate && <p className="text-xs text-red-600 mt-1">{errors.dueDate}</p>}
                     </div>
                     <div>
                         <label htmlFor="doneDate">Done Date</label>
@@ -791,6 +892,7 @@ const SalesLeadForm = ({ salesLead, mode = "create", onSave, onBack, onSubmit })
                             className={`col-span-5 w-full rounded-md border px-3 py-2 focus:outline-1
                 ${errors?.fslDate ? "border-red-500" : "border-gray-200"}`}
                         />
+                        {errors?.fslDate && <p className="text-xs text-red-600 mt-1">{errors.fslDate}</p>}
                     </div>
                     <div>
                         <label htmlFor="fslTime">Time</label>
@@ -803,6 +905,7 @@ const SalesLeadForm = ({ salesLead, mode = "create", onSave, onBack, onSubmit })
                             className={`col-span-5 w-full rounded-md border px-3 py-2 focus:outline-1
                 ${errors?.fslTime ? "border-red-500" : "border-gray-200"}`}
                         />
+                        {errors?.fslTime && <p className="text-xs text-red-600 mt-1">{errors.fslTime}</p>}
                     </div>
                     <div>
                         <label htmlFor="fslLocation">Location</label>
@@ -814,6 +917,7 @@ const SalesLeadForm = ({ salesLead, mode = "create", onSave, onBack, onSubmit })
                             className={`col-span-5 w-full rounded-md border px-3 py-2 focus:outline-1
                 ${errors?.fslLocation ? "border-red-500" : "border-gray-200"}`}
                         />
+                        {errors?.fslLocation && <p className="text-xs text-red-600 mt-1">{errors.fslLocation}</p>}
                     </div>
                     <div>
                         <label htmlFor="ww">WW</label>
@@ -843,6 +947,7 @@ const SalesLeadForm = ({ salesLead, mode = "create", onSave, onBack, onSubmit })
                 ${errors?.requirement ? "border-red-500" : "border-gray-200"}`}
                             maxLength={1000}
                         />
+                        {errors?.requirement && <p className="text-xs text-red-600 mt-1">{errors.requirement}</p>}
                     </div>
                     <div>
                         <label htmlFor="requirementCategory">Requirement Category</label>
@@ -867,6 +972,7 @@ const SalesLeadForm = ({ salesLead, mode = "create", onSave, onBack, onSubmit })
                             className={`col-span-5 w-full rounded-md border px-3 py-2 focus:outline-1
                 ${errors?.deadline ? "border-red-500" : "border-gray-200"}`}
                         />
+                        {errors?.deadline && <p className="text-xs text-red-600 mt-1">{errors.deadline}</p>}
                     </div>
                     <div>
                         <label htmlFor="machine">Machine</label>
@@ -888,6 +994,7 @@ const SalesLeadForm = ({ salesLead, mode = "create", onSave, onBack, onSubmit })
                             onChange={handleChange}
                             className={`col-span-5 w-full rounded-md border px-3 py-2 focus:outline-1
                 ${errors?.machineProcess ? "border-red-500" : "border-gray-200"}`}>
+                            <option value="">Select Machine Process</option>
                             <option value="Assembly Line">Assembly Line</option>
                             <option value="Packaging">Packaging</option>
                             <option value="Quality Control">Quality Control</option>
