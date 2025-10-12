@@ -22,9 +22,12 @@ import { getVendorStatus } from "../helper/utils";
 
 const TRANSITION_MS = 150;
 
-export default function RFQVendorsForm({ rfq, setFormData, onAddVendor, onVendorAction, onSendRFQ }) {
+export default function RFQVendorsForm({ rfq, setFormData, onVendorAction, onSendRFQ }) {
     const formData = rfq || {};
     console.log("RFQVendorsForm render", { rfq, formData });
+    const vendorDisplayName = (v) => v?.name || v?.vendor?.Name || v?.vendor?.Name || "-";
+    const vendorContactPerson = (v) => v?.contactPerson || v?.vendor?.details?.[0]?.Name || v?.vendor?.details?.[0]?.EmailAddress || "-";
+    const vendorPhone = (v) => v?.phone || v?.vendor?.PhoneNumber || "-";
     // Modal state and selection logic
     const [modalOpen, setModalOpen] = useState(false);
     const [modalSelection, setModalSelection] = useState();
@@ -42,12 +45,46 @@ export default function RFQVendorsForm({ rfq, setFormData, onAddVendor, onVendor
     useEffect(() => {
         async function fetchAllVendors() {
             try {
+                // Prefer MSSQL inventory vendors (enriched) when available
+                const mssqlRes = await apiBackendFetch("/api/mssql/inventory/vendors?limit=1000");
+                if (mssqlRes && mssqlRes.ok) {
+                    const mssqlData = await mssqlRes.json();
+                    // mssql route returns { count, rows }
+                    const rows = Array.isArray(mssqlData.rows) ? mssqlData.rows : [];
+                    const normalized = rows.map((v) => ({
+                        id: v.Id,
+                        vendorId: v.Id,
+                        name: v.Name || v.Code || "",
+                        contactPerson: v.details?.[0]?.Name || "",
+                        phone: v.PhoneNumber || "",
+                        email: v.details?.[0]?.EmailAddress || "",
+                        address: v.Address || "",
+                        // Keep original MSSQL row available as `vendor` for components that expect it
+                        vendor: v,
+                    }));
+                    setAllVendors(normalized);
+                    return;
+                }
+
+                // Fallback to local vendors endpoint if MSSQL isn't reachable or returns non-ok
                 const allVendorsRes = await apiBackendFetch("/api/rfqs/vendors");
-                if (!allVendorsRes.ok) throw new Error("Failed to fetch RFQ Vendors");
+                if (!allVendorsRes || !allVendorsRes.ok) throw new Error("Failed to fetch RFQ Vendors");
                 const data = await allVendorsRes.json();
-                setAllVendors(data);
+                // Ensure local vendors have an `id` and minimal shape
+                const localNormalized = (Array.isArray(data) ? data : []).map(v => ({
+                    id: v.id ?? v.Id ?? null,
+                    vendorId: v.id ?? v.Id ?? null,
+                    name: v.name || v.Name || "",
+                    contactPerson: v.contactPerson || v.contact_person || "",
+                    phone: v.phone || v.PhoneNumber || "",
+                    email: v.email || "",
+                    address: v.address || "",
+                    vendor: v,
+                }));
+                setAllVendors(localNormalized);
             } catch (err) {
                 console.error("Failed to fetch all vendors", err);
+                setAllVendors([]);
             }
         }
         fetchAllVendors();
@@ -232,15 +269,15 @@ export default function RFQVendorsForm({ rfq, setFormData, onAddVendor, onVendor
                         <div className="flex flex-col space-y-1.5 p-6">
                             <div className="flex items-start justify-between">
                                 <div>
-                                    <h3 className="font-bold tracking-tight text-lg">{vendor.name}</h3>
+                                    <h3 className="font-bold tracking-tight text-lg">{vendorDisplayName(vendor)}</h3>
                                     <div className="flex items-center space-x-1 text-sm text-muted-foreground">
                                         <LuUser className="h-4 w-4 text-gray-500" />
                                         <div className="flex items-center space-x-1 mr-4 text-gray-500">
-                                            <span>{vendor.contactPerson}</span>
+                                            <span>{vendorContactPerson(vendor)}</span>
                                         </div>
                                         <LuPhone className="h-4 w-4 text-gray-500" />
                                         <div className="flex items-center space-x-1 text-gray-500">
-                                            <span>{vendor.phone}</span>
+                                            <span>{vendorPhone(vendor)}</span>
                                         </div>
                                     </div>
                                 </div>

@@ -19,7 +19,7 @@ export default function RFQDetailsForm({ rfq, setFormData }) {
     const onRemoveItem = (itemId) => {
         setFormData(prev => ({
             ...prev,
-            items: prev.items.filter((item) => item.id !== itemId)
+            items: prev.items.filter((item) => item.itemId !== itemId)
         }));
     };
 
@@ -34,12 +34,22 @@ export default function RFQDetailsForm({ rfq, setFormData }) {
     const dropdownRefs = useRef({});      
 
     useEffect(() => {
-        console.log("RFQDetailsForm items", formData.items);
         const fetchItems = async () => {
             try {
-                const res = await apiBackendFetch("/api/inventory/items");
+                const res = await apiBackendFetch("/api/mssql/inventory/stocks?limit=1000");
                 const data = await res.json();
-                setItemsList(data);
+                console.log("Data:", data);
+                const rows = data?.rows || data || [];
+                const mapped = rows.map((s) => ({
+                    id: s.Id,
+                    name: s.Description || s.Code || "",
+                    description: s.Description || "",
+                    brand: s.BRAND_ID || "",
+                    partNumber: s.Code || "",
+                    unit: s.SK_UOM || "",
+                    model: "",
+                }));
+                setItemsList(mapped);
             } catch (err) {
                 console.error("Failed to fetch items", err);
             }
@@ -259,6 +269,7 @@ export default function RFQDetailsForm({ rfq, setFormData }) {
                                                                                     it.itemId === item.itemId ? {
                                                                                         ...it,
                                                                                         itemId: itm.id, // also store as itemId for backend
+                                                                                        item_id: itm.id, // normalized snake_case id for backend
                                                                                         name: itm.name,
                                                                                         brand: itm.brand || "",
                                                                                         partNumber: itm.partNumber || "",
@@ -274,7 +285,7 @@ export default function RFQDetailsForm({ rfq, setFormData }) {
                                                                             )}));
                                                                         }}
                                                                         className="px-3 py-2 cursor-pointer hover:bg-gray-100 text-sm" style={{ listStyle: 'none' }}>
-                                                                        {itm.name || itm.description}
+                                                                        {itm.name || itm.description} ({itm.partNumber})
                                                                     </li>
                                                                 ))}
                                                                 {(itemsList || []).filter(i => (i.name || i.description || "").toLowerCase().includes((item.searchQuery || item.name || "").toLowerCase())).length === 0 && (

@@ -12,6 +12,7 @@ const TABS = [
 ];
 
 export default function RFQFormWrapper({ rfq, tab, mode = "create", onBack, onSave }) {
+    console.log("RFQFormWrapper props", { rfq, tab, mode });
     //console.log("RFQFormWrapper render", { rfq, tab, mode });
     const [activeTab, setActiveTab] = useState(tab);
     const [errors, setErrors] = useState([]);
@@ -52,8 +53,16 @@ export default function RFQFormWrapper({ rfq, tab, mode = "create", onBack, onSa
 
     // Sync formData with rfq prop
     useEffect(() => {
+        console.log("RFQ prop changed, syncing to formData", rfq);
         if (rfq && Object.keys(rfq).length > 0) {
-            setFormData((prev) => ({ ...prev, ...rfq }));
+            console.log('RFQ.items raw value:', rfq.items, 'type:', typeof rfq.items);
+            setFormData((prev) => ({
+                ...prev,
+                ...rfq,
+                // coerce null/undefined -> empty array so children always get arrays
+                items: Array.isArray(rfq.items) ? rfq.items : [],
+                vendors: Array.isArray(rfq.vendors) ? rfq.vendors : [],
+            }));
         } else if (rfq && Object.keys(rfq).length === 0) {
             setFormData({
                 rfqNumber: "",
@@ -67,13 +76,20 @@ export default function RFQFormWrapper({ rfq, tab, mode = "create", onBack, onSa
                 subtotal: 0,
                 vat: 0,
                 grandTotal: 0,
-                additionalNotes: ""
+                additionalNotes: "",
+                items: [],
+                vendors: []
             });
         }
     }, [rfq]);
 
+    // Debug: log formData.items whenever it changes so we can trace nulls
     useEffect(() => {
-        if (formData.items && Array.isArray(formData.vendors) && formData.vendors.length > 0) {
+        console.log('RFQFormWrapper formData.items now:', formData.items, 'type:', typeof formData.items);
+    }, [formData.items]);
+
+    useEffect(() => {
+        if (Array.isArray(formData.items) && Array.isArray(formData.vendors) && formData.vendors.length > 0) {
             const rfqItemIds = formData.items.map(item => item.itemId);
             let needsUpdate = false;
             const updatedVendors = formData.vendors.map(vendor => {
@@ -98,6 +114,32 @@ export default function RFQFormWrapper({ rfq, tab, mode = "create", onBack, onSa
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [formData.items, formData.vendors]);
+
+    useEffect(() => {
+        const items = formData.items || [];
+        const allPriced = items.length > 0 && items.every(it => it.unitPrice !== null && it.unitPrice !== undefined && `${it.unitPrice}` !== "" && !isNaN(parseFloat(it.unitPrice)));
+        if (allPriced) {
+            const subtotal = items.reduce((sum, it) => sum + (parseFloat(it.unitPrice) * (Number(it.quantity) || 0)), 0);
+            const vat = subtotal * 0.05; // 5%
+            const grandTotal = subtotal + vat;
+            setFormData(prev => ({
+                ...prev,
+                items,
+                subtotal: Number(subtotal.toFixed(2)),
+                vat: Number(vat.toFixed(2)),
+                grandTotal: Number(grandTotal.toFixed(2)),
+            }));
+        } else {
+            setFormData(prev => ({
+                ...prev,
+                items,
+                subtotal: null,
+                vat: null,
+                grandTotal: null,
+            }));
+        }
+        console.log("Recalculated totals", { items, subtotal: formData.subtotal, vat: formData.vat, grandTotal: formData.grandTotal });
+    }, [formData.items, setFormData]);
 
     // Aggregated validation before save
     const validateAll = () => {

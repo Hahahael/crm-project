@@ -71,6 +71,33 @@ export function getVendorStatus(items) {
   return "Pending";
 }
 
+export function calculateTimeliness(dueDate, doneDate = null, { graceDays = 0 } = {}) {
+  if (!dueDate) return { status: "unknown", daysLate: null };
+
+  const due = dayjs(dueDate);
+  if (!due.isValid()) return { status: "unknown", daysLate: null };
+
+  // If a doneDate exists, caller requested we return on_time regardless of comparison
+  if (doneDate) {
+    return { status: "on_time", daysLate: 0 };
+  }
+
+  const now = dayjs();
+  // days late as whole days (positive when now > due)
+  const daysLate = Math.max(0, now.startOf("day").diff(due.startOf("day"), "day"));
+
+  if (now.isAfter(due.add(graceDays, "day"), "day")) {
+    // beyond grace -> overdue
+    return { status: "overdue", daysLate };
+  }
+
+  if (daysLate > 0) {
+    return { status: "late", daysLate };
+  }
+
+  return { status: "on_time", daysLate: 0 };
+}
+
 // ✅ Default export with all helpers
 export default {
   toCamel,
@@ -81,5 +108,6 @@ export default {
   formatDateTime,
   formatDateOnly,
   formatTimeOnly,
-  getVendorStatus
+  getVendorStatus,
+  calculateTimeliness
 };

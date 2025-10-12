@@ -149,7 +149,7 @@ export const accounts = [
   {
     id: 4,
     accountName: "Test",
-    stage_status: "draft",
+    stage_status: "Draft",
     industryId: 3,
     productId: 3,
     departmentId: 3,

@@ -5,7 +5,7 @@ export const technicalRecommendations = [
     assignee: 1,
     trNumber: 'TR-2025-0001',
     status: 'Draft',
-    stageStatus: 'draft',
+    stageStatus: 'Draft',
     priority: 'Medium',
     title: '1',
     slId: 1,

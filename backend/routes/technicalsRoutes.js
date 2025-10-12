@@ -1,6 +1,39 @@
 import express from "express";
 import db from "../db.js";
 import { toSnake } from "../helper/utils.js";
+import { poolPromise } from "../mssql.js";
+
+function logAttributes(label, obj) {
+  try {
+    if (!obj) return console.log(`${label}: <empty>`);
+    if (Array.isArray(obj)) {
+      const keys = new Set();
+      obj.forEach((r) => {
+        if (r && typeof r === "object") Object.keys(r).forEach((k) => keys.add(k));
+      });
+      return console.log(`${label} keys:`, Array.from(keys));
+    }
+    if (typeof obj === "object") return console.log(`${label} keys:`, Object.keys(obj));
+    return console.log(`${label}:`, obj);
+  } catch (err) {
+    console.error("logAttributes error:", err);
+  }
+}
+
+// Merge primary (detail) and parent objects. Primary wins; parent fields that collide are stored as <key>_secondary
+function mergePrimaryWithParent(primary, parent) {
+  if (!parent) return primary || null;
+  if (!primary) return parent || null;
+  const out = { ...primary };
+  for (const k of Object.keys(parent)) {
+    if (Object.prototype.hasOwnProperty.call(out, k)) {
+      out[`${k}_secondary`] = parent[k];
+    } else {
+      out[k] = parent[k];
+    }
+  }
+  return out;
+}
 
 const router = express.Router();
 
@@ -54,14 +87,37 @@ router.get("/:id", async (req, res) => {
     // Fetch items assigned to this tr
     const itemsRes = await db.query(
       `SELECT
-        ti.*, i.name, i.model, i.description, i.brand, i.part_number, i.lead_time, i.unit, i.unit_price
+        ti.*
       FROM tr_items ti
-      LEFT JOIN items i ON ti.item_id = i.id
-      WHERE ti.tr_id = $1`,
+      WHERE ti.tr_id = $1 ORDER BY ti.id ASC`,
       [id]
     );
-    const response = { ...result.rows[0], items: itemsRes.rows };
-    console.log("Fetched technical recommendation:", result.rows[0]);
+
+    // Resolve MSSQL details for each tr_item and merge
+    const pool = await poolPromise;
+    const items = [];
+    for (const ri of itemsRes.rows) {
+      try {
+        console.log("Resolving MSSQL item for tr_item:", ri);
+        console.log("itemId:", ri.itemId);
+        const sdRes = await pool.request().input("id", ri.itemId).query("SELECT * FROM spidb.stock_details WHERE Id = @id");
+        const sRes = await pool.request().input("id", ri.itemId).query("SELECT * FROM spidb.stock WHERE Id = @id");
+        logAttributes(`tr item stock_details (id=${ri.itemId})`, sdRes.recordset || []);
+        logAttributes(`tr item stock (id=${ri.itemId})`, sRes.recordset || []);
+        const detailObj = sdRes && sdRes.recordset && sdRes.recordset[0] ? sdRes.recordset[0] : null;
+        const parentObj = sRes && sRes.recordset && sRes.recordset[0] ? sRes.recordset[0] : null;
+        const merged = mergePrimaryWithParent(detailObj, parentObj);
+        items.push(merged);
+      } catch (err) {
+        console.error("Error resolving MSSQL item for tr_item", ri, err);
+        items.push({ id: ri.id, itemId: ri.item_id, quantity: ri.quantity });
+      }
+    }
+
+    console.log("Fetched items for technical recommendation:", items);
+
+    const response = { ...result.rows[0], items };
+    console.log("Fetched technical recommendation:", response );
     return res.json(response);
   } catch (err) {
     console.error(err);
@@ -202,6 +258,8 @@ router.put("/:id", async (req, res) => {
     // 2. Get incoming items from request
     const incomingItems = body.items || [];
     const incomingItemIds = new Set(incomingItems.filter(it => it.id).map(it => it.id));
+    console.log("Existing item IDs:", existingItemsRes.rows);
+    console.log("Incoming item IDs:", incomingItems);
 
     // 3. Delete items that exist in DB but not in incoming
     for (const dbId of existingItemIds) {
@@ -212,6 +270,7 @@ router.put("/:id", async (req, res) => {
 
     // 4. Upsert incoming items
     for (const item of incomingItems) {
+      console.log("Upserting item:", item);
       if (item.id && existingItemIds.has(item.id)) {
         // Update existing item
         await db.query(

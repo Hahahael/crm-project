@@ -106,6 +106,15 @@ router.post('/quotations', async (req, res) => {
     if (allowedQuotationCols.includes(k)) filteredQuotation[k] = quotation[k];
   }
 
+  // Set default ValidityDate and ModifiedBy when not provided
+  try {
+    const todayIso = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+    if (!filteredQuotation.ValidityDate) filteredQuotation.ValidityDate = todayIso;
+    if (!filteredQuotation.ModifiedBy) filteredQuotation.ModifiedBy = 50; // fixed for now
+  } catch {
+    // ignore if date formatting fails
+  }
+
   if (Object.keys(filteredQuotation).length === 0) {
     return res.status(400).json({ error: 'No valid quotation fields provided' });
   }
@@ -174,6 +183,7 @@ router.post('/quotations', async (req, res) => {
 
     // Attach details array to returned object
     insertedQuotation.details = insertedDetails;
+    console.log('Inserted quotation:', insertedQuotation);
 
     return res.status(201).json(insertedQuotation);
   } catch (err) {
@@ -207,7 +217,7 @@ router.post('/quotations/quick', async (req, res) => {
       VAT: 0.0,
       TotalWithVat: 100.0,
       ValidityDate: new Date().toISOString().slice(0, 10),
-      ModifiedBy: 1,
+      ModifiedBy: 50,
       DateModified: new Date().toISOString(),
       Status: 0,
       Notes: 'Quick test insert',

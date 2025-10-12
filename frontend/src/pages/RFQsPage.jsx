@@ -240,6 +240,7 @@ export default function RFQsPage() {
 
             if (res.ok) {
                 const data = await res.json();
+                console.log("fetchEditingRFQById: received rfq, items:", data.items, "type:", typeof data.items);
                 setSelectedRFQ(data);
                 setEditingRFQ(data);
                 console.log("Data", data);
@@ -468,13 +469,16 @@ export default function RFQsPage() {
                     editingRFQ && editingRFQ.id ? "translate-x-0 opacity-100" : "translate-x-full opacity-0"
                 }`}>
                 {editingRFQ && editingRFQ.id && (
-                    <RFQForm
-                        rfq={editingRFQ}
-                        tab={selectedTab}
-                        mode={editingRFQ?.id ? "edit" : "create"}
-                        onSave={(formData, mode) => handleSave(formData, mode)}
-                        onBack={() => setEditingRFQ(null)}
-                    />
+                    <>
+                        {console.log('Rendering RFQForm with editingRFQ (items):', editingRFQ.items)}
+                        <RFQForm
+                            rfq={{ ...editingRFQ, items: Array.isArray(editingRFQ.items) ? editingRFQ.items : [] }}
+                            tab={selectedTab}
+                            mode={editingRFQ?.id ? "edit" : "create"}
+                            onSave={(formData, mode) => handleSave(formData, mode)}
+                            onBack={() => setEditingRFQ(null)}
+                        />
+                    </>
                 )}
             </div>
         </div>

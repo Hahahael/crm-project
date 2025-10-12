@@ -197,9 +197,9 @@ const TechnicalDetails = ({ technicalReco, currentUser, onBack, onEdit, onSave, 
                             <tbody>
                                 {technicalReco.items.map((prod, idx) => (
                                     <tr key={idx}>
-                                        <td className="p-2">{prod.name}</td>
-                                        <td className="p-2">{prod.model}</td>
-                                        <td className="p-2">{prod.description}</td>
+                                        <td className="p-2">{prod.Description}</td>
+                                        <td className="p-2">{prod.Code}</td>
+                                        <td className="p-2">{prod.Description}</td>
                                         <td className="p-2 text-right">{prod.quantity}</td>
                                         <td className="p-2 text-right">Php {prod.unitPrice}</td>
                                         <td className="p-2 text-right">Php {prod.quantity * prod.unitPrice}</td>

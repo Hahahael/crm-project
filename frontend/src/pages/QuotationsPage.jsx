@@ -40,7 +40,7 @@ export default function QuotationsPage() {
             console.log("Fetched Quotations (Postgres):", quotationsData);
 
             // Fetch MSSQL quotations and merge (best-effort)
-            await fetchMssqlQuotations();
+            // await fetchMssqlQuotations();
 
             // Fetch status summary
             // const summaryRes = await apiBackendFetch("/api/rfqs/summary/status");

@@ -401,7 +401,7 @@ mem.public.none(`
   CREATE TABLE tr_items (
     id SERIAL PRIMARY KEY,
     tr_id INT REFERENCES technical_recommendations(id) ON DELETE CASCADE,
-    item_id INT REFERENCES items(id) ON DELETE SET NULL,
+    item_id INT,
     quantity INT
   );
 `);
@@ -423,6 +423,9 @@ mem.public.none(`
       subtotal NUMERIC(12,2),
       vat NUMERIC(12,2),
       grand_total NUMERIC(12,2),
+      actual_date DATE,
+      actual_from_time TIME,
+      actual_to_time TIME,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       created_by INT REFERENCES users(id),
       updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -433,8 +436,8 @@ mem.public.none(`
   CREATE TABLE rfq_items (
       id SERIAL PRIMARY KEY,
       rfq_id INT REFERENCES rfqs(id) ON DELETE CASCADE,
-      item_id INT REFERENCES items(id),
-      selected_vendor INT REFERENCES vendors(id),
+      item_id INT,
+      selected_vendor INT,
       lead_time VARCHAR(100),
       quantity INT NOT NULL,
       unit_price NUMERIC(12,2)
@@ -444,7 +447,7 @@ mem.public.none(`
   CREATE TABLE rfq_vendors (
       id SERIAL PRIMARY KEY,
       rfq_id INT REFERENCES rfqs(id) ON DELETE CASCADE,
-      vendor_id INT REFERENCES vendors(id),
+      vendor_id INT,
       valid_until DATE,
       payment_terms TEXT,
       notes TEXT
@@ -454,8 +457,8 @@ mem.public.none(`
   CREATE TABLE rfq_quotations (
       id SERIAL PRIMARY KEY,
       rfq_id INT REFERENCES rfqs(id) ON DELETE CASCADE,
-      item_id INT REFERENCES items(id),
-      vendor_id INT REFERENCES vendors(id),
+      item_id INT,
+      vendor_id INT,
       lead_time INT,
       unit_price NUMERIC(12, 2),
       is_selected BOOLEAN DEFAULT FALSE,

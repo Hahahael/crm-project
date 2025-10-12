@@ -1,1 +1,1 @@
-export const rfqItems = [ { rfqId: 1, itemId: 3, selectedVendor: 1, quantity: 1, leadTime: '2 weeks', unitPrice: 50.00, id: 1 } ];
+export const rfqItems = [];

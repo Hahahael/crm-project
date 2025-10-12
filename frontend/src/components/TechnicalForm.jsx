@@ -2,12 +2,12 @@ import { useState, useEffect, useRef } from "react";
 import { LuArrowLeft, LuCheck, LuPlus, LuSave, LuX, LuTrash } from "react-icons/lu";
 import { apiBackendFetch } from "../services/api";
 import utils from "../helper/utils.js";
-import { items } from "../../../backend/mocks/itemsMock.js";
 
 const TechnicalForm = ({ technicalReco, mode, onSave, onBack, onSubmitForApproval }) => {
     const [errors, setErrors] = useState(null);
     const [itemsList, setItemsList] = useState([ {} ]);
     const [trItems, setTrItems] = useState([]);
+    const nextTempIdRef = useRef(-1);
     const [formData, setFormData] = useState({
         trNumber: "",
         status: "Draft",
@@ -47,7 +47,8 @@ const TechnicalForm = ({ technicalReco, mode, onSave, onBack, onSubmitForApprova
     };
 
     const onAddItem = () => {
-        const newItem = { id: null, item_id: null, name: "", model: "", description: "", quantity: 1, price: 0 };
+        const tempId = nextTempIdRef.current--;
+        const newItem = { id: tempId, item_id: null, name: "", model: "", description: "", quantity: 1, unitPrice: 0, showDropdown: false, searchQuery: "" };
         setTrItems((prevItems) => [...prevItems, newItem]);
     };
 
@@ -65,9 +66,19 @@ const TechnicalForm = ({ technicalReco, mode, onSave, onBack, onSubmitForApprova
         
         const fetchItems = async () => {
             try {
-                const res = await apiBackendFetch("/api/inventory/items");
+                const res = await apiBackendFetch("/api/inventory/mssql/stocks");
                 const data = await res.json();
-                setItemsList(data);
+                const normalized = (data || []).map((s) => ({
+                    // keep original MSSQL keys but add unified camel/id fields
+                    ...s,
+                    id: s.Id || s.id,
+                    Description: s.Description || s.description || s.Code || s.code || "",
+                    Code: s.Code || s.code || "",
+                    LocalPrice: s.LocalPrice || s.localPrice || null,
+                    name: (s.Name || s.name || s.Description || s.description || s.Code || s.code || ""),
+                    description: (s.Description || s.description || s.Code || s.code || ""),
+                }));
+                setItemsList(normalized);
             } catch (err) {
                 console.error("Failed to fetch items", err);
             }
@@ -550,9 +561,9 @@ const TechnicalForm = ({ technicalReco, mode, onSave, onBack, onSubmitForApprova
                                                     <div className="relative" ref={el => { dropdownRefs.current[item.id] = el; }} style={{ overflow: 'visible' }}>
                                                         <input
                                                             type="text"
-                                                            value={item.name || ""}
+                                                            value={item.description || ""}
                                                             onChange={(e) => {
-                                                                onItemChange(item.id, "name", e.target.value);
+                                                                onItemChange(item.id, "description", e.target.value);
                                                                 setTrItems((prevItems) => prevItems.map((itm) =>
                                                                     itm.id === item.id ? { ...itm, showDropdown: true, searchQuery: e.target.value } : itm
                                                                 ));
@@ -567,31 +578,32 @@ const TechnicalForm = ({ technicalReco, mode, onSave, onBack, onSubmitForApprova
                                                             <div style={{ position: 'absolute', left: 0, bottom: '100%', zIndex: 20, width: 'max-content', minWidth: '100%', maxWidth: '400px', boxShadow: '0 4px 16px rgba(0,0,0,0.12)', background: 'white', borderRadius: '0.5rem', border: '1px solid #e5e7eb', overflow: 'visible' }}>
                                                                 <ul className="max-h-40 overflow-y-auto" style={{ margin: 0, padding: 0 }}>
                                                                     {(itemsList || [])
-                                                                        .filter(i =>
-                                                                            (i.name || i.description || "").toLowerCase().includes((item.searchQuery || item.name || "").toLowerCase()) &&
-                                                                            !trItems.some(tr => tr.item_id === i.id)
-                                                                        )
+                                                                        .filter(i => {
+                                                                            const text = (i.name || i.description || i.Description || i.Description || "").toLowerCase();
+                                                                            const q = (item.searchQuery || item.name || "").toLowerCase();
+                                                                            const already = trItems.some(tr => tr.item_id === (i.Id || i.id));
+                                                                            return text.includes(q) && !already;
+                                                                        })
                                                                         .map((itm) => (
                                                                         <li
                                                                             key={itm.id}
                                                                             onClick={() => {
                                                                                 setTrItems((prevItems) => prevItems.map((it) =>
-                                                                                    it === item ? {
+                                                                                    it.id === item.id ? {
                                                                                         ...it,
-                                                                                        id: itm.id, // set id to selected item's id
-                                                                                        item_id: itm.id, // also store as item_id for backend
-                                                                                        name: itm.name || itm.description,
-                                                                                        model: itm.model || "",
-                                                                                        description: itm.description || "",
+                                                                                        id: itm.Id || itm.id,
+                                                                                        item_id: itm.Id || itm.id,
+                                                                                        model: itm.Code || itm.Code || itm.Model || itm.model || "",
+                                                                                        description: itm.Description || itm.description || itm.Code || itm.code || "",
                                                                                         quantity: it.quantity || 1,
-                                                                                        unitPrice: itm.unitPrice || 0,
+                                                                                        unitPrice: itm.LocalPrice || itm.LocalPrice || itm.Localprice || itm.localPrice || 0,
                                                                                         showDropdown: false,
                                                                                         searchQuery: ""
                                                                                     } : it
                                                                                 ));
                                                                             }}
                                                                             className="px-3 py-2 cursor-pointer hover:bg-gray-100 text-sm" style={{ listStyle: 'none' }}>
-                                                                            {itm.name || itm.description}
+                                                                            {itm.Description || itm.description || itm.Code || itm.code}
                                                                         </li>
                                                                     ))}
                                                                     {(itemsList || []).filter(i => (i.name || i.description || "").toLowerCase().includes((item.searchQuery || item.name || "").toLowerCase())).length === 0 && (

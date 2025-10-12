@@ -19,7 +19,10 @@ export default function VendorSelectionModal({ open, onClose, allVendors, select
 
     const filteredVendors = allVendors.filter((vendor) => {
         const q = search.toLowerCase();
-        return vendor.name.toLowerCase().includes(q) || vendor.contactPerson.toLowerCase().includes(q) || vendor.email.toLowerCase().includes(q);
+        const name = (vendor.name || vendor.vendor?.Name || "").toString().toLowerCase();
+        const contact = (vendor.contactPerson || vendor.vendor?.details?.[0]?.Name || vendor.vendor?.details?.[0]?.EmailAddress || "").toString().toLowerCase();
+        const email = (vendor.email || vendor.vendor?.details?.[0]?.EmailAddress || "").toString().toLowerCase();
+        return name.includes(q) || contact.includes(q) || email.includes(q);
     });
 
     const handleToggle = (id) => {
@@ -93,22 +96,22 @@ export default function VendorSelectionModal({ open, onClose, allVendors, select
                                     />
                                     <div className="flex-1 min-w-0">
                                         <div className="flex items-center justify-between mb-2">
-                                            <h4 className="font-medium text-gray-900">{vendor.name}</h4>
+                                            <h4 className="font-medium text-gray-900">{vendor.name || vendor.vendor?.Name || "-"}</h4>
                                         </div>
                                         <div className="space-y-1 text-sm text-gray-500">
                                             <div className="flex items-center space-x-2">
                                                 <LuUser className="h-4 w-4" />
-                                                <span>{vendor.contactPerson}</span>
+                                                <span>{vendor.contactPerson || vendor.vendor?.details?.[0]?.Name || vendor.vendor?.details?.[0]?.EmailAddress || "-"}</span>
                                             </div>
                                             <div className="flex items-center space-x-2">
                                                 <LuPhone className="h-4 w-4" />
-                                                <span>{vendor.phone}</span>
+                                                <span>{vendor.phone || vendor.vendor?.PhoneNumber || "-"}</span>
                                             </div>
                                             <div className="flex items-center space-x-2">
                                                 <LuMail className="h-4 w-4" />
-                                                <span>{vendor.email}</span>
+                                                <span>{vendor.email || vendor.vendor?.details?.[0]?.EmailAddress || "-"}</span>
                                             </div>
-                                            <div className="text-xs text-gray-400 mt-1">{vendor.address}</div>
+                                            <div className="text-xs text-gray-400 mt-1">{vendor.address || vendor.vendor?.Address || ""}</div>
                                         </div>
                                     </div>
                                 </div>

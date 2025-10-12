@@ -63,10 +63,10 @@ router.get('/stocks', async (req, res) => {
       .input('limit', sql.Int, limit)
       .input('offset', sql.Int, offset)
       .query(`
-   SELECT Id, Code, Description, ReOrderLevel, MOQPurchase, MOQSales, Stock_Type_Id, BOM_ID, BRAND_ID, Vendor_Id,
-     InventoryQty, AllocatedQty, AvailableQty, Status, Category_Id, SK_UOM, PUR_UOM, SALES_UOM,
-     ExpectedQty, MOQMultiplier, DesiredInvQty
-   FROM spidb.stock
+        SELECT Id, Code, Description, ReOrderLevel, MOQPurchase, MOQSales, Stock_Type_Id, BOM_ID, BRAND_ID, Vendor_Id,
+            InventoryQty, AllocatedQty, AvailableQty, Status, Category_Id, SK_UOM, PUR_UOM, SALES_UOM,
+            ExpectedQty, MOQMultiplier, DesiredInvQty
+        FROM spidb.stock
         ORDER BY Id
         OFFSET @offset ROWS FETCH NEXT @limit ROWS ONLY
       `);
