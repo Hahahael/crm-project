@@ -89,7 +89,7 @@ const WorkOrderDetails = ({ workOrder, currentUser, onBack, onEdit, onWorkOrderU
                         <div className="grid grid-cols-6 gap-x-4">
                             <label
                                 htmlFor="woNumberInput"
-                                className="text-sm text-right my-auto">
+                                className="text-sm text-right my-auto break-words hyphens-auto">
                                 WO#
                             </label>
                             <div className="col-span-5 w-full rounded-md bg-yellow-50 text-md border border-gray-200 px-3 py-3">
@@ -100,7 +100,7 @@ const WorkOrderDetails = ({ workOrder, currentUser, onBack, onEdit, onWorkOrderU
                         <div className="grid grid-cols-6 gap-x-4">
                             <label
                                 htmlFor="woNumberInput"
-                                className="text-sm text-right my-auto">
+                                className="text-sm text-right my-auto break-words hyphens-auto">
                                 Work Desc
                             </label>
                             <div className="col-span-5 w-full rounded-md bg-yellow-50 text-md border border-gray-200 px-3 py-3">
@@ -111,7 +111,7 @@ const WorkOrderDetails = ({ workOrder, currentUser, onBack, onEdit, onWorkOrderU
                         <div className="grid grid-cols-6 gap-x-4">
                             <label
                                 htmlFor="woNumberInput"
-                                className="text-sm text-right my-auto">
+                                className="text-sm text-right my-auto break-words hyphens-auto">
                                 Assignee
                             </label>
                             <div className="col-span-2 w-full rounded-md bg-yellow-50 text-md border border-gray-200 px-3 py-3">
@@ -119,18 +119,18 @@ const WorkOrderDetails = ({ workOrder, currentUser, onBack, onEdit, onWorkOrderU
                             </div>
                             <label
                                 htmlFor="woNumberInput"
-                                className="text-sm text-right my-auto">
-                                Assignee
+                                className="text-sm text-right my-auto break-words hyphens-auto">
+                                Department
                             </label>
                             <div className="col-span-2 w-full rounded-md bg-yellow-50 text-md border border-gray-200 px-3 py-3">
-                                {workOrder.department || ""}
+                                {workOrder.department || workOrder.accountDepartment || ""}
                             </div>
                         </div>
 
                         <div className="grid grid-cols-6 gap-x-4">
                             <label
                                 htmlFor="woNumberInput"
-                                className="text-sm text-right my-auto">
+                                className="text-sm text-right my-auto break-words hyphens-auto">
                                 Account
                             </label>
                             <div className="col-span-5 flex gap-6">
@@ -157,15 +157,15 @@ const WorkOrderDetails = ({ workOrder, currentUser, onBack, onEdit, onWorkOrderU
                         <div className="grid grid-cols-6 gap-x-4">
                             <label
                                 htmlFor="woNumberInput"
-                                className="text-sm text-right my-auto">
+                                className="text-sm text-right my-auto break-words hyphens-auto">
                                 Industry
                             </label>
                             <div className="col-span-2 w-full rounded-md bg-yellow-50 text-md border border-gray-200 px-3 py-3">
-                                {workOrder.industry || ""}
+                                {workOrder.industry || workOrder.accountIndustry || ""}
                             </div>
                             <label
                                 htmlFor="woNumberInput"
-                                className="text-sm text-right my-auto">
+                                className="text-sm text-right my-auto break-words hyphens-auto">
                                 Mode
                             </label>
                             <div className="col-span-2 w-full rounded-md bg-yellow-50 text-md border border-gray-200 px-3 py-3">
@@ -176,18 +176,18 @@ const WorkOrderDetails = ({ workOrder, currentUser, onBack, onEdit, onWorkOrderU
                         <div className="grid grid-cols-6 gap-x-4">
                             <label
                                 htmlFor="woNumberInput"
-                                className="text-sm text-right my-auto">
+                                className="text-sm text-right my-auto break-words hyphens-auto">
                                 Product/Brand
                             </label>
                             <div className="col-span-5 w-full rounded-md bg-yellow-50 text-md border border-gray-200 px-3 py-3">
-                                {workOrder.productBrand || ""}
+                                {workOrder.productBrand || workOrder.accountProductBrand || ""}
                             </div>
                         </div>
 
                         <div className="grid grid-cols-6 gap-x-4">
                             <label
                                 htmlFor="woNumberInput"
-                                className="text-sm text-right my-auto">
+                                className="text-sm text-right my-auto break-words hyphens-auto">
                                 Contact Person
                             </label>
                             <div className="col-span-5 w-full rounded-md bg-yellow-50 text-md border border-gray-200 px-3 py-3">
@@ -198,7 +198,7 @@ const WorkOrderDetails = ({ workOrder, currentUser, onBack, onEdit, onWorkOrderU
                         <div className="grid grid-cols-6 gap-x-4">
                             <label
                                 htmlFor="woNumberInput"
-                                className="text-sm text-right my-auto">
+                                className="text-sm text-right my-auto break-words hyphens-auto">
                                 Contact Number
                             </label>
                             <div className="col-span-5 w-full rounded-md bg-yellow-50 text-md border border-gray-200 px-3 py-3">
@@ -241,7 +241,7 @@ const WorkOrderDetails = ({ workOrder, currentUser, onBack, onEdit, onWorkOrderU
                         <div className="grid grid-cols-6 gap-x-4">
                             <label
                                 htmlFor="woNumberInput"
-                                className="text-sm text-right my-auto">
+                                className="text-sm text-right my-auto break-words hyphens-auto">
                                 WO Date
                             </label>
                             <div className="col-span-5 w-full rounded-md bg-yellow-50 text-md border border-gray-200 px-3 py-3">
@@ -252,7 +252,7 @@ const WorkOrderDetails = ({ workOrder, currentUser, onBack, onEdit, onWorkOrderU
                         <div className="grid grid-cols-6 gap-x-4">
                             <label
                                 htmlFor="woNumberInput"
-                                className="text-sm text-right my-auto">
+                                className="text-sm text-right my-auto break-words hyphens-auto">
                                 Due Date
                             </label>
                             <div className="col-span-5 w-full rounded-md bg-yellow-50 text-md border border-gray-200 px-3 py-3">
@@ -263,7 +263,7 @@ const WorkOrderDetails = ({ workOrder, currentUser, onBack, onEdit, onWorkOrderU
                         <div className="grid grid-cols-6 gap-x-4">
                             <label
                                 htmlFor="woNumberInput"
-                                className="text-sm text-right my-auto">
+                                className="text-sm text-right my-auto break-words hyphens-auto">
                                 From Time
                             </label>
                             <div className="col-span-5 w-full rounded-md bg-yellow-50 text-md border border-gray-200 px-3 py-3">
@@ -274,7 +274,7 @@ const WorkOrderDetails = ({ workOrder, currentUser, onBack, onEdit, onWorkOrderU
                         <div className="grid grid-cols-6 gap-x-4">
                             <label
                                 htmlFor="woNumberInput"
-                                className="text-sm text-right my-auto">
+                                className="text-sm text-right my-auto break-words hyphens-auto">
                                 To Time
                             </label>
                             <div className="col-span-5 w-full rounded-md bg-yellow-50 text-md border border-gray-200 px-3 py-3">
@@ -285,7 +285,7 @@ const WorkOrderDetails = ({ workOrder, currentUser, onBack, onEdit, onWorkOrderU
                         <div className="grid grid-cols-6 gap-x-4">
                             <label
                                 htmlFor="woNumberInput"
-                                className="text-sm text-right my-auto">
+                                className="text-sm text-right my-auto break-words hyphens-auto">
                                 Actual Date
                             </label>
                             <div className="col-span-5 w-full rounded-md bg-yellow-50 text-md border border-gray-200 px-3 py-3">
@@ -296,7 +296,7 @@ const WorkOrderDetails = ({ workOrder, currentUser, onBack, onEdit, onWorkOrderU
                         <div className="grid grid-cols-6 gap-x-4">
                             <label
                                 htmlFor="woNumberInput"
-                                className="text-sm text-right my-auto">
+                                className="text-sm text-right my-auto break-words hyphens-auto">
                                 Actual From Time
                             </label>
                             <div className="col-span-5 w-full rounded-md bg-yellow-50 text-md border border-gray-200 px-3 py-3">
@@ -307,7 +307,7 @@ const WorkOrderDetails = ({ workOrder, currentUser, onBack, onEdit, onWorkOrderU
                         <div className="grid grid-cols-6 gap-x-4">
                             <label
                                 htmlFor="woNumberInput"
-                                className="text-sm text-right my-auto">
+                                className="text-sm text-right my-auto break-words hyphens-auto">
                                 Actual To Time
                             </label>
                             <div className="col-span-5 w-full rounded-md bg-yellow-50 text-md border border-gray-200 px-3 py-3">
@@ -320,7 +320,7 @@ const WorkOrderDetails = ({ workOrder, currentUser, onBack, onEdit, onWorkOrderU
                 <div className="mt-6 space-y-4">
                     <div className="grid grid-cols-6 gap-4">
                         <label
-                            className="text-sm text-right my-auto"
+                            className="text-sm text-right my-auto break-words hyphens-auto"
                             htmlFor="objective">
                             Objective
                         </label>
@@ -332,7 +332,7 @@ const WorkOrderDetails = ({ workOrder, currentUser, onBack, onEdit, onWorkOrderU
                     </div>
                     <div className="grid grid-cols-6 gap-4">
                         <label
-                            className="text-sm text-right my-auto"
+                            className="text-sm text-right my-auto break-words hyphens-auto"
                             htmlFor="instruction">
                             Instruction
                         </label>
@@ -344,7 +344,7 @@ const WorkOrderDetails = ({ workOrder, currentUser, onBack, onEdit, onWorkOrderU
                     </div>
                     <div className="grid grid-cols-6 gap-4">
                         <label
-                            className="text-sm text-right my-auto"
+                            className="text-sm text-right my-auto break-words hyphens-auto"
                             htmlFor="targetOut">
                             Target Output
                         </label>

@@ -140,6 +140,7 @@ router.post("/", async (req, res) => {
     const contact_email = body.contact_email || null;
     const issues = body.issues || null;
     const current = body.current || null;
+    const due_date = body.due_date || null;
 
     // Generate TR number
     const currentYear = new Date().getFullYear();
@@ -172,8 +173,8 @@ router.post("/", async (req, res) => {
     // Insert skeletal technical recommendation, all other fields default to null
     const insertResult = await db.query(
       `INSERT INTO technical_recommendations 
-        (wo_id, account_id, assignee, tr_number, status, stage_status, sl_id, contact_person, contact_number, contact_email, current_system_issues, current_system, created_at, created_by, updated_at)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, NOW(), $2, NOW())
+        (wo_id, account_id, assignee, tr_number, status, stage_status, sl_id, contact_person, contact_number, contact_email, current_system_issues, current_system, created_at, created_by, updated_at, due_date)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, NOW(), $2, NOW(), $13)
         RETURNING id`,
       [
         wo_id,
@@ -187,7 +188,8 @@ router.post("/", async (req, res) => {
         contact_number,
         contact_email,
         issues,
-        current
+        current,
+        due_date
       ]
     );
     const newId = insertResult.rows[0].id;

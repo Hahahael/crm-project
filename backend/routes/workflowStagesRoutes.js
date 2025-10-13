@@ -169,16 +169,18 @@ router.post("/", async (req, res) => {
             );
             insertedStage = result.rows[0];
 
+            const queryText = status === "Approved" ? "SET stage_status = $1, done_date = NOW() WHERE wo_id = $2" : "SET stage_status = $1 WHERE wo_id = $2";
+
             // Update stage_status in the relevant module only
             switch (stage_name) {
                 case "Sales Lead":
-                    await db.query("UPDATE sales_leads SET stage_status = $1 WHERE wo_id = $2", [status, wo_id]);
+                    await db.query(`UPDATE sales_leads ${queryText}`, [status, wo_id]);
                     break;
                 case "RFQ":
-                    await db.query("UPDATE rfqs SET stage_status = $1 WHERE wo_id = $2", [status, wo_id]);
+                    await db.query(`UPDATE rfqs ${queryText}`, [status, wo_id]);
                     break;
                 case "Technical Recommendation":
-                    await db.query("UPDATE technical_recommendations SET stage_status = $1 WHERE wo_id = $2", [status, wo_id]);
+                    await db.query(`UPDATE technical_recommendations ${queryText}`, [status, wo_id]);
                     break;
                 case "Account":
                 case "NAEF":

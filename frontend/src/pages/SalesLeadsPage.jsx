@@ -108,7 +108,7 @@ export default function SalesLeadsPage() {
             if (!salesLeadsRes.ok) throw new Error("Failed to fetch Sales Leads");
 
             const salesLeadsData = await salesLeadsRes.json();
-            setSalesLeads(salesLeadsData);
+            setSalesLeads(Array.isArray(salesLeadsData) ? salesLeadsData : [salesLeadsData]);
 
             // Fetch status summary
             const summaryRes = await apiBackendFetch("/api/salesleads/summary/status");
@@ -149,7 +149,7 @@ export default function SalesLeadsPage() {
             const res = await apiBackendFetch(`/api/salesleads/${currentUser.id}`);
             if (res.ok) {
                 const data = await res.json();
-                setNewAssignedSalesLeads(data);
+                setNewAssignedSalesLeads(Array.isArray(data) ? data : data ? [data] : []);
             }
         } catch (err) {
             console.error("Failed to fetch assigned salesleads", err);
@@ -181,6 +181,10 @@ export default function SalesLeadsPage() {
     // Fetch a single sales lead and set into editing drawer
     const fetchEditingSL = useCallback(async (id) => {
         if (!id) return;
+    
+        // 🧠 handle case when id is actually an object
+        const resolvedId = typeof id === 'object' && id.id ? id.id : id;
+
         try {
             setLoading(true);
             const res = await apiBackendFetch(`/api/salesleads/${id}`);
@@ -458,12 +462,10 @@ export default function SalesLeadsPage() {
                         <SalesLeadsTable
                             salesLeads={filtered}
                             onView={(salesLead) => {
-                                setSelectedSL(salesLead);
-                                setEditingSL(null);
+                                fetchSelectedSL(salesLead);
                             }}
                             onEdit={(salesLead) => {
-                                setEditingSL(salesLead);
-                                setSelectedSL(null);
+                                fetchEditingSL(salesLead.id);
                             }}
                         />
                     </div>
@@ -480,12 +482,22 @@ export default function SalesLeadsPage() {
                         salesLead={selectedSL}
                         currentUser={currentUser}
                         onBack={() => setSelectedSL(null)}
-                        onEdit={() => setEditingSL(selectedSL)}
+                        onEdit={() => fetchEditingSL(selectedSL.id)}
                         onSubmit={(passedSL) => {handleSubmitForApproval(passedSL)}}
                         onSalesLeadUpdated={(updatedSalesLead) => {
-                            fetchSelectedSL(updatedSalesLead);
-                            fetchAllData();
-                            fetchNewAssignedSalesLeads(); // <-- refresh from backend
+                            if (!updatedSalesLead) return;
+                            // Update selected and list locally to avoid repeated network refetches
+                            setSelectedSL(updatedSalesLead);
+                            setSalesLeads((prev) => {
+                                if (Array.isArray(prev)) return prev.map((sl) => (sl.id === updatedSalesLead.id ? updatedSalesLead : sl));
+                                console.warn("setSalesLeads expected array but got", prev);
+                                return [updatedSalesLead];
+                            });
+                            setNewAssignedSalesLeads((prev) => {
+                                if (Array.isArray(prev)) return prev.map((sl) => (sl.id === updatedSalesLead.id ? updatedSalesLead : sl));
+                                console.warn("setNewAssignedSalesLeads expected array but got", prev);
+                                return [updatedSalesLead];
+                            });
                         }}
                     />
                 )}

@@ -3,6 +3,21 @@ import { LuCheck, LuEye, LuPencil, LuX } from "react-icons/lu";
 import utils from "../helper/utils.js";
 
 export default function ApprovalsTable({ approvals, onView, onEdit, onApprove, onReject }) {
+    const baseBadge = "inline-flex items-center px-2.5 py-0.5 text-xs";
+  
+    const renderSubstatusBadge = (name) => {
+      if (!name) return (
+        <span className={`${baseBadge} bg-gray-50 text-gray-600`}>-</span>
+      );
+      const n = String(name).toLowerCase();
+      if (n.includes("sales")) return <span className={`${baseBadge} rounded-sm bg-blue-50 text-blue-700`}>{name}</span>;
+      if (n.includes("technical")) return <span className={`${baseBadge} rounded-sm bg-purple-50 text-purple-800`}>{name}</span>;
+      if (n.includes("rfq")) return <span className={`${baseBadge} rounded-sm bg-amber-50 text-amber-800`}>{name}</span>;
+      if (n.includes("naef")) return <span className={`${baseBadge} rounded-sm bg-teal-50 text-teal-800`}>{name}</span>;
+      if (n.includes("quotation")) return <span className={`${baseBadge} rounded-sm bg-green-50 text-green-700`}>{name}</span>;
+      return <span className={`${baseBadge} rounded-sm bg-gray-50 text-gray-600`}>{name}</span>;
+    };
+
     console.log("Rendering ApprovalsTable with approvals:", approvals);
     return (
         <div className="relative overflow-x-auto rounded-lg border border-gray-200 bg-white">
@@ -34,18 +49,13 @@ export default function ApprovalsTable({ approvals, onView, onEdit, onApprove, o
                                 )}
                             </td>
                             <td className="px-4 py-2 text-black text-sm">{utils.formatDate(row.submittedDate, "DD/MM/YYYY")}</td>
-                            <td className="px-4 py-2 text-black text-sm">
-                                <span
-                                    className={`inline-flex items-center rounded-md border px-2.5 py-0.5 text-xs font-semibold shadow ${row.typeColor}`}>
-                                    {row.stageName}
-                                </span>
-                            </td>
-                            <td className="px-4 py-2 text-black text-sm">{row.customer}</td>
-                            <td className="p-2 align-middle max-w-[200px] truncate">{row.title}</td>
+                            <td className="px-4 py-2 text-black text-sm">{renderSubstatusBadge(row.stageName)}</td>
+                            <td className="px-4 py-2 text-black text-sm">{row.accountName}</td>
+                            <td className="p-2 align-middle max-w-[200px] truncate">{row.title || "-"}</td>
                             <td className="px-4 py-2 text-black text-sm">
                                 <span
                                     className={`inline-flex items-center rounded-md border px-2.5 py-0.5 text-xs font-semibold shadow ${row.priorityColor}`}>
-                                    {row.priority}
+                                    {row.priority || "-"}
                                 </span>
                             </td>
                             <td className="px-4 py-2 text-black text-sm">{row.amount}</td>

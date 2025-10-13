@@ -206,12 +206,15 @@ const WorkOrderForm = ({ workOrder, mode = "create", onSave, onBack }) => {
         });
     };
 
-    const handleSubmit = (e) => {
+    const [submitting, setSubmitting] = useState(false);
+
+    const handleSubmit = async (e) => {
         e.preventDefault();
         // Validate form
         const { valid, errors: validationErrors } = validateForm(formData);
         if (!valid) {
             setErrors(validationErrors);
+            console.log(validationErrors);
             // focus first invalid field
             const first = Object.keys(validationErrors)[0];
             try {
@@ -234,7 +237,16 @@ const WorkOrderForm = ({ workOrder, mode = "create", onSave, onBack }) => {
             toTime: formData.toTime || null,
         };
         if (!formData.isNewAccount) delete cleanedFormData.accountName;
-        onSave(cleanedFormData, mode);
+        // prevent double submit from rapid clicks or re-renders
+        if (submitting) return;
+        try {
+            setSubmitting(true);
+            // await parent's save (parent returns a promise because it's async)
+            await onSave(cleanedFormData, mode);
+        } finally {
+            // only clear submitting if component still mounted (best-effort)
+            setSubmitting(false);
+        }
     };
 
     // ---------- Validation helpers ----------
@@ -307,11 +319,6 @@ const WorkOrderForm = ({ workOrder, mode = "create", onSave, onBack }) => {
             if (to.isBefore(from)) errors.toTime = "End time must be same or after start time.";
         }
 
-        // actuals
-        if (data.actualDate && !isValidDate(data.actualDate)) errors.actualDate = "Invalid actual date.";
-        if (data.actualFromTime && !isValidTime(data.actualFromTime)) errors.actualFromTime = "Invalid actual time.";
-        if (data.actualToTime && !isValidTime(data.actualToTime)) errors.actualToTime = "Invalid actual time.";
-
         // contact
         if (!data.contactPerson || String(data.contactPerson).trim().length === 0) {
             errors.contactPerson = "Contact person is required.";
@@ -343,10 +350,12 @@ const WorkOrderForm = ({ workOrder, mode = "create", onSave, onBack }) => {
                 <h1 className="text-2xl font-bold">{mode === "edit" ? "Edit Work Order" : "New Work Order"}</h1>
                 <div className="ml-auto flex gap-2">
                     <button
-                        type="submit"
-                        className="flex border border-gray-200 bg-green-500 hover:bg-green-600 transition-all duration-150 cursor-pointer px-4 py-2 rounded-md items-center text-sm text-white">
-                        <LuCheck className="mr-2" /> Save
-                    </button>
+                            type="submit"
+                            disabled={submitting}
+                            onClick={(e) => { if (submitting) { e.preventDefault(); e.stopPropagation(); } }}
+                            className={`flex border border-gray-200 px-4 py-2 rounded-md items-center text-sm text-white ${submitting ? 'bg-gray-300 cursor-not-allowed' : 'bg-green-500 hover:bg-green-600'}`}>
+                            <LuCheck className="mr-2" /> {submitting ? 'Saving...' : 'Save'}
+                        </button>
                     <button
                         type="button"
                         onClick={onBack}
@@ -764,6 +773,7 @@ const WorkOrderForm = ({ workOrder, mode = "create", onSave, onBack }) => {
                                 onChange={handleChange}
                                 className="col-span-5 w-full h-10 rounded-md border border-gray-200 px-3 py-2"
                             />
+                            {errors?.contactPerson && <p className="text-xs text-red-600 mt-1 col-span-5 col-start-2">{errors.contactPerson}</p>}
                         </div>
 
                         {/* Contact Number */}
@@ -776,7 +786,7 @@ const WorkOrderForm = ({ workOrder, mode = "create", onSave, onBack }) => {
                                 onChange={handleChange}
                                 className="col-span-5 w-full h-10 rounded-md border border-gray-200 px-3 py-2"
                             />
-                            {errors?.contactNumber && <p className="text-xs text-red-600 mt-1">{errors.contactNumber}</p>}
+                            {errors?.contactNumber && <p className="text-xs text-red-600 mt-1 col-span-5 col-start-2">{errors.contactNumber}</p>}
                         </div>
                         {/* WO Date */}
                         <div className="grid grid-cols-6 gap-x-4">

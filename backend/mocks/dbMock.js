@@ -363,6 +363,7 @@ mem.public.none(`
   tr_number VARCHAR(20) UNIQUE NOT NULL, -- TR-YYYY-NNNN, auto-generated
   status VARCHAR(50) DEFAULT 'Open',
   stage_status VARCHAR(20) DEFAULT 'draft',
+  due_date DATE,
   priority VARCHAR(50) DEFAULT 'Medium',
   title VARCHAR(255) DEFAULT '',
   sl_id INT REFERENCES sales_leads(id) ON DELETE SET NULL,

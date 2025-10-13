@@ -159,7 +159,7 @@ const ApprovalActionModal = ({ isOpen, type, approval, onClose, onSubmit }) => {
                         placeholder="Due Date"
                         value={form.dueDate}
                         onChange={handleChange}
-                        className="w-full border rounded p-2"
+                        className="w-full border border-gray-200 rounded p-2"
                         required
                     />
                     <input
@@ -168,7 +168,7 @@ const ApprovalActionModal = ({ isOpen, type, approval, onClose, onSubmit }) => {
                         placeholder="From Time"
                         value={form.fromTime}
                         onChange={handleChange}
-                        className="w-full border rounded p-2"
+                        className="w-full border border-gray-200 rounded p-2"
                         required
                     />
                     <input
@@ -177,7 +177,7 @@ const ApprovalActionModal = ({ isOpen, type, approval, onClose, onSubmit }) => {
                         placeholder="To Time"
                         value={form.toTime}
                         onChange={handleChange}
-                        className="w-full border rounded p-2"
+                        className="w-full border border-gray-200 rounded p-2"
                         required
                     />
                     {/* Conditional dropdown for next stage */}
@@ -186,7 +186,7 @@ const ApprovalActionModal = ({ isOpen, type, approval, onClose, onSubmit }) => {
                             name="nextStage"
                             value={form.nextStage}
                             onChange={handleChange}
-                            className="w-full border rounded p-2"
+                            className="w-full border border-gray-200 rounded p-2"
                             required>
                             <option
                                 value=""
@@ -207,7 +207,7 @@ const ApprovalActionModal = ({ isOpen, type, approval, onClose, onSubmit }) => {
                         placeholder="Remarks"
                         value={form.remarks}
                         onChange={handleChange}
-                        className="w-full border rounded p-2"
+                        className="w-full border border-gray-200 rounded p-2"
                         required
                     />
                 </div>

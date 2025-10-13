@@ -67,7 +67,7 @@ const SalesLeadDetails = ({ salesLead, currentUser, onBack, onEdit, onSalesLeadU
                     <div className="flex items-center gap-3">
                         <h1 className="text-2xl font-bold">{salesLead.slNumber}</h1>
                         <div className="inline-flex items-center rounded-md border px-2.5 py-0.5 text-xs font-semibold bg-blue-100 text-blue-800">
-                            {salesLead.salesStage}
+                            {salesLead.stageStatus}
                         </div>
                         <div className="inline-flex items-center rounded-md border px-2.5 py-0.5 text-xs font-semibold bg-red-100 text-red-800">
                             {salesLead.urgency}
@@ -93,7 +93,7 @@ const SalesLeadDetails = ({ salesLead, currentUser, onBack, onEdit, onSalesLeadU
                     </button> */}
                     <button
                         onClick={() => onEdit(salesLead)}
-                        className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-light shadow h-9 px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white">
+                        className={`items-center justify-center whitespace-nowrap rounded-md text-sm font-light shadow h-9 px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white ${salesLead.stageStatus === "Approved" ? "hidden pointer-events-none" : "inline-flex"}`}>
                         <LuPencil className="h-4 w-4 mr-2" />
                         Edit Sales Lead
                     </button>
@@ -127,7 +127,7 @@ const SalesLeadDetails = ({ salesLead, currentUser, onBack, onEdit, onSalesLeadU
                             />
                             <Detail
                                 label="Department"
-                                value={salesLead.department}
+                                value={salesLead.accountDepartmentName}
                             />
                             <Detail
                                 label="Immediate Support"

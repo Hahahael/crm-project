@@ -139,6 +139,36 @@ router.post("/", async (req, res) => {
 });
 
 // Update existing sales lead
+router.put("/approved/:id", async (req, res) => {
+    try {
+        const { id } = req.params;
+        const body = toSnake(req.body);
+        // Add all fields you want to update here
+        const updateResult = await db.query(
+            `UPDATE sales_leads 
+            SET 
+                done_date=NOW()
+            WHERE id=$1
+            RETURNING id`,
+            [id]
+        );
+        const updatedId = updateResult.rows[0].id;
+        const result = await db.query(
+            `SELECT sl.*, u.username AS se_username
+                FROM sales_leads sl
+                LEFT JOIN users u ON sl.se_id = u.id
+                WHERE sl.id = $1`,
+            [updatedId]
+        );
+        if (result.rows.length === 0) return res.status(404).json({ error: "Not found" });
+        return res.json(result.rows[0]);
+    } catch (err) {
+        console.error(err);
+        return res.status(500).json({ error: "Failed to update sales lead" });
+    }
+});
+
+// Update existing sales lead
 router.put("/:id", async (req, res) => {
     try {
         const { id } = req.params;

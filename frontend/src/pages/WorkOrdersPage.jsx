@@ -155,6 +155,7 @@ export default function WorkOrdersPage() {
       await fetchAllData();
       setSelectedWO(savedWorkOrder);
       setEditingWO(null);
+      return savedWorkOrder;
     } catch (err) {
       console.error("Error saving workorder:", err);
       setError("Failed to save work order");
