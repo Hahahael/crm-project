@@ -222,6 +222,7 @@ router.put("/:id", async (req, res) => {
   try {
     const { id } = req.params;
     const body = toSnake(req.body);
+    console.log("Updating technical recommendation id", id, "with data:", body);
     // Add all fields you want to update here
     const updateResult = await db.query(
       `UPDATE technical_recommendations 

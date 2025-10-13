@@ -689,7 +689,7 @@ const TechnicalForm = ({ technicalReco, mode, onSave, onBack, onSubmitForApprova
                                 Installation Requirements
                             </label>
                             <textarea
-                                className="flex min-h-[60px] w-full rounded-md border border-input px-3 py-2 text-sm shadow-sm bg-yellow-50"
+                                className="flex min-h-[60px] w-full rounded-md border border-gray-200 px-3 py-2 text-sm shadow-sm bg-yellow-50"
                                 id="installationRequirements"
                                 name="installationRequirements"
                                 rows={3}
@@ -705,7 +705,7 @@ const TechnicalForm = ({ technicalReco, mode, onSave, onBack, onSubmitForApprova
                                 Training Requirements
                             </label>
                             <textarea
-                                className="flex min-h-[60px] w-full rounded-md border border-input px-3 py-2 text-sm shadow-sm bg-yellow-50"
+                                className="flex min-h-[60px] w-full rounded-md border border-gray-200 px-3 py-2 text-sm shadow-sm bg-yellow-50"
                                 id="trainingRequirements"
                                 name="trainingRequirements"
                                 rows={3}
@@ -721,7 +721,7 @@ const TechnicalForm = ({ technicalReco, mode, onSave, onBack, onSubmitForApprova
                                 Maintenance Requirements
                             </label>
                             <textarea
-                                className="flex min-h-[60px] w-full rounded-md border border-input px-3 py-2 text-sm shadow-sm bg-yellow-50"
+                                className="flex min-h-[60px] w-full rounded-md border border-gray-200 px-3 py-2 text-sm shadow-sm bg-yellow-50"
                                 id="maintenanceRequirements"
                                 name="maintenanceRequirements"
                                 rows={3}
@@ -747,7 +747,7 @@ const TechnicalForm = ({ technicalReco, mode, onSave, onBack, onSubmitForApprova
                                 Attachments Placeholder
                             </label>
                             <textarea
-                                className="flex min-h-[60px] w-full rounded-md border border-input px-3 py-2 text-sm shadow-sm bg-yellow-50"
+                                className="flex min-h-[60px] w-full rounded-md border border-gray-200 px-3 py-2 text-sm shadow-sm bg-yellow-50"
                                 id="attachmentsPlaceholder"
                                 name="attachmentsPlaceholder"
                                 rows={3}
@@ -773,7 +773,7 @@ const TechnicalForm = ({ technicalReco, mode, onSave, onBack, onSubmitForApprova
                                 htmlFor="additionalNotes">
                             </label>
                             <textarea
-                                className="flex min-h-[60px] w-full rounded-md border border-input px-3 py-2 text-sm shadow-sm bg-yellow-50"
+                                className="flex min-h-[60px] w-full rounded-md border border-gray-200 px-3 py-2 text-sm shadow-sm bg-yellow-50"
                                 id="additionalNotes"
                                 name="additionalNotes"
                                 rows={3}

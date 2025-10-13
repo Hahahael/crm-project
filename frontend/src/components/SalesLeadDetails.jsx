@@ -5,6 +5,7 @@ import config from "../config.js";
 import { formatDate } from "../helper/utils.js";
 
 const SalesLeadDetails = ({ salesLead, currentUser, onBack, onEdit, onSalesLeadUpdated, onSubmit }) => {
+    console.log("Rendering SalesLeadDetails for salesLead:", salesLead);
     const isAssignedToMe = currentUser && salesLead.assignee === currentUser.id;
     const isCreator = currentUser && salesLead.createdBy === currentUser.id;
 
@@ -45,9 +46,6 @@ const SalesLeadDetails = ({ salesLead, currentUser, onBack, onEdit, onSalesLeadU
                     }
                     return res.json();
                 })
-                .then((updatedSalesLead) => {
-                    if (updatedSalesLead && onSalesLeadUpdated) onSalesLeadUpdated(updatedSalesLead);
-                })
                 .catch((err) => console.error("Error auto-updating sales lead actuals", err));
         }
         // eslint-disable-next-line
@@ -77,7 +75,7 @@ const SalesLeadDetails = ({ salesLead, currentUser, onBack, onEdit, onSalesLeadU
                 </div>
                 <div className="flex gap-2">
                     <button
-                        className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-light shadow h-9 px-4 py-2 bg-green-500 hover:bg-green-600 text-white"
+                        className={`items-center justify-center whitespace-nowrap rounded-md text-sm font-light shadow h-9 px-4 py-2 bg-green-500 hover:bg-green-600 text-white ${salesLead.stageStatus === "Approved" ? "hidden pointer-events-none" : "inline-flex"}`}
                         onClick={() => onSubmit(salesLead)}>
                         Submit for Approval
                     </button>

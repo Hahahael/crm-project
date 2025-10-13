@@ -144,17 +144,20 @@ export default function SalesLeadsPage() {
     };
 
     const fetchNewAssignedSalesLeads = useCallback(async () => {
+        if (!currentUser) return;
         try {
-            if (!currentUser) return;
-            const res = await apiBackendFetch(`/api/salesleads/${currentUser.id}`);
+            const res = await apiBackendFetch(`/api/workflow-stages/assigned/latest/${currentUser.id}/${encodeURIComponent("Sales Lead")}`);
+
             if (res.ok) {
                 const data = await res.json();
-                setNewAssignedSalesLeads(Array.isArray(data) ? data : data ? [data] : []);
+                console.log("New assigned technical recommendations:", data);
+                setNewAssignedSalesLeads(data);
             }
+            console.log("New Assigned Sales Leads:", newAssignedSalesLeads);
         } catch (err) {
-            console.error("Failed to fetch assigned salesleads", err);
+            console.error("Failed to fetch assigned sales leads", err);
         }
-    }, [currentUser]);
+    }, [currentUser, newAssignedSalesLeads]);
 
     // Fetch a single sales lead and set as selected (details view)
     const fetchSelectedSL = useCallback(async (id) => {
@@ -168,6 +171,7 @@ export default function SalesLeadsPage() {
             const res = await apiBackendFetch(`/api/salesleads/${resolvedId}`);
             if (!res.ok) throw new Error('Failed to fetch sales lead');
             const sl = await res.json();
+            console.log("Fetched selected sales lead:", sl);
             setSelectedSL(sl);
             setEditingSL(null);
         } catch (err) {
@@ -493,11 +497,7 @@ export default function SalesLeadsPage() {
                                 console.warn("setSalesLeads expected array but got", prev);
                                 return [updatedSalesLead];
                             });
-                            setNewAssignedSalesLeads((prev) => {
-                                if (Array.isArray(prev)) return prev.map((sl) => (sl.id === updatedSalesLead.id ? updatedSalesLead : sl));
-                                console.warn("setNewAssignedSalesLeads expected array but got", prev);
-                                return [updatedSalesLead];
-                            });
+                            fetchNewAssignedSalesLeads();
                         }}
                     />
                 )}

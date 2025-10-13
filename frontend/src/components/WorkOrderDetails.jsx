@@ -60,7 +60,7 @@ const WorkOrderDetails = ({ workOrder, currentUser, onBack, onEdit, onWorkOrderU
                             className={`rounded-full px-2 py-1 text-xs mr-2 ${
                                 config.statusBadgeClasses[workOrder.stageStatus] || "bg-yellow-100 text-yellow-700"
                             }`}>
-                            {workOrder.status}
+                            {workOrder.stageStatus}
                         </span>
                         {workOrder.accountName}
                     </h2>
