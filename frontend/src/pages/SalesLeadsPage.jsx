@@ -159,9 +159,13 @@ export default function SalesLeadsPage() {
     // Fetch a single sales lead and set as selected (details view)
     const fetchSelectedSL = useCallback(async (id) => {
         if (!id) return;
+    
+        // 🧠 handle case when id is actually an object
+        const resolvedId = typeof id === 'object' && id.id ? id.id : id;
+    
         try {
             setLoading(true);
-            const res = await apiBackendFetch(`/api/salesleads/${id}`);
+            const res = await apiBackendFetch(`/api/salesleads/${resolvedId}`);
             if (!res.ok) throw new Error('Failed to fetch sales lead');
             const sl = await res.json();
             setSelectedSL(sl);

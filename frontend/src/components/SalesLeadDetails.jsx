@@ -1,5 +1,5 @@
 import { LuArrowLeft, LuPencil } from "react-icons/lu";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { apiBackendFetch } from "../services/api";
 import config from "../config.js";
 import { formatDate } from "../helper/utils.js";
@@ -17,13 +17,19 @@ const SalesLeadDetails = ({ salesLead, currentUser, onBack, onEdit, onSalesLeadU
         );
     }
 
+    // Guard to ensure we only auto-mark a given sales lead once per id.
+    const autoMarkedRef = useRef(null);
+
     useEffect(() => {
-        if (isAssignedToMe && !salesLead.actualDate && !salesLead.actualFromTime) {
+        if (!salesLead) return;
+        const id = salesLead.id;
+        if (isAssignedToMe && !salesLead.actualDate && !salesLead.actualFromTime && autoMarkedRef.current !== id) {
+            autoMarkedRef.current = id; // mark this id as processed
             const now = new Date();
             const actualDate = now.toISOString().split("T")[0]; // YYYY-MM-DD
             const actualFromTime = now.toTimeString().slice(0, 8); // HH:MM:SS
 
-            apiBackendFetch(`/api/salesleads/${salesLead.id}`, {
+            apiBackendFetch(`/api/salesleads/${id}`, {
                 method: "PUT",
                 body: JSON.stringify({
                     ...salesLead,
@@ -32,10 +38,17 @@ const SalesLeadDetails = ({ salesLead, currentUser, onBack, onEdit, onSalesLeadU
                 }),
                 headers: { "Content-Type": "application/json" },
             })
-                .then((res) => res.json())
+                .then(async (res) => {
+                    if (!res.ok) {
+                        console.error("Failed to auto-update sales lead actuals", res.status);
+                        return null;
+                    }
+                    return res.json();
+                })
                 .then((updatedSalesLead) => {
-                    if (onSalesLeadUpdated) onSalesLeadUpdated(updatedSalesLead);
-                });
+                    if (updatedSalesLead && onSalesLeadUpdated) onSalesLeadUpdated(updatedSalesLead);
+                })
+                .catch((err) => console.error("Error auto-updating sales lead actuals", err));
         }
         // eslint-disable-next-line
     }, [salesLead?.id, isAssignedToMe]);

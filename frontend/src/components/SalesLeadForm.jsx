@@ -245,9 +245,9 @@ const SalesLeadForm = ({ salesLead, mode = "create", onSave, onBack, onSubmit })
         }
 
         // sales engineer: either seId (>0) or salesPlanRep present
-        if ((!data.seId || Number(data.seId) <= 0) && (!data.salesPlanRep || String(data.salesPlanRep).trim() === "")) {
-            errors.salesEngineer = "Sales engineer is required.";
-        }
+        // if ((!data.seId || Number(data.seId) <= 0) && (!data.salesPlanRep || String(data.salesPlanRep).trim() === "")) {
+        //     errors.salesEngineer = "Sales engineer is required.";
+        // }
 
         // FSL details
         if (!isValidDate(data.fslDate)) errors.fslDate = "Date is required.";
@@ -274,6 +274,7 @@ const SalesLeadForm = ({ salesLead, mode = "create", onSave, onBack, onSubmit })
             } catch (err) {
                 console.error("focus error", err);
             }
+            console.log("Validation errors:", validationErrors);
             return;
         }
         // Destructure optional + WO number
@@ -854,6 +855,7 @@ const SalesLeadForm = ({ salesLead, mode = "create", onSave, onBack, onSubmit })
                             <option value="Upgrade">Upgrade</option>
                             <option value="New Installation">New Installation</option>
                         </select>
+                        {errors?.category && <p className="text-xs text-red-600 mt-1">{errors.category}</p>}
                     </div>
                     {/* <div>
                         <label htmlFor="seId">SE (Sales Engineer)</label>
@@ -1006,6 +1008,7 @@ const SalesLeadForm = ({ salesLead, mode = "create", onSave, onBack, onSubmit })
                             <option value="Packaging">Packaging</option>
                             <option value="Quality Control">Quality Control</option>
                         </select>
+                        {errors?.machineProcess && <p className="text-xs text-red-600 mt-1">{errors.machineProcess}</p>}
                     </div>
                     <div>
                         <label htmlFor="productApplication">Product Application</label>

@@ -662,313 +662,313 @@ for (const account of accounts) {
   `);
 }
 
-for (const wo of workorders) {
-  mem.public.none(
-    `
-    INSERT INTO workorders (
-      wo_number,
-      work_description,
-      assignee,
-      status,
-      account_id,
-      naef_id,
-      is_new_account,
-      mode,
-      contact_person,
-      contact_number,
-      wo_date,
-      due_date,
-      from_time,
-      to_time,
-      actual_date,
-      actual_from_time,
-      actual_to_time,
-      objective,
-      instruction,
-      target_output,
-      is_fsl,
-      is_esl,
-      created_at,
-      created_by,
-      updated_at
-    ) VALUES (
-      '${esc(wo.woNumber)}',
-      '${esc(wo.workDescription)}',
-      '${wo.assignee}',
-      '${wo.status}',
-      '${esc(wo.accountId)}',
-      ${esc(wo.naefId) || 'NULL'},
-      ${wo.isNewAccount ? 'TRUE' : 'FALSE'},
-      '${esc(wo.mode)}',
-      '${esc(wo.contactPerson)}',
-      '${esc(wo.contactNumber)}',
-      '${wo.woDate}',
-      ${wo.dueDate ? `'${wo.dueDate}'` : 'NULL'},
-      ${wo.fromTime ? `'${wo.fromTime}'` : 'NULL'},
-      ${wo.toTime ? `'${wo.toTime}'` : 'NULL'},
-      ${wo.actualDate ? `'${wo.actualDate}'` : 'NULL'},
-      ${wo.actualFromTime ? `'${wo.actualFromTime}'` : 'NULL'},
-      ${wo.actualToTime ? `'${wo.actualToTime}'` : 'NULL'},
-      '${esc(wo.objective)}',
-      '${esc(wo.instruction)}',
-      '${esc(wo.targetOutput)}',
-      ${wo.isFSL ? 'TRUE' : 'FALSE'},
-      ${wo.isESL ? 'TRUE' : 'FALSE'},
-      NOW(),
-      ${wo.createdBy},
-      NOW())`);
-}
+// for (const wo of workorders) {
+//   mem.public.none(
+//     `
+//     INSERT INTO workorders (
+//       wo_number,
+//       work_description,
+//       assignee,
+//       status,
+//       account_id,
+//       naef_id,
+//       is_new_account,
+//       mode,
+//       contact_person,
+//       contact_number,
+//       wo_date,
+//       due_date,
+//       from_time,
+//       to_time,
+//       actual_date,
+//       actual_from_time,
+//       actual_to_time,
+//       objective,
+//       instruction,
+//       target_output,
+//       is_fsl,
+//       is_esl,
+//       created_at,
+//       created_by,
+//       updated_at
+//     ) VALUES (
+//       '${esc(wo.woNumber)}',
+//       '${esc(wo.workDescription)}',
+//       '${wo.assignee}',
+//       '${wo.status}',
+//       '${esc(wo.accountId)}',
+//       ${esc(wo.naefId) || 'NULL'},
+//       ${wo.isNewAccount ? 'TRUE' : 'FALSE'},
+//       '${esc(wo.mode)}',
+//       '${esc(wo.contactPerson)}',
+//       '${esc(wo.contactNumber)}',
+//       '${wo.woDate}',
+//       ${wo.dueDate ? `'${wo.dueDate}'` : 'NULL'},
+//       ${wo.fromTime ? `'${wo.fromTime}'` : 'NULL'},
+//       ${wo.toTime ? `'${wo.toTime}'` : 'NULL'},
+//       ${wo.actualDate ? `'${wo.actualDate}'` : 'NULL'},
+//       ${wo.actualFromTime ? `'${wo.actualFromTime}'` : 'NULL'},
+//       ${wo.actualToTime ? `'${wo.actualToTime}'` : 'NULL'},
+//       '${esc(wo.objective)}',
+//       '${esc(wo.instruction)}',
+//       '${esc(wo.targetOutput)}',
+//       ${wo.isFSL ? 'TRUE' : 'FALSE'},
+//       ${wo.isESL ? 'TRUE' : 'FALSE'},
+//       NOW(),
+//       ${wo.createdBy},
+//       NOW())`);
+// }
 
-for (const sl of salesLeads) {
-  mem.public.none(
-    `
-    INSERT INTO sales_leads (
-      sl_number,
-      account_id,
-      wo_id,
-      assignee,
-      sales_stage,
-      end_user,
-      designation,
-      department,
-      immediate_support,
-      contact_number,
-      email_address,
-      category,
-      application,
-      machine,
-      machine_process,
-      needed_product,
-      existing_specifications,
-      issues_with_existing,
-      consideration,
-      support_needed,
-      urgency,
-      model_to_quote,
-      quantity,
-      quantity_attention,
-      qr_cc,
-      qr_email_to,
-      next_followup_date,
-      due_date,
-      done_date,
-      account,
-      industry,
-      se_id,
-      sales_plan_rep,
-      fsl_ref,
-      fsl_date,
-      fsl_time,
-      fsl_location,
-      ww,
-      requirement,
-      requirement_category,
-      deadline,
-      product_application,
-      customer_issues,
-      existing_setup_items,
-      customer_suggested_setup,
-      remarks,
-      actual_picture,
-      draft_design_layout,
-      created_at,
-      updated_at
-    ) VALUES (
-      '${esc(sl.slNumber)}',
-      ${sl.accountId},
-      ${sl.woId},
-      ${sl.assignee},
-      '${esc(sl.salesStage)}',
-      '${esc(sl.endUser)}',
-      '${esc(sl.designation)}',
-      '${esc(sl.department)}',
-      '${esc(sl.immediateSupport)}',
-      '${esc(sl.contactNumber)}',
-      '${esc(sl.emailAddress)}',
-      '${esc(sl.category)}',
-      '${esc(sl.application)}',
-      '${esc(sl.machine)}',
-      '${esc(sl.machineProcess)}',
-      '${esc(sl.neededProduct)}',
-      '${esc(sl.existingSpecifications)}',
-      '${esc(sl.issuesWithExisting)}',
-      '${esc(sl.consideration)}',
-      '${esc(sl.supportNeeded)}',
-      '${esc(sl.urgency)}',
-      '${esc(sl.modelToQuote)}',
-      ${sl.quantity},
-      '${esc(sl.quantityAttention)}',
-      '${esc(sl.qrCc)}',
-      '${esc(sl.qrEmailTo)}',
-      ${sl.nextFollowupDate ? `'${sl.nextFollowupDate}'` : 'NULL'},
-      ${sl.dueDate ? `'${sl.dueDate}'` : 'NULL'},
-      ${sl.doneDate ? `'${sl.doneDate}'` : 'NULL'},
-      '${esc(sl.account)}',
-      '${esc(sl.industry)}',
-      ${sl.seId},
-      '${esc(sl.salesPlanRep)}',
-      '${esc(sl.fslRef)}',
-      '${sl.fslDate}',
-      '${sl.fslTime}',
-      '${esc(sl.fslLocation)}',
-      '${esc(sl.ww)}',
-      '${esc(sl.requirement)}',
-      '${esc(sl.requirementCategory)}',
-      '${sl.deadline}',
-      '${esc(sl.productApplication)}',
-      '${esc(sl.customerIssues)}',
-      '${esc(sl.existingSetupItems)}',
-      '${esc(sl.customerSuggestedSetup)}',
-      '${esc(sl.remarks)}',
-      NULL,
-      NULL,
-      '${sl.createdAt}',
-      '${sl.updatedAt}'
-    )
-    `
-  );
-}
+// for (const sl of salesLeads) {
+//   mem.public.none(
+//     `
+//     INSERT INTO sales_leads (
+//       sl_number,
+//       account_id,
+//       wo_id,
+//       assignee,
+//       sales_stage,
+//       end_user,
+//       designation,
+//       department,
+//       immediate_support,
+//       contact_number,
+//       email_address,
+//       category,
+//       application,
+//       machine,
+//       machine_process,
+//       needed_product,
+//       existing_specifications,
+//       issues_with_existing,
+//       consideration,
+//       support_needed,
+//       urgency,
+//       model_to_quote,
+//       quantity,
+//       quantity_attention,
+//       qr_cc,
+//       qr_email_to,
+//       next_followup_date,
+//       due_date,
+//       done_date,
+//       account,
+//       industry,
+//       se_id,
+//       sales_plan_rep,
+//       fsl_ref,
+//       fsl_date,
+//       fsl_time,
+//       fsl_location,
+//       ww,
+//       requirement,
+//       requirement_category,
+//       deadline,
+//       product_application,
+//       customer_issues,
+//       existing_setup_items,
+//       customer_suggested_setup,
+//       remarks,
+//       actual_picture,
+//       draft_design_layout,
+//       created_at,
+//       updated_at
+//     ) VALUES (
+//       '${esc(sl.slNumber)}',
+//       ${sl.accountId},
+//       ${sl.woId},
+//       ${sl.assignee},
+//       '${esc(sl.salesStage)}',
+//       '${esc(sl.endUser)}',
+//       '${esc(sl.designation)}',
+//       '${esc(sl.department)}',
+//       '${esc(sl.immediateSupport)}',
+//       '${esc(sl.contactNumber)}',
+//       '${esc(sl.emailAddress)}',
+//       '${esc(sl.category)}',
+//       '${esc(sl.application)}',
+//       '${esc(sl.machine)}',
+//       '${esc(sl.machineProcess)}',
+//       '${esc(sl.neededProduct)}',
+//       '${esc(sl.existingSpecifications)}',
+//       '${esc(sl.issuesWithExisting)}',
+//       '${esc(sl.consideration)}',
+//       '${esc(sl.supportNeeded)}',
+//       '${esc(sl.urgency)}',
+//       '${esc(sl.modelToQuote)}',
+//       ${sl.quantity},
+//       '${esc(sl.quantityAttention)}',
+//       '${esc(sl.qrCc)}',
+//       '${esc(sl.qrEmailTo)}',
+//       ${sl.nextFollowupDate ? `'${sl.nextFollowupDate}'` : 'NULL'},
+//       ${sl.dueDate ? `'${sl.dueDate}'` : 'NULL'},
+//       ${sl.doneDate ? `'${sl.doneDate}'` : 'NULL'},
+//       '${esc(sl.account)}',
+//       '${esc(sl.industry)}',
+//       ${sl.seId},
+//       '${esc(sl.salesPlanRep)}',
+//       '${esc(sl.fslRef)}',
+//       '${sl.fslDate}',
+//       '${sl.fslTime}',
+//       '${esc(sl.fslLocation)}',
+//       '${esc(sl.ww)}',
+//       '${esc(sl.requirement)}',
+//       '${esc(sl.requirementCategory)}',
+//       '${sl.deadline}',
+//       '${esc(sl.productApplication)}',
+//       '${esc(sl.customerIssues)}',
+//       '${esc(sl.existingSetupItems)}',
+//       '${esc(sl.customerSuggestedSetup)}',
+//       '${esc(sl.remarks)}',
+//       NULL,
+//       NULL,
+//       '${sl.createdAt}',
+//       '${sl.updatedAt}'
+//     )
+//     `
+//   );
+// }
 
-for (const tr of technicalRecommendations) {
-  mem.public.none(
-    `
-    INSERT INTO technical_recommendations (
-      wo_id, assignee, tr_number, status, priority, title, sl_id, account_id,
-      contact_person, contact_number, contact_email, current_system, current_system_issues,
-      proposed_solution, technical_justification, installation_requirements, training_requirements,
-      maintenance_requirements, attachments, additional_notes, created_at, created_by, updated_at
-    ) VALUES (
-      ${tr.woId},
-      ${tr.assignee},
-      '${tr.trNumber}',
-      '${tr.status}',
-      '${tr.priority}',
-      '${tr.title}',
-      ${tr.slId},
-      ${tr.accountId},
-      '${tr.contactPerson}',
-      '${tr.contactNumber}',
-      '${tr.contactEmail}',
-      '${tr.currentSystem}',
-      '${tr.currentSystemIssues}',
-      '${tr.proposedSolution}',
-      '${tr.technicalJustification}',
-      '${tr.installationRequirements}',
-      '${tr.trainingRequirements}',
-      '${tr.maintenanceRequirements}',
-      ${tr.attachments ? `'${tr.attachments}'` : 'NULL'},
-      '${tr.additionalNotes}',
-      '${tr.createdAt}',
-      ${tr.createdBy},
-      '${tr.updatedAt}'
-    )
-    `
-  );
-}
+// for (const tr of technicalRecommendations) {
+//   mem.public.none(
+//     `
+//     INSERT INTO technical_recommendations (
+//       wo_id, assignee, tr_number, status, priority, title, sl_id, account_id,
+//       contact_person, contact_number, contact_email, current_system, current_system_issues,
+//       proposed_solution, technical_justification, installation_requirements, training_requirements,
+//       maintenance_requirements, attachments, additional_notes, created_at, created_by, updated_at
+//     ) VALUES (
+//       ${tr.woId},
+//       ${tr.assignee},
+//       '${tr.trNumber}',
+//       '${tr.status}',
+//       '${tr.priority}',
+//       '${tr.title}',
+//       ${tr.slId},
+//       ${tr.accountId},
+//       '${tr.contactPerson}',
+//       '${tr.contactNumber}',
+//       '${tr.contactEmail}',
+//       '${tr.currentSystem}',
+//       '${tr.currentSystemIssues}',
+//       '${tr.proposedSolution}',
+//       '${tr.technicalJustification}',
+//       '${tr.installationRequirements}',
+//       '${tr.trainingRequirements}',
+//       '${tr.maintenanceRequirements}',
+//       ${tr.attachments ? `'${tr.attachments}'` : 'NULL'},
+//       '${tr.additionalNotes}',
+//       '${tr.createdAt}',
+//       ${tr.createdBy},
+//       '${tr.updatedAt}'
+//     )
+//     `
+//   );
+// }
 
-for (const r of rfqs) {
-  mem.public.none(
-    `INSERT INTO rfqs (
-  wo_id,
-  assignee,
-  rfq_number,
-  due_date,
-  sl_id,
-  account_id,
-  created_at,
-  created_by,
-  updated_at,
-  description,
-  payment_terms,
-  notes,
-  stage_status,
-  updated_by
-)
-    VALUES (
-    ${r.woId},
-    ${r.assignee},
-    '${r.rfqNumber}',
-    '${r.dueDate}',
-    ${r.slId},
-    ${r.accountId},
-    '${r.createdAt}',
-    ${r.createdBy},
-    '${r.updatedAt}',
-    '${r.description}',
-    '${r.paymentTerms}',
-    '${r.notes}',
-    '${r.stageStatus}',
-    ${r.updatedBy}
-    )`
-  );
-}
+// for (const r of rfqs) {
+//   mem.public.none(
+//     `INSERT INTO rfqs (
+//   wo_id,
+//   assignee,
+//   rfq_number,
+//   due_date,
+//   sl_id,
+//   account_id,
+//   created_at,
+//   created_by,
+//   updated_at,
+//   description,
+//   payment_terms,
+//   notes,
+//   stage_status,
+//   updated_by
+// )
+//     VALUES (
+//     ${r.woId},
+//     ${r.assignee},
+//     '${r.rfqNumber}',
+//     '${r.dueDate}',
+//     ${r.slId},
+//     ${r.accountId},
+//     '${r.createdAt}',
+//     ${r.createdBy},
+//     '${r.updatedAt}',
+//     '${r.description}',
+//     '${r.paymentTerms}',
+//     '${r.notes}',
+//     '${r.stageStatus}',
+//     ${r.updatedBy}
+//     )`
+//   );
+// }
 
-for (const item of rfqItems) {
-  mem.public.none(
-    `INSERT INTO rfq_items (
-  rfq_id,
-  item_id,
-  selected_vendor,
-  quantity,
-  lead_time,
-  unit_price
-)
-     VALUES (
-      ${item.rfqId},
-      ${item.itemId},
-      ${item.selectedVendor || 'NULL'},
-      ${item.quantity},
-      '${esc(item.leadTime)}',
-      ${item.unitPrice}
-     )`
-  );
-}
+// for (const item of rfqItems) {
+//   mem.public.none(
+//     `INSERT INTO rfq_items (
+//   rfq_id,
+//   item_id,
+//   selected_vendor,
+//   quantity,
+//   lead_time,
+//   unit_price
+// )
+//      VALUES (
+//       ${item.rfqId},
+//       ${item.itemId},
+//       ${item.selectedVendor || 'NULL'},
+//       ${item.quantity},
+//       '${esc(item.leadTime)}',
+//       ${item.unitPrice}
+//      )`
+//   );
+// }
 
-for (const rv of rfqVendors) {
-  mem.public.none(
-    `INSERT INTO rfq_vendors (rfq_id, vendor_id, valid_until, payment_terms, notes)
-      VALUES (
-      ${rv.rfqId},
-      ${rv.vendorId},
-      '${esc(rv.validUntil)}',
-      '${esc(rv.paymentTerms)}',
-      '${esc(rv.notes)}'
-      )`
-  );
-}
+// for (const rv of rfqVendors) {
+//   mem.public.none(
+//     `INSERT INTO rfq_vendors (rfq_id, vendor_id, valid_until, payment_terms, notes)
+//       VALUES (
+//       ${rv.rfqId},
+//       ${rv.vendorId},
+//       '${esc(rv.validUntil)}',
+//       '${esc(rv.paymentTerms)}',
+//       '${esc(rv.notes)}'
+//       )`
+//   );
+// }
 
-for (const rv of rfqQuotations) {
-  mem.public.none(
-    `INSERT INTO rfq_quotations (rfq_id, item_id, vendor_id, is_selected, lead_time, unit_price, quantity)
-      VALUES (
-      ${rv.rfqId},
-      ${rv.itemId},
-      ${rv.vendorId},
-      ${rv.isSelected ? 'TRUE' : 'FALSE'},
-      '${esc(rv.leadTime)}',
-      ${rv.unitPrice},
-      ${rv.quantity}
-      )`
-  );
-}
+// for (const rv of rfqQuotations) {
+//   mem.public.none(
+//     `INSERT INTO rfq_quotations (rfq_id, item_id, vendor_id, is_selected, lead_time, unit_price, quantity)
+//       VALUES (
+//       ${rv.rfqId},
+//       ${rv.itemId},
+//       ${rv.vendorId},
+//       ${rv.isSelected ? 'TRUE' : 'FALSE'},
+//       '${esc(rv.leadTime)}',
+//       ${rv.unitPrice},
+//       ${rv.quantity}
+//       )`
+//   );
+// }
 
-for (const ws of workflowStages) {
-  mem.public.none(
-    `
-    INSERT INTO workflow_stages (
-      wo_id, stage_name, status, assigned_to, notified, created_at, updated_at
-    ) VALUES (
-      ${ws.woId},
-      '${ws.stageName}',
-      '${ws.status}',
-      ${ws.assignedTo},
-      ${ws.notified ? 'TRUE' : 'FALSE'},
-      '${ws.createdAt}',
-      '${ws.updatedAt}'
-    )
-    `
-  );
-}
+// for (const ws of workflowStages) {
+//   mem.public.none(
+//     `
+//     INSERT INTO workflow_stages (
+//       wo_id, stage_name, status, assigned_to, notified, created_at, updated_at
+//     ) VALUES (
+//       ${ws.woId},
+//       '${ws.stageName}',
+//       '${ws.status}',
+//       ${ws.assignedTo},
+//       ${ws.notified ? 'TRUE' : 'FALSE'},
+//       '${ws.createdAt}',
+//       '${ws.updatedAt}'
+//     )
+//     `
+//   );
+// }
 
 pool = new adapter.Pool();
 

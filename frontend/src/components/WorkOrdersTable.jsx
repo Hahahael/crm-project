@@ -7,6 +7,7 @@ export default function WorkOrdersTable({ workOrders, onView, onEdit }) {
   const baseBadge = "inline-flex items-center px-2.5 py-0.5 text-xs";
 
   const renderStatusBadge = (status) => {
+    console.log("Rendering status badge for status:", String(status).toLowerCase());
     if (!status) return (
       <span className={`${baseBadge} rounded-full bg-gray-50 text-gray-600`}>-</span>
     );
@@ -23,6 +24,7 @@ export default function WorkOrdersTable({ workOrders, onView, onEdit }) {
         return <span className={`${baseBadge} rounded-full bg-blue-50 text-blue-700`}>{status}</span>;
       case "completed":
       case "done":
+      case "submitted":
         return <span className={`${baseBadge} rounded-full bg-green-50 text-green-700`}>{status}</span>;
       case "cancelled":
       case "canceled":

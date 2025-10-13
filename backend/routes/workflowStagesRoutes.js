@@ -291,7 +291,9 @@ router.get("/assigned/latest/:id/:stageName", async (req, res) => {
         } else {
             // For other tables: join sales_leads for sl_number, join users for username/department
             // Table name and alias
+            console.log("Stage does not match sales lead or work order, using generic query for stage:", stageName);
             if (stage.includes("technical reco") || stage.includes("tr")) {
+                console.log("Using technical_recommendations join");
                 query = `
                     SELECT tr.*, sl.sl_number, a.account_name AS account_name
                     FROM workflow_stages ws

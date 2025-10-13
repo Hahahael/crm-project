@@ -376,13 +376,13 @@ const WorkOrderForm = ({ workOrder, mode = "create", onSave, onBack }) => {
                             </div>
                             {/* Work Description */}
                             <div className={`grid-cols-10 gap-x-4 col-span-10 grid`}>
-                                <label className="text-sm text-right my-auto break-words hyphens-auto">Work Description</label>
+                                <label className="text-sm text-right my-auto break-words hyphens-auto col-span-2 xl:col-span-1">Work Description</label>
                                 <input
                                     type="text"
                                     name="workDescription"
                                     value={formData.workDescription}
                                     onChange={handleChange}
-                                    className={`col-span-9 w-full h-10 my-auto rounded-md border px-3 py-2 focus:outline-1
+                                    className={`col-span-8 xl:col-span-9 w-full h-10 my-auto rounded-md border px-3 py-2 focus:outline-1
                                         ${errors?.workDescription ? "border-red-500" : "border-gray-200"}`}
                                 />
                                 {errors?.workDescription && <p className="text-xs text-red-600 mt-1 col-span-10 col-start-2">{errors.workDescription}</p>}
@@ -397,7 +397,20 @@ const WorkOrderForm = ({ workOrder, mode = "create", onSave, onBack }) => {
                                             checked={formData.isFsl}
                                             onChange={(e) => {
                                                 const checked = e.target.checked;
-                                                setFormData(prev => ({ ...prev, isFsl: checked, isEsl: checked ? false : prev.isEsl }));
+                                                // compute new state and update errors accordingly
+                                                setFormData(prev => {
+                                                    const ns = { ...prev, isFsl: checked, isEsl: checked ? false : prev.isEsl };
+                                                    setErrors(prevErr => {
+                                                        if (!prevErr) return prevErr;
+                                                        // if exactly one selected now, remove the fslEsl error
+                                                        if ((ns.isFsl && !ns.isEsl) || (!ns.isFsl && ns.isEsl)) {
+                                                            const { fslEsl, ...rest } = prevErr;
+                                                            return rest;
+                                                        }
+                                                        return prevErr;
+                                                    });
+                                                    return ns;
+                                                });
                                             }}
                                             className="h-4 w-4 border border-gray-400 rounded"
                                         />
@@ -410,7 +423,18 @@ const WorkOrderForm = ({ workOrder, mode = "create", onSave, onBack }) => {
                                             checked={formData.isEsl}
                                             onChange={(e) => {
                                                 const checked = e.target.checked;
-                                                setFormData(prev => ({ ...prev, isEsl: checked, isFsl: checked ? false : prev.isFsl }));
+                                                setFormData(prev => {
+                                                    const ns = { ...prev, isEsl: checked, isFsl: checked ? false : prev.isFsl };
+                                                    setErrors(prevErr => {
+                                                        if (!prevErr) return prevErr;
+                                                        if ((ns.isFsl && !ns.isEsl) || (!ns.isFsl && ns.isEsl)) {
+                                                            const { fslEsl, ...rest } = prevErr;
+                                                            return rest;
+                                                        }
+                                                        return prevErr;
+                                                    });
+                                                    return ns;
+                                                });
                                             }}
                                             className="h-4 w-4 border border-gray-400 rounded"
                                         />
@@ -426,7 +450,7 @@ const WorkOrderForm = ({ workOrder, mode = "create", onSave, onBack }) => {
                         {/* Assignee + Dept */}
                         <div className="grid grid-cols-6 gap-x-4 relative">
                             <label className="text-sm text-right my-auto">Assignee</label>
-                            <div className="col-span-11 xl:col-span-5 relative" ref={assigneeRef}>
+                            <div className="col-span-5 relative" ref={assigneeRef}>
                                 <input
                                     type="text"
                                     value={formData.assigneeUsername || ""}
@@ -724,7 +748,7 @@ const WorkOrderForm = ({ workOrder, mode = "create", onSave, onBack }) => {
                                 onChange={handleChange}
                                 className="col-span-5 w-full h-10 rounded-md border border-gray-200 px-3 py-2"
                             />
-                            {errors?.fslEsl && <p className="text-xs text-red-600 mt-1 col-span-5 col-start-2">{errors.fslEsl}</p>}
+                            {errors?.mode && <p className="text-xs text-red-600 mt-1 col-span-5 col-start-2">{errors.mode}</p>}
                         </div>
                     </div>
 
@@ -847,32 +871,32 @@ const WorkOrderForm = ({ workOrder, mode = "create", onSave, onBack }) => {
                 {/* Long Texts */}
                 <div className="mt-6 space-y-4">
                     <div className="grid grid-cols-12 gap-4">
-                        <label className="text-sm text-right my-auto">Objective</label>
+                        <label className="text-sm text-right my-auto col-span-2 xl:col-span-1">Objective</label>
                         <textarea
                             name="objective"
                             value={formData.objective}
                             onChange={handleChange}
-                            className="col-span-11 w-full min-h-[80px] rounded-md border border-gray-200 px-3 py-2"
+                            className="col-span-10 xl:col-span-11 w-full min-h-[80px] rounded-md border border-gray-200 px-3 py-2"
                         />
                     </div>
 
                     <div className="grid grid-cols-12 gap-4">
-                        <label className="text-sm text-right my-auto">Instruction</label>
+                        <label className="text-sm text-right my-auto col-span-2 xl:col-span-1">Instruction</label>
                         <textarea
                             name="instruction"
                             value={formData.instruction}
                             onChange={handleChange}
-                            className="col-span-11 w-full min-h-[80px] rounded-md border border-gray-200 px-3 py-2"
+                            className="col-span-10 xl:col-span-11 w-full min-h-[80px] rounded-md border border-gray-200 px-3 py-2"
                         />
                     </div>
 
                     <div className="grid grid-cols-12 gap-4">
-                        <label className="text-sm text-right my-auto">Target Output</label>
+                        <label className="text-sm text-right my-auto col-span-2 xl:col-span-1">Target Output</label>
                         <textarea
                             name="targetOutput"
                             value={formData.targetOutput}
                             onChange={handleChange}
-                            className="col-span-11 min-h-[80px] rounded-md border border-gray-200 px-3 py-2"
+                            className="col-span-10 xl:col-span-11 min-h-[80px] rounded-md border border-gray-200 px-3 py-2"
                         />
                     </div>
                 </div>
