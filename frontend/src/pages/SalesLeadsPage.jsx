@@ -1,6 +1,6 @@
 /* eslint-disable no-unused-vars */
 //src/pages/SalesLeadsPage
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import {
     LuBell,
@@ -143,8 +143,9 @@ export default function SalesLeadsPage() {
         }
     };
 
-    const fetchNewAssignedSalesLeads = async () => {
+    const fetchNewAssignedSalesLeads = useCallback(async () => {
         try {
+            if (!currentUser) return;
             const res = await apiBackendFetch(`/api/salesleads/${currentUser.id}`);
             if (res.ok) {
                 const data = await res.json();
@@ -153,7 +154,43 @@ export default function SalesLeadsPage() {
         } catch (err) {
             console.error("Failed to fetch assigned salesleads", err);
         }
-    };
+    }, [currentUser]);
+
+    // Fetch a single sales lead and set as selected (details view)
+    const fetchSelectedSL = useCallback(async (id) => {
+        if (!id) return;
+        try {
+            setLoading(true);
+            const res = await apiBackendFetch(`/api/salesleads/${id}`);
+            if (!res.ok) throw new Error('Failed to fetch sales lead');
+            const sl = await res.json();
+            setSelectedSL(sl);
+            setEditingSL(null);
+        } catch (err) {
+            console.error('Error fetching selected sales lead', err);
+            setError('Failed to load sales lead');
+        } finally {
+            setLoading(false);
+        }
+    }, []);
+
+    // Fetch a single sales lead and set into editing drawer
+    const fetchEditingSL = useCallback(async (id) => {
+        if (!id) return;
+        try {
+            setLoading(true);
+            const res = await apiBackendFetch(`/api/salesleads/${id}`);
+            if (!res.ok) throw new Error('Failed to fetch sales lead for edit');
+            const sl = await res.json();
+            setEditingSL(sl);
+            setSelectedSL(null);
+        } catch (err) {
+            console.error('Error fetching editing sales lead', err);
+            setError('Failed to load sales lead for editing');
+        } finally {
+            setLoading(false);
+        }
+    }, []);
 
     useEffect(() => {
         fetchCurrentUser();
@@ -164,7 +201,7 @@ export default function SalesLeadsPage() {
         if (currentUser) {
             fetchNewAssignedSalesLeads();
         }
-    }, [currentUser]);
+    }, [currentUser, fetchNewAssignedSalesLeads]);
 
     useEffect(() => {
         if (successMessage) {
@@ -194,16 +231,10 @@ export default function SalesLeadsPage() {
         console.log("Trying to save!");
         try {
             console.log(formData);
+            const payload = mode === "edit" ? formData : { ...formData, woId: formData.woId || formData.id || null, assignee: currentUser?.id };
             const response = await apiBackendFetch(mode === "edit" ? `/api/salesleads/${formData.id}` : "/api/salesleads", {
                 method: mode === "edit" ? "PUT" : "POST",
-                body:
-                    mode === "edit"
-                        ? JSON.stringify(formData)
-                        : JSON.stringify({
-                              ...formData,
-                              woId: formData.id,
-                              assignee: currentUser.id,
-                          }),
+                body: JSON.stringify(payload),
             });
 
             if (!response.ok) throw new Error("Failed to save saleslead");
@@ -448,8 +479,8 @@ export default function SalesLeadsPage() {
                         onEdit={() => setEditingSL(selectedSL)}
                         onSubmit={(passedSL) => {handleSubmitForApproval(passedSL)}}
                         onSalesLeadUpdated={(updatedSalesLead) => {
-                            setSelectedSL(updatedSalesLead);
-                            setSalesLeads((prev) => prev.map((sl) => (sl.id === updatedSalesLead.id ? updatedSalesLead : sl)));
+                            fetchSelectedSL(updatedSalesLead);
+                            fetchAllData();
                             fetchNewAssignedSalesLeads(); // <-- refresh from backend
                         }}
                     />

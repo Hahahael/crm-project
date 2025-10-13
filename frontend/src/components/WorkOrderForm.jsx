@@ -43,6 +43,11 @@ const WorkOrderForm = ({ workOrder, mode = "create", onSave, onBack }) => {
     const [departmentDropdownOpen, setDepartmentDropdownOpen] = useState(false);
     const departmentRef = useRef(null);
     const [searchQuery, setSearchQuery] = useState("");
+    const [assigneeQuery, setAssigneeQuery] = useState("");
+    const [accountQuery, setAccountQuery] = useState("");
+    const [productBrandQuery, setProductBrandQuery] = useState("");
+    const [departmentQuery, setDepartmentQuery] = useState("");
+    const [industryQuery, setIndustryQuery] = useState("");
     // Distinct dropdown states
     const [assigneeDropdownOpen, setAssigneeDropdownOpen] = useState(false);
     const [accountDropdownOpen, setAccountDropdownOpen] = useState(false);
@@ -118,8 +123,11 @@ const WorkOrderForm = ({ workOrder, mode = "create", onSave, onBack }) => {
     }, []);
 
     // filter users by search
-    const filteredUsers = users.filter((u) => u.username.toLowerCase().includes(searchQuery.toLowerCase()));
-    const filteredAccounts = accounts.filter((a) => a.accountName.toLowerCase().includes(searchQuery.toLowerCase()));
+    const filteredUsers = users.filter((u) => u.username.toLowerCase().includes(assigneeQuery.toLowerCase()));
+    const filteredAccounts = accounts.filter((a) => a.accountName.toLowerCase().includes(accountQuery.toLowerCase()));
+    const filteredProductBrands = productBrands.filter((p) => p.productBrandName.toLowerCase().includes(productBrandQuery.toLowerCase()));
+    const filteredDepartments = departments.filter((d) => d.departmentName.toLowerCase().includes(departmentQuery.toLowerCase()));
+    const filteredIndustries = industries.filter((i) => i.industryName.toLowerCase().includes(industryQuery.toLowerCase()));
 
     // close dropdown on outside click
     useEffect(() => {
@@ -317,11 +325,8 @@ const WorkOrderForm = ({ workOrder, mode = "create", onSave, onBack }) => {
         return { valid: Object.keys(errors).length === 0, errors };
     }
 
-    // Helper: get selected account object
-    const selectedAccountObj = accounts.find((a) => a.id === formData.accountId);
-    // Look up industry name and product brand name
-    const selectedIndustry = industries.find(i => i.id === selectedAccountObj?.industryId)?.industryName || "";
-    const selectedProductBrand = productBrands.find(p => p.id === selectedAccountObj?.productId)?.productBrandName || "";
+    // Helper: get selected account object (use loose equality to avoid number/string mismatches)
+    const selectedAccountObj = accounts.find((a) => a.id == formData.accountId);
 
     return (
         <form
@@ -370,7 +375,7 @@ const WorkOrderForm = ({ workOrder, mode = "create", onSave, onBack }) => {
                                 />
                             </div>
                             {/* Work Description */}
-                            <div className={`grid-cols-11 gap-x-4 col-span-11 grid`}>
+                            <div className={`grid-cols-10 gap-x-4 col-span-10 grid`}>
                                 <label className="text-sm text-right my-auto break-words hyphens-auto">Work Description</label>
                                 <input
                                     type="text"
@@ -380,9 +385,9 @@ const WorkOrderForm = ({ workOrder, mode = "create", onSave, onBack }) => {
                                     className={`col-span-9 w-full h-10 my-auto rounded-md border px-3 py-2 focus:outline-1
                                         ${errors?.workDescription ? "border-red-500" : "border-gray-200"}`}
                                 />
-                                {errors?.workDescription && <p className="text-xs text-red-600 mt-1">{errors.workDescription}</p>}
+                                {errors?.workDescription && <p className="text-xs text-red-600 mt-1 col-span-10 col-start-2">{errors.workDescription}</p>}
                             </div>
-                            <div>
+                            <div className={`grid-cols-2 col-span-2 my-auto`}>
                                 {/* FSL / ESL checkboxes */}
                                 <div className="flex items-center justify-end gap-4">
                                     <label className="flex items-center gap-2">
@@ -412,7 +417,7 @@ const WorkOrderForm = ({ workOrder, mode = "create", onSave, onBack }) => {
                                         <span className="text-sm">ESL</span>
                                     </label>
                                 </div>
-                                {errors?.fslEsl && <p className="text-xs text-red-600 mt-1">{errors.fslEsl}</p>}
+                                {errors?.fslEsl && <p className="text-xs text-red-600 mt-1 break-words hyphens-auto">{errors.fslEsl}</p>}
                             </div>
                         </div>
                     </div>
@@ -431,7 +436,7 @@ const WorkOrderForm = ({ workOrder, mode = "create", onSave, onBack }) => {
                                             ...prev,
                                             assigneeUsername: q,
                                         }));
-                                        setSearchQuery(q);
+                                        setAssigneeQuery(q);
                                         setAssigneeDropdownOpen(true);
                                     }}
                                     onFocus={() => setAssigneeDropdownOpen(true)}
@@ -451,6 +456,7 @@ const WorkOrderForm = ({ workOrder, mode = "create", onSave, onBack }) => {
                                                             assigneeUsername: user.username, // display username
                                                         }));
                                                         setAssigneeDropdownOpen(false);
+                                                        setAssigneeQuery("");
                                                     }}
                                                     className="px-3 py-2 cursor-pointer hover:bg-gray-100 text-sm">
                                                     {user.username}
@@ -483,9 +489,9 @@ const WorkOrderForm = ({ workOrder, mode = "create", onSave, onBack }) => {
                                         <input
                                             type="text"
                                             name="accountSearch"
-                                            value={accounts.find(a => a.id === formData.accountId)?.accountName || ""}
+                                            value={accounts.find(a => a.id === formData.accountId)?.accountName || accountQuery}
                                             onChange={(e) => {
-                                                setSearchQuery(e.target.value);
+                                                setAccountQuery(e.target.value);
                                                 setAccountDropdownOpen(true);
                                             }}
                                             onFocus={() => setAccountDropdownOpen(true)}
@@ -510,6 +516,7 @@ const WorkOrderForm = ({ workOrder, mode = "create", onSave, onBack }) => {
                                                                     productBrandId: account.productId || "",
                                                                 }));
                                                                 setAccountDropdownOpen(false);
+                                                                setAccountQuery("");
                                                             }}
                                                             className="px-3 py-2 cursor-pointer hover:bg-gray-100 text-sm">
                                                             {account.accountName}
@@ -559,9 +566,11 @@ const WorkOrderForm = ({ workOrder, mode = "create", onSave, onBack }) => {
                                     <input
                                         type="text"
                                         name="productBrand"
-                                        value={formData.productBrand}
+                                        value={productBrandQuery || formData.productBrand}
                                         onChange={(e) => {
-                                            setFormData((prev) => ({ ...prev, productBrand: e.target.value }));
+                                            const q = e.target.value;
+                                            setFormData((prev) => ({ ...prev, productBrand: q }));
+                                            setProductBrandQuery(q);
                                             setProductBrandDropdownOpen(true);
                                         }}
                                         onFocus={() => setProductBrandDropdownOpen(true)}
@@ -579,13 +588,14 @@ const WorkOrderForm = ({ workOrder, mode = "create", onSave, onBack }) => {
                                 )}
                                 {formData.isNewAccount && productBrandDropdownOpen && (
                                     <ul className="absolute z-10 mt-1 w-full bg-white border border-gray-200 rounded-md shadow-lg max-h-40 overflow-y-auto">
-                                        {productBrands.length > 0 ? (
-                                            productBrands.filter(i => i.productBrandName.toLowerCase().includes(formData.productBrand.toLowerCase())).map((prod) => (
+                                        {filteredProductBrands.length > 0 ? (
+                                            filteredProductBrands.map((prod) => (
                                                 <li
                                                     key={prod.id}
                                                     onClick={() => {
                                                         setFormData((prev) => ({ ...prev, productBrand: prod.productBrandName, productBrandId: prod.id }));
                                                         setProductBrandDropdownOpen(false);
+                                                        setProductBrandQuery("");
                                                     }}
                                                     className="px-3 py-2 cursor-pointer hover:bg-gray-100 text-sm">
                                                     {prod.productBrandName}
@@ -596,8 +606,8 @@ const WorkOrderForm = ({ workOrder, mode = "create", onSave, onBack }) => {
                                         )}
                                     </ul>
                                 )}
-                                {errors?.productBrand && <p className="text-xs text-red-600 mt-1">{errors.productBrand}</p>}
                             </div>
+                            {errors?.productBrand && <p className="text-xs text-red-600 mt-1 col-span-5 col-start-2">{errors.productBrand}</p>}
                         </div>
 
                         {/* Department */}
@@ -608,9 +618,11 @@ const WorkOrderForm = ({ workOrder, mode = "create", onSave, onBack }) => {
                                     <input
                                         type="text"
                                         name="department"
-                                        value={formData.department}
+                                        value={departmentQuery || formData.department}
                                         onChange={(e) => {
-                                            setFormData((prev) => ({ ...prev, department: e.target.value }));
+                                            const q = e.target.value;
+                                            setFormData((prev) => ({ ...prev, department: q }));
+                                            setDepartmentQuery(q);
                                             setDepartmentDropdownOpen(true);
                                         }}
                                         onFocus={() => setDepartmentDropdownOpen(true)}
@@ -628,13 +640,14 @@ const WorkOrderForm = ({ workOrder, mode = "create", onSave, onBack }) => {
                                 )}
                                 {formData.isNewAccount && departmentDropdownOpen && (
                                     <ul className="absolute z-10 mt-1 w-full bg-white border border-gray-200 rounded-md shadow-lg max-h-40 overflow-y-auto">
-                                        {departments.length > 0 ? (
-                                            departments.filter(d => d.departmentName.toLowerCase().includes(formData.department.toLowerCase())).map((dept) => (
+                                        {filteredDepartments.length > 0 ? (
+                                            filteredDepartments.map((dept) => (
                                                 <li
                                                     key={dept.id}
                                                     onClick={() => {
                                                         setFormData((prev) => ({ ...prev, department: dept.departmentName, departmentId: dept.id }));
                                                         setDepartmentDropdownOpen(false);
+                                                        setDepartmentQuery("");
                                                     }}
                                                     className="px-3 py-2 cursor-pointer hover:bg-gray-100 text-sm">
                                                     {dept.departmentName}
@@ -645,21 +658,23 @@ const WorkOrderForm = ({ workOrder, mode = "create", onSave, onBack }) => {
                                         )}
                                     </ul>
                                 )}
-                                {errors?.department && <p className="text-xs text-red-600 mt-1">{errors.department}</p>}
                             </div>
+                            {errors?.department && <p className="text-xs text-red-600 mt-1 col-span-5 col-start-2">{errors.department}</p>}
                         </div>
 
                         {/* Industry + Mode */}
                         <div className="grid grid-cols-6 gap-x-4" ref={industryRef}>
-                            <label className="text-sm text-right my-auto">Industry</label>
+                            <label className="text-sm text-right my-auto break-words hyphens-auto">Industry</label>
                             <div className="col-span-5 relative" ref={industryRef}>
                                 {formData.isNewAccount ? (
                                     <input
                                         type="text"
                                         name="industry"
-                                        value={formData.industry}
+                                        value={industryQuery || formData.industry}
                                         onChange={(e) => {
-                                            setFormData((prev) => ({ ...prev, industry: e.target.value }));
+                                            const q = e.target.value;
+                                            setFormData((prev) => ({ ...prev, industry: q }));
+                                            setIndustryQuery(q);
                                             setIndustryDropdownOpen(true);
                                         }}
                                         onFocus={() => setIndustryDropdownOpen(true)}
@@ -670,20 +685,21 @@ const WorkOrderForm = ({ workOrder, mode = "create", onSave, onBack }) => {
                                     <input
                                         type="text"
                                         name="industry"
-                                        value={selectedIndustry || formData.industry}
+                                        value={formData.industry}
                                         className="w-full h-10 rounded-md border border-gray-200 bg-gray-100 px-3 py-2"
                                         readOnly
                                     />
                                 )}
                                 {formData.isNewAccount && industryDropdownOpen && (
                                     <ul className="absolute z-10 mt-1 w-full bg-white border border-gray-200 rounded-md shadow-lg max-h-40 overflow-y-auto">
-                                        {industries.length > 0 ? (
-                                            industries.filter(i => i.industryName.toLowerCase().includes(formData.industry.toLowerCase())).map((ind) => (
+                                        {filteredIndustries.length > 0 ? (
+                                            filteredIndustries.map((ind) => (
                                                 <li
                                                     key={ind.id}
                                                     onClick={() => {
                                                         setFormData((prev) => ({ ...prev, industry: ind.industryName, industryId: ind.id }));
                                                         setIndustryDropdownOpen(false);
+                                                        setIndustryQuery("");
                                                     }}
                                                     className="px-3 py-2 cursor-pointer hover:bg-gray-100 text-sm">
                                                     {ind.industryName}
@@ -692,15 +708,14 @@ const WorkOrderForm = ({ workOrder, mode = "create", onSave, onBack }) => {
                                         ) : (
                                             <li className="px-3 py-2 text-gray-500 text-sm">No results found</li>
                                         )}
-                                            {errors?.industry && <p className="text-xs text-red-600 mt-1">{errors.industry}</p>}
                                     </ul>
                                 )}
-                                {errors?.industry && <p className="text-xs text-red-600 mt-1">{errors.industry}</p>}
                             </div>
+                            {errors?.industry && <p className="text-xs text-red-600 mt-1 col-span-5 col-start-2">{errors.industry}</p>}
                         </div>
 
                         {/* Mode */}
-                        <div className="grid grid-cols-6 gap-x-4" ref={industryRef}>
+                        <div className="grid grid-cols-6 gap-x-4">
                             <label className="text-sm text-right my-auto">Mode</label>
                             <input
                                 type="text"

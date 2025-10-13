@@ -68,9 +68,16 @@ const SalesLeadForm = ({ salesLead, mode = "create", onSave, onBack, onSubmit })
         draftDesignLayout: null,
     });
 
-    if (mode === "create") {
-        formData.woId = salesLead;
-    }
+    // Avoid mutating formData directly. If this form is used to create a new Sales Lead
+    // and the `salesLead` prop is a workorder id (number or string), set it into state.
+    useEffect(() => {
+        if (mode === "create") {
+            // salesLead may be a workorder id (number/string) or an empty object
+            if (typeof salesLead === "number" || typeof salesLead === "string") {
+                setFormData((prev) => ({ ...prev, woId: salesLead }));
+            }
+        }
+    }, [mode, salesLead]);
 
     // 🔹 user search state
     const [users, setUsers] = useState([]);
@@ -746,7 +753,7 @@ const SalesLeadForm = ({ salesLead, mode = "create", onSave, onBack, onSubmit })
                         />
                         {errors?.dueDate && <p className="text-xs text-red-600 mt-1">{errors.dueDate}</p>}
                     </div>
-                    <div>
+                    {/* <div>
                         <label htmlFor="doneDate">Done Date</label>
                         <input
                             id="doneDate"
@@ -757,7 +764,7 @@ const SalesLeadForm = ({ salesLead, mode = "create", onSave, onBack, onSubmit })
                             className={`col-span-5 w-full rounded-md border px-3 py-2 focus:outline-1
                 ${errors?.doneDate ? "border-red-500" : "border-gray-200"}`}
                         />
-                    </div>
+                    </div> */}
                 </div>
             </div>
 
