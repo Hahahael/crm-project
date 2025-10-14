@@ -4,6 +4,24 @@ import utils from "../helper/utils.js";
 
 export default function ApprovalsTable({ approvals, onView, onEdit, onApprove, onReject }) {
     const baseBadge = "inline-flex items-center px-2.5 py-0.5 text-xs";
+
+    const renderPriorityBadge = (priority) => {
+      console.log("Rendering priority badge for priority:", String(priority).toLowerCase());
+      if (!priority) return (
+        <span className={`${baseBadge} rounded-full bg-gray-50 text-gray-600`}>-</span>
+      );
+      const s = String(priority).toLowerCase();
+      switch (s) {
+        case "low":
+          return <span className={`${baseBadge} rounded-full bg-green-100 text-green-800`}>{priority}</span>;
+        case "medium":
+          return <span className={`${baseBadge} rounded-full bg-amber-50 text-amber-700`}>{priority}</span>;
+        case "high":
+          return <span className={`${baseBadge} rounded-full bg-red-50 text-red-700`}>{priority}</span>;
+        default:
+          return <span className={`${baseBadge} rounded-full bg-gray-50 text-gray-600`}>{priority}</span>;
+      }
+    };
   
     const renderSubstatusBadge = (name) => {
       if (!name) return (
@@ -53,10 +71,10 @@ export default function ApprovalsTable({ approvals, onView, onEdit, onApprove, o
                             <td className="px-4 py-2 text-black text-sm">{row.accountName}</td>
                             <td className="p-2 align-middle max-w-[200px] truncate">{row.title || "-"}</td>
                             <td className="px-4 py-2 text-black text-sm">
-                                <span
-                                    className={`inline-flex items-center rounded-md border px-2.5 py-0.5 text-xs font-semibold shadow ${row.priorityColor}`}>
-                                    {row.priority || "-"}
-                                </span>
+                                {(() => {
+                                    const prio = row.priority || row.urgency || "-";
+                                    return renderPriorityBadge(prio);
+                                })()}
                             </td>
                             <td className="px-4 py-2 text-black text-sm">{row.amount}</td>
                             <td className="px-4 py-2 text-black text-sm">{row.submittedBy}</td>

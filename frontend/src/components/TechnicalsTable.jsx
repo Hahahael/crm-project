@@ -24,12 +24,31 @@ export default function TechnicalsTable({ technicals, onView, onEdit }) {
       case "completed":
       case "done":
       case "submitted":
+      case "approved":
         return <span className={`${baseBadge} rounded-full bg-green-50 text-green-700`}>{status}</span>;
       case "cancelled":
       case "canceled":
         return <span className={`${baseBadge} rounded-full bg-red-50 text-red-700`}>{status}</span>;
       default:
         return <span className={`${baseBadge} rounded-full bg-gray-50 text-gray-600`}>{status}</span>;
+    }
+  };
+
+  const renderPriorityBadge = (priority) => {
+    console.log("Rendering priority badge for priority:", String(priority).toLowerCase());
+    if (!priority) return (
+      <span className={`${baseBadge} rounded-full bg-gray-50 text-gray-600`}>-</span>
+    );
+    const s = String(priority).toLowerCase();
+    switch (s) {
+      case "low":
+        return <span className={`${baseBadge} rounded-full bg-green-100 text-green-800`}>{priority}</span>;
+      case "medium":
+        return <span className={`${baseBadge} rounded-full bg-amber-50 text-amber-700`}>{priority}</span>;
+      case "high":
+        return <span className={`${baseBadge} rounded-full bg-red-50 text-red-700`}>{priority}</span>;
+      default:
+        return <span className={`${baseBadge} rounded-full bg-gray-50 text-gray-600`}>{priority}</span>;
     }
   };
 
@@ -56,13 +75,18 @@ export default function TechnicalsTable({ technicals, onView, onEdit }) {
             <tr key={tr.id} className="hover:bg-gray-50 transition-all duration-200">
               <td className="px-4 py-2 text-black text-sm">{tr.trNumber}</td>
               <td className="px-4 py-2 text-black text-sm">{tr.accountName}</td>
-              <td className="px-4 py-2 text-black text-sm">{tr.title}</td>
+              <td className="px-4 py-2 text-black text-sm">{tr.title || "-"}</td>
               <td className="px-4 py-2 text-black text-sm">{renderStatusBadge(tr.stageStatus)}</td>
-              <td className="px-4 py-2 text-black text-sm">{tr.priority}</td>
+              <td className="px-4 py-2 text-black text-sm">
+                {(() => {
+                    const prio = tr.priority || tr.urgency || "-";
+                    return renderPriorityBadge(prio);
+                })()}
+              </td>
               <td className="px-4 py-2 text-black text-sm">{util.formatDate(tr.createdAt, "DD/MM/YYYY")}</td>
               <td className="px-4 py-2 text-black text-sm">{util.formatDate(tr.updatedAt, "DD/MM/YYYY")}</td>
               <td className="px-4 py-2 text-black text-sm">{util.formatDate(tr.dueDate, "DD/MM/YYYY")}</td>
-              <td className="px-4 py-2 text-black text-sm">{util.formatDate(tr.doneDate, "DD/MM/YYYY")}</td>
+              <td className="px-4 py-2 text-black text-sm">{util.formatDate(tr.doneDate, "DD/MM/YYYY") || "-"}</td>
               <td className="px-4 py-2 text-black text-sm">
                 {(() => {
                   const { status, daysLate } = util.calculateTimeliness(tr.dueDate, tr.doneDate);

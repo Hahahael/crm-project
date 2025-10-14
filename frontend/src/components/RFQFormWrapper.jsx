@@ -4,6 +4,7 @@ import RFQDetailsForm from "./RFQDetailsForm.jsx";
 import RFQVendorsForm from "./RFQVendorsForm.jsx";
 import RFQCanvassSheet from "./RFQCanvassSheet.jsx";
 import { apiBackendFetch } from "../services/api.js";
+import { items } from "../../../backend/mocks/itemsMock.js";
 
 const TABS = [
     { key: "details", label: "RFQ Details", icon: <LuFile className="mr-2" /> },
@@ -33,6 +34,12 @@ export default function RFQFormWrapper({ rfq, tab, mode = "create", onBack, onSa
         items: [],
         vendors: []
     });
+    const [formItems, setFormItems] = useState([]);
+    const [formVendors, setFormVendors] = useState([]);
+
+    useEffect(() => {
+        console.log('✅ formData updated:', formData);
+    }, [formData]);
 
     useEffect(() => {
         if (formData.vendors && Array.isArray(formData.vendors)) {
@@ -51,19 +58,24 @@ export default function RFQFormWrapper({ rfq, tab, mode = "create", onBack, onSa
         }
     }, [formData.vendors]);
 
-    // Sync formData with rfq prop
+    // Sync formData and formItems with rfq prop (one-way init)
     useEffect(() => {
         console.log("RFQ prop changed, syncing to formData", rfq);
         if (rfq && Object.keys(rfq).length > 0) {
-            console.log('RFQ.items raw value:', rfq.items, 'type:', typeof rfq.items);
-            setFormData((prev) => ({
+            const items = Array.isArray(rfq.items) ? [...rfq.items] : [];
+            const vendors = Array.isArray(rfq.vendors) ? [...rfq.vendors] : [];
+            setFormItems(items);
+            setFormVendors(vendors);
+            setFormData(prev => ({
                 ...prev,
                 ...rfq,
-                // coerce null/undefined -> empty array so children always get arrays
-                items: Array.isArray(rfq.items) ? rfq.items : [],
-                vendors: Array.isArray(rfq.vendors) ? rfq.vendors : [],
+                rfqDate: rfq.createdAt || prev.rfqDate,
+                items,
+                vendors,
             }));
         } else if (rfq && Object.keys(rfq).length === 0) {
+            setFormItems([]);
+            setFormVendors([]);
             setFormData({
                 rfqNumber: "",
                 rfqDate: "",
@@ -81,24 +93,27 @@ export default function RFQFormWrapper({ rfq, tab, mode = "create", onBack, onSa
                 vendors: []
             });
         }
-    }, [rfq]);
+      }, [rfq]);
 
     // Debug: log formData.items whenever it changes so we can trace nulls
     useEffect(() => {
         console.log('RFQFormWrapper formData.items now:', formData.items, 'type:', typeof formData.items);
     }, [formData.items]);
 
+    // If rfq items exist on load ensure formData items are initialized (handled above)
     useEffect(() => {
-        if (Array.isArray(formData.items) && Array.isArray(formData.vendors) && formData.vendors.length > 0) {
-            const rfqItemIds = formData.items.map(item => item.itemId);
+        // no-op; initialization happens in rfq effect
+    }, [rfq.items]);
+
+    // Keep vendors' quotes in sync with formItems: only run when formItems or vendors change
+    useEffect(() => {
+        if (Array.isArray(formItems) && Array.isArray(formVendors) && formVendors.length > 0) {
+            const rfqItemIds = formItems.map(item => item.itemId);
             let needsUpdate = false;
-            const updatedVendors = formData.vendors.map(vendor => {
+            const updatedVendors = formVendors.map(vendor => {
                 const vendorItemIds = vendor.quotes ? vendor.quotes.map(item => item.itemId) : [];
-                const missingItems = formData.items.filter(item => !vendorItemIds.includes(item.itemId));
+                const missingItems = formItems.filter(item => !vendorItemIds.includes(item.itemId));
                 const filteredItems = (vendor.quotes || []).filter(item => rfqItemIds.includes(item.itemId));
-                console.log("Vendor items sync check", { vendorId: vendor.id, rfqItemIds, vendorItemIds, missingItems });
-                console.log("Needs update?", { needsUpdate });
-                console.log("Vendor before update", vendor);
                 if (missingItems.length > 0 || vendorItemIds.some(id => !rfqItemIds.includes(id))) {
                     needsUpdate = true;
                 }
@@ -108,15 +123,15 @@ export default function RFQFormWrapper({ rfq, tab, mode = "create", onBack, onSa
                 };
             });
             if (needsUpdate) {
-                console.log("Updating vendors with synced items", updatedVendors);
+                setFormVendors(updatedVendors);
                 setFormData(prev => ({ ...prev, vendors: updatedVendors }));
             }
         }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [formData.items, formData.vendors]);
+    }, [formItems, formVendors]);
 
+    // Recalculate totals when formItems change and sync them into formData (single source)
     useEffect(() => {
-        const items = formData.items || [];
+        const items = formItems || [];
         const allPriced = items.length > 0 && items.every(it => it.unitPrice !== null && it.unitPrice !== undefined && `${it.unitPrice}` !== "" && !isNaN(parseFloat(it.unitPrice)));
         if (allPriced) {
             const subtotal = items.reduce((sum, it) => sum + (parseFloat(it.unitPrice) * (Number(it.quantity) || 0)), 0);
@@ -138,8 +153,8 @@ export default function RFQFormWrapper({ rfq, tab, mode = "create", onBack, onSa
                 grandTotal: null,
             }));
         }
-        console.log("Recalculated totals", { items, subtotal: formData.subtotal, vat: formData.vat, grandTotal: formData.grandTotal });
-    }, [formData.items, setFormData]);
+        console.log("Recalculated totals from formItems", { items });
+    }, [formItems]);
 
     // Aggregated validation before save
     const validateAll = () => {
@@ -161,7 +176,13 @@ export default function RFQFormWrapper({ rfq, tab, mode = "create", onBack, onSa
         if (!validateAll()) return;
         // Aggregate all form data and pass to parent for saving
         if (onSave) {
-            onSave(formData, mode);
+            // Ensure we send the canonical items/vendors managed by the wrapper
+            const payload = {
+                ...formData,
+                items: Array.isArray(formItems) ? formItems : (formData.items || []),
+                vendors: Array.isArray(formVendors) ? formVendors : (formData.vendors || []),
+            };
+            onSave(payload, mode);
         }
     };
 
@@ -235,6 +256,8 @@ export default function RFQFormWrapper({ rfq, tab, mode = "create", onBack, onSa
                         <RFQDetailsForm
                             rfq={formData}
                             setFormData={setFormData}
+                            formItems={formItems}
+                            setFormItems={setFormItems}
                             mode={mode}
                         />
                     )}
@@ -242,12 +265,18 @@ export default function RFQFormWrapper({ rfq, tab, mode = "create", onBack, onSa
                         <RFQVendorsForm
                             rfq={formData}
                             setFormData={setFormData}
+                            formItems={formItems}
+                            formVendors={formVendors}
+                            setFormVendors={setFormVendors}
                             mode={mode}
                         />
                     )}
                     {activeTab === "canvass" && (
                         <RFQCanvassSheet
                             rfq={formData}
+                            formItems={formItems}
+                            formVendors={formVendors}
+                            setFormItems={setFormItems}
                             setFormData={setFormData}
                             mode={mode}
                         />

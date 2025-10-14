@@ -22,7 +22,7 @@ import { getVendorStatus } from "../helper/utils";
 
 const TRANSITION_MS = 150;
 
-export default function RFQVendorsForm({ rfq, setFormData, onVendorAction, onSendRFQ }) {
+export default function RFQVendorsForm({ rfq, setFormData, formItems, formVendors, setFormVendors, onVendorAction, onSendRFQ }) {
     const formData = rfq || {};
     console.log("RFQVendorsForm render", { rfq, formData });
     const vendorDisplayName = (v) => v?.name || v?.vendor?.Name || v?.vendor?.Name || "-";
@@ -137,7 +137,7 @@ export default function RFQVendorsForm({ rfq, setFormData, onVendorAction, onSen
     // For demo, use all vendors not already added
 
     const handleAddVendorClick = () => {
-        setModalSelection(formData.vendors || []);
+        setModalSelection(formVendors || []);
         setModalOpen(true);
     };
 
@@ -153,16 +153,16 @@ export default function RFQVendorsForm({ rfq, setFormData, onVendorAction, onSen
         // Find vendor objects from allVendors by matching id in vendorObj
         const addedVendors = allVendors.filter((v) => vendors.some((obj) => obj.id === v.id));
         // Only add vendors that are not already selected, and remove those not in modal selection
-        const prevIds = formData.vendors.map((v) => v.id);
+        const prevIds = (formVendors || []).map((v) => v.id);
         const modalIds = vendors.map((v) => v.id);
         const newSelection = [
-            ...formData.vendors.filter(v => modalIds.includes(v.id)), // keep only those still selected
+            ...(formVendors || []).filter(v => modalIds.includes(v.id)), // keep only those still selected
             ...addedVendors.filter(v => !prevIds.includes(v.id)).map(v => ({
                 ...v,
                 vendorId: v.id, // backend vendor id reference
                 paymentTerms: "",
                 validUntil: "",
-                items: (formData.items || []).map(item => ({ ...item, price: null, leadTime: "" })), // add items from rfq with null price and empty leadTime
+                items: (formItems || []).map(item => ({ ...item, price: null, leadTime: "" })), // add items from formItems with null price and empty leadTime
                 notes: ""
             }))
         ];
@@ -183,15 +183,18 @@ export default function RFQVendorsForm({ rfq, setFormData, onVendorAction, onSen
                 });
             }
         }
+        // update wrapper vendor state and persist to formData
+        setFormVendors(newSelection);
         setFormData((prev) => ({ ...prev, vendors: newSelection }));
         setModalOpen(false);
     };
 
     // Remove vendor handler
     const handleDelete = (vendorId) => {
+        setFormVendors(prev => (prev || []).filter((v) => v.id !== vendorId));
         setFormData((prev) => ({
             ...prev,
-            vendors: prev.vendors.filter((v) => v.id !== vendorId),
+            vendors: (prev.vendors || []).filter((v) => v.id !== vendorId),
         }));
         if (onVendorAction) onVendorAction(vendorId, "delete");
         startClose();
@@ -206,10 +209,9 @@ export default function RFQVendorsForm({ rfq, setFormData, onVendorAction, onSen
 
     // Ensure vendor items are updated and reflected in formData
     const handleVendorSave = (updatedVendor) => {
-        setFormData(prev => {
-            const updatedVendors = (prev.vendors || []).map(v => v.id === updatedVendor.id ? updatedVendor : v);
-            return { ...prev, vendors: updatedVendors };
-        });
+        // update wrapper vendor list and persist
+        setFormVendors(prev => (prev || []).map(v => v.id === updatedVendor.id ? updatedVendor : v));
+        setFormData(prev => ({ ...prev, vendors: (prev.vendors || []).map(v => v.id === updatedVendor.id ? updatedVendor : v) }));
         setShowVendorModal(false);
     };
 
@@ -244,7 +246,7 @@ export default function RFQVendorsForm({ rfq, setFormData, onVendorAction, onSen
                 <VendorEditModal
                     open={showVendorModal}
                     vendor={editingVendor}
-                    items={editingVendor?.items || rfq.items}
+                    items={editingVendor?.items || formItems}
                     onClose={() => setShowVendorModal(false)}
                     onSave={handleVendorSave}
                 />
@@ -262,7 +264,7 @@ export default function RFQVendorsForm({ rfq, setFormData, onVendorAction, onSen
                 </button>
             </div>
             <div className="grid gap-4">
-                {formData.vendors.map((vendor, id) => (
+                {(formVendors || []).map((vendor, id) => (
                     <div
                         key={id}
                         className="rounded-xl border border-gray-200 bg-card text-card-foreground shadow relative">
@@ -354,7 +356,7 @@ export default function RFQVendorsForm({ rfq, setFormData, onVendorAction, onSen
             {isMounted &&
                 createPortal(
                     (() => {
-                        const vendor = formData.vendors.find((v) => v.id === openMenuId);
+                        const vendor = (formVendors || []).find((v) => v.id === openMenuId);
                         const sendLabel = vendor?.status === "Quoted" ? "Resend RFQ" : "Send RFQ";
                         return (
                             <div

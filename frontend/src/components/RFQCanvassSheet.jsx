@@ -1,18 +1,18 @@
 import { useState, useEffect, useCallback } from "react";
 import { LuDownload, LuPrinter, LuFileText, LuCircleCheckBig, LuTrendingDown, LuCircleAlert, LuClock, LuCheck } from "react-icons/lu";
 
-export default function RFQCanvassSheet({ rfq, mode = "create", setFormData, onForApproval, onExportExcel, onExportPDF }) {
+export default function RFQCanvassSheet({ rfq, formItems, formVendors, setFormItems, mode = "create", setFormData, onForApproval, onExportExcel, onExportPDF }) {
     const formData = rfq;
     // Handler to select best vendor per item
     const handleSelectRecommendedVendors = () => {
         const newSelection = {};
-        const updatedItems = formData.items.map((item) => {
+        const itemsSource = formItems || [];
+        const updatedItems = itemsSource.map((item) => {
             const itemQuotes = generateQuotations(selectedVendorsByItem).filter((q) => q.itemId === item.itemId);
             const minTotal = Math.min(...itemQuotes.map((q) => q.total));
             const bestQuote = itemQuotes.find((q) => q.total === minTotal);
             if (bestQuote) {
                 newSelection[item.itemId] = bestQuote.vendorId;
-                // Update item fields with best quote
                 return {
                     ...item,
                     unitPrice: bestQuote.unitPrice,
@@ -24,6 +24,8 @@ export default function RFQCanvassSheet({ rfq, mode = "create", setFormData, onF
             return item;
         });
         setSelectedVendorsByItem(newSelection);
+        // persist updated items back to wrapper state and parent formData
+        setFormItems(updatedItems);
         setFormData((prev) => ({ ...prev, items: updatedItems, selectedVendorsByItem: newSelection }));
     };
 
@@ -33,7 +35,7 @@ export default function RFQCanvassSheet({ rfq, mode = "create", setFormData, onF
             return formData.selectedVendorsByItem;
         }
         const initial = {};
-        formData.items.forEach((item) => {
+        (formItems || []).forEach((item) => {
             if (item.bestVendorId) initial[item.itemId] = item.bestVendorId;
         });
         return initial;
@@ -42,8 +44,9 @@ export default function RFQCanvassSheet({ rfq, mode = "create", setFormData, onF
     // Generate quotations array from items and vendors as state, derived from rfq.items and rfq.vendors
     const generateQuotations = useCallback((selectedVendorsByItem) => {
         const arr = [];
-        formData.items.forEach((item) => {
-            formData.vendors.forEach((vendor) => {
+        const itemsSource = formItems || [];
+        itemsSource.forEach((item) => {
+            (formVendors || []).forEach((vendor) => {
                 // vendor.quotes may come from different sources and use snake_case (item_id) or camelCase (itemId)
                 const vendorItem = Array.isArray(vendor.quotes)
                     ? vendor.quotes.find((q) => (q.itemId || q.item_id) === (item.itemId || item.item_id))
@@ -68,7 +71,7 @@ export default function RFQCanvassSheet({ rfq, mode = "create", setFormData, onF
             });
         });
         // Mark best option per item
-        formData.items.forEach((item) => {
+        (formItems || []).forEach((item) => {
             const itemQuotes = arr.filter((q) => q.itemId === item.itemId);
             const minTotal = Math.min(...itemQuotes.map((q) => q.total));
             itemQuotes.forEach((q) => {
@@ -76,15 +79,15 @@ export default function RFQCanvassSheet({ rfq, mode = "create", setFormData, onF
             });
         });
         return arr;
-    }, [formData.items, formData.vendors]);
+    }, [formItems, formVendors]);
 
     const [quotations, setQuotations] = useState(() =>
         generateQuotations(
             {
-                ...formData.items.reduce((acc, item) => {
+                ...((formItems || []).reduce((acc, item) => {
                     if (item.bestVendorId) acc[item.itemId] = item.bestVendorId;
                     return acc;
-                }, {}),
+                }, {})),
             }
         )
     );
@@ -94,14 +97,14 @@ export default function RFQCanvassSheet({ rfq, mode = "create", setFormData, onF
         setQuotations(generateQuotations(selectedVendorsByItem));
         // Persist selected vendors for each item in formData
         setFormData(prev => ({ ...prev, selectedVendorsByItem }));
-    }, [selectedVendorsByItem, formData.items, formData.vendors, generateQuotations, setFormData]);
+    }, [selectedVendorsByItem, formItems, formVendors, generateQuotations, setFormData]);
 
     // Handler for selecting a vendor for an item
     const handleSelectVendor = (itemId, vendorId) => {
         // Find the selected quotation
-        const selectedQuote = quotations.find(q => q.itemId === itemId && q.vendorId === vendorId);
+    const selectedQuote = quotations.find(q => q.itemId === itemId && q.vendorId === vendorId);
         // Update all relevant fields in the item
-        const updatedItems = formData.items.map(item =>
+        const updatedItems = (formItems || []).map(item =>
             item.itemId === itemId
                 ? {
                     ...item,
@@ -115,19 +118,20 @@ export default function RFQCanvassSheet({ rfq, mode = "create", setFormData, onF
         // Update selected vendors
         const newSelection = { ...selectedVendorsByItem, [itemId]: vendorId };
         setSelectedVendorsByItem(newSelection);
-        // Persist selected vendors for each item in formData
+        // Persist selected vendors for each item in formData and update wrapper items
+        setFormItems(updatedItems);
         setFormData(prev => ({ ...prev, items: updatedItems, selectedVendorsByItem: newSelection }));
     };
 
     console.log("RFQCanvassSheet props:", { formData, mode });
     // Calculate summary, vendorTotals, and recommendedVendor from props
-    const totalItems = formData.items?.length || 0;
-    const quotedVendors = formData.vendors?.length || 0;
+    const totalItems = (formItems || []).length || 0;
+    const quotedVendors = (formVendors || []).length || 0;
 
     console.log("Quotations:", quotations);
 
     // Mark best option per item
-    formData.items.forEach((item) => {
+    (formItems || []).forEach((item) => {
         const itemQuotes = quotations.filter((q) => q.itemId === item.itemId);
         const minTotal = Math.min(...itemQuotes.map((q) => q.total));
         itemQuotes.forEach((q) => {
@@ -138,7 +142,7 @@ export default function RFQCanvassSheet({ rfq, mode = "create", setFormData, onF
     console.log(quotations);
 
     // Calculate vendorTotals from quotations array
-    const vendorTotals = formData.vendors.map((vendor) => {
+    const vendorTotals = (formVendors || []).map((vendor) => {
         let total = quotations.filter((q) => q.vendorId === vendor.vendorId).reduce((sum, q) => sum + q.total, 0);
         return {
             id: vendor.vendorId,
@@ -291,16 +295,16 @@ export default function RFQCanvassSheet({ rfq, mode = "create", setFormData, onF
                             </tr>
                         </thead>
                         <tbody>
-                            {formData.items.map((item) => (
+                            {(formItems || []).map((item) => (
                                 <tr
                                     key={item.itemId}
                                     className="divide-y divide-gray-200">
                                     <td>{/* Checkbox or selection logic here */}</td>
                                     <td>
                                         <div>
-                                            <p className="font-medium">{item.name}</p>
+                                            <p className="font-medium">{item.name || item.Description}</p>
                                             <p className="text-sm text-muted-foreground">
-                                                {item.brand} - {item.partNumber}
+                                                {item.brand || item.BRAND_ID || item.brand} - {item.partNumber || item.Code}
                                             </p>
                                             <p className="text-xs text-muted-foreground">
                                                 Qty: {item.quantity} {item.unit}

@@ -107,7 +107,11 @@ router.get("/:id", async (req, res) => {
         const detailObj = sdRes && sdRes.recordset && sdRes.recordset[0] ? sdRes.recordset[0] : null;
         const parentObj = sRes && sRes.recordset && sRes.recordset[0] ? sRes.recordset[0] : null;
         const merged = mergePrimaryWithParent(detailObj, parentObj);
-        items.push(merged);
+        const combined = {
+          ...ri,
+          ...merged,
+        };
+        items.push(combined);
       } catch (err) {
         console.error("Error resolving MSSQL item for tr_item", ri, err);
         items.push({ id: ri.id, itemId: ri.item_id, quantity: ri.quantity });
@@ -173,15 +177,14 @@ router.post("/", async (req, res) => {
     // Insert skeletal technical recommendation, all other fields default to null
     const insertResult = await db.query(
       `INSERT INTO technical_recommendations 
-        (wo_id, account_id, assignee, tr_number, status, stage_status, sl_id, contact_person, contact_number, contact_email, current_system_issues, current_system, created_at, created_by, updated_at, due_date)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, NOW(), $2, NOW(), $13)
+        (wo_id, account_id, assignee, tr_number, status, sl_id, contact_person, contact_number, contact_email, current_system_issues, current_system, created_at, created_by, updated_at, due_date)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW(), $2, NOW(), $12)
         RETURNING id`,
       [
         wo_id,
         account_id,
         assignee,
         tr_number,
-        'Open',
         status,
         sl_id,
         contact_person,
@@ -223,12 +226,15 @@ router.put("/:id", async (req, res) => {
     const { id } = req.params;
     const body = toSnake(req.body);
     console.log("Updating technical recommendation id", id, "with data:", body);
+    const actual_date = body.actual_date || null;
+    const actual_from_time = body.actual_from_time || null;
+    const actual_to_time = body.actual_to_time || null;
     // Add all fields you want to update here
     const updateResult = await db.query(
       `UPDATE technical_recommendations 
        SET 
-        status=$1, priority=$2, title=$3, account_id=$4, contact_person=$5, contact_number=$6, contact_email=$7, current_system=$8, current_system_issues=$9, proposed_solution=$10, technical_justification=$11, installation_requirements=$12, training_requirements=$13, maintenance_requirements=$14, attachments=$15, additional_notes=$16, updated_at=NOW()
-       WHERE id=$17
+        status=$1, priority=$2, title=$3, account_id=$4, contact_person=$5, contact_number=$6, contact_email=$7, current_system=$8, current_system_issues=$9, proposed_solution=$10, technical_justification=$11, installation_requirements=$12, training_requirements=$13, maintenance_requirements=$14, attachments=$15, additional_notes=$16, updated_at=NOW(), actual_date=$17, actual_from_time=$18, actual_to_time=$19
+       WHERE id=$20
        RETURNING id`,
       [
         body.status,
@@ -247,6 +253,9 @@ router.put("/:id", async (req, res) => {
         body.maintenance_requirements,
         body.attachments,
         body.additional_notes,
+        actual_date,
+        actual_from_time,
+        actual_to_time,
         id
       ]
     );

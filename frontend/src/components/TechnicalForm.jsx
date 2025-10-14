@@ -106,6 +106,20 @@ const TechnicalForm = ({ technicalReco, mode, onSave, onBack, onSubmitForApprova
     useEffect(() => {
         if (technicalReco && Object.keys(technicalReco).length > 0) {
             setFormData((prev) => ({ ...prev, ...technicalReco }));
+            // 🟢 If technicalReco has items, populate them into trItems
+            if (technicalReco.items && Array.isArray(technicalReco.items)) {
+                setTrItems(technicalReco.items.map((item) => ({
+                    id: item.id ?? nextTempIdRef.current--, // fallback if no id
+                    item_id: item.item_id ?? item.itemId ?? null,
+                    name: item.name ?? item.Description ?? "",
+                    model: item.model ?? item.Code ?? "",
+                    description: item.description ?? item.Description ?? "",
+                    quantity: item.quantity ?? 1,
+                    unitPrice: item.unitPrice ?? item.LocalPrice ?? item.Price ?? 0,
+                    showDropdown: false,
+                    searchQuery: "",
+                })));
+            }
         } else if (technicalReco && Object.keys(technicalReco).length === 0) {
             setFormData((prev) => ({
                 trNumber: "",
@@ -588,6 +602,7 @@ const TechnicalForm = ({ technicalReco, mode, onSave, onBack, onSubmitForApprova
                                                                         <li
                                                                             key={itm.id}
                                                                             onClick={() => {
+                                                                                console.log("Selected item:", itm);
                                                                                 setTrItems((prevItems) => prevItems.map((it) =>
                                                                                     it.id === item.id ? {
                                                                                         ...it,
@@ -596,7 +611,7 @@ const TechnicalForm = ({ technicalReco, mode, onSave, onBack, onSubmitForApprova
                                                                                         model: itm.Code || itm.Code || itm.Model || itm.model || "",
                                                                                         description: itm.Description || itm.description || itm.Code || itm.code || "",
                                                                                         quantity: it.quantity || 1,
-                                                                                        unitPrice: itm.LocalPrice || itm.LocalPrice || itm.Localprice || itm.localPrice || 0,
+                                                                                        unitPrice: itm.LocalPrice || itm.LocalPrice || itm.Localprice || itm.localPrice || itm.price || itm.Price || 0,
                                                                                         showDropdown: false,
                                                                                         searchQuery: ""
                                                                                     } : it

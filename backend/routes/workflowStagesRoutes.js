@@ -12,73 +12,159 @@ router.get("/latest-submitted", async (req, res) => {
         // Join with workorders, sales_leads, rfqs, etc. as needed
         // Get the latest workflow stage for each workorder
         const unionQuery = `
-        SELECT ws.id AS workflow_stage_id, ws.created_at AS submitted_date, ws.stage_name, ws.status, ws.wo_id, ws.assigned_to, ws.remarks, u.username AS submitted_by, 'sales_lead' AS module, sl.sl_number AS transaction_number, sl.id AS module_id, sl.account_id AS account_id, a.account_name AS account_name
-            FROM workflow_stages ws
-            INNER JOIN (
-                SELECT wo_id, MAX(created_at) AS max_created
-                FROM workflow_stages
-                GROUP BY wo_id
-            ) latest ON ws.wo_id = latest.wo_id AND ws.created_at = latest.max_created
-            LEFT JOIN sales_leads sl ON ws.wo_id = sl.wo_id
-            LEFT JOIN users u ON ws.assigned_to = u.id
-            LEFT JOIN accounts a ON sl.account_id = a.id
-            WHERE ws.status = 'Submitted' AND ws.stage_name = 'Sales Lead'
+            WITH latest_stages AS (
+                -- SALES LEAD
+                SELECT 
+                    ws.id AS workflow_stage_id,
+                    ws.created_at AS submitted_date,
+                    ws.stage_name,
+                    ws.status,
+                    ws.wo_id,
+                    ws.assigned_to,
+                    ws.remarks,
+                    u.username AS submitted_by,
+                    'sales_lead' AS module,
+                    sl.sl_number AS transaction_number,
+                    sl.id AS module_id,
+                    sl.account_id,
+                    a.account_name,
+                    sl.urgency AS urgency,
+                    NULL AS priority
+                FROM workflow_stages ws
+                INNER JOIN (
+                    SELECT wo_id, MAX(created_at) AS max_created
+                    FROM workflow_stages
+                    GROUP BY wo_id
+                ) latest ON ws.wo_id = latest.wo_id AND ws.created_at = latest.max_created
+                LEFT JOIN sales_leads sl ON ws.wo_id = sl.wo_id
+                LEFT JOIN users u ON ws.assigned_to = u.id
+                LEFT JOIN accounts a ON sl.account_id = a.id
+                WHERE ws.status = 'Submitted' AND ws.stage_name = 'Sales Lead'
 
-            UNION ALL
+                UNION ALL
 
-        SELECT ws.id AS workflow_stage_id, ws.created_at AS submitted_date, ws.stage_name, ws.status, ws.wo_id, ws.assigned_to, ws.remarks, u.username AS submitted_by, 'rfq' AS module, r.rfq_number AS transaction_number, r.id AS module_id, r.account_id AS account_id, a.account_name AS account_name
-            FROM workflow_stages ws
-            INNER JOIN (
-                SELECT wo_id, MAX(created_at) AS max_created
-                FROM workflow_stages
-                GROUP BY wo_id
-            ) latest ON ws.wo_id = latest.wo_id AND ws.created_at = latest.max_created
-            LEFT JOIN rfqs r ON ws.wo_id = r.wo_id
-            LEFT JOIN users u ON ws.assigned_to = u.id
-            LEFT JOIN accounts a ON r.account_id = a.id
-            WHERE ws.status = 'Submitted' AND ws.stage_name = 'RFQ'
+                -- RFQ
+                SELECT 
+                    ws.id AS workflow_stage_id,
+                    ws.created_at AS submitted_date,
+                    ws.stage_name,
+                    ws.status,
+                    ws.wo_id,
+                    ws.assigned_to,
+                    ws.remarks,
+                    u.username AS submitted_by,
+                    'rfq' AS module,
+                    r.rfq_number AS transaction_number,
+                    r.id AS module_id,
+                    r.account_id,
+                    a.account_name,
+                    NULL AS urgency,
+                    NULL AS priority
+                FROM workflow_stages ws
+                INNER JOIN (
+                    SELECT wo_id, MAX(created_at) AS max_created
+                    FROM workflow_stages
+                    GROUP BY wo_id
+                ) latest ON ws.wo_id = latest.wo_id AND ws.created_at = latest.max_created
+                LEFT JOIN rfqs r ON ws.wo_id = r.wo_id
+                LEFT JOIN users u ON ws.assigned_to = u.id
+                LEFT JOIN accounts a ON r.account_id = a.id
+                WHERE ws.status = 'Submitted' AND ws.stage_name = 'RFQ'
 
-            UNION ALL
+                UNION ALL
 
-        SELECT ws.id AS workflow_stage_id, ws.created_at AS submitted_date, ws.stage_name, ws.status, ws.wo_id, ws.assigned_to, ws.remarks, u.username AS submitted_by, 'technical_recommendation' AS module, tr.tr_number AS transaction_number, tr.id AS module_id, tr.account_id AS account_id, a.account_name AS account_name
-            FROM workflow_stages ws
-            INNER JOIN (
-                SELECT wo_id, MAX(created_at) AS max_created
-                FROM workflow_stages
-                GROUP BY wo_id
-            ) latest ON ws.wo_id = latest.wo_id AND ws.created_at = latest.max_created
-            LEFT JOIN technical_recommendations tr ON ws.wo_id = tr.wo_id
-            LEFT JOIN users u ON ws.assigned_to = u.id
-            LEFT JOIN accounts a ON tr.account_id = a.id
-            WHERE ws.status = 'Submitted' AND ws.stage_name = 'Technical Recommendation'
+                -- TECHNICAL RECOMMENDATION
+                SELECT 
+                    ws.id AS workflow_stage_id,
+                    ws.created_at AS submitted_date,
+                    ws.stage_name,
+                    ws.status,
+                    ws.wo_id,
+                    ws.assigned_to,
+                    ws.remarks,
+                    u.username AS submitted_by,
+                    'technical_recommendation' AS module,
+                    tr.tr_number AS transaction_number,
+                    tr.id AS module_id,
+                    tr.account_id,
+                    a.account_name,
+                    NULL AS urgency,
+                    tr.priority AS priority
+                FROM workflow_stages ws
+                INNER JOIN (
+                    SELECT wo_id, MAX(created_at) AS max_created
+                    FROM workflow_stages
+                    GROUP BY wo_id
+                ) latest ON ws.wo_id = latest.wo_id AND ws.created_at = latest.max_created
+                LEFT JOIN technical_recommendations tr ON ws.wo_id = tr.wo_id
+                LEFT JOIN users u ON ws.assigned_to = u.id
+                LEFT JOIN accounts a ON tr.account_id = a.id
+                WHERE ws.status = 'Submitted' AND ws.stage_name = 'Technical Recommendation'
 
-            UNION ALL
+                UNION ALL
 
-        SELECT ws.id AS workflow_stage_id, ws.created_at AS submitted_date, ws.stage_name, ws.status, ws.wo_id, ws.assigned_to, ws.remarks, u.username AS submitted_by, 'workorder' AS module, wo.wo_number AS transaction_number, wo.id AS module_id, wo.account_id AS account_id, a.account_name AS account_name
-            FROM workflow_stages ws
-            INNER JOIN (
-                SELECT wo_id, MAX(created_at) AS max_created
-                FROM workflow_stages
-                GROUP BY wo_id
-            ) latest ON ws.wo_id = latest.wo_id AND ws.created_at = latest.max_created
-            LEFT JOIN workorders wo ON ws.wo_id = wo.id
-            LEFT JOIN users u ON ws.assigned_to = u.id
-            LEFT JOIN accounts a ON wo.account_id = a.id
-            WHERE ws.status = 'Submitted' AND ws.stage_name = 'Work Order'
+                -- WORK ORDER
+                SELECT 
+                    ws.id AS workflow_stage_id,
+                    ws.created_at AS submitted_date,
+                    ws.stage_name,
+                    ws.status,
+                    ws.wo_id,
+                    ws.assigned_to,
+                    ws.remarks,
+                    u.username AS submitted_by,
+                    'workorder' AS module,
+                    wo.wo_number AS transaction_number,
+                    wo.id AS module_id,
+                    wo.account_id,
+                    a.account_name,
+                    NULL AS urgency,
+                    NULL AS priority
+                FROM workflow_stages ws
+                INNER JOIN (
+                    SELECT wo_id, MAX(created_at) AS max_created
+                    FROM workflow_stages
+                    GROUP BY wo_id
+                ) latest ON ws.wo_id = latest.wo_id AND ws.created_at = latest.max_created
+                LEFT JOIN workorders wo ON ws.wo_id = wo.id
+                LEFT JOIN users u ON ws.assigned_to = u.id
+                LEFT JOIN accounts a ON wo.account_id = a.id
+                WHERE ws.status = 'Submitted' AND ws.stage_name = 'Work Order'
 
-            UNION ALL
+                UNION ALL
 
-        SELECT ws.id AS workflow_stage_id, ws.created_at AS submitted_date, ws.stage_name, ws.status, ws.wo_id, ws.assigned_to, ws.remarks, u.username AS submitted_by, 'account' AS module, a.ref_number AS transaction_number, a.id AS module_id, a.id AS account_id, a.account_name AS account_name
-            FROM workflow_stages ws
-            INNER JOIN (
-                SELECT wo_id, MAX(created_at) AS max_created
-                FROM workflow_stages
-                GROUP BY wo_id
-            ) latest ON ws.wo_id = latest.wo_id AND ws.created_at = latest.max_created
-            LEFT JOIN workorders wo ON ws.wo_id = wo.id
-            LEFT JOIN accounts a ON wo.account_id = a.id
-            LEFT JOIN users u ON ws.assigned_to = u.id
-            WHERE ws.status = 'Submitted' AND (ws.stage_name = 'Account' OR ws.stage_name = 'NAEF')
+                -- ACCOUNT / NAEF
+                SELECT 
+                    ws.id AS workflow_stage_id,
+                    ws.created_at AS submitted_date,
+                    ws.stage_name,
+                    ws.status,
+                    ws.wo_id,
+                    ws.assigned_to,
+                    ws.remarks,
+                    u.username AS submitted_by,
+                    'account' AS module,
+                    a.ref_number AS transaction_number,
+                    a.id AS module_id,
+                    a.id AS account_id,
+                    a.account_name,
+                    NULL AS urgency,
+                    NULL AS priority
+                FROM workflow_stages ws
+                INNER JOIN (
+                    SELECT wo_id, MAX(created_at) AS max_created
+                    FROM workflow_stages
+                    GROUP BY wo_id
+                ) latest ON ws.wo_id = latest.wo_id AND ws.created_at = latest.max_created
+                LEFT JOIN workorders wo ON ws.wo_id = wo.id
+                LEFT JOIN accounts a ON wo.account_id = a.id
+                LEFT JOIN users u ON ws.assigned_to = u.id
+                WHERE ws.status = 'Submitted' AND (ws.stage_name = 'Account' OR ws.stage_name = 'NAEF')
+            )
+
+            SELECT *
+            FROM latest_stages
+            ORDER BY submitted_date DESC;
         `;
         const { rows } = await db.query(unionQuery);
         console.log("Latest submitted workflow stages:", rows);

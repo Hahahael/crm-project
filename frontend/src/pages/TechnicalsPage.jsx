@@ -136,13 +136,14 @@ export default function TechnicalsPage() {
             if (!response.ok) throw new Error("Failed to save technical recommendation");
             const savedTechnicalReco = await response.json();
             
+            
             // Create a new workflow stage for this sales lead
-            await apiBackendFetch("/api/workflowstages", {
+            await apiBackendFetch("/api/workflow-stages", {
                 method: "POST",
                 body: JSON.stringify({
                     wo_id: savedTechnicalReco.woId,
                     stage_name: "Technical Recommendation",
-                    status: savedTechnicalReco.status || "Pending",
+                    status: "Pending",
                     assigned_to: savedTechnicalReco.assignee,
                 }),
             });
@@ -156,14 +157,13 @@ export default function TechnicalsPage() {
 
             setSuccessMessage("Technical Recommendation saved successfully!"); // ✅ trigger success message
             await fetchAllData();
-            setSelectedTR(savedTechnicalReco);
-            setEditingTR(null);
+            fetchSelectedTR(savedTechnicalReco);
+            fetchNewAssignedTechnicalRecos();
         } catch (err) {
             console.error("Error saving technical recommendation:", err);
             setError("Failed to save technical recommendation");
         }
     };
-
     
     const handleSubmitForApproval = async (formData) => {
         try {
@@ -212,6 +212,52 @@ export default function TechnicalsPage() {
             console.error("Failed to fetch assigned RFQ", err);
         }
     }
+    
+    // Fetch a single sales lead and set as selected (details view)
+    const fetchSelectedTR = async (id) => {
+        if (!id) return;
+        console.log("Fetching selected technical recommendation with id:", id);
+    
+        // 🧠 handle case when id is actually an object
+        const resolvedId = typeof id === 'object' && id.id ? id.id : id;
+    
+        try {
+            // setLoading(true);
+            const res = await apiBackendFetch(`/api/technicals/${resolvedId}`);
+            if (!res.ok) throw new Error('Failed to fetch technical recommendation');
+            const tr = await res.json();
+            console.log("Fetched selected technical recommendation:", tr);
+            setSelectedTR(tr);
+            setEditingTR(null);
+        } catch (err) {
+            console.error('Error fetching selected technical recommendation', err);
+            setError('Failed to load technical recommendation');
+        } finally {
+            // setLoading(false);
+        }
+    };
+
+    // Fetch a single sales lead and set into editing drawer
+    const fetchEditingTR = async (id) => {
+        if (!id) return;
+    
+        // 🧠 handle case when id is actually an object
+        const resolvedId = typeof id === 'object' && id.id ? id.id : id;
+
+        try {
+            // setLoading(true);
+            const res = await apiBackendFetch(`/api/technicals/${resolvedId}`);
+            if (!res.ok) throw new Error('Failed to fetch technical reco for edit');
+            const sl = await res.json();
+            setEditingTR(sl);
+            setSelectedTR(null);
+        } catch (err) {
+            console.error('Error fetching editing technical reco', err);
+            setError('Failed to load technical reco for editing');
+        } finally {
+            // setLoading(false);
+        }
+    };
 
     return (
         <div className="relative w-full h-full overflow-hidden bg-white">
@@ -368,27 +414,8 @@ export default function TechnicalsPage() {
 
                         <TechnicalsTable
                             technicals={filtered}
-                            onView={async (technicalReco) => {
-                                // Always fetch the latest details from backend to avoid stale state
-                                try {
-                                    const res = await apiBackendFetch(`/api/technicals/${technicalReco.id}`);
-                                    if (res.ok) {
-                                        const fullTR = await res.json();
-                                        setSelectedTR(fullTR);
-                                        setEditingTR(null);
-                                    } else {
-                                        setSelectedTR(technicalReco); // fallback to passed object
-                                        setEditingTR(null);
-                                    }
-                                } catch (err) {
-                                    setSelectedTR(technicalReco);
-                                    setEditingTR(null);
-                                }
-                            }}
-                            onEdit={(technicalReco) => {
-                                setEditingTR(technicalReco);
-                                setSelectedTR(null);
-                            }}
+                            onView={(technicalReco) => fetchSelectedTR(technicalReco)}
+                            onEdit={(technicalReco) => fetchEditingTR(technicalReco)}
                         />
                     </div>
                 </div>
@@ -404,12 +431,11 @@ export default function TechnicalsPage() {
                         technicalReco={selectedTR}
                         currentUser={currentUser}
                         onBack={() => setSelectedTR(null)}
-                        onEdit={() => setEditingTR(selectedTR)}
+                        onEdit={() => fetchEditingTR(selectedTR)}
                         onSave={(updatedTR) => {
                             setSelectedTR(updatedTR);
-                            // Optionally, update the technicalRecos array as well:
-                            setTechnicalRecos((prev) => prev.map((tr) => (tr.id === updatedTR.id ? updatedTR : tr)));
-                            fetchNewAssignedTechnicalRecos(); // <-- refresh from backend
+                            fetchAllData();
+                            fetchNewAssignedTechnicalRecos();
                         }}
                         onSubmit={handleSubmitForApproval}
                     />

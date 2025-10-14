@@ -49,7 +49,7 @@ export default function WorkOrdersTable({ workOrders, onView, onEdit }) {
 
   return (
     <div className="relative overflow-x-auto rounded-lg border border-gray-200 bg-white">
-      <table className="w-full border-collapse text-left text-sm min-w-4xl">
+      <table className="w-full w-min-4xl border-collapse text-left text-sm min-w-4xl">
         <thead className="border-gray-200 border-b hover:bg-gray-100 transition-all duration-200">
           <tr>
             <th className="px-4 py-2 font-normal text-gray-500 text-sm w-[8%]">WO#</th>

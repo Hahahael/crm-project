@@ -349,10 +349,10 @@ export default function RFQsPage() {
                                     </div>
                                     <div className="space-y-1">
                                         <p className="text-sm font-medium text-gray-900">
-                                            {newAssignedRFQs[0].rfqNumber} - {newAssignedRFQs[0].workDescription}
+                                            {newAssignedRFQs[0].rfqNumber} - Quotation Request
                                         </p>
-                                        <p className="text-sm text-gray-600">Account: {newAssignedRFQs[0].accountName}</p>
-                                        <p className="text-sm text-gray-600">Contact: {newAssignedRFQs[0].contactPerson}</p>
+                                        <p className="text-sm text-gray-600">Vendors: {newAssignedRFQs[0].vendors?.length || "Loading..."}</p>
+                                        <p className="text-sm text-gray-600">Items: {newAssignedRFQs[0].items?.length || "Loading..."}</p>
                                     </div>
                                     <div className="mt-3">
                                         <button

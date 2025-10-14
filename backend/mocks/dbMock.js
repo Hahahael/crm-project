@@ -326,12 +326,17 @@ mem.public.none(`
   existing_setup_items TEXT,
   customer_suggested_setup TEXT,
   remarks TEXT,
+
+  actual_date DATE,
+  actual_from_time TIME,
+  actual_to_time TIME,
     
   -- File uploads (store file metadata, files in separate table or storage)
   actual_picture JSONB,
   draft_design_layout JSONB,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
   );
 
   -- SALES LEAD SUPPORT NEEDED (if multi-select, normalized)
@@ -380,6 +385,9 @@ mem.public.none(`
   maintenance_requirements TEXT,
   attachments JSONB,
   additional_notes TEXT,
+  actual_date DATE,
+  actual_from_time TIME,
+  actual_to_time TIME,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   created_by INT REFERENCES users(id) ON DELETE SET NULL,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -477,6 +485,9 @@ mem.public.none(`
       wo_id INT REFERENCES workorders(id),
       account_id INT REFERENCES accounts(id) ON DELETE SET NULL,
       assignee INT REFERENCES users(id),
+      actual_date DATE,
+      actual_from_time TIME,
+      actual_to_time TIME,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       created_by INT REFERENCES users(id),
       updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,

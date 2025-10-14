@@ -4,31 +4,21 @@ import { useRef } from "react";
 import { apiBackendFetch } from "../services/api";
 import utils from "../helper/utils.js";
 
-export default function RFQDetailsForm({ rfq, setFormData }) {
-    const formData = rfq;
+export default function RFQDetailsForm({ rfq, setFormData, formItems, setFormItems }) {
     const [itemsList, setItemsList] = useState([]);
-    const [errors, setErrors] = useState(null);
+    // errors state intentionally omitted (not used here)
 
     const onItemChange = (itemId, field, value) => {
-        setFormData(prev => ({
-            ...prev,
-            items: prev.items.map(item => item.itemId === itemId ? { ...item, [field]: value } : item)
-        }));
+        setFormItems(prev => prev.map(item => item.itemId === itemId ? { ...item, [field]: value } : item));
     };
 
     const onRemoveItem = (itemId) => {
-        setFormData(prev => ({
-            ...prev,
-            items: prev.items.filter((item) => item.itemId !== itemId)
-        }));
+        setFormItems(prev => prev.filter((item) => item.itemId !== itemId));
     };
 
     const onAddItem = () => {
-        const newItem = { id: null, itemId: null, name: "", model: "", description: "", quantity: 1, price: "" };
-        setFormData(prev => ({
-            ...prev,
-            items: [...(prev.items || []), newItem]
-        }));
+        const newItem = { id: null, itemId: null, name: "", model: "", description: "", quantity: 1, price: "", unitPrice: null };
+        setFormItems(prev => ([...(prev || []), newItem]));
     };
 
     const dropdownRefs = useRef({});      
@@ -61,48 +51,21 @@ export default function RFQDetailsForm({ rfq, setFormData }) {
     // Close dropdown on outside click for product name dropdowns
     useEffect(() => {
         const handleClickOutside = (e) => {
-            setFormData(prev => ({
-                ...prev,
-                items: prev.items.map(item => {
-                    const ref = dropdownRefs.current[item.id];
-                    if (item.showDropdown && ref && !ref.contains(e.target)) {
-                        return { ...item, showDropdown: false };
-                    }
-                    return item;
-                })
+            setFormItems(prev => prev.map(item => {
+                const ref = dropdownRefs.current[item.id];
+                if (item.showDropdown && ref && !ref.contains(e.target)) {
+                    return { ...item, showDropdown: false };
+                }
+                return item;
             }));
         };
         document.addEventListener("mousedown", handleClickOutside);
         return () => {
             document.removeEventListener("mousedown", handleClickOutside);
         };
-    }, [setFormData, dropdownRefs]);
+    }, [setFormItems, dropdownRefs]);
 
-    // Recompute totals whenever rfqItems change
-    useEffect(() => {
-        const items = formData.items || [];
-        const allPriced = items.length > 0 && items.every(it => it.unitPrice !== null && it.unitPrice !== undefined && `${it.unitPrice}` !== "" && !isNaN(parseFloat(it.unitPrice)));
-        if (allPriced) {
-            const subtotal = items.reduce((sum, it) => sum + (parseFloat(it.unitPrice) * (Number(it.quantity) || 0)), 0);
-            const vat = subtotal * 0.05; // 5%
-            const grandTotal = subtotal + vat;
-            setFormData(prev => ({
-                ...prev,
-                items,
-                subtotal: Number(subtotal.toFixed(2)),
-                vat: Number(vat.toFixed(2)),
-                grandTotal: Number(grandTotal.toFixed(2)),
-            }));
-        } else {
-            setFormData(prev => ({
-                ...prev,
-                items,
-                subtotal: null,
-                vat: null,
-                grandTotal: null,
-            }));
-        }
-    }, [formData.items, setFormData]);
+    // No totals effect here: wrapper owns totals and syncs formData from formItems
 
     return (
         <div className="w-full h-full space-y-6">
@@ -117,7 +80,7 @@ export default function RFQDetailsForm({ rfq, setFormData }) {
                             <label htmlFor="rfqNumber">RFQ Number</label>
                             <input
                                 id="rfqNumber"
-                                value={formData.rfqNumber}
+                                value={rfq.rfqNumber}
                                 readOnly
                                 className={`border-gray-200 col-span-5 w-full rounded-md border p-1 text-sm py-2 px-3 bg-gray-50 focus:outline-0`}
                             />
@@ -127,10 +90,9 @@ export default function RFQDetailsForm({ rfq, setFormData }) {
                             <input
                                 id="rfqDate"
                                 type="date"
-                                value={utils.formatDate(formData.rfqDate, "YYYY-MM-DD")}
+                                value={utils.formatDate(rfq.rfqDate, "YYYY-MM-DD")}
                                 onChange={(e) => setFormData((prev) => ({ ...prev, rfqDate: e.target.value }))}
-                                className={`col-span-5 w-full rounded-md border p-1 focus:outline-1 text-sm py-2 px-3 focus:bg-yellow-50
-                                                                    ${errors?.endUser ? "border-red-500" : "border-gray-200"}`}
+                                className={`col-span-5 w-full rounded-md border p-1 focus:outline-1 text-sm py-2 px-3 focus:bg-yellow-50 border-gray-200`}
                             />
                         </div>
                         <div>
@@ -138,10 +100,9 @@ export default function RFQDetailsForm({ rfq, setFormData }) {
                             <input
                                 id="dueDate"
                                 type="date"
-                                value={utils.formatDate(formData.dueDate, "YYYY-MM-DD")}
+                                value={utils.formatDate(rfq.dueDate, "YYYY-MM-DD")}
                                 onChange={(e) => setFormData((prev) => ({ ...prev, dueDate: e.target.value }))}
-                                className={`col-span-5 w-full rounded-md border p-1 focus:outline-1 text-sm py-2 px-3 focus:bg-yellow-50
-                                                                    ${errors?.endUser ? "border-red-500" : "border-gray-200"}`}
+                                className={`col-span-5 w-full rounded-md border p-1 focus:outline-1 text-sm py-2 px-3 focus:bg-yellow-50 border-gray-200`}
                             />
                         </div>
                     </div>
@@ -149,10 +110,9 @@ export default function RFQDetailsForm({ rfq, setFormData }) {
                         <label htmlFor="description">Description</label>
                         <input
                             id="description"
-                            value={formData.description}
+                            value={rfq.description}
                             onChange={(e) => setFormData((prev) => ({ ...prev, description: e.target.value }))}
-                            className={`col-span-5 w-full rounded-md border p-1 focus:outline-1 text-sm py-2 px-3 focus:bg-yellow-50
-                                                            ${errors?.endUser ? "border-red-500" : "border-gray-200"}`}
+                            className={`col-span-5 w-full rounded-md border p-1 focus:outline-1 text-sm py-2 px-3 focus:bg-yellow-50 border-gray-200`}
                         />
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -160,7 +120,7 @@ export default function RFQDetailsForm({ rfq, setFormData }) {
                             <label htmlFor="salesLeadRef">Sales Lead Reference</label>
                             <input
                                 id="salesLeadRef"
-                                value={formData.slNumber}
+                                value={rfq.slNumber}
                                 readOnly
                                 className={`border-gray-200 col-span-5 w-full rounded-md border p-1 text-sm py-2 px-3 bg-gray-50 focus:outline-0`}
                             />
@@ -169,10 +129,9 @@ export default function RFQDetailsForm({ rfq, setFormData }) {
                             <label htmlFor="accountName">Account Name</label>
                             <input
                                 id="accountName"
-                                value={formData.accountId}
+                                value={rfq.accountId}
                                 onChange={(e) => setFormData((prev) => ({ ...prev, accountId: e.target.value }))}
-                                className={`col-span-5 w-full rounded-md border p-1 focus:outline-1 text-sm py-2 px-3 focus:bg-yellow-50
-                                                                    ${errors?.endUser ? "border-red-500" : "border-gray-200"}`}
+                                className={`col-span-5 w-full rounded-md border p-1 focus:outline-1 text-sm py-2 px-3 focus:bg-yellow-50 border-gray-200`}
                             />
                         </div>
                     </div>
@@ -180,20 +139,18 @@ export default function RFQDetailsForm({ rfq, setFormData }) {
                         <label htmlFor="terms">Payment Terms</label>
                         <input
                             id="terms"
-                            value={formData.paymentTerms}
+                            value={rfq.paymentTerms}
                             onChange={(e) => setFormData((prev) => ({ ...prev, paymentTerms: e.target.value }))}
-                            className={`col-span-5 w-full rounded-md border p-1 focus:outline-1 text-sm py-2 px-3 focus:bg-yellow-50
-                                                            ${errors?.endUser ? "border-red-500" : "border-gray-200"}`}
+                                className={`col-span-5 w-full rounded-md border p-1 focus:outline-1 text-sm py-2 px-3 focus:bg-yellow-50 border-gray-200`}
                         />
                     </div>
                     <div>
                         <label htmlFor="notes">Notes</label>
                         <textarea
                             id="notes"
-                            value={formData.notes}
+                            value={rfq.notes}
                             onChange={(e) => setFormData((prev) => ({ ...prev, notes: e.target.value }))}
-                            className={`col-span-5 w-full rounded-md border p-1 focus:outline-1 text-sm py-2 px-3 focus:bg-yellow-50
-                                                            ${errors?.endUser ? "border-red-500" : "border-gray-200"}`}
+                                className={`col-span-5 w-full rounded-md border p-1 focus:outline-1 text-sm py-2 px-3 focus:bg-yellow-50 border-gray-200`}
                         />
                     </div>
                 </div>
@@ -224,7 +181,7 @@ export default function RFQDetailsForm({ rfq, setFormData }) {
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-gray-200">
-                                    {formData.items?.map((item) => (
+                                    {(formItems || []).map((item) => (
                                         <tr
                                             key={item.itemId}
                                             className="hover:bg-gray-100 transition-all duration-200">
@@ -232,7 +189,7 @@ export default function RFQDetailsForm({ rfq, setFormData }) {
                                                 <div className="relative" ref={el => { dropdownRefs.current[item.id] = el; }} style={{ overflow: 'visible' }}>
                                                     <input
                                                         type="text"
-                                                        value={item.name || ""}
+                                                        value={item.name || item.Description || ""}
                                                         onChange={(e) => {
                                                             onItemChange(item.itemId, "name", e.target.value);
                                                             setFormData((prev) => ({
@@ -255,10 +212,10 @@ export default function RFQDetailsForm({ rfq, setFormData }) {
                                                         <div style={{ position: 'absolute', left: 0, bottom: '100%', zIndex: 20, width: 'max-content', minWidth: '100%', maxWidth: '400px', boxShadow: '0 4px 16px rgba(0,0,0,0.12)', background: 'white', borderRadius: '0.5rem', border: '1px solid #e5e7eb', overflow: 'visible' }}>
                                                             <ul className="max-h-40 overflow-y-auto" style={{ margin: 0, padding: 0 }}>
                                                                 {(itemsList || [])
-                                                                    .filter(i =>
-                                                                        (i.name || i.description || "").toLowerCase().includes((item.searchQuery || item.name || "").toLowerCase()) &&
-                                                                        !formData.items.some(tr => tr.itemId === i.id)
-                                                                    )
+                                                                                .filter(i =>
+                                                                                    (i.name || i.description || "").toLowerCase().includes((item.searchQuery || item.name || "").toLowerCase()) &&
+                                                                                    !(formItems || []).some(tr => tr.itemId === i.id)
+                                                                                )
                                                                     .map((itm) => (
                                                                     <li
                                                                         key={itm.id}
@@ -288,7 +245,7 @@ export default function RFQDetailsForm({ rfq, setFormData }) {
                                                                         {itm.name || itm.description} ({itm.partNumber})
                                                                     </li>
                                                                 ))}
-                                                                {(itemsList || []).filter(i => (i.name || i.description || "").toLowerCase().includes((item.searchQuery || item.name || "").toLowerCase())).length === 0 && (
+                                                                    {(itemsList || []).filter(i => (i.name || i.description || "").toLowerCase().includes((item.searchQuery || item.name || "").toLowerCase())).length === 0 && (
                                                                     <li className="px-3 py-2 text-gray-500 text-sm" style={{ listStyle: 'none' }}>No results found</li>
                                                                 )}
                                                             </ul>
@@ -299,7 +256,7 @@ export default function RFQDetailsForm({ rfq, setFormData }) {
                                             <td className="text-sm p-2 align-middle">
                                                 <input
                                                     type="text"
-                                                    value={item.brand || ""}
+                                                    value={item.brand || item.BRAND_ID || ""}
                                                     readOnly
                                                     className="w-full rounded border border-gray-200 px-2 py-1 text-sm bg-gray-100"
                                                 />
@@ -307,7 +264,7 @@ export default function RFQDetailsForm({ rfq, setFormData }) {
                                             <td className="text-sm p-2 align-middle">
                                                 <input
                                                     type="text"
-                                                    value={item.description || ""}
+                                                    value={item.description || item.Description || ""}
                                                     readOnly
                                                     className="w-full rounded border border-gray-200 px-2 py-1 text-sm bg-gray-100"
                                                 />
@@ -315,7 +272,7 @@ export default function RFQDetailsForm({ rfq, setFormData }) {
                                             <td className="text-sm p-2 align-middle">
                                                 <input
                                                     type="text"
-                                                    value={item.partNumber || ""}
+                                                    value={item.partNumber || item.Code || ""}
                                                     readOnly
                                                     className="w-full rounded border border-gray-200 px-2 py-1 text-sm bg-gray-100"
                                                 />
@@ -383,8 +340,8 @@ export default function RFQDetailsForm({ rfq, setFormData }) {
                             type="button"
                             className="border border-gray-200 text-gray-800 rounded-md px-4 py-2 flex items-center shadow-xs hover:bg-gray-200 transition-all duration-200 text-xs"
                             onClick={onAddItem}
-                            disabled={formData.items.some(item => item.itemId == null)}
-                            style={formData.items.some(item => item.itemId == null) ? { opacity: 0.5, cursor: 'not-allowed' } : {}}>
+                            disabled={(formItems || []).some(item => item.itemId == null)}
+                            style={(formItems || []).some(item => item.itemId == null) ? { opacity: 0.5, cursor: 'not-allowed' } : {}}>
                             <LuPlus className="mr-2" /> Add Item
                         </button>
                     </div>
@@ -392,15 +349,15 @@ export default function RFQDetailsForm({ rfq, setFormData }) {
                         <div className="w-64">
                             <div className="flex justify-between py-2">
                                 <span className="font-medium">Subtotal:</span>
-                                <span>{formData.subtotal != null ? formData.subtotal : "—"}</span>
+                                <span>{rfq.subtotal != null ? rfq.subtotal : "—"}</span>
                             </div>
                             <div className="flex justify-between py-2 border-t">
                                 <span className="font-medium">VAT (5%):</span>
-                                <span>{formData.vat != null ? formData.vat : "—"}</span>
+                                <span>{rfq.vat != null ? rfq.vat : "—"}</span>
                             </div>
                             <div className="flex justify-between py-2 border-t font-bold">
                                 <span>Grand Total:</span>
-                                <span>{formData.grandTotal != null ? formData.grandTotal : "—"}</span>
+                                <span>{rfq.grandTotal != null ? rfq.grandTotal : "—"}</span>
                             </div>
                         </div>
                     </div>

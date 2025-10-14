@@ -75,7 +75,7 @@ const SalesLeadDetails = ({ salesLead, currentUser, onBack, onEdit, onSalesLeadU
                 </div>
                 <div className="flex gap-2">
                     <button
-                        className={`items-center justify-center whitespace-nowrap rounded-md text-sm font-light shadow h-9 px-4 py-2 bg-green-500 hover:bg-green-600 text-white ${salesLead.stageStatus === "Approved" ? "hidden pointer-events-none" : "inline-flex"}`}
+                        className={`items-center justify-center whitespace-nowrap rounded-md text-sm font-light shadow h-9 px-4 py-2 bg-green-500 hover:bg-green-600 text-white ${salesLead.stageStatus === "Approved" || salesLead.stageStatus === "Submitted" ? "hidden pointer-events-none" : "inline-flex"}`}
                         onClick={() => onSubmit(salesLead)}>
                         Submit for Approval
                     </button>

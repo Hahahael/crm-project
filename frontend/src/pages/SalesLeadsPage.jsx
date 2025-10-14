@@ -76,7 +76,7 @@ export default function SalesLeadsPage() {
     useEffect(() => {
         if (salesLeadId) {
             (async () => {
-                setLoading(true);
+                // setLoading(true);
                 try {
                     const res = await apiBackendFetch(`/api/salesleads/${salesLeadId}`);
                     if (!res.ok) throw new Error("Failed to fetch sales lead");
@@ -85,7 +85,7 @@ export default function SalesLeadsPage() {
                 } catch (err) {
                     setError("Failed to fetch sales lead");
                 } finally {
-                    setLoading(false);
+                    // setLoading(false);
                 }
             })();
         }
@@ -167,7 +167,7 @@ export default function SalesLeadsPage() {
         const resolvedId = typeof id === 'object' && id.id ? id.id : id;
     
         try {
-            setLoading(true);
+            // setLoading(true);
             const res = await apiBackendFetch(`/api/salesleads/${resolvedId}`);
             if (!res.ok) throw new Error('Failed to fetch sales lead');
             const sl = await res.json();
@@ -178,7 +178,7 @@ export default function SalesLeadsPage() {
             console.error('Error fetching selected sales lead', err);
             setError('Failed to load sales lead');
         } finally {
-            setLoading(false);
+            // setLoading(false);
         }
     }, []);
 
@@ -190,8 +190,8 @@ export default function SalesLeadsPage() {
         const resolvedId = typeof id === 'object' && id.id ? id.id : id;
 
         try {
-            setLoading(true);
-            const res = await apiBackendFetch(`/api/salesleads/${id}`);
+            // setLoading(true);
+            const res = await apiBackendFetch(`/api/salesleads/${resolvedId}`);
             if (!res.ok) throw new Error('Failed to fetch sales lead for edit');
             const sl = await res.json();
             setEditingSL(sl);
@@ -200,7 +200,7 @@ export default function SalesLeadsPage() {
             console.error('Error fetching editing sales lead', err);
             setError('Failed to load sales lead for editing');
         } finally {
-            setLoading(false);
+            // setLoading(false);
         }
     }, []);
 
@@ -272,7 +272,7 @@ export default function SalesLeadsPage() {
 
             setSuccessMessage("Sales Lead saved successfully!");
             await fetchAllData();
-            setSelectedSL(savedSalesLead);
+            fetchSelectedSL(savedSalesLead);
             setEditingSL(null);
         } catch (err) {
             console.error("Error saving saleslead:", err);

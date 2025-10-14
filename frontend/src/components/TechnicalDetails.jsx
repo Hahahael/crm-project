@@ -1,5 +1,5 @@
 import { LuArrowLeft, LuFileCheck, LuPencil, LuPrinter } from "react-icons/lu";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { apiBackendFetch } from "../services/api.js";
 import utils from "../helper/utils";
 
@@ -7,6 +7,48 @@ const TechnicalDetails = ({ technicalReco, currentUser, onBack, onEdit, onSave, 
     console.log("TechnicalDetails - technicalReco:", technicalReco);
     const isAssignedToMe = currentUser && technicalReco.assignee === currentUser.id;
     const isCreator = currentUser && technicalReco.createdBy === currentUser.id;
+
+    const renderStatusBadge = (status) => {
+        if (!status) return ("bg-gray-100 text-gray-800");
+        const s = String(status).toLowerCase();
+        switch (s) {
+            case "draft":
+                return "bg-green-100 text-green-800";
+            case "open":
+            case "pending":
+            case "in progress":
+            case "in-progress":
+            case "active":
+            case "started":
+                return "bg-blue-50 text-blue-800";
+            case "completed":
+            case "done":
+            case "submitted":
+            case "approved":
+                return "bg-green-50 text-green-800";
+            case "cancelled":
+            case "canceled":
+                return "bg-red-50 text-red-800";
+            default:
+                return "bg-gray-50 text-gray-800";
+        }
+    };
+
+    const renderPriorityBadge = (priority) => {
+      console.log("Rendering priority badge for priority:", String(priority).toLowerCase());
+      if (!priority) return "bg-gray-50 text-gray-600";
+      const s = String(priority).toLowerCase();
+      switch (s) {
+        case "low":
+          return "bg-green-100 text-green-800";
+        case "medium":
+          return "bg-amber-50 text-amber-700";
+        case "high":
+          return "bg-red-50 text-red-700";
+        default:
+          return "bg-gray-50 text-gray-600";
+      }
+    };
 
     console.log("Technical Recommendation Details:", technicalReco);
     function Detail({ label, value }) {
@@ -17,9 +59,16 @@ const TechnicalDetails = ({ technicalReco, currentUser, onBack, onEdit, onSave, 
             </div>
         );
     }
+    const didSetActuals = useRef(false);
 
     useEffect(() => {
-        if (isAssignedToMe && !technicalReco.actualDate && !technicalReco.actualFromTime) {
+      if (
+            !didSetActuals.current &&
+            isAssignedToMe &&
+            !technicalReco.actualDate &&
+            !technicalReco.actualFromTime
+      ) {
+            didSetActuals.current = true; // ✅ Prevent future calls
             const now = new Date();
             const actualDate = now.toISOString().split("T")[0]; // YYYY-MM-DD
             const actualFromTime = now.toTimeString().slice(0, 8); // HH:MM:SS
@@ -54,10 +103,10 @@ const TechnicalDetails = ({ technicalReco, currentUser, onBack, onEdit, onSave, 
                     </button>
                     <div className="flex items-center gap-3">
                         <h1 className="text-2xl font-bold">{technicalReco.trNumber}</h1>
-                        <div className="inline-flex items-center rounded-md border px-2.5 py-0.5 text-xs font-semibold bg-green-100 text-green-800">
-                            {technicalReco.status}
+                        <div className={`inline-flex items-center rounded-md border px-2.5 py-0.5 text-xs font-semibold ${renderStatusBadge(technicalReco.stageStatus)}`}>
+                            {technicalReco.stageStatus}
                         </div>
-                        <div className="inline-flex items-center rounded-md border px-2.5 py-0.5 text-xs font-semibold bg-orange-100 text-orange-800">
+                        <div className={`inline-flex items-center rounded-md border px-2.5 py-0.5 text-xs font-semibold ${renderPriorityBadge(technicalReco.priority)}`}>
                             {technicalReco.priority}
                         </div>
                     </div>
@@ -90,7 +139,7 @@ const TechnicalDetails = ({ technicalReco, currentUser, onBack, onEdit, onSave, 
                     </button>
                     <button
                         onClick={() => onSubmit(technicalReco)}
-                        className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-light shadow h-9 px-4 py-2 bg-green-500 hover:bg-green-600 text-white">
+                        className={`items-center justify-center whitespace-nowrap rounded-md text-sm font-light shadow h-9 px-4 py-2 bg-green-500 hover:bg-green-600 text-white ${technicalReco.stageStatus === "Approved" || technicalReco.stageStatus === "Submitted" ? "hidden pointer-events-none" : "inline-flex"}`}>
                         <LuFileCheck className="h-4 w-4 mr-2" />
                         Submit for Approval
                     </button>
@@ -195,23 +244,35 @@ const TechnicalDetails = ({ technicalReco, currentUser, onBack, onEdit, onSave, 
                                 </tr>
                             </thead>
                             <tbody>
-                                {technicalReco.items.map((prod, idx) => (
+                            {technicalReco.items?.map((prod, idx) => {
+                                const price = prod.unitPrice ?? prod.LocalPrice ?? prod.Price ?? 0;
+                                const total = prod.quantity * price;
+
+                                return (
                                     <tr key={idx}>
                                         <td className="p-2">{prod.Description}</td>
                                         <td className="p-2">{prod.Code}</td>
                                         <td className="p-2">{prod.Description}</td>
                                         <td className="p-2 text-right">{prod.quantity}</td>
-                                        <td className="p-2 text-right">Php {prod.unitPrice}</td>
-                                        <td className="p-2 text-right">Php {prod.quantity * prod.unitPrice}</td>
+                                        <td className="p-2 text-right">Php {price.toLocaleString()}</td>
+                                        <td className="p-2 text-right">Php {total.toLocaleString()}</td>
                                     </tr>
-                                ))}
+                                );
+                                })}
                                 <tr>
-                                    <td
-                                        colSpan={5}
-                                        className="p-2 text-right font-bold">
-                                        Total
-                                    </td>
-                                    <td className="p-2 text-right font-bold">Php {(technicalReco.items || []).reduce((sum, i) => sum + (i.quantity * i.unitPrice), 0)}</td>
+                                <td colSpan={5} className="p-2 text-right font-bold">
+                                    Total
+                                </td>
+                                <td className="p-2 text-right font-bold">
+                                    Php{" "}
+                                    {(
+                                        (technicalReco.items || []).reduce((sum, i) => {
+                                            const price = i.unitPrice ?? i.LocalPrice ?? i.Price ?? 0;
+                                            const qty = i.quantity ?? 0;
+                                            return sum + qty * price;
+                                        }, 0)
+                                    ).toLocaleString()}
+                                </td>
                                 </tr>
                             </tbody>
                         </table>

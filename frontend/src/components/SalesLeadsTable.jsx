@@ -24,12 +24,31 @@ export default function SalesLeadsTable({ salesLeads, onView, onEdit }) {
       case "completed":
       case "done":
       case "submitted":
+      case "approved":
         return <span className={`${baseBadge} rounded-full bg-green-50 text-green-700`}>{status}</span>;
       case "cancelled":
       case "canceled":
         return <span className={`${baseBadge} rounded-full bg-red-50 text-red-700`}>{status}</span>;
       default:
         return <span className={`${baseBadge} rounded-full bg-gray-50 text-gray-600`}>{status}</span>;
+    }
+  };
+
+  const renderPriorityBadge = (priority) => {
+    console.log("Rendering priority badge for priority:", String(priority).toLowerCase());
+    if (!priority) return (
+      <span className={`${baseBadge} rounded-full bg-gray-50 text-gray-600`}>-</span>
+    );
+    const s = String(priority).toLowerCase();
+    switch (s) {
+      case "low":
+        return <span className={`${baseBadge} rounded-full bg-green-100 text-green-800`}>{priority}</span>;
+      case "medium":
+        return <span className={`${baseBadge} rounded-full bg-amber-50 text-amber-700`}>{priority}</span>;
+      case "high":
+        return <span className={`${baseBadge} rounded-full bg-red-50 text-red-700`}>{priority}</span>;
+      default:
+        return <span className={`${baseBadge} rounded-full bg-gray-50 text-gray-600`}>{priority}</span>;
     }
   };
 
@@ -76,7 +95,12 @@ export default function SalesLeadsTable({ salesLeads, onView, onEdit }) {
               <td className="px-4 py-2 text-black text-sm">{sl.machine}</td>
               <td className="px-4 py-2 text-black text-sm">{sl.contactNumber}<br/><span className="text-gray-500 text-xs">{sl.emailAddress}</span></td>
               <td className="px-4 py-2 text-black text-sm">{renderStatusBadge(sl.stageStatus)}</td>
-              <td className="px-4 py-2 text-black text-sm">{sl.urgency}</td>
+              <td className="px-4 py-2 text-black text-sm">
+                {(() => {
+                    const prio = sl.priority || sl.urgency || "-";
+                    return renderPriorityBadge(prio);
+                })()}
+              </td>
               <td className="px-4 py-2 text-black text-sm">{util.formatDate(sl.fslDate, "DD/MM/YYYY")}</td>
               <td className="px-4 py-2 text-black text-sm">{util.formatDate(sl.dueDate, "DD/MM/YYYY")}</td>
               <td className="px-4 py-2 text-black text-sm">{util.formatDate(sl.doneDate, "DD/MM/YYYY") || "-"}</td>
