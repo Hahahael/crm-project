@@ -122,7 +122,7 @@ mem.public.none(`
   CREATE TABLE accounts (
   id SERIAL PRIMARY KEY,
   naef_number VARCHAR(20) UNIQUE,
-  stage_status VARCHAR(20) DEFAULT 'draft',
+  stage_status VARCHAR(20) DEFAULT 'Draft',
     ref_number VARCHAR(20) UNIQUE,
     date_created TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     requested_by VARCHAR(100),
@@ -192,7 +192,7 @@ mem.public.none(`
     project_end_date DATE,
     wo_id INT,
     assignee INT REFERENCES users(id) ON DELETE SET NULL,
-    stage_status VARCHAR(20) DEFAULT 'draft',
+    stage_status VARCHAR(20) DEFAULT 'Draft',
     title VARCHAR(255) DEFAULT '',
     week_number INT NOT NULL,
     update_description TEXT,
@@ -210,7 +210,7 @@ mem.public.none(`
   work_description TEXT NOT NULL,
   assignee INT REFERENCES users(id) ON DELETE SET NULL,
   status VARCHAR(50) DEFAULT 'Pending',
-  stage_status VARCHAR(20) DEFAULT 'draft',
+  stage_status VARCHAR(20) DEFAULT 'Draft',
     
     -- Account Info
     account_id INT REFERENCES accounts(id) ON DELETE SET NULL,
@@ -275,7 +275,7 @@ mem.public.none(`
   wo_id INT NOT NULL REFERENCES workorders(id) ON DELETE SET NULL,
   assignee INT REFERENCES users(id) ON DELETE SET NULL,
   account_id INT REFERENCES accounts(id) ON DELETE SET NULL,
-  stage_status VARCHAR(20) DEFAULT 'draft',
+  stage_status VARCHAR(20) DEFAULT 'Draft',
   end_user VARCHAR(100),
   department VARCHAR(75),
   contact_number VARCHAR(20),
@@ -367,7 +367,7 @@ mem.public.none(`
   assignee INT NOT NULL REFERENCES users(id) ON DELETE SET NULL,
   tr_number VARCHAR(20) UNIQUE NOT NULL, -- TR-YYYY-NNNN, auto-generated
   status VARCHAR(50) DEFAULT 'Open',
-  stage_status VARCHAR(20) DEFAULT 'draft',
+  stage_status VARCHAR(20) DEFAULT 'Draft',
   due_date DATE,
   priority VARCHAR(50) DEFAULT 'Medium',
   title VARCHAR(255) DEFAULT '',
