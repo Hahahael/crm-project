@@ -5,6 +5,7 @@ import { apiBackendFetch } from "../services/api";
 import utils from "../helper/utils.js";
 
 export default function RFQDetailsForm({ rfq, setFormData, formItems, setFormItems }) {
+    console.log("RFQDetailsForm Props: ", rfq, formItems);
     const [itemsList, setItemsList] = useState([]);
     // errors state intentionally omitted (not used here)
 
@@ -30,16 +31,7 @@ export default function RFQDetailsForm({ rfq, setFormData, formItems, setFormIte
                 const data = await res.json();
                 console.log("Data:", data);
                 const rows = data?.rows || data || [];
-                const mapped = rows.map((s) => ({
-                    id: s.Id,
-                    name: s.Description || s.Code || "",
-                    description: s.Description || "",
-                    brand: s.BRAND_ID || "",
-                    partNumber: s.Code || "",
-                    unit: s.SK_UOM || "",
-                    model: "",
-                }));
-                setItemsList(mapped);
+                setItemsList(rows);
             } catch (err) {
                 console.error("Failed to fetch items", err);
             }
@@ -52,7 +44,8 @@ export default function RFQDetailsForm({ rfq, setFormData, formItems, setFormIte
     useEffect(() => {
         const handleClickOutside = (e) => {
             setFormItems(prev => prev.map(item => {
-                const ref = dropdownRefs.current[item.id];
+                const key = item.itemId ?? item.id;
+                const ref = dropdownRefs.current[key];
                 if (item.showDropdown && ref && !ref.contains(e.target)) {
                     return { ...item, showDropdown: false };
                 }
@@ -181,71 +174,57 @@ export default function RFQDetailsForm({ rfq, setFormData, formItems, setFormIte
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-gray-200">
-                                    {(formItems || []).map((item) => (
-                                        <tr
-                                            key={item.itemId}
-                                            className="hover:bg-gray-100 transition-all duration-200">
+                                    {(formItems || []).map((item, idx) => (
+                                        <tr key={item.itemId ?? item.id ?? idx} className="hover:bg-gray-100 transition-all duration-200">
                                             <td className="text-sm p-2 align-middle" style={{ position: 'relative', overflow: 'visible' }}>
-                                                <div className="relative" ref={el => { dropdownRefs.current[item.id] = el; }} style={{ overflow: 'visible' }}>
+                                                <div className="relative" ref={el => { const key = item.itemId ?? item.id ?? idx; dropdownRefs.current[key] = el; }} style={{ overflow: 'visible' }}>
                                                     <input
                                                         type="text"
-                                                        value={item.name || item.Description || ""}
+                                                        value={(item.searchQuery ?? item.name ?? item.details?.Description ?? item.Description) || ""}
                                                         onChange={(e) => {
-                                                            onItemChange(item.itemId, "name", e.target.value);
-                                                            setFormData((prev) => ({
-                                                                ...prev,
-                                                                items: prev.items.map((itm) =>
-                                                                    itm.itemId === item.itemId ? { ...itm, showDropdown: true, searchQuery: e.target.value } : itm
-                                                                )
-                                                            }));
+                                                            const v = e.target.value;
+                                                            setFormItems(prev => prev.map((itm, i) => i === idx ? { ...itm, name: v, showDropdown: true, searchQuery: v } : itm));
                                                         }}
                                                         className="w-full rounded border border-gray-200 px-2 py-1 text-sm"
-                                                        onFocus={() => setFormData((prev) => ({
-                                                            ...prev,
-                                                            items: prev.items.map((itm) =>
-                                                                itm.itemId === item.itemId ? { ...itm, showDropdown: true } : itm
-                                                            )
-                                                        }))}
-                                                        autoComplete="off"
+                                                        onFocus={() => setFormItems(prev => prev.map((itm, i) => i === idx ? { ...itm, showDropdown: true } : itm))}
                                                     />
                                                     {item.showDropdown && (
                                                         <div style={{ position: 'absolute', left: 0, bottom: '100%', zIndex: 20, width: 'max-content', minWidth: '100%', maxWidth: '400px', boxShadow: '0 4px 16px rgba(0,0,0,0.12)', background: 'white', borderRadius: '0.5rem', border: '1px solid #e5e7eb', overflow: 'visible' }}>
                                                             <ul className="max-h-40 overflow-y-auto" style={{ margin: 0, padding: 0 }}>
                                                                 {(itemsList || [])
-                                                                                .filter(i =>
-                                                                                    (i.name || i.description || "").toLowerCase().includes((item.searchQuery || item.name || "").toLowerCase()) &&
-                                                                                    !(formItems || []).some(tr => tr.itemId === i.id)
-                                                                                )
+                                                                    .filter(i => (i.Description || i.description || "").toLowerCase().includes((item.searchQuery || item.name || "").toLowerCase()) && !(formItems || []).some(tr => tr.itemId === i.Id || tr.id === i.Id))
                                                                     .map((itm) => (
-                                                                    <li
-                                                                        key={itm.id}
-                                                                        onClick={() => {
-                                                                            setFormData((prev) => ({
-                                                                                ...prev,
-                                                                                items: prev.items.map((it) => 
-                                                                                    it.itemId === item.itemId ? {
-                                                                                        ...it,
-                                                                                        itemId: itm.id, // also store as itemId for backend
-                                                                                        item_id: itm.id, // normalized snake_case id for backend
-                                                                                        name: itm.name,
-                                                                                        brand: itm.brand || "",
-                                                                                        partNumber: itm.partNumber || "",
-                                                                                        leadTime: "",
-                                                                                        unit: itm.unit || "",
-                                                                                        model: itm.model || "",
-                                                                                        description: itm.description || "",
-                                                                                        quantity: it.quantity || 1,
-                                                                                        price: "",
-                                                                                        showDropdown: false,
-                                                                                        searchQuery: ""
-                                                                                    } : it
-                                                                            )}));
-                                                                        }}
-                                                                        className="px-3 py-2 cursor-pointer hover:bg-gray-100 text-sm" style={{ listStyle: 'none' }}>
-                                                                        {itm.name || itm.description} ({itm.partNumber})
+                                                                    <li key={itm.Id} onClick={() => {
+                                                                            const detailsObj = {
+                                                                                ...itm,
+                                                                                ...Object.entries(itm.details).reduce((acc, [key, value]) => {
+                                                                                  acc[`${key}_Details`] = value;
+                                                                                  return acc;
+                                                                                }, {})
+                                                                              };
+                                                                            const label = detailsObj?.Description || itm.Description || itm.Code || "";
+                                                                            setFormItems(prev => prev.map((itmRef, i) => i === idx ? {
+                                                                                ...itmRef,
+                                                                                id: itmRef.id ?? null,
+                                                                                rfqId: itmRef.rfqId ?? null,
+                                                                                itemId: itm.Id,
+                                                                                item_id: itm.Id,
+                                                                                quantity: itmRef.quantity || 1,
+                                                                                selectedVendorId: null,
+                                                                                leadTime: null,
+                                                                                unitPrice: null,
+                                                                                details: detailsObj,
+                                                                                // initialize visible name/search so input is editable immediately
+                                                                                name: label,
+                                                                                searchQuery: label,
+                                                                                showDropdown: false,
+                                                                                
+                                                                            } : itmRef));
+                                                                        }} className="px-3 py-2 cursor-pointer hover:bg-gray-100 text-sm" style={{ listStyle: 'none' }}>
+                                                                        {`${itm.Description} - ${itm.Code}`}
                                                                     </li>
                                                                 ))}
-                                                                    {(itemsList || []).filter(i => (i.name || i.description || "").toLowerCase().includes((item.searchQuery || item.name || "").toLowerCase())).length === 0 && (
+                                                                    {(itemsList || []).filter(i => (i.Description || i.description || "").toLowerCase().includes((item.searchQuery || item.name || "").toLowerCase())).length === 0 && (
                                                                     <li className="px-3 py-2 text-gray-500 text-sm" style={{ listStyle: 'none' }}>No results found</li>
                                                                 )}
                                                             </ul>
@@ -254,28 +233,13 @@ export default function RFQDetailsForm({ rfq, setFormData, formItems, setFormIte
                                                 </div>
                                             </td>
                                             <td className="text-sm p-2 align-middle">
-                                                <input
-                                                    type="text"
-                                                    value={item.brand || item.BRAND_ID || ""}
-                                                    readOnly
-                                                    className="w-full rounded border border-gray-200 px-2 py-1 text-sm bg-gray-100"
-                                                />
+                                                <input type="text" value={item.details?.BRAND_ID || item.BRAND_ID || ""} readOnly className="w-full rounded border border-gray-200 px-2 py-1 text-sm bg-gray-100" />
                                             </td>
                                             <td className="text-sm p-2 align-middle">
-                                                <input
-                                                    type="text"
-                                                    value={item.description || item.Description || ""}
-                                                    readOnly
-                                                    className="w-full rounded border border-gray-200 px-2 py-1 text-sm bg-gray-100"
-                                                />
+                                                <input type="text" value={item.details?.Description || item.Description || ""} readOnly className="w-full rounded border border-gray-200 px-2 py-1 text-sm bg-gray-100" />
                                             </td>
                                             <td className="text-sm p-2 align-middle">
-                                                <input
-                                                    type="text"
-                                                    value={item.partNumber || item.Code || ""}
-                                                    readOnly
-                                                    className="w-full rounded border border-gray-200 px-2 py-1 text-sm bg-gray-100"
-                                                />
+                                                <input type="text" value={item.details?.Code || item.Code || ""} readOnly className="w-full rounded border border-gray-200 px-2 py-1 text-sm bg-gray-100" />
                                             </td>
                                             <td className="text-sm p-2 align-middle">
                                                 <input
@@ -285,47 +249,29 @@ export default function RFQDetailsForm({ rfq, setFormData, formItems, setFormIte
                                                     className="w-full rounded border border-gray-200 px-2 py-1 text-sm bg-white"
                                                     onChange={e => {
                                                         const value = Math.max(1, Number(e.target.value));
-                                                        onItemChange(item.itemId, "quantity", value);
+                                                        // update by index so it works even before itemId exists
+                                                        setFormItems(prev => prev.map((itm, i) => i === idx ? { ...itm, quantity: value } : itm));
                                                     }}
                                                 />
                                             </td>
                                             <td className="text-sm p-2 align-middle">
-                                                <input
-                                                    type="text"
-                                                    value={item.unit || ""}
-                                                    readOnly
-                                                    className="w-full rounded border border-gray-200 px-2 py-1 text-sm bg-gray-100"
-                                                />
+                                                <input type="text" value={item.details?.SK_UOM || ""} readOnly className="w-full rounded border border-gray-200 px-2 py-1 text-sm bg-gray-100" />
                                             </td>
                                             <td className="text-sm p-2 align-middle">
-                                                <input
-                                                    type="text"
-                                                    value={item.leadTime || ""}
-                                                    readOnly
-                                                    className="w-full rounded border border-gray-200 px-2 py-1 text-sm bg-gray-100"
-                                                />
+                                                <input type="text" value={item.leadTime || ""} readOnly className="w-full rounded border border-gray-200 px-2 py-1 text-sm bg-gray-100" />
                                             </td>
                                             <td className="text-sm p-2 align-middle">
-                                                <input
-                                                    type="text"
-                                                    value={item.unitPrice || ""}
-                                                    readOnly
-                                                    className="w-full rounded border border-gray-200 px-2 py-1 text-sm bg-gray-100"
-                                                />
+                                                <input type="text" value={item.unitPrice || ""} readOnly className="w-full rounded border border-gray-200 px-2 py-1 text-sm bg-gray-100" />
                                             </td>
                                             <td className="text-sm p-2 align-middle">
-                                                <input
-                                                    type="text"
-                                                    value={`Php ${item.unitPrice * item.quantity || ""}`}
-                                                    readOnly
-                                                    className="w-full rounded border border-gray-200 px-2 py-1 text-sm bg-gray-100"
-                                                />
+                                                <input type="text" value={`Php ${item.unitPrice * item.quantity || ""}`} readOnly className="w-full rounded border border-gray-200 px-2 py-1 text-sm bg-gray-100" />
                                             </td>
                                             <td className="text-sm p-2 align-middle">
                                                 <button
                                                     type="button"
                                                     className="text-red-600 hover:text-red-800 text-sm"
-                                                    onClick={() => onRemoveItem(item.itemId)}>
+                                                    onClick={() => setFormItems(prev => prev.filter((_, i) => i !== idx))}
+                                                >
                                                     <LuTrash />
                                                 </button>
                                             </td>

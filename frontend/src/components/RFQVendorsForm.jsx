@@ -23,11 +23,12 @@ import { getVendorStatus } from "../helper/utils";
 const TRANSITION_MS = 150;
 
 export default function RFQVendorsForm({ rfq, setFormData, formItems, formVendors, setFormVendors, onVendorAction, onSendRFQ }) {
+    console.log("RFQVendorsForm props", { rfq, formItems, formVendors });
+    const getId = (x) => x?.Id ?? x?.id ?? null;
     const formData = rfq || {};
-    console.log("RFQVendorsForm render", { rfq, formData });
-    const vendorDisplayName = (v) => v?.name || v?.vendor?.Name || v?.vendor?.Name || "-";
-    const vendorContactPerson = (v) => v?.contactPerson || v?.vendor?.details?.[0]?.Name || v?.vendor?.details?.[0]?.EmailAddress || "-";
-    const vendorPhone = (v) => v?.phone || v?.vendor?.PhoneNumber || "-";
+    const vendorDisplayName = (v) => v?.Name_secondary || v?.Name || v?.vendor?.Name || v?.vendor?.Name || "-";
+    const vendorContactPerson = (v) => v?.Name || v?.contactPerson || v?.vendor?.details?.[0]?.Name || v?.vendor?.details?.[0]?.EmailAddress || "-";
+    const vendorPhone = (v) => v?.phone || v?.PhoneNumber || v?.vendor?.PhoneNumber || "-";
     // Modal state and selection logic
     const [modalOpen, setModalOpen] = useState(false);
     const [modalSelection, setModalSelection] = useState();
@@ -51,18 +52,8 @@ export default function RFQVendorsForm({ rfq, setFormData, formItems, formVendor
                     const mssqlData = await mssqlRes.json();
                     // mssql route returns { count, rows }
                     const rows = Array.isArray(mssqlData.rows) ? mssqlData.rows : [];
-                    const normalized = rows.map((v) => ({
-                        id: v.Id,
-                        vendorId: v.Id,
-                        name: v.Name || v.Code || "",
-                        contactPerson: v.details?.[0]?.Name || "",
-                        phone: v.PhoneNumber || "",
-                        email: v.details?.[0]?.EmailAddress || "",
-                        address: v.Address || "",
-                        // Keep original MSSQL row available as `vendor` for components that expect it
-                        vendor: v,
-                    }));
-                    setAllVendors(normalized);
+                    console.log("Fetched MSSQL vendors", rows);
+                    setAllVendors(rows);
                     return;
                 }
 
@@ -120,12 +111,20 @@ export default function RFQVendorsForm({ rfq, setFormData, formItems, formVendor
     const toggleMenu = (userId) => {
         if (openMenuId === userId) {
             startClose();
-        } else if (isMounted) {
+            return;
+        }
+        // if we don't have a stored button ref (for example after an edit/re-render), fall back to openFor
+        const btn = buttonRefs.current[userId];
+        if (!btn) {
+            openFor(userId);
+            return;
+        }
+        if (isMounted) {
             if (closeTimeoutRef.current) {
                 clearTimeout(closeTimeoutRef.current);
                 closeTimeoutRef.current = null;
             }
-            setMenuPosition(computePosition(buttonRefs.current[userId]));
+            setMenuPosition(computePosition(btn));
             setOpenMenuId(userId);
             setIsVisible(true);
         } else {
@@ -150,16 +149,20 @@ export default function RFQVendorsForm({ rfq, setFormData, formItems, formVendor
     };
 
     const handleAddVendors = (vendors) => {
+        // Use canonical id resolver (supports Id from MSSQL or id from local API)
+        const getId = (x) => x?.Id ?? x?.id ?? null;
         // Find vendor objects from allVendors by matching id in vendorObj
-        const addedVendors = allVendors.filter((v) => vendors.some((obj) => obj.id === v.id));
+        const addedVendors = allVendors.filter((v) => vendors.some((obj) => getId(obj) === getId(v)));
         // Only add vendors that are not already selected, and remove those not in modal selection
-        const prevIds = (formVendors || []).map((v) => v.id);
-        const modalIds = vendors.map((v) => v.id);
+        const prevIds = (formVendors || []).map((v) => getId(v));
+        const modalIds = vendors.map((v) => getId(v));
         const newSelection = [
-            ...(formVendors || []).filter(v => modalIds.includes(v.id)), // keep only those still selected
-            ...addedVendors.filter(v => !prevIds.includes(v.id)).map(v => ({
+            ...(formVendors || []).filter(v => modalIds.includes(getId(v))), // keep only those still selected
+            ...addedVendors.filter(v => !prevIds.includes(getId(v))).map(v => ({
+                // ensure we provide a consistent `id` field for downstream code
                 ...v,
-                vendorId: v.id, // backend vendor id reference
+                id: getId(v),
+                vendorId: getId(v), // backend vendor id reference
                 paymentTerms: "",
                 validUntil: "",
                 items: (formItems || []).map(item => ({ ...item, price: null, leadTime: "" })), // add items from formItems with null price and empty leadTime
@@ -169,16 +172,16 @@ export default function RFQVendorsForm({ rfq, setFormData, formItems, formVendor
         if (onVendorAction) {
             // If none selected, remove all
             if (modalIds.length === 0) {
-                formData.vendors.forEach((vendor) => onVendorAction(vendor.id, "delete"));
+                formData.vendors.forEach((vendor) => onVendorAction(getId(vendor), "delete"));
             } else {
                 addedVendors.forEach((vendor) => {
-                    if (!prevIds.includes(vendor.id)) {
-                        onVendorAction(vendor.id, "add", vendor);
+                    if (!prevIds.includes(getId(vendor))) {
+                        onVendorAction(getId(vendor), "add", vendor);
                     }
                 });
                 formData.vendors.forEach((vendor) => {
-                    if (!modalIds.includes(vendor.id)) {
-                        onVendorAction(vendor.id, "delete");
+                    if (!modalIds.includes(getId(vendor))) {
+                        onVendorAction(getId(vendor), "delete");
                     }
                 });
             }
@@ -191,10 +194,10 @@ export default function RFQVendorsForm({ rfq, setFormData, formItems, formVendor
 
     // Remove vendor handler
     const handleDelete = (vendorId) => {
-        setFormVendors(prev => (prev || []).filter((v) => v.id !== vendorId));
+        setFormVendors(prev => (prev || []).filter((v) => getId(v) !== vendorId));
         setFormData((prev) => ({
             ...prev,
-            vendors: (prev.vendors || []).filter((v) => v.id !== vendorId),
+            vendors: (prev.vendors || []).filter((v) => getId(v) !== vendorId),
         }));
         if (onVendorAction) onVendorAction(vendorId, "delete");
         startClose();
@@ -209,9 +212,11 @@ export default function RFQVendorsForm({ rfq, setFormData, formItems, formVendor
 
     // Ensure vendor items are updated and reflected in formData
     const handleVendorSave = (updatedVendor) => {
-        // update wrapper vendor list and persist
-        setFormVendors(prev => (prev || []).map(v => v.id === updatedVendor.id ? updatedVendor : v));
-        setFormData(prev => ({ ...prev, vendors: (prev.vendors || []).map(v => v.id === updatedVendor.id ? updatedVendor : v) }));
+        // update wrapper vendor list and persist (use canonical id)
+        const uid = getId(updatedVendor);
+        const normalized = { ...updatedVendor, id: uid };
+        setFormVendors(prev => (prev || []).map(v => getId(v) === uid ? normalized : v));
+        setFormData(prev => ({ ...prev, vendors: (prev.vendors || []).map(v => getId(v) === uid ? normalized : v) }));
         setShowVendorModal(false);
     };
 
@@ -291,9 +296,9 @@ export default function RFQVendorsForm({ rfq, setFormData, formItems, formVendor
                                         {getVendorStatus(vendor.quotes)}
                                     </div>
                                     <button
-                                        ref={(el) => (buttonRefs.current[vendor.id] = el)}
-                                        type="button"
-                                        onClick={() => toggleMenu(vendor.id)}
+                                                                ref={(el) => (buttonRefs.current[getId(vendor)] = el)}
+                                                                type="button"
+                                                                onClick={() => toggleMenu(getId(vendor))}
                                         className="h-8 rounded-md px-3 text-xs hover:bg-gray-100 transition-all cursor-pointer">
                                         <LuEllipsis className="h-4 w-4" />
                                     </button>
@@ -341,7 +346,7 @@ export default function RFQVendorsForm({ rfq, setFormData, formItems, formVendor
                                     <button
                                         type="button"
                                         className="rounded-md px-3 py-2 text-xs flex items-center hover:bg-gray-100 transition-all text-black cursor-pointer shadow-sm bg-white border border-gray-200"
-                                        onClick={() => onSendRFQ(id)}>
+                                        onClick={() => onSendRFQ(getId(vendor))}>
                                         <LuSend className="h-4 w-4 text-black mr-1" />
                                         Send RFQ
                                     </button>
@@ -356,7 +361,7 @@ export default function RFQVendorsForm({ rfq, setFormData, formItems, formVendor
             {isMounted &&
                 createPortal(
                     (() => {
-                        const vendor = (formVendors || []).find((v) => v.id === openMenuId);
+                        const vendor = (formVendors || []).find((v) => getId(v) === openMenuId);
                         const sendLabel = vendor?.status === "Quoted" ? "Resend RFQ" : "Send RFQ";
                         return (
                             <div

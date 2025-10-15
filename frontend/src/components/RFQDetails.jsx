@@ -291,14 +291,14 @@ const RFQDetails = ({ rfq, currentUser, onBack, onEdit, onPrint, onSubmit }) => 
                                     <tbody className="divide-y divide-gray-200">
                                         {items.map((item) => (
                                             <tr key={item.id} className="hover:bg-gray-100 transition-all duration-200">
-                                                <td className="text-sm p-2 align-middle">{item.Description}</td>
-                                                <td className="text-sm p-2 align-middle">{item.BRAND_ID}</td>
-                                                <td className="text-sm p-2 align-middle">{item.Code}</td>
+                                                <td className="text-sm p-2 align-middle">{item.details.Description}</td>
+                                                <td className="text-sm p-2 align-middle">{item.details.BRAND_ID}</td>
+                                                <td className="text-sm p-2 align-middle">{item.details.Code}</td>
                                                 <td className="text-sm p-2 align-middle">{item.quantity}</td>
-                                                <td className="text-sm p-2 align-middle">{item.unit}</td>
-                                                <td className="text-sm p-2 align-middle">{item.leadTime}</td>
-                                                <td className="text-sm p-2 align-middle">{item.unitPrice}</td>
-                                                <td className="text-sm p-2 align-middle">{item.unitPrice * item.quantity}</td>
+                                                <td className="text-sm p-2 align-middle">{item.details.SK_UOM}</td>
+                                                <td className="text-sm p-2 align-middle">{item.leadTime || "-"}</td>
+                                                <td className="text-sm p-2 align-middle">{item.unitPrice || "-"}</td>
+                                                <td className="text-sm p-2 align-middle">{(item.unitPrice * item.quantity) || "-"}</td>
                                             </tr>
                                         ))}
                                     </tbody>
@@ -316,7 +316,7 @@ const RFQDetails = ({ rfq, currentUser, onBack, onEdit, onPrint, onSubmit }) => 
                                         Subtotal:
                                     </span>
                                     <span>
-                                        {rfq.subtotal}
+                                        {rfq.subtotal || "-"}
                                     </span>
                                 </div>
                                 <div
@@ -326,7 +326,7 @@ const RFQDetails = ({ rfq, currentUser, onBack, onEdit, onPrint, onSubmit }) => 
                                         VAT (5%):
                                     </span>
                                     <span>
-                                        {rfq.vat}
+                                        {rfq.vat || "-"}
                                     </span>
                                 </div>
                                 <div
@@ -335,7 +335,7 @@ const RFQDetails = ({ rfq, currentUser, onBack, onEdit, onPrint, onSubmit }) => 
                                         Grand Total:
                                     </span>
                                     <span>
-                                        {rfq.grandTotal}
+                                        {rfq.grandTotal || "-"}
                                     </span>
                                 </div>
                             </div>

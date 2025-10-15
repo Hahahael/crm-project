@@ -23,16 +23,17 @@ function logAttributes(label, obj) {
 }
 
 // Merge primary (detail) and parent objects. Primary wins; parent fields that collide are stored as <key>_secondary
-function mergePrimaryWithParent(primary, parent) {
-    if (!parent) return primary || null;
-    if (!primary) return parent || null;
-    const out = { ...primary };
-    for (const k of Object.keys(parent)) {
-        if (Object.prototype.hasOwnProperty.call(out, k)) {
-            out[`${k}_secondary`] = parent[k];
-        } else {
-            out[k] = parent[k];
-        }
+function mergePrimaryWithParent(detail, parent) {
+    if (!detail && !parent) return null;
+    if (!parent) {
+      // Only detail — suffix everything with _Detail
+      return Object.fromEntries(Object.entries(detail).map(([k, v]) => [`${k}_Detail`, v]));
+    }
+    if (!detail) return parent;
+  
+    const out = { ...parent }; // start with stock (parent)
+    for (const [key, value] of Object.entries(detail)) {
+      out[`${key}_Detail`] = value; // always suffix detail fields
     }
     return out;
 }
@@ -41,17 +42,17 @@ function mergePrimaryWithParent(primary, parent) {
 router.get("/", async (req, res) => {
     try {
         const result = await db.query(`
-      SELECT 
-        r.*, 
-        u.username AS assignee_username,
-        sl.sl_number AS sl_number,
-        a.account_name AS account_name
-      FROM rfqs r
-      LEFT JOIN users u ON r.assignee = u.id
-      LEFT JOIN sales_leads sl ON r.sl_id = sl.id
-      LEFT JOIN accounts a ON r.account_id = a.id
-      ORDER BY r.id ASC
-    `);
+        SELECT 
+            r.*, 
+            u.username AS assignee_username,
+            sl.sl_number AS sl_number,
+            a.account_name AS account_name
+        FROM rfqs r
+        LEFT JOIN users u ON r.assignee = u.id
+        LEFT JOIN sales_leads sl ON r.sl_id = sl.id
+        LEFT JOIN accounts a ON r.account_id = a.id
+        ORDER BY r.id ASC
+        `);
         return res.json(result.rows);
     } catch (err) {
         console.error(err);
@@ -74,8 +75,7 @@ router.get("/vendors", async (req, res) => {
 router.get("/:id", async (req, res) => {
     try {
         const { id } = req.params;
-        const result = await db.query(
-            `
+        const result = await db.query(`
             SELECT 
                 r.*, 
                 u.username AS assignee_username,
@@ -99,23 +99,24 @@ router.get("/:id", async (req, res) => {
         let items = [];
         for (const ri of itemsRes.rows) {
             try {
-                const sdRes = await pool.request().input("id", ri.itemId).query("SELECT * FROM spidb.stock_details WHERE Id = @id");
-                const sRes = await pool.request().input("id", ri.itemId).query("SELECT * FROM spidb.stock WHERE Id = @id");
+                const sdRes = await pool.request().input("id", ri.itemId)
+                    .query("SELECT * FROM spidb.stock_details WHERE Stock_Id = @id");
+                const sRes = await pool.request().input("id", ri.itemId)
+                    .query("SELECT * FROM spidb.stock WHERE Id = @id");
                 logAttributes(`rfq item stock_details (id=${ri.itemId})`, sdRes.recordset || []);
                 logAttributes(`rfq item stock (id=${ri.itemId})`, sRes.recordset || []);
-                    const detailObj = sdRes && sdRes.recordset && sdRes.recordset[0] ? sdRes.recordset[0] : null;
-                    const parentObj = sRes && sRes.recordset && sRes.recordset[0] ? sRes.recordset[0] : null;
+                console.log(`rfq item sdRes (id=${ri.itemId})`, sdRes);
+                console.log(`rfq item sRes (id=${ri.itemId})`, sRes);
+
+                const detailObj = sdRes && sdRes.recordset && sdRes.recordset[0] ? sdRes.recordset[0] : null;
+                const parentObj = sRes && sRes.recordset && sRes.recordset[0] ? sRes.recordset[0] : null;
                 const merged = mergePrimaryWithParent(detailObj, parentObj);
+                let itemToPush = ri;
+
                 if (merged) {
-                    // ensure we include rfq_item metadata
-                    merged.id = ri.id;
-                    merged.itemId = ri.itemId || ri.item_id;
-                    merged.quantity = ri.quantity;
-                    merged.leadTime = ri.leadTime || ri.lead_time;
-                    merged.unitPrice = ri.unitPrice || ri.unit_price;
-                    items.push(merged);
+                    itemToPush = { ...itemToPush, details: merged };
                 } else {
-                    items.push({ id: ri.id, itemId: ri.itemId || ri.item_id, quantity: ri.quantity, leadTime: ri.leadTime || ri.lead_time, unitPrice: ri.unitPrice || ri.unit_price});
+                    items.push(itemToPush);
                 }
             } catch (err) {
                 console.error("Error resolving/merging MSSQL item for rfq_item", ri, err);
@@ -130,17 +131,23 @@ router.get("/:id", async (req, res) => {
         for (const rv of vendorsRes.rows) {
             try {
                 // fetch parent vendor and its details
-                const parentRes = await pool.request().input("id", rv.vendorId).query("SELECT * FROM spidb.vendor WHERE Id = @id");
-                const detailsRes = await pool
-                    .request()
-                    .input("vendor_id", rv.vendorId)
+                const parentRes = await pool.request().input("id", rv.vendorId)
+                    .query("SELECT * FROM spidb.vendor WHERE Id = @id");
+                const detailsRes = await pool.request().input("vendor_id", rv.vendorId)
                     .query("SELECT * FROM spidb.vendor_details WHERE Vendor_Id = @vendor_id");
                 logAttributes(`rfq vendor parent (id=${rv.vendor_id})`, parentRes.recordset || []);
                 logAttributes(`rfq vendor details (vendor_id=${rv.vendor_id})`, detailsRes.recordset || []);
+
                 const parent = parentRes && parentRes.recordset && parentRes.recordset[0] ? parentRes.recordset[0] : null;
                 const detail = detailsRes && detailsRes.recordset && detailsRes.recordset[0] ? detailsRes.recordset[0] : null;
                 const merged = mergePrimaryWithParent(detail, parent);
-                vendors.push(merged);
+                let vendorToPush = rv;
+
+                if (merged) {
+                    vendorToPush = { ...vendorToPush, details: merged };
+                } else {
+                    vendors.push(vendorToPush);
+                }
             } catch (err) {
                 console.error("Error resolving MSSQL vendor for rfq_vendor", rv, err);
                 vendors.push({ id: rv.id, vendorId: rv.vendor_id, quotes: [] });
@@ -151,8 +158,7 @@ router.get("/:id", async (req, res) => {
         console.log("Final vendors before quotations:", vendors);
 
         // Get quotations with item and vendor details
-        const quotationsRes = await db.query(
-            `
+        const quotationsRes = await db.query(`
             SELECT q.*
             FROM rfq_quotations q
             WHERE q.rfq_id = $1
@@ -169,18 +175,18 @@ router.get("/:id", async (req, res) => {
         });
 
         // Set price & leadTime for items based on selected quote
-        items = items.map((item) => {
-            // Find selected quote for this item
-            const selectedQuote = quotations.find((q) => q.itemId === item.itemId && q.isSelected);
-            if (selectedQuote) {
-                return {
-                    ...item,
-                    unitPrice: selectedQuote.unitPrice,
-                    leadTime: selectedQuote.leadTime,
-                };
-            }
-            return item;
-        });
+        // items = items.map((item) => {
+        //     // Find selected quote for this item
+        //     const selectedQuote = quotations.find((q) => q.itemId === item.itemId && q.isSelected);
+        //     if (selectedQuote) {
+        //         return {
+        //             ...item,
+        //             unitPrice: selectedQuote.unitPrice,
+        //             leadTime: selectedQuote.leadTime,
+        //         };
+        //     }
+        //     return item;
+        // });
 
         console.log("Final items with prices and lead times:", items);
         console.log("Final vendors", vendors);
@@ -188,7 +194,6 @@ router.get("/:id", async (req, res) => {
 
         rfq.items = items;
         rfq.vendors = vendors;
-        // Optionally, you can remove rfq.quotations if not needed in response
 
         return res.json(rfq);
     } catch (err) {
@@ -206,8 +211,8 @@ router.post("/", async (req, res) => {
 
         // Generate TR number
         const currentYear = new Date().getFullYear();
-        const result = await db.query(
-            `SELECT rfq_number
+        const result = await db.query(`
+            SELECT rfq_number
             FROM rfqs
             WHERE rfq_number LIKE $1
             ORDER BY rfq_number DESC
@@ -231,8 +236,8 @@ router.post("/", async (req, res) => {
         }
 
         // Insert into DB
-        const insertResult = await db.query(
-            `INSERT INTO rfqs 
+        const insertResult = await db.query(`
+            INSERT INTO rfqs 
             (wo_id, assignee, rfq_number, stage_status, due_date, sl_id, account_id, created_at, created_by, updated_at)
             VALUES ($1,$2,$3,$4,$5,$6,$7,NOW(),$8,NOW())
             RETURNING id`,
@@ -256,14 +261,14 @@ router.post("/", async (req, res) => {
         }
 
         // Create workflow stage for new technical recommendation (Draft)
-        await db.query(
-            `INSERT INTO workflow_stages (wo_id, stage_name, status, assigned_to, created_at, updated_at)
+        await db.query(`
+            INSERT INTO workflow_stages (wo_id, stage_name, status, assigned_to, created_at, updated_at)
             VALUES ($1, $2, $3, $4, NOW(), NOW())`,
             [wo_id, "RFQ", "Draft", assignee]
         );
 
-        const final = await db.query(
-            `SELECT r.*, u.username AS assignee_username, a.account_name AS account_name
+        const final = await db.query(`
+            SELECT r.*, u.username AS assignee_username, a.account_name AS account_name
             FROM rfqs r
             LEFT JOIN users u ON r.assignee = u.id
             LEFT JOIN accounts a ON r.account_id = a.id
@@ -308,10 +313,13 @@ router.put("/:id", async (req, res) => {
 
         const updateResult = await db.query(
             `UPDATE rfqs 
-       SET 
-        wo_id=$1, assignee=$2, rfq_number=$3, due_date=$4, description=$5, sl_id=$6, account_id=$7, payment_terms=$8, notes=$9, subtotal=$10, vat=$11, grand_total=$12, actual_date=$13, actual_from_time=$14, created_at=$15, updated_by=$16, updated_at=NOW()
-       WHERE id=$17
-       RETURNING id`,
+            SET 
+                wo_id=$1, assignee=$2, rfq_number=$3, due_date=$4, description=$5,
+                sl_id=$6, account_id=$7, payment_terms=$8, notes=$9, subtotal=$10,
+                vat=$11, grand_total=$12, actual_date=$13, actual_from_time=$14, created_at=$15,
+                updated_by=$16, updated_at=NOW()
+            WHERE id=$17
+            RETURNING id`,
             [
                 body.wo_id,
                 body.assignee,

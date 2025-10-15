@@ -78,7 +78,7 @@ export default function RFQsPage() {
                 setNewAssignedRFQs(data);
             }
         } catch (err) {
-            console.error("Failed to fetch assigned workorders", err);
+            console.error("Failed to fetch assigned RFQs", err);
         }
     };
 
@@ -202,21 +202,6 @@ export default function RFQsPage() {
             setError("Failed to submit technical recommendation for approval");
         }
     }
-
-    const fetchNewRFQs = async () => {
-        console.log("fetchNewRFQs called");
-        if (!currentUser) return;
-        try {
-            const res = await apiBackendFetch(`/api/workflow-stages/assigned/latest/${currentUser.id}/${encodeURIComponent("RFQ")}`);
-
-            if (res.ok) {
-                const data = await res.json();
-                setNewAssignedRFQs(data);
-            }
-        } catch (err) {
-            console.error("Failed to fetch assigned RFQs", err);
-        }
-    };
 
     const fetchRFQById = async (rfqId) => {
         if (!currentUser) return;
@@ -360,7 +345,7 @@ export default function RFQsPage() {
                                                 fetchRFQById(newAssignedRFQs[0].id);
                                             }}
                                             className="inline-flex items-center justify-center whitespace-nowrap font-medium transition-colors shadow h-8 rounded-md px-3 text-xs bg-amber-600 hover:bg-amber-700 text-white cursor-pointer">
-                                            Open Technical Recommendation
+                                            Open Request for Quotation
                                         </button>
                                     </div>
                                 </div>
@@ -456,7 +441,7 @@ export default function RFQsPage() {
                             setSelectedRFQ(updatedRFQ);
                             // Optionally, update the RFQs array as well:
                             setRFQs((prev) => prev.map((tr) => (tr.id === updatedRFQ.id ? updatedRFQ : tr)));
-                            fetchNewRFQs(); // <-- refresh from backend
+                            fetchNewAssignedRFQs(); // <-- refresh from backend
                         }}
                         onSubmit={(selectedRFQ) => {handleSubmitForApproval(selectedRFQ)}}
                     />

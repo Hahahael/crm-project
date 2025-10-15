@@ -347,7 +347,12 @@ router.get("/assigned/latest/:id/:stageName", async (req, res) => {
         if (stage.includes("sales lead") || stage.includes("sl")) {
             // For sales_leads: join users for username/department, include slNumber
             query = `
-                SELECT ws.*, sl.*, sl.sl_number AS slNumber, u.username AS se_username, u.department AS se_department, a.account_name AS account_name
+                SELECT
+                    ws.*,
+                    sl.*,
+                    sl.sl_number AS slNumber,
+                    u.username AS se_username,
+                    a.account_name AS account_name
                 FROM workflow_stages ws
                 INNER JOIN (
                     SELECT wo_id, MAX(created_at) AS max_created

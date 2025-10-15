@@ -245,7 +245,7 @@ const TechnicalDetails = ({ technicalReco, currentUser, onBack, onEdit, onSave, 
                             </thead>
                             <tbody>
                             {technicalReco.items?.map((prod, idx) => {
-                                const price = prod.unitPrice ?? prod.LocalPrice ?? prod.Price ?? 0;
+                                const price = prod.unitPrice || prod.LocalPrice || prod.Price || prod.SourcePrice || 0;
                                 const total = prod.quantity * price;
 
                                 return (
@@ -267,7 +267,7 @@ const TechnicalDetails = ({ technicalReco, currentUser, onBack, onEdit, onSave, 
                                     Php{" "}
                                     {(
                                         (technicalReco.items || []).reduce((sum, i) => {
-                                            const price = i.unitPrice ?? i.LocalPrice ?? i.Price ?? 0;
+                                            const price = i.unitPrice || i.LocalPrice || i.Price || i.SourcePrice || 0;
                                             const qty = i.quantity ?? 0;
                                             return sum + qty * price;
                                         }, 0)

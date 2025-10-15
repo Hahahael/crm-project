@@ -42,7 +42,7 @@ router.get('/vendors', async (req, res) => {
     // attach details to vendors
     const vendors = vendorsResult.recordset.map(v => ({
       ...v,
-      details: details.filter(d => d.Vendor_Id === v.Id)
+      details: details.find(d => d.Vendor_Id === v.Id) || {}
     }));
 
     return res.json({ count: vendorsResult.recordset.length, rows: vendors });
@@ -88,7 +88,7 @@ router.get('/stocks', async (req, res) => {
       details = detRes.recordset;
     }
 
-    const stocks = stocksResult.recordset.map(s => ({ ...s, details: details.filter(d => d.Stock_Id === s.Id) }));
+    const stocks = stocksResult.recordset.map(s => ({ ...s, details: details.find(d => d.Stock_Id === s.Id) || {} }));
 
     return res.json({ count: stocksResult.recordset.length, rows: stocks });
   } catch (err) {

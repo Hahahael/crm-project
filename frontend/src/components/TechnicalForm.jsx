@@ -1,10 +1,9 @@
 import { useState, useEffect, useRef } from "react";
 import { LuArrowLeft, LuCheck, LuPlus, LuSave, LuX, LuTrash } from "react-icons/lu";
 import { apiBackendFetch } from "../services/api";
-import utils from "../helper/utils.js";
 
 const TechnicalForm = ({ technicalReco, mode, onSave, onBack, onSubmitForApproval }) => {
-    const [errors, setErrors] = useState(null);
+    const [errors, setErrors] = useState({});
     const [itemsList, setItemsList] = useState([ {} ]);
     const [trItems, setTrItems] = useState([]);
     const nextTempIdRef = useRef(-1);
@@ -33,8 +32,8 @@ const TechnicalForm = ({ technicalReco, mode, onSave, onBack, onSubmitForApprova
 
     // 🔹 user search state
     const [users, setUsers] = useState([]);
-    const [searchQuery, setSearchQuery] = useState("");
-    const [dropdownOpen, setDropdownOpen] = useState(false);
+    const [searchQuery, _setSearchQuery] = useState("");
+    const [_dropdownOpen, _setDropdownOpen] = useState(false);
     const assigneeRef = useRef(null);
 
     const onItemChange = (itemId, field, value) => {
@@ -51,6 +50,17 @@ const TechnicalForm = ({ technicalReco, mode, onSave, onBack, onSubmitForApprova
         const newItem = { id: tempId, item_id: null, name: "", model: "", description: "", quantity: 1, unitPrice: 0, showDropdown: false, searchQuery: "" };
         setTrItems((prevItems) => [...prevItems, newItem]);
     };
+
+    // Clear product recommendation error as soon as there's at least one product
+    useEffect(() => {
+        if (trItems && trItems.length > 0 && errors?.products) {
+            setErrors(prev => {
+                const copy = { ...(prev || {}) };
+                delete copy.products;
+                return copy;
+            });
+        }
+    }, [trItems, errors]);
 
     // fetch users once
     useEffect(() => {
@@ -89,13 +99,13 @@ const TechnicalForm = ({ technicalReco, mode, onSave, onBack, onSubmitForApprova
     }, []);
 
     // filter users by search
-    const filteredUsers = users.filter((u) => u.username.toLowerCase().includes(searchQuery.toLowerCase()));
+    const _filteredUsers = users.filter((u) => u.username.toLowerCase().includes(searchQuery.toLowerCase()));
 
     // close dropdown on outside click
     useEffect(() => {
         const handleClickOutside = (e) => {
             if (assigneeRef.current && !assigneeRef.current.contains(e.target)) {
-                setDropdownOpen(false);
+                _setDropdownOpen(false);
             }
         };
         document.addEventListener("mousedown", handleClickOutside);
@@ -105,7 +115,7 @@ const TechnicalForm = ({ technicalReco, mode, onSave, onBack, onSubmitForApprova
     // load initial (editing) data
     useEffect(() => {
         if (technicalReco && Object.keys(technicalReco).length > 0) {
-            setFormData((prev) => ({ ...prev, ...technicalReco }));
+            setFormData((_prev) => ({ ..._prev, ...technicalReco }));
             // 🟢 If technicalReco has items, populate them into trItems
             if (technicalReco.items && Array.isArray(technicalReco.items)) {
                 setTrItems(technicalReco.items.map((item) => ({
@@ -121,7 +131,7 @@ const TechnicalForm = ({ technicalReco, mode, onSave, onBack, onSubmitForApprova
                 })));
             }
         } else if (technicalReco && Object.keys(technicalReco).length === 0) {
-            setFormData((prev) => ({
+            setFormData({
                 trNumber: "",
                 status: "Draft",
                 priority: "Medium",
@@ -141,7 +151,7 @@ const TechnicalForm = ({ technicalReco, mode, onSave, onBack, onSubmitForApprova
                 attachments: [],
                 additionalNotes: "",
                 items: [],
-            }));
+            });
         }
     }, [technicalReco]);
 
@@ -155,54 +165,46 @@ const TechnicalForm = ({ technicalReco, mode, onSave, onBack, onSubmitForApprova
             [name]: newValue,
         }));
 
-        setErrors((prevErrors) => {
-            if (!prevErrors) return prevErrors;
-            if (newValue !== "" && newValue !== null && newValue !== undefined) {
-                const { [name]: removed, ...rest } = prevErrors;
-                console.log(rest);
-                return rest;
+        // Clear error for this field when user edits it
+        setErrors((prev) => {
+            if (!prev) return {};
+            const copy = { ...prev };
+            if (Object.prototype.hasOwnProperty.call(copy, name)) {
+                delete copy[name];
             }
-            console.log(prevErrors);
-            return prevErrors;
+            return copy;
         });
+    };
+
+    const validateForm = () => {
+        const err = {};
+        // required fields
+        if (!formData.priority) err.priority = "Priority is required.";
+        if (!formData.title || formData.title.toString().trim() === "") err.title = "Title is required.";
+        if (!formData.contactPerson || formData.contactPerson.toString().trim() === "") err.contactPerson = "Contact person is required.";
+        if (!formData.contactEmail || !/^\S+@\S+\.\S+$/.test(formData.contactEmail)) err.contactEmail = "A valid contact email is required.";
+        if (!formData.contactNumber || formData.contactNumber.toString().trim().length < 7) err.contactNumber = "A valid contact phone is required.";
+        if (!formData.currentSystem || formData.currentSystem.toString().trim() === "") err.currentSystem = "Current system is required.";
+        if (!formData.currentSystemIssues || formData.currentSystemIssues.toString().trim() === "") err.currentSystemIssues = "System issues are required.";
+        if (!formData.proposedSolution || formData.proposedSolution.toString().trim() === "") err.proposedSolution = "Proposed solution is required.";
+        if (!formData.technicalJustification || formData.technicalJustification.toString().trim() === "") err.technicalJustification = "Technical justification is required.";
+        // products: use trItems as product recommendations
+        if (!trItems || !Array.isArray(trItems) || trItems.length === 0) err.products = "At least one product recommendation is required.";
+
+        const valid = Object.keys(err).length === 0;
+        return { valid, errors: err };
     };
 
     const handleSubmit = (e) => {
         e.preventDefault();
+        const { valid, errors: validationErrors } = validateForm(false);
+        if (!valid) {
+            setErrors(validationErrors);
+            window.scrollTo({ top: 0, behavior: "smooth" });
+            return;
+        }
 
-        // Destructure optional + WO number
-        const {
-            products,
-            trNumber,
-            installationRequirements,
-            trainingRequirements,
-            maintenanceRequirements,
-            attachments,
-            additionalNotes,
-            ...requiredFields
-        } = formData;
-
-        // Find missing required fields
-        // const missing = Object.entries(requiredFields).filter(([, value]) => value === "" || value === null || value === undefined);
-
-        // console.log("Missing fields:", missing);
-
-        // if (missing.length > 0) {
-        //     // Mark missing fields as errors
-        //     const newErrors = {};
-        //     missing.forEach(([key]) => {
-        //         newErrors[key] = true;
-        //     });
-        //     setErrors(newErrors);
-        //     return;
-        // }
-
-        console.log("Form data is valid, submitting:", formData);
-
-        // ✅ Reset errors if all fields are valid
-        setErrors({});
-
-        // ✅ Convert empty optional fields to null
+        // Convert empty optional fields to null and include trItems
         const cleanedFormData = {
             ...formData,
             installationRequirements: formData.installationRequirements || null,
@@ -212,34 +214,19 @@ const TechnicalForm = ({ technicalReco, mode, onSave, onBack, onSubmitForApprova
             items: trItems
         };
 
+        setErrors({});
         onSave(cleanedFormData, mode);
     };
 
     // Handler for submitting for approval
     const handleSubmitForApproval = async (e) => {
         e.preventDefault();
-        // Validate required fields as in handleSubmit
-        const {
-            products,
-            trNumber,
-            installationRequirements,
-            trainingRequirements,
-            maintenanceRequirements,
-            attachments,
-            additionalNotes,
-            trItems,
-            ...requiredFields
-        } = formData;
-        // const missing = Object.entries(requiredFields).filter(([, value]) => value === "" || value === null || value === undefined);
-        // if (missing.length > 0) {
-        //     const newErrors = {};
-        //     missing.forEach(([key]) => {
-        //         newErrors[key] = true;
-        //     });
-        //     setErrors(newErrors);
-        //     return;
-        // }
-        // setErrors({});
+        const { valid, errors: validationErrors } = validateForm(true);
+        if (!valid) {
+            setErrors(validationErrors);
+            window.scrollTo({ top: 0, behavior: "smooth" });
+            return;
+        }
         const cleanedFormData = {
             ...formData,
             status: "Submitted",
@@ -249,7 +236,6 @@ const TechnicalForm = ({ technicalReco, mode, onSave, onBack, onSubmitForApprova
             additionalNotes: formData.additionalNotes || null,
             items: trItems
         };
-        console.log(trItems);
         if (onSubmitForApproval) {
             onSubmitForApproval(cleanedFormData, mode);
         }
@@ -375,6 +361,7 @@ const TechnicalForm = ({ technicalReco, mode, onSave, onBack, onSubmitForApprova
                                     <option value="High">High</option>
                                     <option value="Critical">Critical</option>
                                 </select>
+                                {errors?.priority && <p className="text-red-600 text-sm mt-1">{errors.priority}</p>}
                             </div>
                         </div>
                         {/* Title and Sales Lead Ref */}
@@ -394,6 +381,7 @@ const TechnicalForm = ({ technicalReco, mode, onSave, onBack, onSubmitForApprova
                                     onChange={handleChange}
                                     placeholder="Enter a descriptive title"
                                 />
+                                {errors?.title && <p className="text-red-600 text-sm mt-1">{errors.title}</p>}
                             </div>
                             <div>
                                 <label
@@ -442,6 +430,7 @@ const TechnicalForm = ({ technicalReco, mode, onSave, onBack, onSubmitForApprova
                                         ${errors?.contactPerson ? "border-red-500" : "border-gray-200"}`}
                                     onChange={handleChange}
                                 />
+                                {errors?.contactPerson && <p className="text-red-600 text-sm mt-1">{errors.contactPerson}</p>}
                             </div>
                             <div>
                                 <label
@@ -458,6 +447,7 @@ const TechnicalForm = ({ technicalReco, mode, onSave, onBack, onSubmitForApprova
                                         ${errors?.contactEmail ? "border-red-500" : "border-gray-200"}`}
                                     onChange={handleChange}
                                 />
+                                {errors?.contactEmail && <p className="text-red-600 text-sm mt-1">{errors.contactEmail}</p>}
                             </div>
                             <div>
                                 <label
@@ -473,6 +463,7 @@ const TechnicalForm = ({ technicalReco, mode, onSave, onBack, onSubmitForApprova
                                         ${errors?.contactNumber ? "border-red-500" : "border-gray-200"}`}
                                     onChange={handleChange}
                                 />
+                                {errors?.contactNumber && <p className="text-red-600 text-sm mt-1">{errors.contactNumber}</p>}
                             </div>
                         </div>
                     </div>
@@ -501,6 +492,7 @@ const TechnicalForm = ({ technicalReco, mode, onSave, onBack, onSubmitForApprova
                                     ${errors?.currentSystem ? "border-red-500" : "border-gray-200"}`}
                                 placeholder="Describe the current system in detail"
                             />
+                                {errors?.currentSystem && <p className="text-red-600 text-sm mt-1">{errors.currentSystem}</p>}
                         </div>
                         <div>
                             <label
@@ -518,6 +510,7 @@ const TechnicalForm = ({ technicalReco, mode, onSave, onBack, onSubmitForApprova
                                     ${errors?.currentSystemIssues ? "border-red-500" : "border-gray-200"}`}
                                 placeholder="Describe the issues with the current system"
                             />
+                                {errors?.currentSystemIssues && <p className="text-red-600 text-sm mt-1">{errors.currentSystemIssues}</p>}
                         </div>
                         <div>
                             <label
@@ -535,6 +528,7 @@ const TechnicalForm = ({ technicalReco, mode, onSave, onBack, onSubmitForApprova
                                 onChange={handleChange}
                                 placeholder="Describe the proposed solution in detail"
                             />
+                                {errors?.proposedSolution && <p className="text-red-600 text-sm mt-1">{errors.proposedSolution}</p>}
                         </div>
                         <div>
                             <label
@@ -552,7 +546,19 @@ const TechnicalForm = ({ technicalReco, mode, onSave, onBack, onSubmitForApprova
                                 onChange={handleChange}
                                 placeholder="Provide technical justification for the proposed solution"
                             />
+                                {errors?.technicalJustification && <p className="text-red-600 text-sm mt-1">{errors.technicalJustification}</p>}
                         </div>
+                    </div>
+                </div>
+
+                {/* Product Recommendations */}
+                <div className="rounded-xl border border-gray-200 p-6 shadow-sm">
+                    <div className="flex flex-col space-y-1.5 p-6">
+                        <h3 className="font-bold leading-none tracking-tight">Product Recommendations</h3>
+                        <p className="text-sm text-gray-500">Specify the products recommended for this solution</p>
+                        {errors?.products && <p className="text-red-600 text-sm mt-1 mb-2">{errors.products}</p>}
+                    </div>
+                    <div className="p-6 pt-0 space-y-4">
                         <div className="rounded-md border border-gray-200">
                             <div className="relative w-full overflow-overlay">
                                 <table className="min-w-full border-collapse text-left text-sm">
@@ -594,13 +600,13 @@ const TechnicalForm = ({ technicalReco, mode, onSave, onBack, onSubmitForApprova
                                                                     {(itemsList || [])
                                                                         .filter(i => {
                                                                             const text = (i.name || i.description || i.Description || i.Description || "").toLowerCase();
-                                                                            const q = (item.searchQuery || item.name || "").toLowerCase();
+                                                                            const q = (item.searchQuery || "").toLowerCase();
                                                                             const already = trItems.some(tr => tr.item_id === (i.Id || i.id));
                                                                             return text.includes(q) && !already;
                                                                         })
                                                                         .map((itm) => (
                                                                         <li
-                                                                            key={itm.id}
+                                                                            key={itm.Id}
                                                                             onClick={() => {
                                                                                 console.log("Selected item:", itm);
                                                                                 setTrItems((prevItems) => prevItems.map((it) =>
@@ -621,7 +627,7 @@ const TechnicalForm = ({ technicalReco, mode, onSave, onBack, onSubmitForApprova
                                                                             {itm.Description || itm.description || itm.Code || itm.code}
                                                                         </li>
                                                                     ))}
-                                                                    {(itemsList || []).filter(i => (i.name || i.description || "").toLowerCase().includes((item.searchQuery || item.name || "").toLowerCase())).length === 0 && (
+                                                                    {(itemsList || []).filter(i => (i.name || i.description || "").toLowerCase().includes((item.searchQuery || "").toLowerCase())).length === 0 && (
                                                                         <li className="px-3 py-2 text-gray-500 text-sm" style={{ listStyle: 'none' }}>No results found</li>
                                                                     )}
                                                                 </ul>

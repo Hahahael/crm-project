@@ -62,16 +62,47 @@ export default function RFQFormWrapper({ rfq, tab, mode = "create", onBack, onSa
     useEffect(() => {
         console.log("RFQ prop changed, syncing to formData", rfq);
         if (rfq && Object.keys(rfq).length > 0) {
-            const items = Array.isArray(rfq.items) ? [...rfq.items] : [];
-            const vendors = Array.isArray(rfq.vendors) ? [...rfq.vendors] : [];
-            setFormItems(items);
-            setFormVendors(vendors);
+            // Normalize incoming rfq items to the UI shape
+            const rawItems = Array.isArray(rfq.items) ? rfq.items : [];
+            const normalizedItems = rawItems.map((it) => {
+                const id = it.itemId ?? it.item_id ?? it.id ?? it.item_id ?? null;
+                console.log("Normalizing item", it);
+                return {
+                    id,
+                    ...it
+                };
+            });
+
+            // Normalize vendors and their quotes so item ids and quote fields are consistent
+            const rawVendors = Array.isArray(rfq.vendors) ? rfq.vendors : [];
+            const normalizedVendors = rawVendors.map((v) => ({
+                ...v,
+                quotes: (v.quotes || []).map((q) => {
+                    const itemId = q.itemId ?? q.item_id ?? q.item_id ?? null;
+                    const matchedItem = normalizedItems.find(it => it.itemId === itemId || it.id === itemId) || {};
+                    return {
+                        ...q,
+                        itemId,
+                        unitPrice: q.unitPrice ?? q.unit_price ?? q.price ?? null,
+                        quantity: q.quantity ?? q.Qty ?? q.qty ?? null,
+                        leadTime: q.leadTime ?? q.lead_time ?? "",
+                        // Include item metadata for easier rendering in vendor views
+                        _itemName: matchedItem.name || matchedItem.Description || "",
+                        _itemBrand: matchedItem.brand || matchedItem.BRAND_ID || "",
+                        _itemPartNumber: matchedItem.partNumber || matchedItem.part_number || matchedItem.Code || "",
+                        _itemUnit: matchedItem.unit || matchedItem.SK_UOM || "",
+                    };
+                }),
+            }));
+
+            setFormItems(normalizedItems);
+            setFormVendors(normalizedVendors);
             setFormData(prev => ({
                 ...prev,
                 ...rfq,
                 rfqDate: rfq.createdAt || prev.rfqDate,
-                items,
-                vendors,
+                items: normalizedItems,
+                vendors: normalizedVendors,
             }));
         } else if (rfq && Object.keys(rfq).length === 0) {
             setFormItems([]);

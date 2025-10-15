@@ -146,7 +146,7 @@ export default function RFQCanvassSheet({ rfq, formItems, formVendors, setFormIt
         let total = quotations.filter((q) => q.vendorId === vendor.vendorId).reduce((sum, q) => sum + q.total, 0);
         return {
             id: vendor.vendorId,
-            name: vendor.name || vendor.vendor?.Name || "-",
+            name: vendor.Name || vendor.vendor?.Name || vendor.name || "-",
             total: total,
             recommended: false, // will be set below
             diff: null, // will be set below
@@ -302,9 +302,9 @@ export default function RFQCanvassSheet({ rfq, formItems, formVendors, setFormIt
                                     <td>{/* Checkbox or selection logic here */}</td>
                                     <td>
                                         <div>
-                                            <p className="font-medium">{item.name || item.Description}</p>
+                                            <p className="font-medium">{item.name || item.details?.Description || "-"}</p>
                                             <p className="text-sm text-muted-foreground">
-                                                {item.brand || item.BRAND_ID || item.brand} - {item.partNumber || item.Code}
+                                                {item.brand || item.details?.BRAND_ID || item.BRAND_ID} - {item.partNumber || item.details?.Code || item.Code}
                                             </p>
                                             <p className="text-xs text-muted-foreground">
                                                 Qty: {item.quantity} {item.unit}

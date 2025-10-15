@@ -19,17 +19,22 @@ export default function VendorSelectionModal({ open, onClose, allVendors, select
 
     const filteredVendors = allVendors.filter((vendor) => {
         const q = search.toLowerCase();
-        const name = (vendor.name || vendor.vendor?.Name || "").toString().toLowerCase();
-        const contact = (vendor.contactPerson || vendor.vendor?.details?.[0]?.Name || vendor.vendor?.details?.[0]?.EmailAddress || "").toString().toLowerCase();
-        const email = (vendor.email || vendor.vendor?.details?.[0]?.EmailAddress || "").toString().toLowerCase();
-        return name.includes(q) || contact.includes(q) || email.includes(q);
+        const name = (vendor.Name || vendor.name || vendor.Code || "").toString().toLowerCase();
+        const contact = (vendor.details?.Name || vendor.contactPerson || "").toString().toLowerCase();
+        const email = (vendor.details?.EmailAddress || vendor.email || "").toString().toLowerCase();
+        const phone = (vendor.PhoneNumber || vendor.phone || "").toString().toLowerCase();
+        return name.includes(q) || contact.includes(q) || email.includes(q) || phone.includes(q);
     });
 
     const handleToggle = (id) => {
-        if (selectedVendors.some((v) => v.id === id)) {
-            onSelectVendor(selectedVendors.filter((v) => v.id !== id));
+        // id may be vendor.Id or vendor.id
+        const matchId = id;
+        const isSelected = selectedVendors.some((v) => (v.Id ?? v.id) === matchId);
+        if (isSelected) {
+            onSelectVendor(selectedVendors.filter((v) => (v.Id ?? v.id) !== matchId));
         } else {
-            onSelectVendor([...selectedVendors, allVendors.find((v) => v.id === id)]);
+            const found = allVendors.find((v) => (v.Id ?? v.id) === matchId);
+            if (found) onSelectVendor([...selectedVendors, found]);
         }
     };
 
@@ -81,37 +86,37 @@ export default function VendorSelectionModal({ open, onClose, allVendors, select
                     <div className="border border-gray-200 rounded-lg max-h-[400px] overflow-y-auto divide-y divide-gray-200">
                         {filteredVendors.map((vendor, idx) => (
                             <div
-                                key={vendor.id || idx}
+                                key={vendor.Id ?? vendor.id ?? idx}
                                 className={`p-4 transition-colors cursor-pointer ${
-                                    selectedVendors.some((v) => v.id === vendor.id) ? "bg-blue-50 border-l-4 border-blue-500" : "hover:bg-gray-50"
+                                    selectedVendors.some((v) => (v.Id ?? v.id) === (vendor.Id ?? vendor.id)) ? "bg-blue-50 border-l-4 border-blue-500" : "hover:bg-gray-50"
                                 }`}
-                                onClick={() => handleToggle(vendor.id)}>
+                                onClick={() => handleToggle(vendor.Id ?? vendor.id)}>
                                 <div className="flex items-start space-x-3">
                                     <input
                                         type="checkbox"
-                                        checked={selectedVendors.some((v) => v.id === vendor.id)}
-                                        onChange={() => handleToggle(vendor.id)}
+                                        checked={selectedVendors.some((v) => (v.Id ?? v.id) === (vendor.Id ?? vendor.id))}
+                                        onChange={() => handleToggle(vendor.Id ?? vendor.id)}
                                         className="peer h-4 w-4 shrink-0 rounded-sm border border-gray-400 shadow focus:outline-none focus:ring-2 focus:ring-blue-500 mt-1 accent-blue-600"
                                         tabIndex={0}
                                     />
                                     <div className="flex-1 min-w-0">
                                         <div className="flex items-center justify-between mb-2">
-                                            <h4 className="font-medium text-gray-900">{vendor.name || vendor.vendor?.Name || "-"}</h4>
+                                            <h4 className="font-medium text-gray-900">{vendor.Name || vendor.name || vendor.Code || "-"}</h4>
                                         </div>
                                         <div className="space-y-1 text-sm text-gray-500">
                                             <div className="flex items-center space-x-2">
                                                 <LuUser className="h-4 w-4" />
-                                                <span>{vendor.contactPerson || vendor.vendor?.details?.[0]?.Name || vendor.vendor?.details?.[0]?.EmailAddress || "-"}</span>
+                                                <span>{vendor.details?.Name || vendor.contactPerson || "-"}</span>
                                             </div>
                                             <div className="flex items-center space-x-2">
                                                 <LuPhone className="h-4 w-4" />
-                                                <span>{vendor.phone || vendor.vendor?.PhoneNumber || "-"}</span>
+                                                <span>{vendor.PhoneNumber || vendor.phone || "-"}</span>
                                             </div>
                                             <div className="flex items-center space-x-2">
                                                 <LuMail className="h-4 w-4" />
-                                                <span>{vendor.email || vendor.vendor?.details?.[0]?.EmailAddress || "-"}</span>
+                                                <span>{vendor.details?.EmailAddress || vendor.email || "-"}</span>
                                             </div>
-                                            <div className="text-xs text-gray-400 mt-1">{vendor.address || vendor.vendor?.Address || ""}</div>
+                                            <div className="text-xs text-gray-400 mt-1">{vendor.Address || vendor.address || ""}</div>
                                         </div>
                                     </div>
                                 </div>

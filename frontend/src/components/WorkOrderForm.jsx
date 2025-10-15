@@ -251,7 +251,7 @@ const WorkOrderForm = ({ workOrder, mode = "create", onSave, onBack }) => {
 
     // ---------- Validation helpers ----------
     const PHONE_RE = /^\+?[0-9\s\-().]{7,20}$/;
-    const TIME_RE = /^([01]\d|2[0-3]):([0-5]\d)$/; // HH:mm
+    const TIME_RE = /^([01]\d|2[0-3]):([0-5]\d)(?::([0-5]\d))?$/;
 
     function isValidDate(val) {
         if (!val) return false;
@@ -462,6 +462,7 @@ const WorkOrderForm = ({ workOrder, mode = "create", onSave, onBack }) => {
                             <div className="col-span-5 relative" ref={assigneeRef}>
                                 <input
                                     type="text"
+                                    autoComplete="off"
                                     value={formData.assigneeUsername || ""}
                                     onChange={(e) => {
                                         const q = e.target.value;
@@ -512,6 +513,7 @@ const WorkOrderForm = ({ workOrder, mode = "create", onSave, onBack }) => {
                                     <input
                                         type="text"
                                         name="accountName"
+                                        autoComplete="off"
                                         value={formData.accountName || ""}
                                         onChange={handleChange}
                                         className="w-full h-10 rounded-md border border-gray-200 px-3 py-2"
@@ -522,6 +524,7 @@ const WorkOrderForm = ({ workOrder, mode = "create", onSave, onBack }) => {
                                         <input
                                             type="text"
                                             name="accountSearch"
+                                            autoComplete="off"
                                             value={accounts.find(a => a.id === formData.accountId)?.accountName || accountQuery}
                                             onChange={(e) => {
                                                 setAccountQuery(e.target.value);
@@ -599,6 +602,7 @@ const WorkOrderForm = ({ workOrder, mode = "create", onSave, onBack }) => {
                                     <input
                                         type="text"
                                         name="productBrand"
+                                        autoComplete="off"
                                         value={productBrandQuery || formData.productBrand}
                                         onChange={(e) => {
                                             const q = e.target.value;
@@ -614,6 +618,7 @@ const WorkOrderForm = ({ workOrder, mode = "create", onSave, onBack }) => {
                                     <input
                                         type="text"
                                         name="productBrand"
+                                        autoComplete="off"
                                         value={formData.productBrand}
                                         className="w-full h-10 rounded-md border border-gray-200 bg-gray-100 px-3 py-2"
                                         readOnly
@@ -651,6 +656,7 @@ const WorkOrderForm = ({ workOrder, mode = "create", onSave, onBack }) => {
                                     <input
                                         type="text"
                                         name="department"
+                                        autoComplete="off"
                                         value={departmentQuery || formData.department}
                                         onChange={(e) => {
                                             const q = e.target.value;
@@ -666,6 +672,7 @@ const WorkOrderForm = ({ workOrder, mode = "create", onSave, onBack }) => {
                                     <input
                                         type="text"
                                         name="department"
+                                        autoComplete="off"
                                         value={formData.department}
                                         className="w-full h-10 rounded-md border border-gray-200 bg-gray-100 px-3 py-2"
                                         readOnly
@@ -703,6 +710,7 @@ const WorkOrderForm = ({ workOrder, mode = "create", onSave, onBack }) => {
                                     <input
                                         type="text"
                                         name="industry"
+                                        autoComplete="off"
                                         value={industryQuery || formData.industry}
                                         onChange={(e) => {
                                             const q = e.target.value;
@@ -718,6 +726,7 @@ const WorkOrderForm = ({ workOrder, mode = "create", onSave, onBack }) => {
                                     <input
                                         type="text"
                                         name="industry"
+                                        autoComplete="off"
                                         value={formData.industry}
                                         className="w-full h-10 rounded-md border border-gray-200 bg-gray-100 px-3 py-2"
                                         readOnly
@@ -794,6 +803,7 @@ const WorkOrderForm = ({ workOrder, mode = "create", onSave, onBack }) => {
                             <input
                                 type="date"
                                 name="woDate"
+                                autoComplete="off"
                                 value={formData.woDate}
                                 readOnly
                                 className="col-span-5 w-full h-10 rounded-md border border-gray-200 px-3 py-2 bg-gray-100 cursor-not-allowed"
@@ -807,6 +817,7 @@ const WorkOrderForm = ({ workOrder, mode = "create", onSave, onBack }) => {
                             <input
                                 type="date"
                                 name="dueDate"
+                                autoComplete="off"
                                 value={utils.formatDate(formData.dueDate, "YYYY-MM-DD")}
                                 onChange={handleChange}
                                 className="col-span-5 w-full h-10 rounded-md border border-gray-200 px-3 py-2"
@@ -820,6 +831,7 @@ const WorkOrderForm = ({ workOrder, mode = "create", onSave, onBack }) => {
                             <input
                                 type="time"
                                 name="fromTime"
+                                autoComplete="off"
                                 value={formData.fromTime}
                                 onChange={handleChange}
                                 className="col-span-5 w-full h-10 rounded-md border border-gray-200 px-3 py-2"
@@ -832,6 +844,7 @@ const WorkOrderForm = ({ workOrder, mode = "create", onSave, onBack }) => {
                             <input
                                 type="time"
                                 name="toTime"
+                                autoComplete="off"
                                 value={formData.toTime}
                                 onChange={handleChange}
                                 className="col-span-5 w-full h-10 rounded-md border border-gray-200 px-3 py-2"

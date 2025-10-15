@@ -154,10 +154,10 @@ export default function VendorEditModal({ open, onClose, vendor, onSave }) {
                     {/* Quotation Items Table */}
                     <div>
                         <label className="text-base font-medium">Quotation Items</label>
-                        <div className="border rounded-lg mt-2">
+                        <div className="border rounded-lg mt-2 border-gray-200 overflow-hidden">
                             <div className="overflow-x-auto">
-                                <table className="w-full">
-                                    <thead className="bg-gray-100">
+                                <table className="w-full border-collapse rounded-lg">
+                                    <thead className="bg-gray-100 rounded-t-lg">
                                         <tr>
                                             <th className="p-2 font-normal text-sm text-gray-500 text-left align-middle">Product Name</th>
                                             <th className="p-2 font-normal text-sm text-gray-500 text-left align-middle">Brand</th>
@@ -171,15 +171,15 @@ export default function VendorEditModal({ open, onClose, vendor, onSave }) {
                                             <th className="p-2 font-normal text-sm text-gray-500 text-left align-middle w-10"></th>
                                         </tr>
                                     </thead>
-                                    <tbody className="divide-y">
+                                    <tbody className="divide-y divide-gray-200">
                                         {quotes.map((q, idx) => (
                                             <tr key={idx}>
-                                                <td className="p-3">{q.name}</td>
-                                                <td className="p-3">{q.brand}</td>
-                                                <td className="p-3">{q.description}</td>
-                                                <td className="p-3">{q.partNumber}</td>
+                                                <td className="p-3">{q.details?.Description}</td>
+                                                <td className="p-3">{q.details?.BRAND_ID}</td>
+                                                <td className="p-3">{q.details?.Description}</td>
+                                                <td className="p-3">{q.details?.Code}</td>
                                                 <td className="p-3">{q.quantity}</td>
-                                                <td className="p-3">{q.unit}</td>
+                                                <td className="p-3">{q.details?.SK_UOM}</td>
                                                 <td className="p-3">
                                                     <input
                                                         className="flex h-9 rounded-md border border-gray-300 bg-white px-3 py-1 text-sm shadow-sm w-24 focus:outline-none focus:ring-1 focus:ring-blue-500"
@@ -204,7 +204,7 @@ export default function VendorEditModal({ open, onClose, vendor, onSave }) {
                                 </table>
                             </div>
                             {/* Totals */}
-                            <div className="border-t bg-gray-50 p-4">
+                            <div className="border-t border-gray-200 bg-gray-50 p-4">
                                 <div className="flex justify-end">
                                     <div className="text-right space-y-1">
                                         <div className="flex justify-between w-48">

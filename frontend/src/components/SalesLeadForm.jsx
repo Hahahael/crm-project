@@ -201,7 +201,7 @@ const SalesLeadForm = ({ salesLead, mode = "create", onSave, onBack, onSubmit })
 
     // ---------- Validation helpers ----------
     const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    const TIME_RE = /^([01]\d|2[0-3]):([0-5]\d)$/;
+    const TIME_RE = /^([01]\d|2[0-3]):([0-5]\d)(?::([0-5]\d))?$/;
 
     function isValidDate(val) {
         return !!val && dayjs(val).isValid();
@@ -212,6 +212,8 @@ const SalesLeadForm = ({ salesLead, mode = "create", onSave, onBack, onSubmit })
     }
 
     function validateForm(data) {
+        console.log("Validating form data:", data);
+
         const errors = {};
 
         // required simple fields
@@ -441,6 +443,7 @@ const SalesLeadForm = ({ salesLead, mode = "create", onSave, onBack, onSubmit })
                         <select
                             id="salesStage"
                             name="salesStage"
+                            autoComplete="off"
                             value={formData.salesStage}
                             onChange={handleChange}
                             placeholder="Select Sales Stage"
@@ -461,6 +464,7 @@ const SalesLeadForm = ({ salesLead, mode = "create", onSave, onBack, onSubmit })
                         <input
                             id="department"
                             name="department"
+                            autoComplete="off"
                             value={formData.accountDepartmentName}
                             readOnly
                             // onChange={handleChange}
@@ -526,6 +530,7 @@ const SalesLeadForm = ({ salesLead, mode = "create", onSave, onBack, onSubmit })
                         <select
                             id="category"
                             name="category"
+                            autoComplete="off"
                             value={formData.category}
                             onChange={handleChange}
                             className={`col-span-5 w-full rounded-md border px-3 py-2 focus:outline-1
@@ -543,6 +548,7 @@ const SalesLeadForm = ({ salesLead, mode = "create", onSave, onBack, onSubmit })
                         <select
                             id="application"
                             name="application"
+                            autoComplete="off"
                             value={formData.application}
                             onChange={handleChange}
                             className={`col-span-5 w-full rounded-md border px-3 py-2 focus:outline-1
@@ -571,6 +577,7 @@ const SalesLeadForm = ({ salesLead, mode = "create", onSave, onBack, onSubmit })
                         <select
                             id="machineProcess"
                             name="machineProcess"
+                            autoComplete="off"
                             value={formData.machineProcess}
                             onChange={handleChange}
                             className={`col-span-5 w-full rounded-md border px-3 py-2 focus:outline-1
@@ -642,6 +649,7 @@ const SalesLeadForm = ({ salesLead, mode = "create", onSave, onBack, onSubmit })
                         <select
                             id="supportNeeded"
                             name="supportNeeded"
+                            autoComplete="off"
                             value={formData.supportNeeded}
                             onChange={handleChange}
                             className={`col-span-5 w-full rounded-md border px-3 py-2 focus:outline-1
@@ -661,6 +669,7 @@ const SalesLeadForm = ({ salesLead, mode = "create", onSave, onBack, onSubmit })
                             name="urgency"
                             value={formData.urgency}
                             onChange={handleChange}
+                            autoComplete="off"
                             className={`col-span-5 w-full rounded-md border px-3 py-2 focus:outline-1
                 ${errors?.urgency ? "border-red-500" : "border-gray-200"}`}>
                             <option value="" disabled hidden>Select Urgency</option>
@@ -734,6 +743,7 @@ const SalesLeadForm = ({ salesLead, mode = "create", onSave, onBack, onSubmit })
                             id="nextFollowupDate"
                             name="nextFollowupDate"
                             type="date"
+                            autoComplete="off"
                             value={formData.nextFollowupDate}
                             onChange={handleChange}
                             className={`col-span-5 w-full rounded-md border px-3 py-2 focus:outline-1
@@ -747,6 +757,7 @@ const SalesLeadForm = ({ salesLead, mode = "create", onSave, onBack, onSubmit })
                             id="dueDate"
                             name="dueDate"
                             type="date"
+                            autoComplete="off"
                             value={formData.dueDate}
                             onChange={handleChange}
                             className={`col-span-5 w-full rounded-md border px-3 py-2 focus:outline-1
@@ -848,6 +859,7 @@ const SalesLeadForm = ({ salesLead, mode = "create", onSave, onBack, onSubmit })
                             name="category"
                             value={formData.category}
                             onChange={handleChange}
+                            autoComplete="off"
                             className={`col-span-5 w-full rounded-md border px-3 py-2 focus:outline-1
                 ${errors?.category ? "border-red-500" : "border-gray-200"}`}>
                             <option value="Direct Application">Direct Application</option>
@@ -896,6 +908,7 @@ const SalesLeadForm = ({ salesLead, mode = "create", onSave, onBack, onSubmit })
                             id="fslDate"
                             name="fslDate"
                             type="date"
+                            autoComplete="off"
                             value={formData.fslDate}
                             onChange={handleChange}
                             className={`col-span-5 w-full rounded-md border px-3 py-2 focus:outline-1
@@ -909,6 +922,7 @@ const SalesLeadForm = ({ salesLead, mode = "create", onSave, onBack, onSubmit })
                             id="fslTime"
                             name="fslTime"
                             type="time"
+                            autoComplete="off"
                             value={formData.fslTime}
                             onChange={handleChange}
                             className={`col-span-5 w-full rounded-md border px-3 py-2 focus:outline-1
@@ -976,6 +990,7 @@ const SalesLeadForm = ({ salesLead, mode = "create", onSave, onBack, onSubmit })
                             id="deadline"
                             name="deadline"
                             type="date"
+                            autoComplete="off"
                             value={formData.deadline}
                             onChange={handleChange}
                             className={`col-span-5 w-full rounded-md border px-3 py-2 focus:outline-1
@@ -999,6 +1014,7 @@ const SalesLeadForm = ({ salesLead, mode = "create", onSave, onBack, onSubmit })
                         <select
                             id="machineProcess"
                             name="machineProcess"
+                            autoComplete="off"
                             value={formData.machineProcess}
                             onChange={handleChange}
                             className={`col-span-5 w-full rounded-md border px-3 py-2 focus:outline-1
@@ -1064,7 +1080,7 @@ const SalesLeadForm = ({ salesLead, mode = "create", onSave, onBack, onSubmit })
                         rows={4}
                         value={formData.remarks}
                         onChange={handleChange}
-                        className="w-full bg-yellow-50 border px-3 py-1 rounded"
+                        className="w-full rounded-md border px-3 py-2 focus:outline-1 border-gray-200"
                         maxLength={2000}
                     />
                 </div>
