@@ -11,6 +11,7 @@ import RFQsPage from "./pages/RFQsPage";
 import AccountsPage from "./pages/AccountsPage";
 import ApprovalsPage from "./pages/ApprovalsPage";
 import QuotationsPage from "./pages/QuotationsPage";
+import CalendarPage from "./pages/CalendarPage";
 
 function App() {
   return (
@@ -93,6 +94,14 @@ function App() {
             element={
               <ProtectedRoute>
                 <ApprovalsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/calendar"
+            element={
+              <ProtectedRoute>
+                <CalendarPage />
               </ProtectedRoute>
             }
           />
