@@ -150,14 +150,13 @@ export default function SalesLeadsPage() {
 
             if (res.ok) {
                 const data = await res.json();
-                console.log("New assigned technical recommendations:", data);
+                console.log("New assigned sales leads:", data);
                 setNewAssignedSalesLeads(data);
             }
-            console.log("New Assigned Sales Leads:", newAssignedSalesLeads);
         } catch (err) {
             console.error("Failed to fetch assigned sales leads", err);
         }
-    }, [currentUser, newAssignedSalesLeads]);
+    }, [currentUser]);
 
     // Fetch a single sales lead and set as selected (details view)
     const fetchSelectedSL = useCallback(async (id) => {

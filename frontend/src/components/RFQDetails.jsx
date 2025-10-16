@@ -65,18 +65,62 @@ const RFQDetails = ({ rfq, currentUser, onBack, onEdit, onPrint, onSubmit }) => 
         // eslint-disable-next-line
     }, [rfq?.id, isAssignedToMe]);
 
-    // Vendor summary stats
+    // Vendor summary stats (derive status from quotes)
     const totalVendors = vendors.length;
-    const quotedVendors = vendors.filter(v => v.status === "Quoted").length;
-    const pendingVendors = vendors.filter(v => v.status === "Pending").length;
 
     const vendorDisplayName = (v) => {
-        return v?.Name_secondary || v?.name || v?.vendor?.Name || "-";
+        return v?.details?.Name || v?.name || v?.vendor?.Name || "-";
     };
 
     const vendorContactPerson = (v) => {
-        return v?.Name || v?.vendor?.details?.[0]?.Name || v?.vendor?.details?.[0]?.EmailAddress || "-";
+        return v?.details?.Name_Detail || v?.vendor?.details?.[0]?.Name || v?.vendor?.details?.[0]?.EmailAddress || "-";
     };
+
+    const checkVendorStatus = (v) => {
+        // prefer existing status if explicitly set
+        if (v?.status) return v.status;
+        const quotes = Array.isArray(v?.quotes) ? v.quotes : [];
+        if (quotes.length === 0) return "Pending";
+
+        const hasPrice = (q) => {
+            const p = q?.unit_price ?? q?.unitPrice ?? q?.price ?? q?.amount ?? q?.UnitPrice ?? q?.Unit_Price;
+            if (p === null || p === undefined) return false;
+            // empty string should be treated as absent
+            if (typeof p === "string" && p.trim() === "") return false;
+            return true;
+        };
+
+        const hasLeadTime = (q) => {
+            const lt = q?.lead_time ?? q?.leadTime ?? q?.LeadTime ?? q?.lead_time_text;
+            if (lt === null || lt === undefined) return false;
+            if (typeof lt === "string" && lt.trim() === "") return false;
+            return true;
+        };
+
+        let completeCount = 0;
+        for (const q of quotes) {
+            if (hasPrice(q) && hasLeadTime(q)) completeCount++;
+        }
+
+        if (completeCount === quotes.length) return "Quoted";
+        if (completeCount > 0) return "Incomplete";
+        return "Pending";
+    };
+
+    const getVendorTotal = (v) => {
+        const quotes = Array.isArray(v?.quotes) ? v.quotes : [];
+        return quotes.reduce((sum, q) => {
+            const qty = Number(q.quantity ?? q.qty ?? q.Qty) || 0;
+            const price = Number(
+                q.unit_price ?? q.unitPrice ?? q.price ?? q.amount ?? q.Unit_Price ?? q.UnitPrice
+            ) || 0;
+            return sum + qty * price;
+        }, 0);
+    };
+
+    const quotedVendors = vendors.filter(v => checkVendorStatus(v) === "Quoted").length;
+    const pendingVendors = vendors.filter(v => checkVendorStatus(v) === "Pending").length;
+    const incompleteVendors = vendors.filter(v => checkVendorStatus(v) === "Incomplete").length;
 
     // Phone is displayed directly via vendor.phone or via vendor.vendor.PhoneNumber when needed
 
@@ -102,17 +146,17 @@ const RFQDetails = ({ rfq, currentUser, onBack, onEdit, onPrint, onSubmit }) => 
                         className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-light shadow h-9 px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white"
                         onClick={() => onEdit(rfq, "canvass")}
                     >
-                        <LuChartBar className="mr-2" /> View Canvas Sheet
+                        <LuChartBar className="mr-2" /> View Canvass Sheet
                     </button>
                     <button
                         onClick={() => onEdit(rfq, "details")}
-                        className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-light shadow h-9 px-4 py-2 bg-purple-500 hover:bg-purple-600 text-white">
+                        className={`items-center justify-center whitespace-nowrap rounded-md text-sm font-light shadow h-9 px-4 py-2 bg-purple-500 hover:bg-purple-600 text-white ${(rfq.stageStatus === "Submitted" || rfq.stageStatus === "Approved") ? "hidden" : "inline-flex"}`}>
                         <LuPencil className="mr-2" />
                         Manage RFQ
                     </button>
                     <button
                         onClick={() => onSubmit(rfq)}
-                        className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-light shadow h-9 px-4 py-2 bg-purple-500 hover:bg-purple-600 text-white">
+                        className={`items-center justify-center whitespace-nowrap rounded-md text-sm font-light shadow h-9 px-4 py-2 bg-purple-500 hover:bg-purple-600 text-white ${(rfq.stageStatus === "Submitted" || rfq.stageStatus === "Approved") ? "hidden" : "inline-flex"}`}>
                         <LuFileCheck className="mr-2" />
                         Submit for Approval
                     </button>
@@ -138,7 +182,7 @@ const RFQDetails = ({ rfq, currentUser, onBack, onEdit, onPrint, onSubmit }) => 
                                 />
                                 <Detail
                                     label="RFQ Date:"
-                                    value={utils.formatDate(rfq.rfqDate, "DD/MM/YYYY")}
+                                    value={utils.formatDate(rfq.createdAt, "DD/MM/YYYY")}
                                 />
                                 <Detail
                                     label="Due Date:"
@@ -175,6 +219,10 @@ const RFQDetails = ({ rfq, currentUser, onBack, onEdit, onPrint, onSubmit }) => 
                                 <VendorDetail
                                     label="Pending:"
                                     value={pendingVendors}
+                                />
+                                <VendorDetail
+                                    label="Incomplete:"
+                                    value={incompleteVendors}
                                 />
                                 {/* Selected: implement if needed */}
                             </div>
@@ -297,8 +345,8 @@ const RFQDetails = ({ rfq, currentUser, onBack, onEdit, onPrint, onSubmit }) => 
                                                 <td className="text-sm p-2 align-middle">{item.quantity}</td>
                                                 <td className="text-sm p-2 align-middle">{item.details.SK_UOM}</td>
                                                 <td className="text-sm p-2 align-middle">{item.leadTime || "-"}</td>
-                                                <td className="text-sm p-2 align-middle">{item.unitPrice || "-"}</td>
-                                                <td className="text-sm p-2 align-middle">{(item.unitPrice * item.quantity) || "-"}</td>
+                                                <td className="text-sm p-2 align-middle">₱ {utils.formatNumber(item.unitPrice) || "-"}</td>
+                                                <td className="text-sm p-2 align-middle">₱ {utils.formatNumber(item.unitPrice * item.quantity) || "-"}</td>
                                             </tr>
                                         ))}
                                     </tbody>
@@ -316,7 +364,7 @@ const RFQDetails = ({ rfq, currentUser, onBack, onEdit, onPrint, onSubmit }) => 
                                         Subtotal:
                                     </span>
                                     <span>
-                                        {rfq.subtotal || "-"}
+                                        ₱ {utils.formatNumber(rfq.subtotal) || "-"}
                                     </span>
                                 </div>
                                 <div
@@ -326,7 +374,7 @@ const RFQDetails = ({ rfq, currentUser, onBack, onEdit, onPrint, onSubmit }) => 
                                         VAT (5%):
                                     </span>
                                     <span>
-                                        {rfq.vat || "-"}
+                                        ₱ {utils.formatNumber(rfq.vat) || "-"}
                                     </span>
                                 </div>
                                 <div
@@ -335,7 +383,7 @@ const RFQDetails = ({ rfq, currentUser, onBack, onEdit, onPrint, onSubmit }) => 
                                         Grand Total:
                                     </span>
                                     <span>
-                                        {rfq.grandTotal || "-"}
+                                        ₱ {utils.formatNumber(rfq.grandTotal) || "-"}
                                     </span>
                                 </div>
                             </div>
@@ -359,16 +407,16 @@ const RFQDetails = ({ rfq, currentUser, onBack, onEdit, onPrint, onSubmit }) => 
                                     </div>
                                 </div>
                                 <div className="flex">
-                                    <div className={`items-center rounded-md my-auto py-1 px-1.5 text-xs font-bold shadow ${vendor.status === "Quoted" ? "bg-green-100 text-green-800" : "bg-yellow-100 text-yellow-800"}`}>
-                                        {vendor.status}
+                                    <div className={`items-center rounded-md my-auto py-1 px-1.5 text-xs font-bold shadow ${checkVendorStatus(vendor) === "Quoted" ? "bg-green-100 text-green-800" : "bg-yellow-100 text-yellow-800"}`}>
+                                        {checkVendorStatus(vendor)}
                                     </div>
-                                    {vendor.status === "Quoted" ? (
+                                    {checkVendorStatus(vendor) === "Quoted" ? (
                                         <div className="flex flex-col items-end ml-4">
                                             <div>
-                                                <p className="font-bold">{vendor.grandTotal}</p>
+                                                <p className="font-bold">₱ {utils.formatNumber(getVendorTotal(vendor))}</p>
                                             </div>
                                             <div>
-                                                <p className="text-xs text-gray-500">Quote Date {utils.formatDate(vendor.quoteDate, "DD/MM/YYYY")}</p>
+                                                <p className="text-xs text-gray-500">Quote Date: {utils.formatDate(vendor.quoteDate, "DD/MM/YYYY") || "N/A"}</p>
                                             </div>
                                             {/* Add more fields as necessary */}
                                         </div>

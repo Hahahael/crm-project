@@ -197,7 +197,7 @@ export default function VendorEditModal({ open, onClose, vendor, onSave }) {
                                                         onChange={(e) => handleItemChange(idx, "unitPrice", e.target.value)}
                                                     />
                                                 </td>
-                                                <td className="p-3 font-medium">Php {(q.quantity * q.unitPrice).toFixed(2)}</td>
+                                                <td className="p-3 font-medium">₱ {(q.quantity * q.unitPrice).toFixed(2)}</td>
                                             </tr>
                                         ))}
                                     </tbody>

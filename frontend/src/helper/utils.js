@@ -71,6 +71,11 @@ export function getVendorStatus(items) {
   return "Pending";
 }
 
+export function formatNumber(value, decimals = 2) {
+  if (value === null || value === undefined || Number.isNaN(Number(value))) return "-";
+  return Number(value).toFixed(decimals);
+}
+
 export function calculateTimeliness(dueDate, doneDate = null, { graceDays = 0 } = {}) {
   if (!dueDate) return { status: "unknown", daysLate: null };
 
@@ -109,5 +114,6 @@ export default {
   formatDateOnly,
   formatTimeOnly,
   getVendorStatus,
+  formatNumber,
   calculateTimeliness
 };

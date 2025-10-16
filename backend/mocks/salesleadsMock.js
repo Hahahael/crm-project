@@ -5,7 +5,7 @@ export const salesLeads = [
         woId: 1,
         assignee: 1,
         accountId: 1,
-        stageStatus: "Pending",
+        stageStatus: "Submitted",
         endUser: null,
         department: null,
         contactNumber: "123-456-7890",

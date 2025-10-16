@@ -19,6 +19,7 @@ import rfqsRouter from "./routes/rfqsRoutes.js";
 import inventoryRouter from "./routes/inventoryRoutes.js";
 import quotationsRouter from "./routes/quotationsRoutes.js";
 import mssqlInventoryRoutes from './routes/mssqlInventoryRoutes.js';
+import dashboardRoutes from './routes/dashboardRoutes.js';
 
 
 const PORT = process.env.PORT || 5000;
@@ -78,6 +79,7 @@ app.use(authMiddleware);
 
 app.use('/api/mssql', mssqlRoutes);
 app.use('/api/mssql/inventory', mssqlInventoryRoutes);
+app.use('/api/dashboard', dashboardRoutes);
 
 app.use("/dashboard", usersRouter);
 app.use("/api/users", usersRouter);

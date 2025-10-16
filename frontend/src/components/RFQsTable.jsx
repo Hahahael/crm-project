@@ -112,7 +112,7 @@ export default function RFQsTable({ rfqs, onView, onEdit }) {
                   </button>
                   <button
                     onClick={() => onEdit(rfq)}
-                    className="cursor-pointer rounded px-2 py-1 text-black  border border-gray-200 bg-white hover:bg-gray-100 transition-all duration-200"
+                    className={`cursor-pointer rounded px-2 py-1 text-black  border border-gray-200 bg-white hover:bg-gray-100 transition-all duration-200 ${rfq.stageStatus === "Approved" ? "opacity-50 cursor-not-allowed hover:bg-white pointer-events-none" : ""}`}
                   >
                     <LuPencil className="my-auto" />
                   </button>

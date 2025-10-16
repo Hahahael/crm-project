@@ -4,7 +4,7 @@ import { apiBackendFetch } from "../services/api";
 
 const TechnicalForm = ({ technicalReco, mode, onSave, onBack, onSubmitForApproval }) => {
     const [errors, setErrors] = useState({});
-    const [itemsList, setItemsList] = useState([ {} ]);
+    const [itemsList, setItemsList] = useState([]);
     const [trItems, setTrItems] = useState([]);
     const nextTempIdRef = useRef(-1);
     const [formData, setFormData] = useState({
@@ -78,15 +78,17 @@ const TechnicalForm = ({ technicalReco, mode, onSave, onBack, onSubmitForApprova
             try {
                 const res = await apiBackendFetch("/api/inventory/mssql/stocks");
                 const data = await res.json();
-                const normalized = (data || []).map((s) => ({
+                // API may return { rows } or a bare array; handle both
+                const rows = Array.isArray(data) ? data : (Array.isArray(data?.rows) ? data.rows : []);
+                const normalized = rows.map((s) => ({
                     // keep original MSSQL keys but add unified camel/id fields
                     ...s,
-                    id: s.Id || s.id,
-                    Description: s.Description || s.description || s.Code || s.code || "",
-                    Code: s.Code || s.code || "",
-                    LocalPrice: s.LocalPrice || s.localPrice || null,
-                    name: (s.Name || s.name || s.Description || s.description || s.Code || s.code || ""),
-                    description: (s.Description || s.description || s.Code || s.code || ""),
+                    id: s.Id ?? s.id,
+                    Description: s.Description ?? s.description ?? s.Code ?? s.code ?? "",
+                    Code: s.Code ?? s.code ?? "",
+                    LocalPrice: s.LocalPrice ?? s.localPrice ?? null,
+                    name: (s.Name ?? s.name ?? s.Description ?? s.description ?? s.Code ?? s.code ?? ""),
+                    description: (s.Description ?? s.description ?? s.Code ?? s.code ?? ""),
                 }));
                 setItemsList(normalized);
             } catch (err) {
@@ -599,8 +601,10 @@ const TechnicalForm = ({ technicalReco, mode, onSave, onBack, onSubmitForApprova
                                                                 <ul className="max-h-40 overflow-y-auto" style={{ margin: 0, padding: 0 }}>
                                                                     {(itemsList || [])
                                                                         .filter(i => {
-                                                                            const text = (i.name || i.description || i.Description || i.Description || "").toLowerCase();
-                                                                            const q = (item.searchQuery || "").toLowerCase();
+                                                                            const q = (item.searchQuery || item.description || "").toString().trim().toLowerCase();
+                                                                            // if user hasn't typed anything, don't show the entire list
+                                                                            if (!q) return false;
+                                                                            const text = ((i.name || i.description || i.Description || i.Code || "")).toString().toLowerCase();
                                                                             const already = trItems.some(tr => tr.item_id === (i.Id || i.id));
                                                                             return text.includes(q) && !already;
                                                                         })

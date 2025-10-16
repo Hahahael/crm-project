@@ -438,7 +438,8 @@ mem.public.none(`
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       created_by INT REFERENCES users(id),
       updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-      updated_by INT REFERENCES users(id)
+      updated_by INT REFERENCES users(id),
+      selected_vendors_by_item JSONB -- New column to track selected vendors per item
   );
 
   -- RFQ Items table
@@ -480,6 +481,7 @@ mem.public.none(`
   -- Quotations table
   CREATE TABLE quotations (
       id SERIAL PRIMARY KEY,
+      quotation_number VARCHAR(50) NOT NULL,
       rfq_id INT REFERENCES rfqs(id) ON DELETE CASCADE,
       tr_id INT REFERENCES technical_recommendations(id),
       wo_id INT REFERENCES workorders(id),
@@ -488,6 +490,10 @@ mem.public.none(`
       actual_date DATE,
       actual_from_time TIME,
       actual_to_time TIME,
+      due_date DATE,
+      done_date DATE,
+      title VARCHAR(255) DEFAULT '',
+      stage_status VARCHAR(50) DEFAULT 'Ongoing',
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       created_by INT REFERENCES users(id),
       updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -702,7 +708,8 @@ for (const wo of workorders) {
       is_esl,
       created_at,
       created_by,
-      updated_at
+      updated_at,
+      stage_status
     ) VALUES (
       '${esc(wo.woNumber)}',
       '${esc(wo.workDescription)}',
@@ -728,7 +735,8 @@ for (const wo of workorders) {
       ${wo.isESL ? 'TRUE' : 'FALSE'},
       NOW(),
       ${wo.createdBy},
-      NOW())`);
+      NOW(),
+      ${wo.stageStatus ? `'${wo.stageStatus}'` : "'Draft'"})`)
 }
 
 for (const sl of salesLeads) {
@@ -784,7 +792,8 @@ for (const sl of salesLeads) {
       actual_picture,
       draft_design_layout,
       created_at,
-      updated_at
+      updated_at,
+      stage_status
     ) VALUES (
       '${esc(sl.slNumber)}',
       ${sl.accountId},
@@ -835,7 +844,8 @@ for (const sl of salesLeads) {
       NULL,
       NULL,
       '${sl.createdAt}',
-      '${sl.updatedAt}'
+      '${sl.updatedAt}',
+      '${esc(sl.stageStatus)}'
     )
     `
   );

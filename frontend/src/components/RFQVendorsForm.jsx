@@ -311,7 +311,7 @@ export default function RFQVendorsForm({ rfq, setFormData, formItems, formVendor
                                     <div className="flex items-center">
                                         <LuCoins className="h-5 w-5 text-gray-500 mr-2" />
                                         <div className="flex flex-col">
-                                            <p className="text-sm font-medium">Php {vendor.totalAmount}</p>
+                                            <p className="text-sm font-medium">₱ {vendor.totalAmount}</p>
                                             <p className="text-xs text-muted-foreground">Total Amount</p>
                                         </div>
                                     </div>

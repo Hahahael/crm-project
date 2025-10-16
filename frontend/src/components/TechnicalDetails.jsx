@@ -254,8 +254,8 @@ const TechnicalDetails = ({ technicalReco, currentUser, onBack, onEdit, onSave, 
                                         <td className="p-2">{prod.Code}</td>
                                         <td className="p-2">{prod.Description}</td>
                                         <td className="p-2 text-right">{prod.quantity}</td>
-                                        <td className="p-2 text-right">Php {price.toLocaleString()}</td>
-                                        <td className="p-2 text-right">Php {total.toLocaleString()}</td>
+                                        <td className="p-2 text-right">₱ {price.toLocaleString()}</td>
+                                        <td className="p-2 text-right">₱ {total.toLocaleString()}</td>
                                     </tr>
                                 );
                                 })}
@@ -264,7 +264,7 @@ const TechnicalDetails = ({ technicalReco, currentUser, onBack, onEdit, onSave, 
                                     Total
                                 </td>
                                 <td className="p-2 text-right font-bold">
-                                    Php{" "}
+                                    ₱{" "}
                                     {(
                                         (technicalReco.items || []).reduce((sum, i) => {
                                             const price = i.unitPrice || i.LocalPrice || i.Price || i.SourcePrice || 0;

@@ -2,9 +2,12 @@ import { useState, useEffect, useCallback } from "react";
 import { LuDownload, LuPrinter, LuFileText, LuCircleCheckBig, LuTrendingDown, LuCircleAlert, LuClock, LuCheck } from "react-icons/lu";
 
 export default function RFQCanvassSheet({ rfq, formItems, formVendors, setFormItems, mode = "create", setFormData, onForApproval, onExportExcel, onExportPDF }) {
+    console.log("RFQCanvassSheet rendering with props:", { rfq, formItems, formVendors, mode });
     const formData = rfq;
+    const readOnly = mode === "view";
     // Handler to select best vendor per item
     const handleSelectRecommendedVendors = () => {
+        if (readOnly) return;
         const newSelection = {};
         const itemsSource = formItems || [];
         const updatedItems = itemsSource.map((item) => {
@@ -26,7 +29,7 @@ export default function RFQCanvassSheet({ rfq, formItems, formVendors, setFormIt
         setSelectedVendorsByItem(newSelection);
         // persist updated items back to wrapper state and parent formData
         setFormItems(updatedItems);
-        setFormData((prev) => ({ ...prev, items: updatedItems, selectedVendorsByItem: newSelection }));
+        if (!readOnly && setFormData) setFormData((prev) => ({ ...prev, items: updatedItems, selectedVendorsByItem: newSelection }));
     };
 
     const [selectedVendorsByItem, setSelectedVendorsByItem] = useState(() => {
@@ -95,12 +98,13 @@ export default function RFQCanvassSheet({ rfq, formItems, formVendors, setFormIt
     // Sync quotations when selectedVendorsByItem changes
     useEffect(() => {
         setQuotations(generateQuotations(selectedVendorsByItem));
-        // Persist selected vendors for each item in formData
-        setFormData(prev => ({ ...prev, selectedVendorsByItem }));
-    }, [selectedVendorsByItem, formItems, formVendors, generateQuotations, setFormData]);
+        // Persist selected vendors for each item in formData (only when not view mode)
+        if (!readOnly && setFormData) setFormData(prev => ({ ...prev, selectedVendorsByItem }));
+    }, [selectedVendorsByItem, formItems, formVendors, generateQuotations, setFormData, readOnly]);
 
     // Handler for selecting a vendor for an item
     const handleSelectVendor = (itemId, vendorId) => {
+        if (readOnly) return;
         // Find the selected quotation
     const selectedQuote = quotations.find(q => q.itemId === itemId && q.vendorId === vendorId);
         // Update all relevant fields in the item
@@ -120,7 +124,7 @@ export default function RFQCanvassSheet({ rfq, formItems, formVendors, setFormIt
         setSelectedVendorsByItem(newSelection);
         // Persist selected vendors for each item in formData and update wrapper items
         setFormItems(updatedItems);
-        setFormData(prev => ({ ...prev, items: updatedItems, selectedVendorsByItem: newSelection }));
+        if (!readOnly && setFormData) setFormData(prev => ({ ...prev, items: updatedItems, selectedVendorsByItem: newSelection }));
     };
 
     console.log("RFQCanvassSheet props:", { formData, mode });
@@ -190,14 +194,20 @@ export default function RFQCanvassSheet({ rfq, formItems, formVendors, setFormIt
                 <div className="flex items-center space-x-2">
                     <button
                         type="button"
-                        className="bg-primary text-white rounded-md px-4 py-2 flex items-center cursor-pointer"
-                        onClick={onExportExcel}>
+                        className={`bg-primary text-white rounded-md px-4 py-2 flex items-center cursor-pointer ${readOnly ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        onClick={readOnly ? undefined : onExportExcel}
+                        disabled={readOnly}
+                        aria-disabled={readOnly}
+                        title={readOnly ? 'View only' : 'Export to Excel'}>
                         <LuDownload className="h-5 w-5 mr-1" />
                         Export Excel
                     </button>
                     <button
-                        className="bg-primary text-white rounded-md px-4 py-2 flex items-center cursor-pointer"
-                        onClick={onExportPDF}>
+                        className={`bg-primary text-white rounded-md px-4 py-2 flex items-center cursor-pointer ${readOnly ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        onClick={readOnly ? undefined : onExportPDF}
+                        disabled={readOnly}
+                        aria-disabled={readOnly}
+                        title={readOnly ? 'View only' : 'Export to PDF'}>
                         type="button"
                         <LuPrinter className="h-5 w-5 mr-1" />
                         Export PDF
@@ -317,10 +327,12 @@ export default function RFQCanvassSheet({ rfq, formItems, formVendors, setFormIt
                                         return (
                                             <td
                                                 key={v.vendorId}
-                                                className={`text-center cursor-pointer align-middle relative hover:bg-gray-100 transition-all duration-150 hover:bg-gray-50 ${
-                                                    quote?.isSelected ? "bg-blue-50" : ""
-                                                }`}
-                                                onClick={() => handleSelectVendor(item.itemId, v.vendorId)}>
+                                                    className={`text-center ${readOnly ? 'cursor-default' : 'cursor-pointer'} align-middle relative hover:bg-gray-100 transition-all duration-150 hover:bg-gray-50 ${
+                                                        quote?.isSelected ? "bg-blue-50" : ""
+                                                    }`}
+                                                    onClick={() => {!readOnly && handleSelectVendor(item.itemId, v.vendorId)}}
+                                                    aria-disabled={readOnly}
+                                                    role={readOnly ? 'button' : 'button'}>
                                                 <div className={`p-2 rounded transition-all duration-150 align-stretch relative`}>
                                                     <p className="font-bold text-lg">{quote ? `$${quote.unitPrice}` : "-"}</p>
                                                     <p className="text-sm text-muted-foreground">Total: {quote ? `$${quote.total}` : "-"}</p>

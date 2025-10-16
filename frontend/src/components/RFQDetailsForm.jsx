@@ -122,9 +122,9 @@ export default function RFQDetailsForm({ rfq, setFormData, formItems, setFormIte
                             <label htmlFor="accountName">Account Name</label>
                             <input
                                 id="accountName"
-                                value={rfq.accountId}
-                                onChange={(e) => setFormData((prev) => ({ ...prev, accountId: e.target.value }))}
-                                className={`col-span-5 w-full rounded-md border p-1 focus:outline-1 text-sm py-2 px-3 focus:bg-yellow-50 border-gray-200`}
+                                value={rfq.accountName}
+                                readOnly
+                                className={`border-gray-200 col-span-5 w-full rounded-md border p-1 text-sm py-2 px-3 bg-gray-50 focus:outline-0`}
                             />
                         </div>
                     </div>
@@ -264,7 +264,7 @@ export default function RFQDetailsForm({ rfq, setFormData, formItems, setFormIte
                                                 <input type="text" value={item.unitPrice || ""} readOnly className="w-full rounded border border-gray-200 px-2 py-1 text-sm bg-gray-100" />
                                             </td>
                                             <td className="text-sm p-2 align-middle">
-                                                <input type="text" value={`Php ${item.unitPrice * item.quantity || ""}`} readOnly className="w-full rounded border border-gray-200 px-2 py-1 text-sm bg-gray-100" />
+                                                <input type="text" value={`₱ ${item.unitPrice * item.quantity || ""}`} readOnly className="w-full rounded border border-gray-200 px-2 py-1 text-sm bg-gray-100" />
                                             </td>
                                             <td className="text-sm p-2 align-middle">
                                                 <button
@@ -295,15 +295,15 @@ export default function RFQDetailsForm({ rfq, setFormData, formItems, setFormIte
                         <div className="w-64">
                             <div className="flex justify-between py-2">
                                 <span className="font-medium">Subtotal:</span>
-                                <span>{rfq.subtotal != null ? rfq.subtotal : "—"}</span>
+                                <span>₱ {rfq.subtotal != null ? rfq.subtotal : "—"}</span>
                             </div>
                             <div className="flex justify-between py-2 border-t">
                                 <span className="font-medium">VAT (5%):</span>
-                                <span>{rfq.vat != null ? rfq.vat : "—"}</span>
+                                <span>₱ {rfq.vat != null ? rfq.vat : "—"}</span>
                             </div>
                             <div className="flex justify-between py-2 border-t font-bold">
                                 <span>Grand Total:</span>
-                                <span>{rfq.grandTotal != null ? rfq.grandTotal : "—"}</span>
+                                <span>₱ {rfq.grandTotal != null ? rfq.grandTotal : "—"}</span>
                             </div>
                         </div>
                     </div>

@@ -99,28 +99,31 @@ router.get("/:id", async (req, res) => {
         let items = [];
         for (const ri of itemsRes.rows) {
             try {
-                const sdRes = await pool.request().input("id", ri.itemId)
+                // ri may come from Postgres with snake_case (item_id) or camelCase (itemId)
+                const itemKey = ri.item_id ?? ri.itemId ?? null;
+                const sdRes = await pool.request().input("id", Number(itemKey))
                     .query("SELECT * FROM spidb.stock_details WHERE Stock_Id = @id");
-                const sRes = await pool.request().input("id", ri.itemId)
+                const sRes = await pool.request().input("id", Number(itemKey))
                     .query("SELECT * FROM spidb.stock WHERE Id = @id");
-                logAttributes(`rfq item stock_details (id=${ri.itemId})`, sdRes.recordset || []);
-                logAttributes(`rfq item stock (id=${ri.itemId})`, sRes.recordset || []);
+                // logAttributes(`rfq item stock_details (id=${ri.itemId})`, sdRes.recordset || []);
+                // logAttributes(`rfq item stock (id=${ri.itemId})`, sRes.recordset || []);
                 console.log(`rfq item sdRes (id=${ri.itemId})`, sdRes);
                 console.log(`rfq item sRes (id=${ri.itemId})`, sRes);
 
                 const detailObj = sdRes && sdRes.recordset && sdRes.recordset[0] ? sdRes.recordset[0] : null;
                 const parentObj = sRes && sRes.recordset && sRes.recordset[0] ? sRes.recordset[0] : null;
                 const merged = mergePrimaryWithParent(detailObj, parentObj);
-                let itemToPush = ri;
-
+                let itemToPush = { ...ri };
+                // attach resolved MSSQL details when available
                 if (merged) {
-                    itemToPush = { ...itemToPush, details: merged };
-                } else {
-                    items.push(itemToPush);
+                    itemToPush.details = merged;
                 }
+                // canonicalize item id fields for frontend convenience
+                itemToPush.itemId = itemToPush.itemId ?? itemToPush.item_id ?? itemToPush.itemId ?? itemToPush.id ?? null;
+                items.push(itemToPush);
             } catch (err) {
                 console.error("Error resolving/merging MSSQL item for rfq_item", ri, err);
-                items.push({ id: ri.id, itemId: ri.itemId || ri.item_id, quantity: ri.quantity });
+                items.push({ id: ri.id, itemId: ri.itemId ?? ri.item_id ?? null, quantity: ri.quantity });
             }
         }
 
@@ -131,26 +134,26 @@ router.get("/:id", async (req, res) => {
         for (const rv of vendorsRes.rows) {
             try {
                 // fetch parent vendor and its details
-                const parentRes = await pool.request().input("id", rv.vendorId)
+                // rv may have vendor_id (snake) or vendorId (camel) depending on DB wrapper
+                const vendorKey = rv.vendor_id ?? rv.vendorId ?? rv.Vendor_Id ?? rv.id ?? null;
+                const parentRes = await pool.request().input("id", Number(vendorKey))
                     .query("SELECT * FROM spidb.vendor WHERE Id = @id");
-                const detailsRes = await pool.request().input("vendor_id", rv.vendorId)
+                const detailsRes = await pool.request().input("vendor_id", Number(vendorKey))
                     .query("SELECT * FROM spidb.vendor_details WHERE Vendor_Id = @vendor_id");
-                logAttributes(`rfq vendor parent (id=${rv.vendor_id})`, parentRes.recordset || []);
-                logAttributes(`rfq vendor details (vendor_id=${rv.vendor_id})`, detailsRes.recordset || []);
+                // logAttributes(`rfq vendor parent (id=${rv.vendor_id})`, parentRes.recordset || []);
+                // logAttributes(`rfq vendor details (vendor_id=${rv.vendor_id})`, detailsRes.recordset || []);
 
                 const parent = parentRes && parentRes.recordset && parentRes.recordset[0] ? parentRes.recordset[0] : null;
                 const detail = detailsRes && detailsRes.recordset && detailsRes.recordset[0] ? detailsRes.recordset[0] : null;
                 const merged = mergePrimaryWithParent(detail, parent);
-                let vendorToPush = rv;
-
-                if (merged) {
-                    vendorToPush = { ...vendorToPush, details: merged };
-                } else {
-                    vendors.push(vendorToPush);
-                }
+                let vendorToPush = { ...rv };
+                if (merged) vendorToPush.details = merged;
+                // canonicalize vendor id fields
+                vendorToPush.vendorId = vendorToPush.vendorId ?? vendorToPush.vendor_id ?? vendorToPush.Vendor_Id ?? merged?.Id ?? vendorToPush.id ?? null;
+                vendors.push(vendorToPush);
             } catch (err) {
                 console.error("Error resolving MSSQL vendor for rfq_vendor", rv, err);
-                vendors.push({ id: rv.id, vendorId: rv.vendor_id, quotes: [] });
+                vendors.push({ id: rv.id, vendorId: rv.vendor_id ?? rv.vendorId ?? null, quotes: [] });
             }
         }
 
@@ -169,9 +172,10 @@ router.get("/:id", async (req, res) => {
         const quotations = quotationsRes.rows;
         console.log("Fetched RFQ quotations:", quotations);
 
-        // Map quotations to vendors
+        // Map quotations to vendors (use canonical vendorId)
         vendors.forEach((vendor) => {
-            vendor.quotes = quotations.filter((q) => q.vendorId === vendor.Vendor_Id);
+            const vId = vendor.vendorId ?? vendor.vendor_id ?? vendor.Vendor_Id ?? vendor.Id ?? null;
+            vendor.quotes = quotations.filter((q) => (q.vendorId ?? q.vendor_id) == vId);
         });
 
         // Set price & leadTime for items based on selected quote
@@ -207,7 +211,7 @@ router.post("/", async (req, res) => {
     try {
         console.log("Creating new RFQ with data:", req.body);
         const body = toSnake(req.body);
-        const { wo_id, assignee, due_date, account_id, stage_status, items } = body;
+    const { wo_id, assignee, due_date, account_id, stage_status, items, selected_vendors_by_item } = body;
 
         // Generate TR number
         const currentYear = new Date().getFullYear();
@@ -238,10 +242,10 @@ router.post("/", async (req, res) => {
         // Insert into DB
         const insertResult = await db.query(`
             INSERT INTO rfqs 
-            (wo_id, assignee, rfq_number, stage_status, due_date, sl_id, account_id, created_at, created_by, updated_at)
-            VALUES ($1,$2,$3,$4,$5,$6,$7,NOW(),$8,NOW())
+            (wo_id, assignee, rfq_number, stage_status, due_date, sl_id, account_id, selected_vendors_by_item, created_at, created_by, updated_at)
+            VALUES ($1,$2,$3,$4,$5,$6,$7,$8,NOW(),$9,NOW())
             RETURNING id`,
-            [wo_id, assignee, rfq_number, stage_status || "Draft", due_date, sl_id, account_id, assignee]
+            [wo_id, assignee, rfq_number, stage_status || "Draft", due_date, sl_id, account_id, selected_vendors_by_item || null, assignee]
         );
         const newId = insertResult.rows[0].id;
         console.log("Created RFQ with ID:", newId);
@@ -317,8 +321,8 @@ router.put("/:id", async (req, res) => {
                 wo_id=$1, assignee=$2, rfq_number=$3, due_date=$4, description=$5,
                 sl_id=$6, account_id=$7, payment_terms=$8, notes=$9, subtotal=$10,
                 vat=$11, grand_total=$12, actual_date=$13, actual_from_time=$14, created_at=$15,
-                updated_by=$16, updated_at=NOW()
-            WHERE id=$17
+                selected_vendors_by_item=$17, updated_by=$16, updated_at=NOW()
+            WHERE id=$18
             RETURNING id`,
             [
                 body.wo_id,
@@ -337,6 +341,7 @@ router.put("/:id", async (req, res) => {
                 actualFromTime,
                 body.created_at,
                 body.created_by,
+                body.selected_vendors_by_item || null,
                 id,
             ]
         );
@@ -359,14 +364,19 @@ router.put("/:id", async (req, res) => {
             for (const item of body.items) {
                 const unitPrice = item.unit_price === "" ? null : item.unit_price;
                 const quantity = item.quantity === "" ? null : item.quantity;
+                // If the incoming item provides an item_id that already exists for this RFQ, update the record
                 if (item.item_id && existingIds.has(item.item_id)) {
-                    await db.query([item.item_id, quantity, unitPrice, item.item_id, id]);
+                    await db.query(
+                        `UPDATE rfq_items SET quantity = $1, unit_price = $2, lead_time = $3 WHERE item_id = $4 AND rfq_id = $5 RETURNING *`,
+                        [quantity, unitPrice, item.lead_time, item.item_id, id]
+                    );
                 } else {
-                    await db.query(`INSERT INTO rfq_items (rfq_id, item_id, quantity, unit_price) VALUES ($1,$2,$3,$4)`, [
+                    await db.query(`INSERT INTO rfq_items (rfq_id, item_id, quantity, unit_price, lead_time) VALUES ($1,$2,$3,$4,$5) RETURNING *`, [
                         id,
                         item.item_id,
                         quantity,
                         unitPrice,
+                        item.lead_time,
                     ]);
                 }
             }
@@ -424,7 +434,7 @@ router.put("/:id", async (req, res) => {
             // Use a combination of vendor_id, item_id, and rfq_id to identify unique quotations
             const existingIds = new Set(existing.map((q) => `${q.vendor_id}-${q.item_id}-${q.rfq_id}`));
             const incomingIds = new Set(
-                allQuotations.filter((q) => `${q.vendor_id}-${q.item_id}-${q.rfq_id}`).map((q) => `${q.vendor_id}-${q.item_id}-${q.rfq_id}`)
+                allQuotations.filter((q) => q.vendor_id && q.item_id && q.rfq_id).map((q) => `${q.vendor_id}-${q.item_id}-${q.rfq_id}`)
             );
             for (const ex of existing) {
                 if (!incomingIds.has(`${ex.vendor_id}-${ex.item_id}-${ex.rfq_id}`)) {

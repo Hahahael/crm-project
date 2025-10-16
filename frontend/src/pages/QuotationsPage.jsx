@@ -108,13 +108,16 @@ export default function QuotationsPage() {
     const getTRAndRFQ = async (quotation) => {
         try {
             console.log("Fetching TR and RFQ for quotation:", quotation);
-            const trId = quotation.trId || null;
-            const rfqId = quotation.rfqId || null;
+            const trId = quotation.trId || quotation.tr_id || null;
+            const rfqId = quotation.rfqId || quotation.rfq_id || null;
+
+            let trData = null;
+            let rfqData = null;
 
             if (trId) {
                 const trRes = await apiBackendFetch(`/api/technicals/${trId}`);
                 if (trRes.ok) {
-                    const trData = await trRes.json();
+                    trData = await trRes.json();
                     setSelectedTR(trData);
                     console.log("Fetched TR data:", trData);
                 }
@@ -123,81 +126,104 @@ export default function QuotationsPage() {
             if (rfqId) {
                 const rfqRes = await apiBackendFetch(`/api/rfqs/${rfqId}`);
                 if (rfqRes.ok) {
-                    const rfqData = await rfqRes.json();
+                    rfqData = await rfqRes.json();
                     setSelectedRFQ(rfqData);
                     console.log("rfqData:", rfqData)
                     console.log("Fetched RFQ data:", rfqData);
                 }
             }
-            setTimeout(() => setLoading(false), 500);
+            return { trData, rfqData };
+            // setTimeout(() => setLoading(false), 500);
         } catch (err) {
             console.error("Error fetching TR and RFQ:", err);
+            return { trData: null, rfqData: null };
         }
-    }
+    };
 
     // Build MSSQL payload from our frontend quotation object
     // Prefers RFQ data when available, falls back to TR when not.
     // Maps RFQ/TR line items into MSSQL quotation_details using best-effort field mapping.
-    const buildMssqlPayload = (q) => {
-        // Source: prefer rfq, fallback to tr
-        const src = q.rfq || q.tr || q;
-
-        // Try to find a customer id from several possible locations
-        const customerId = q.accountId || q.account_id || q.account?.id || q.accountId || q.workorder?.account_id || q.wo_id || null;
-        const code = q.refNumber || (q.rfq && q.rfq.rfqNumber) || q.rfq?.rfq_number || q.Code || q.QuotationNo || null;
-        const totalQty = q.totalQty || q.TotalQty || src?.totalQty || src?.items?.reduce((s, it) => s + (Number(it.quantity) || 0), 0) || 0;
-        const validityDate = q.validityDate || q.ValidityDate || q.dueDate || src?.dueDate || null;
-        const dateModified = new Date().toISOString();
-        const notes = q.notes || q.title || q.description || src?.notes || null;
-
-        const quotation = {
-            Code: code,
-            Customer_Id: customerId ? Number(customerId) : null,
-            TotalQty: Number(totalQty) || 0,
-            ValidityDate: validityDate ? validityDate : null,
-            DateModified: dateModified,
-            Notes: notes,
+    const buildMssqlPayload = (quotation, rfqOverride = null, trOverride = null) => {
+        console.log("🔍 Building MSSQL payload for quotation:", quotation);
+        console.log("📦 Selected RFQ (override):", rfqOverride || selectedRFQ);
+        console.log("📦 Selected TR (override):", trOverride || selectedTR);
+      
+        // ✅ Priority: rfqOverride > trOverride > selectedRFQ > selectedTR > quotation.rfq > quotation.tr
+        const ref = rfqOverride || trOverride || selectedRFQ || selectedTR || quotation.rfq || quotation.tr || {};
+        console.log("✅ Using reference source (RFQ/TR):", ref);
+      
+        // --- MASTER ROW (Parent Quotation) ---
+        const masterRow = {
+          Code:
+            quotation.quotationNumber ||
+            quotation.refNumber ||
+            quotation.Code ||
+            ref.rfqNumber ||
+            ref.trNumber ||
+            null,
+          Customer_Id:
+            quotation.accountId ||
+            quotation.account_id ||
+            ref.accountId ||
+            ref.account_id ||
+            ref.account?.id ||
+            null,
+          TotalQty: Array.isArray(ref.items)
+            ? ref.items.reduce((a, i) => a + (Number(i.quantity) || 0), 0)
+            : null,
+          VatType: 1,
+          TotalWithOutVAT: ref.subtotal ?? 0,
+          VAT: ref.vat ?? 0,
+          TotalWithVat: ref.grandTotal ?? 0,
+          ValidityDate: ref.dueDate || quotation.validityDate || quotation.dueDate || new Date(),
+          ModifiedBy: quotation.updatedBy ?? ref.updatedBy ?? 1,
+          DateModified: quotation.updatedAt ?? new Date(),
+          Status: 0,
+          isConvertedToSO: false,
+          Notes: ref.notes ?? quotation.notes ?? "",
+          Validity: 30,
+          Discount: ref.discount ?? 0,
+          IsOverallDiscount: ref.isOverallDiscount ?? false,
+          SalesAgentId: ref.assignee ?? quotation.assignee ?? null,
+          DepartmentId: 1,
         };
-
-        // Map line items -> quotation_details
-        const items = Array.isArray(src?.items) ? src.items : [];
-        const details = items.map((item) => {
-            const qty = Number(item.quantity) || 0;
-            // unitPrice may come from selected vendor quote (rfqsRoutes sets item.unitPrice when a selected quote exists)
-            const unitPrice = item.unitPrice != null ? Number(item.unitPrice) : (item.price != null ? Number(item.price) : null);
-            const amount = unitPrice != null ? qty * unitPrice : null;
-
-            // Stock_Id: best-effort mapping. If frontend item has an inventory item id (item.itemId) use it.
-            // NOTE: If your MSSQL stock IDs differ from app item IDs, you should replace this mapping with a proper lookup.
-            const stockId = item.itemId != null ? Number(item.itemId) : null;
-
-            const detail = {
-                Qty: qty || null,
-                Unit_Price: unitPrice != null ? unitPrice : null,
-                Amount: amount != null ? amount : null,
-                Stock_Id: stockId,
-                // Quotation_Id will be set server-side after inserting the parent quotation
-            };
-
-            // Filter out keys with null/undefined so backend whitelist logic can decide what's allowed
-            Object.keys(detail).forEach(k => {
-                if (detail[k] === null || detail[k] === undefined) delete detail[k];
-            });
-
-            return detail;
-        }).filter(d => Object.keys(d).length > 0);
-
-        return { quotation, details };
-    };
+      
+        // --- DETAIL ROWS (Quotation Details) ---
+        const detailRows = (ref.items || []).map((i) => {
+          const qty = Number(i.quantity) || 1;
+          const unitPrice = Number(i.unitPrice ?? i.price ?? 0);
+          const amount = qty * unitPrice;
+          const discount = Number(i.discount ?? 0);
+      
+          return {
+            Qty: qty,
+            Stock_Id: i.itemId ?? i.stock_id ?? null,
+            Quotation_Id: quotation.id ?? null, // Will be replaced on insert
+            Unit_Price: unitPrice,
+            Amount: amount,
+            Discounted_Amount: amount,
+            Discount: discount,
+            isConvertedToSO: false,
+          };
+        });
+      
+        console.log("🧾 Mapped MSSQL masterRow:", masterRow);
+        console.log(`📊 Mapped ${detailRows.length} detailRows:`, detailRows);
+      
+        return { quotation: masterRow, details: detailRows };
+      };
+      
 
     const sendQuotationToMssql = async (quotation) => {
         if (!quotation) return;
         setLoading(true);
         try {
-            const payload = buildMssqlPayload(quotation);
+            // Ensure we have the related TR and RFQ available before building the MSSQL payload
+            const { trData, rfqData } = await getTRAndRFQ(quotation);
+            const payload = buildMssqlPayload(quotation, rfqData, trData);
             console.log('Sending MSSQL payload:', payload);
             // Use quick endpoint for demo/testing that inserts quotation + details
-            const res = await apiBackendFetch('/api/mssql/quotations/quick', {
+            const res = await apiBackendFetch('/api/mssql/quotations', {
                 method: 'POST',
                 body: JSON.stringify(payload),
             });
@@ -213,6 +239,9 @@ export default function QuotationsPage() {
             setError('Failed to send quotation to MSSQL.');
         } finally {
             setLoading(false);
+            setSelectedQuotation(null);
+            setSelectedTR(null);
+            setSelectedRFQ(null);
         }
     };
 
@@ -420,10 +449,17 @@ export default function QuotationsPage() {
                         <QuotationsTable
                             quotations={filtered}
                             onView={(quotation) => {
-                                getTRAndRFQ(quotation);
+                                // Open the drawer first, then fetch TR/RFQ to avoid restarting the drawer animation.
+                                // Use two requestAnimationFrame ticks to ensure the open transition has started.
                                 setSelectedQuotation(quotation);
+                                requestAnimationFrame(() => {
+                                    requestAnimationFrame(() => getTRAndRFQ(quotation));
+                                });
                             }}
-                            onSend={(q) => sendQuotationToMssql(q)}
+                            onSend={(q) => {
+                                getTRAndRFQ(q);
+                                sendQuotationToMssql(q);
+                            }}
                         />
                     </div>
                 </div>
@@ -439,10 +475,11 @@ export default function QuotationsPage() {
                         <button
                             className="mb-4 inline-flex items-center justify-center font-medium transition-colors hover:bg-gray-100 h-8 rounded-md px-3 text-xs text-gray-400 hover:text-gray-600 cursor-pointer"
                             onClick={() => {
+                                console.log("Closing drawer");
+                                console.log("Selected quotation before closing:", selectedQuotation);
+                                console.log("Selected TR before closing:", selectedTR);
+                                console.log("Selected RFQ before closing:", selectedRFQ);
                                 sendQuotationToMssql(selectedQuotation);
-                                setSelectedQuotation(null);
-                                setSelectedTR(null);
-                                setSelectedRFQ(null);
                             }}>
                             <LuSend className="h-4 w-4 mr-2" />
                                 Submit Quotation
@@ -451,16 +488,16 @@ export default function QuotationsPage() {
                             <TechnicalDetails
                                 technicalReco={selectedTR}
                                 onBack={() => {
-                                    setSelectedTR(null);
-                                    setSelectedRFQ(null);
-                                    setSelectedQuotation(null);
                                 }}
                             />
                         )}
                         {selectedRFQ && (
                             <RFQCanvassSheet
                                 rfq={selectedRFQ}
-                                setFormData={(data) => setSelectedRFQ(data)}
+                                formItems={selectedRFQ?.items}
+                                formVendors={selectedRFQ?.vendors}
+                                mode="view"
+                                setFormData={setSelectedRFQ}
                             />
                         )}
                     </div>

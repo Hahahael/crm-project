@@ -4,28 +4,69 @@ import { toSnake } from "../helper/utils.js";
 
 const router = express.Router();
 
+function buildInQuery(table, ids) {
+  const placeholders = ids.map((_, i) => `$${i + 1}`).join(",");
+  return {
+    query: `SELECT * FROM ${table} WHERE id IN (${placeholders})`,
+    params: ids.map(Number),
+  };
+}
+
 router.get("/", async (req, res) => {
   try {
-    // Fetch all quotations, then attach associated rfq, tr, and workorder for each
-    const qRes = await db.query("SELECT * FROM quotations ORDER BY id ASC");
-    const rows = qRes.rows;
+    const qRes = await db.query(`
+      SELECT 
+        q.*, 
+        u.username AS username,
+        a.account_name AS account_name
+      FROM quotations q
+      LEFT JOIN users u ON q.assignee = u.id
+      LEFT JOIN accounts a ON q.account_id = a.id
+      ORDER BY q.id ASC
+    `);
+    const quotations = qRes.rows;
 
-    const enriched = await Promise.all(
-      rows.map(async (quotation) => {
-        const [rfqRes, trRes, woRes] = await Promise.all([
-          quotation.rfq_id ? db.query("SELECT * FROM rfqs WHERE id = $1", [quotation.rfq_id]) : Promise.resolve({ rows: [] }),
-          quotation.tr_id ? db.query("SELECT * FROM technical_recommendations WHERE id = $1", [quotation.tr_id]) : Promise.resolve({ rows: [] }),
-          quotation.wo_id ? db.query("SELECT * FROM workorders WHERE id = $1", [quotation.wo_id]) : Promise.resolve({ rows: [] }),
-        ]);
+    console.log(`Fetched ${quotations.length} quotations`);
 
-        quotation.rfq = rfqRes.rows[0] || null;
-        quotation.tr = trRes.rows[0] || null;
-        quotation.workorder = woRes.rows[0] || null;
+    // Collect all related IDs (convert to numbers and filter out invalids)
+    const rfqIds = [...new Set(quotations.map(q => Number(q.rfq_id || q.rfqId)).filter(Boolean))];
+    const trIds = [...new Set(quotations.map(q => Number(q.tr_id || q.trId)).filter(Boolean))];
+    const woIds = [...new Set(quotations.map(q => Number(q.wo_id || q.woId)).filter(Boolean))];
 
-        return quotation;
-      })
+    console.log("Collected RFQ IDs:", rfqIds);
+    console.log("Collected TR IDs:", trIds);
+    console.log("Collected Workorder IDs:", woIds);
+
+    // Prepare batched queries dynamically
+    const rfqQuery = rfqIds.length ? buildInQuery("rfqs", rfqIds) : null;
+    const trQuery = trIds.length ? buildInQuery("technical_recommendations", trIds) : null;
+    const woQuery = woIds.length ? buildInQuery("workorders", woIds) : null;
+
+    // Execute all available queries in parallel
+    const [rfqsRes, trsRes, wosRes] = await Promise.all([
+      rfqQuery ? db.query(rfqQuery.query, rfqQuery.params) : { rows: [] },
+      trQuery ? db.query(trQuery.query, trQuery.params) : { rows: [] },
+      woQuery ? db.query(woQuery.query, woQuery.params) : { rows: [] },
+    ]);
+
+    console.log(
+      `Fetched ${rfqsRes.rows.length} RFQs, ${trsRes.rows.length} TRs, ${wosRes.rows.length} Workorders`
     );
 
+    // Convert results to maps for fast lookups
+    const rfqMap = Object.fromEntries(rfqsRes.rows.map(r => [r.id, r]));
+    const trMap = Object.fromEntries(trsRes.rows.map(r => [r.id, r]));
+    const woMap = Object.fromEntries(wosRes.rows.map(r => [r.id, r]));
+
+    // Enrich quotations
+    const enriched = quotations.map(q => ({
+      ...q,
+      rfq: rfqMap[q.rfq_id || q.rfqId] || null,
+      tr: trMap[q.tr_id || q.trId] || null,
+      workorder: woMap[q.wo_id || q.woId] || null,
+    }));
+
+    console.log("✅ Enriched quotations:", enriched);
     return res.json(enriched);
   } catch (err) {
     console.error(err);
@@ -191,11 +232,31 @@ router.post("/", async (req, res) => {
       });
     }
 
+    // Generate TR number
+    const currentYear = new Date().getFullYear();
+    const qtNumRes = await db.query(`
+        SELECT quotation_number
+        FROM quotations
+        WHERE quotation_number LIKE $1
+        ORDER BY quotation_number DESC
+        LIMIT 1`,
+        [`QUOT-${currentYear}-%`]
+    );
+
+    let newCounter = 1;
+    if (qtNumRes.rows.length > 0) {
+        const lastQuotationNumber = qtNumRes.rows[0].quotation_number;
+        const lastCounter = parseInt(lastQuotationNumber.split("-")[2], 10);
+        newCounter = lastCounter + 1;
+    }
+
+    const quotation_number = `QUOT-${currentYear}-${String(newCounter).padStart(4, "0")}`;
+
     const result = await db.query(
-      `INSERT INTO quotations (rfq_id, tr_id, wo_id, assignee, account_id, created_at, created_by, updated_at, updated_by)
-       VALUES ($1, $2, $3, $4, $5, NOW(), $6, NOW(), $7)
+      `INSERT INTO quotations (rfq_id, tr_id, wo_id, assignee, account_id, created_at, created_by, updated_at, updated_by, quotation_number, due_date)
+       VALUES ($1, $2, $3, $4, $5, NOW(), $6, NOW(), $7, $8, $9)
        RETURNING *`,
-      [rfq_id, tr_id, wo_id, assignee, account_id, created_by, updated_by]
+      [rfq_id, tr_id, wo_id, assignee, account_id, created_by, updated_by, quotation_number, req.body.due_date || req.body.dueDate || null]
     );
 
     console.log("Created new quotation:", result.rows[0]);
