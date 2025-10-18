@@ -1,7 +1,7 @@
 /* eslint-disable no-unused-vars */
 import { useState, useEffect, useRef } from "react";
 import dayjs from "dayjs";
-import { LuArrowLeft, LuCheck, LuX } from "react-icons/lu";
+import { LuArrowLeft, LuCheck, LuX, LuCalendar } from "react-icons/lu";
 import { apiBackendFetch } from "../services/api";
 import utils from "../helper/utils.js";
 
@@ -57,6 +57,7 @@ const WorkOrderForm = ({ workOrder, mode = "create", onSave, onBack }) => {
     const accountRef = useRef(null);
     const industryRef = useRef(null);
     const productBrandRef = useRef(null);
+    const dueDateRef = useRef(null);
 
     // Helper to find by display name (case-insensitive exact match)
     const findByName = (list, key, value) => {
@@ -189,7 +190,13 @@ const WorkOrderForm = ({ workOrder, mode = "create", onSave, onBack }) => {
     // load initial (editing) data
     useEffect(() => {
         if (workOrder && Object.keys(workOrder).length > 0) {
-            setFormData((prev) => ({ ...prev, ...workOrder, woDate: workOrder.woDate || prev.woDate }));
+            setFormData((prev) => ({
+                ...prev,
+                ...workOrder,
+                woDate: workOrder.woDate || prev.woDate,
+                // normalize incoming dueDate to a YYYY-MM-DD string once
+                dueDate: utils.formatDate(workOrder.dueDate, "YYYY-MM-DD") || prev.dueDate || "",
+            }));
         } else if (workOrder && Object.keys(workOrder).length === 0) {
             setFormData((prev) => ({
                 ...prev,
@@ -241,6 +248,25 @@ const WorkOrderForm = ({ workOrder, mode = "create", onSave, onBack }) => {
     };
 
     const [submitting, setSubmitting] = useState(false);
+
+    // Sanitize date input so year doesn't exceed 4 digits while allowing user typing
+    const handleDueDateChange = (e) => {
+        const raw = e.target.value || "";
+        const parts = raw.replace(/[^0-9-]/g, "").split("-");
+        if (parts.length > 0) {
+            parts[0] = (parts[0] || "").replace(/\D/g, "").slice(0, 4);
+        }
+        const normalized = parts.join("-");
+        setFormData((prev) => ({ ...prev, dueDate: normalized }));
+        setErrors((prevErrors) => {
+            if (!prevErrors) return prevErrors;
+            if (normalized) {
+                const { dueDate, ...rest } = prevErrors;
+                return rest;
+            }
+            return prevErrors;
+        });
+    };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -971,14 +997,35 @@ const WorkOrderForm = ({ workOrder, mode = "create", onSave, onBack }) => {
                         {/* Due Date */}
                         <div className="grid grid-cols-6 gap-x-4">
                             <label className="text-sm text-right my-auto">Due Date</label>
-                            <input
-                                type="date"
-                                name="dueDate"
-                                autoComplete="off"
-                                value={utils.formatDate(formData.dueDate, "YYYY-MM-DD") || ""}
-                                onChange={handleChange}
-                                className="col-span-5 w-full h-10 rounded-md border border-gray-200 px-3 py-2"
-                            />
+                            <div className="col-span-5 relative">
+                                <input
+                                    ref={dueDateRef}
+                                    type="date"
+                                    name="dueDate"
+                                    autoComplete="off"
+                                    value={formData.dueDate || ""}
+                                    onChange={handleDueDateChange}
+                                    max="2099-12-31"
+                                    className="hide-native-date-icon w-full h-10 rounded-md border border-gray-200 px-3 pr-10 py-2"
+                                />
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        const el = dueDateRef.current;
+                                        if (!el) return;
+                                        if (typeof el.showPicker === 'function') {
+                                            el.showPicker();
+                                        } else {
+                                            el.focus();
+                                            el.click();
+                                        }
+                                    }}
+                                    className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                                    aria-label="Open date picker"
+                                >
+                                    <LuCalendar className="w-5 h-5" />
+                                </button>
+                            </div>
                             {errors?.dueDate && <p className="text-xs text-red-600 mt-1 col-span-5 col-start-2">{errors.dueDate}</p>}
                         </div>
 

@@ -93,3 +93,17 @@ button:focus-visible {
 body {
   font-family: var(--font-main);
 }
+
+/* Hide native calendar icon when we render our own trigger */
+.hide-native-date-icon::-webkit-calendar-picker-indicator {
+  opacity: 0;
+  display: none;
+}
+.hide-native-date-icon::-ms-clear,
+.hide-native-date-icon::-ms-reveal {
+  display: none;
+}
+.hide-native-date-icon::-webkit-inner-spin-button,
+.hide-native-date-icon::-webkit-clear-button {
+  display: none;
+}
