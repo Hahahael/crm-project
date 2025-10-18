@@ -88,6 +88,11 @@ router.post("/", async (req, res) => {
   try {
     // Convert camelCase to snake_case for DB
     const body = toSnake(req.body);
+    console.log("Adding new account with data:", body);
+    const keys = Object.keys(body);
+    const values = Object.values(body);
+    const params = keys.map((_, i) => `$${i + 1}`).join(", ");
+    //
     const query = `INSERT INTO accounts  VALUES (${params}) RETURNING *`;
     const result = await db.query(query, values);
     res.status(201).json(toCamel(result.rows[0]));
@@ -111,9 +116,6 @@ router.put("/:id", async (req, res) => {
       "from_date", "to_date", "activity_period", "prepared_by", "noted_by", "approved_by", "received_by",
       "acknowledged_by", "updated_at", "created_at", "is_naef"
     ];
-    const filteredData = Object.fromEntries(
-      Object.entries(data).filter(([key]) => allowedFields.includes(key))
-    );
     console.log("UPDATING ACCOUNT", data);
     if (data.is_naef) {
       console.log("Generating ref_number and requestor for NAEF account");
@@ -139,6 +141,8 @@ router.put("/:id", async (req, res) => {
       console.log("New counter for ref_number:", newCounter);
   
       const ref_number = `REF-${currentYear}-${String(newCounter).padStart(4, "0")}`;
+
+      const refUpdateQuery = await db.query(`UPDATE accounts SET ref_number=$1 WHERE id = $2 RETURNING *`, [ref_number, id]);
   
       const requestor = await db.query(
         `SELECT wo.contact_person
@@ -147,12 +151,20 @@ router.put("/:id", async (req, res) => {
         [id]
       );
 
-      filteredData.ref_number = ref_number;
-      filteredData.requested_by = requestor.rows.length > 0 ? requestor.rows[0].contactPerson : null;
+      console.log("Requestor query result:", requestor.rows);
+      console.log("Ref update query result:", refUpdateQuery.rows);
+  
+      data.ref_number = ref_number;
+      data.requested_by = requestor.rows.length > 0 ? requestor.rows[0].contactPerson : null;
+
       console.log("Generated ref_number:", ref_number);
       console.log("Fetched requestor:", data.requested_by);
       console.log("Final data to update:", data);
     }
+
+    const filteredData = Object.fromEntries(
+      Object.entries(data).filter(([key]) => allowedFields.includes(key))
+    );
 
     let wo_id = data.wo_id;
     let assignee = data.assignee;

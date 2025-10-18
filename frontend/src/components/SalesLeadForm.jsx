@@ -1,7 +1,7 @@
 /* eslint-disable no-unused-vars */
 import { useState, useEffect, useRef } from "react";
 import dayjs from "dayjs";
-import { LuArrowLeft, LuCheck, LuSave, LuX } from "react-icons/lu";
+import { LuArrowLeft, LuCheck, LuSave, LuX, LuCalendar } from "react-icons/lu";
 import { apiBackendFetch } from "../services/api";
 import utils from "../helper/utils.js";
 
@@ -84,6 +84,12 @@ const SalesLeadForm = ({ salesLead, mode = "create", onSave, onBack, onSubmit })
     const [searchQuery, setSearchQuery] = useState("");
     const [dropdownOpen, setDropdownOpen] = useState(false);
     const assigneeRef = useRef(null);
+    const nextFollowupRef = useRef(null);
+    const dueDateRef = useRef(null);
+    const fslDateRef = useRef(null);
+    const deadlineRef = useRef(null);
+
+    // (moved: option lists and normalizer are defined inside the loader effect)
 
     // fetch users once
     useEffect(() => {
@@ -115,8 +121,54 @@ const SalesLeadForm = ({ salesLead, mode = "create", onSave, onBack, onSubmit })
 
     // load initial (editing) data
     useEffect(() => {
+        // Allowed option lists for normalization (stable per render of this effect)
+        const SALES_STAGES = [
+            "Sales Lead",
+            "Qualified Lead",
+            "Proposal",
+            "Negotiation",
+            "Closed Won",
+            "Closed Lost",
+        ];
+        const CATEGORIES = [
+            "Direct Application",
+            "Replacement",
+            "Upgrade",
+            "New Installation",
+        ];
+        const APPLICATIONS = ["Industrial Automation", "Process Control", "Manufacturing"];
+        const MACHINE_PROCESSES = ["Assembly Line", "Packaging", "Quality Control"];
+        const SUPPORT_NEEDED = [
+            "Technical Consultation",
+            "Installation Support",
+            "Training",
+            "Maintenance",
+        ];
+        const URGENCY = ["Low", "Medium", "High - Production Affected", "Critical"];
+
+        const normalizeOption = (val, options) => {
+            if (!val) return val;
+            const needle = String(val).trim().toLowerCase();
+            const found = options.find((opt) => opt.toLowerCase() === needle);
+            return found || val;
+        };
         if (salesLead && Object.keys(salesLead).length > 0) {
-            setFormData((prev) => ({ ...prev, ...salesLead }));
+            setFormData((prev) => ({
+                ...prev,
+                ...salesLead,
+                nextFollowupDate: utils.formatDate(salesLead.nextFollowupDate, "YYYY-MM-DD") || prev.nextFollowupDate || "",
+                dueDate: utils.formatDate(salesLead.dueDate, "YYYY-MM-DD") || prev.dueDate || "",
+                fslDate: utils.formatDate(salesLead.fslDate, "YYYY-MM-DD") || prev.fslDate || "",
+                deadline: utils.formatDate(salesLead.deadline, "YYYY-MM-DD") || prev.deadline || "",
+                salesStage: normalizeOption(salesLead.salesStage, SALES_STAGES) || prev.salesStage || "",
+                category: normalizeOption(salesLead.category, CATEGORIES) || prev.category || "",
+                application: normalizeOption(salesLead.application, APPLICATIONS) || prev.application || "",
+                machineProcess: normalizeOption(salesLead.machineProcess, MACHINE_PROCESSES) || prev.machineProcess || "",
+                supportNeeded: normalizeOption(salesLead.supportNeeded, SUPPORT_NEEDED) || prev.supportNeeded || "",
+                urgency: normalizeOption(salesLead.urgency, URGENCY) || prev.urgency || "",
+                quantity: salesLead.quantity != null ? Number(salesLead.quantity) : prev.quantity,
+                fslTime: (salesLead.fslTime && String(salesLead.fslTime).slice(0,5)) || prev.fslTime || "",
+            }));
         } else if (salesLead && Object.keys(salesLead).length === 0) {
             setFormData((prev) => ({
                 slNumber: "",
@@ -178,6 +230,27 @@ const SalesLeadForm = ({ salesLead, mode = "create", onSave, onBack, onSubmit })
         }
     }, [salesLead]);
 
+    // sanitize date inputs so year doesn't exceed 4 digits
+    const sanitizeDate = (raw) => {
+        const cleaned = (raw || "").replace(/[^0-9-]/g, "");
+        const parts = cleaned.split("-");
+        if (parts.length > 0) parts[0] = (parts[0] || "").replace(/\D/g, "").slice(0, 4);
+        return parts.join("-");
+    };
+
+    const handleDateChange = (name) => (e) => {
+        const normalized = sanitizeDate(e.target.value);
+        setFormData((prev) => ({ ...prev, [name]: normalized }));
+        setErrors((prevErrors) => {
+            if (!prevErrors) return prevErrors;
+            if (normalized) {
+                const { [name]: removed, ...rest } = prevErrors;
+                return rest;
+            }
+            return prevErrors;
+        });
+    };
+
     const handleChange = (e) => {
         const { name, value, type, checked } = e.target;
         const newValue = type === "checkbox" ? checked : value;
@@ -201,6 +274,13 @@ const SalesLeadForm = ({ salesLead, mode = "create", onSave, onBack, onSubmit })
 
     // ---------- Validation helpers ----------
     const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const validateEmailList = (val) => {
+        const raw = String(val || "");
+        const parts = raw.split(',').map(s => s.trim()).filter(Boolean);
+        if (parts.length === 0) return true; // treat empty as handled elsewhere; only validate when content exists
+        const invalid = parts.filter(e => !EMAIL_RE.test(e));
+        return { ok: invalid.length === 0, invalid };
+    };
     const TIME_RE = /^([01]\d|2[0-3]):([0-5]\d)(?::([0-5]\d))?$/;
 
     function isValidDate(val) {
@@ -234,8 +314,15 @@ const SalesLeadForm = ({ salesLead, mode = "create", onSave, onBack, onSubmit })
             errors.quantity = "Quantity must be greater than 0.";
         }
 
-        // qrEmailTo optional but if present must be valid
-        if (data.qrEmailTo && !EMAIL_RE.test(String(data.qrEmailTo))) errors.qrEmailTo = "Invalid email address.";
+        // qrEmailTo: optional; if present, allow multiple comma-separated emails
+        if (data.qrEmailTo) {
+            const res = validateEmailList(data.qrEmailTo);
+            if (res !== true && !res.ok) {
+                errors.qrEmailTo = res.invalid.length > 1
+                    ? `Invalid emails: ${res.invalid.join(', ')}`
+                    : `Invalid email: ${res.invalid[0]}`;
+            }
+        }
 
         // dates
         if (!isValidDate(data.nextFollowupDate)) errors.nextFollowupDate = "Next follow-up date is required and must be valid.";
@@ -739,30 +826,60 @@ const SalesLeadForm = ({ salesLead, mode = "create", onSave, onBack, onSubmit })
                     </div>
                     <div>
                         <label htmlFor="nextFollowupDate">Next Follow-up Date</label>
+                        <div className="relative">
                         <input
                             id="nextFollowupDate"
                             name="nextFollowupDate"
                             type="date"
                             autoComplete="off"
-                            value={utils.formatDate(formData.nextFollowupDate, "YYYY-MM-DD") || ""}
-                            onChange={handleChange}
-                            className={`col-span-5 w-full rounded-md border px-3 py-2 focus:outline-1
+                            ref={nextFollowupRef}
+                            value={formData.nextFollowupDate || ""}
+                            onChange={handleDateChange('nextFollowupDate')}
+                            className={`hide-native-date-icon col-span-5 w-full rounded-md border px-3 pr-10 py-2 focus:outline-1
                 ${errors?.nextFollowupDate ? "border-red-500" : "border-gray-200"}`}
                         />
+                        <button
+                            type="button"
+                            onClick={() => {
+                                const el = nextFollowupRef.current;
+                                if (!el) return;
+                                if (typeof el.showPicker === 'function') el.showPicker(); else { el.focus(); el.click(); }
+                            }}
+                            className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                            aria-label="Open date picker"
+                        >
+                            <LuCalendar className="w-5 h-5" />
+                        </button>
+                        </div>
                         {errors?.nextFollowupDate && <p className="text-xs text-red-600 mt-1">{errors.nextFollowupDate}</p>}
                     </div>
                     <div>
                         <label htmlFor="dueDate">Due Date</label>
+                        <div className="relative">
                         <input
                             id="dueDate"
                             name="dueDate"
                             type="date"
                             autoComplete="off"
-                            value={utils.formatDate(formData.dueDate, "YYYY-MM-DD") || ""}
-                            onChange={handleChange}
-                            className={`col-span-5 w-full rounded-md border px-3 py-2 focus:outline-1
+                            ref={dueDateRef}
+                            value={formData.dueDate || ""}
+                            onChange={handleDateChange('dueDate')}
+                            className={`hide-native-date-icon col-span-5 w-full rounded-md border px-3 pr-10 py-2 focus:outline-1
                 ${errors?.dueDate ? "border-red-500" : "border-gray-200"}`}
                         />
+                        <button
+                            type="button"
+                            onClick={() => {
+                                const el = dueDateRef.current;
+                                if (!el) return;
+                                if (typeof el.showPicker === 'function') el.showPicker(); else { el.focus(); el.click(); }
+                            }}
+                            className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                            aria-label="Open date picker"
+                        >
+                            <LuCalendar className="w-5 h-5" />
+                        </button>
+                        </div>
                         {errors?.dueDate && <p className="text-xs text-red-600 mt-1">{errors.dueDate}</p>}
                     </div>
                     {/* <div>
@@ -904,16 +1021,31 @@ const SalesLeadForm = ({ salesLead, mode = "create", onSave, onBack, onSubmit })
                     </div>
                     <div>
                         <label htmlFor="fslDate">Date</label>
+                        <div className="relative">
                         <input
                             id="fslDate"
                             name="fslDate"
                             type="date"
                             autoComplete="off"
-                            value={utils.formatDate(formData.fslDate, "YYYY-MM-DD") || ""}
-                            onChange={handleChange}
-                            className={`col-span-5 w-full rounded-md border px-3 py-2 focus:outline-1
+                            ref={fslDateRef}
+                            value={formData.fslDate || ""}
+                            onChange={handleDateChange('fslDate')}
+                            className={`hide-native-date-icon col-span-5 w-full rounded-md border px-3 pr-10 py-2 focus:outline-1
                 ${errors?.fslDate ? "border-red-500" : "border-gray-200"}`}
                         />
+                        <button
+                            type="button"
+                            onClick={() => {
+                                const el = fslDateRef.current;
+                                if (!el) return;
+                                if (typeof el.showPicker === 'function') el.showPicker(); else { el.focus(); el.click(); }
+                            }}
+                            className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                            aria-label="Open date picker"
+                        >
+                            <LuCalendar className="w-5 h-5" />
+                        </button>
+                        </div>
                         {errors?.fslDate && <p className="text-xs text-red-600 mt-1">{errors.fslDate}</p>}
                     </div>
                     <div>
@@ -986,16 +1118,31 @@ const SalesLeadForm = ({ salesLead, mode = "create", onSave, onBack, onSubmit })
                     </div>
                     <div>
                         <label htmlFor="deadline">Deadline</label>
+                        <div className="relative">
                         <input
                             id="deadline"
                             name="deadline"
                             type="date"
                             autoComplete="off"
-                            value={utils.formatDate(formData.deadline, "YYYY-MM-DD") || ""}
-                            onChange={handleChange}
-                            className={`col-span-5 w-full rounded-md border px-3 py-2 focus:outline-1
+                            ref={deadlineRef}
+                            value={formData.deadline || ""}
+                            onChange={handleDateChange('deadline')}
+                            className={`hide-native-date-icon col-span-5 w-full rounded-md border px-3 pr-10 py-2 focus:outline-1
                 ${errors?.deadline ? "border-red-500" : "border-gray-200"}`}
                         />
+                        <button
+                            type="button"
+                            onClick={() => {
+                                const el = deadlineRef.current;
+                                if (!el) return;
+                                if (typeof el.showPicker === 'function') el.showPicker(); else { el.focus(); el.click(); }
+                            }}
+                            className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                            aria-label="Open date picker"
+                        >
+                            <LuCalendar className="w-5 h-5" />
+                        </button>
+                        </div>
                         {errors?.deadline && <p className="text-xs text-red-600 mt-1">{errors.deadline}</p>}
                     </div>
                     <div>

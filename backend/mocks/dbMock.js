@@ -169,7 +169,8 @@ mem.public.none(`
     acknowledged_by INT REFERENCES users(id) ON DELETE SET NULL,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    is_naef BOOLEAN DEFAULT FALSE
+    is_naef BOOLEAN DEFAULT FALSE,
+    wo_source_id INT
   );
 `);
 

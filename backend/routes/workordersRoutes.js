@@ -188,10 +188,10 @@ router.post("/", async (req, res) => {
 
             const draftAccount = await db.query(
                 `INSERT INTO accounts 
-                    (account_name, department_id, industry_id, product_id, stage_status, created_at, updated_at, is_naef)
-                VALUES ($1, $2, $3, $4, 'Draft', NOW(), NOW(), TRUE)
+                    (account_name, department_id, industry_id, product_id, stage_status, created_at, updated_at, is_naef, requested_by, contact_number)
+                VALUES ($1, $2, $3, $4, 'Draft', NOW(), NOW(), TRUE, $5, $6)
                 RETURNING id`,
-                [account_name, resolvedDepartmentId, resolvedIndustryId, resolvedProductId]
+                [account_name, resolvedDepartmentId, resolvedIndustryId, resolvedProductId, contact_person, contact_number]
             );
             finalAccountId = draftAccount.rows[0].id;
         }
@@ -251,6 +251,9 @@ router.post("/", async (req, res) => {
         );
 
         const newId = insertResult.rows[0].id;
+
+        const updateAccountQuery = `UPDATE accounts SET wo_source_id=$1 WHERE id = $2`;
+        await db.query(updateAccountQuery, [insertResult.rows[0].id, finalAccountId]);
 
         // 5️⃣ Return new row with assignee details
         const final = await db.query(

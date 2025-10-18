@@ -621,7 +621,7 @@ const TechnicalForm = ({ technicalReco, mode, onSave, onBack, onSubmitForApprova
                                                                                         model: itm.Code || itm.Code || itm.Model || itm.model || "",
                                                                                         description: itm.Description || itm.description || itm.Code || itm.code || "",
                                                                                         quantity: it.quantity || 1,
-                                                                                        unitPrice: itm.LocalPrice || itm.LocalPrice || itm.Localprice || itm.localPrice || itm.price || itm.Price || 0,
+                                                                                        unitPrice: itm.Price_Detail ?? itm.LocalPrice ?? itm.LocalPrice_Details ?? itm.SourcePrice_Details ?? itm.LocalPrice ?? itm.Localprice ?? itm.localPrice ?? itm.price ?? itm.Price ?? 0,
                                                                                         showDropdown: false,
                                                                                         searchQuery: ""
                                                                                     } : it

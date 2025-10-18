@@ -208,7 +208,7 @@ router.post("/", async (req, res) => {
             INSERT INTO workflow_stages (wo_id, stage_name, status, assigned_to, created_at, updated_at)
             VALUES ($1, $2, $3, $4, NOW(), NOW())`,
             [
-                newId,
+                wo_id,
                 "Technical Recommendation",
                 "Draft",
                 assignee

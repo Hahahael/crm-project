@@ -1,5 +1,5 @@
 //src/components/QuotationsTable
-import { LuEllipsis, LuEye, LuPencil, LuTrash, LuSend } from "react-icons/lu";
+import { LuEllipsis, LuEye, LuPencil, LuTrash, LuSend, LuCheck } from "react-icons/lu";
 import util from "../helper/utils.js"
 
 export default function QuotationsTable({ quotations, onView, onSend }) {

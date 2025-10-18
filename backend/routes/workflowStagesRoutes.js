@@ -234,6 +234,7 @@ router.post("/", async (req, res) => {
     console.log(req.body);
     try {
         const body = toSnake(req.body);
+        console.log("Creating workflow stage with data:", body);
         const {
             wo_id,
             stage_name,

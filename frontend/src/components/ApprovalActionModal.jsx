@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { apiBackendFetch } from "../services/api";
 
 const ApprovalActionModal = ({ isOpen, type, approval, onClose, onSubmit }) => {
+    console.log("ApprovalActionModal props:", { isOpen, type, approval });
     const [assigneeDropdownOpen, setAssigneeDropdownOpen] = useState(false);
     const assigneeRef = useRef(null);
     const [searchQuery, setSearchQuery] = useState("");
