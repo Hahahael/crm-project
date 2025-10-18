@@ -118,9 +118,36 @@ const WorkOrderForm = ({ workOrder, mode = "create", onSave, onBack }) => {
         fetchDepartments();
     }, []);
 
-    // fetch accounts once
+    // Hydrate display-only fields when editing and option lists/users are loaded
     useEffect(() => {
-    }, []);
+        // Populate assigneeUsername from assignee id if missing
+        if (formData.assignee && !formData.assigneeUsername && users.length > 0) {
+            const u = users.find((x) => x.id == formData.assignee);
+            if (u) {
+                setFormData((prev) => ({ ...prev, assigneeUsername: u.username }));
+            }
+        }
+        // Populate account-related display fields when accountId exists (edit mode)
+        if (!formData.isNewAccount && formData.accountId && (accounts.length > 0 || industries.length > 0 || productBrands.length > 0 || departments.length > 0)) {
+            setFormData((prev) => {
+                // If already hydrated, skip
+                const acc = accounts.find((a) => a.id == prev.accountId);
+                if (!acc) return prev;
+                const depName = departments.find((d) => d.id == acc.departmentId)?.departmentName || prev.department || "";
+                const indName = industries.find((i) => i.id == acc.industryId)?.industryName || prev.industry || "";
+                const prodName = productBrands.find((p) => p.id == acc.productId)?.productBrandName || prev.productBrand || "";
+                return {
+                    ...prev,
+                    department: depName,
+                    departmentId: acc.departmentId || prev.departmentId,
+                    industry: indName,
+                    industryId: acc.industryId || prev.industryId,
+                    productBrand: prodName,
+                    productBrandId: acc.productId || prev.productBrandId,
+                };
+            });
+        }
+    }, [users, accounts, industries, productBrands, departments, formData.assignee, formData.assigneeUsername, formData.accountId, formData.isNewAccount]);
 
     // filter users by search
     const filteredUsers = users.filter((u) => u.username.toLowerCase().includes(assigneeQuery.toLowerCase()));
@@ -525,7 +552,7 @@ const WorkOrderForm = ({ workOrder, mode = "create", onSave, onBack }) => {
                                             type="text"
                                             name="accountSearch"
                                             autoComplete="off"
-                                            value={accounts.find(a => a.id === formData.accountId)?.accountName || accountQuery}
+                                            value={selectedAccountObj?.accountName || accountQuery}
                                             onChange={(e) => {
                                                 setAccountQuery(e.target.value);
                                                 setAccountDropdownOpen(true);
@@ -563,10 +590,10 @@ const WorkOrderForm = ({ workOrder, mode = "create", onSave, onBack }) => {
                                                 )}
                                             </ul>
                                         )}
-                                        {errors?.accountName && <p className="text-xs text-red-600 mt-1">{errors.accountName}</p>}
                                         {(!formData.isNewAccount && errors?.accountId) && <p className="text-xs text-red-600 mt-1">{errors.accountId}</p>}
                                     </div>
                                 )}
+                                {errors?.accountName && <p className="text-xs text-red-600 mt-1">{errors.accountName}</p>}
                             </div>
                             <div className="flex items-center gap-2 justify-end">
                                 <input
@@ -818,7 +845,7 @@ const WorkOrderForm = ({ workOrder, mode = "create", onSave, onBack }) => {
                                 type="date"
                                 name="dueDate"
                                 autoComplete="off"
-                                value={utils.formatDate(formData.dueDate, "YYYY-MM-DD")}
+                                value={utils.formatDate(formData.dueDate, "YYYY-MM-DD") || ""}
                                 onChange={handleChange}
                                 className="col-span-5 w-full h-10 rounded-md border border-gray-200 px-3 py-2"
                             />
