@@ -58,6 +58,13 @@ const WorkOrderForm = ({ workOrder, mode = "create", onSave, onBack }) => {
     const industryRef = useRef(null);
     const productBrandRef = useRef(null);
 
+    // Helper to find by display name (case-insensitive exact match)
+    const findByName = (list, key, value) => {
+        if (!value) return undefined;
+        const needle = String(value).trim().toLowerCase();
+        return list.find((x) => String(x[key]).trim().toLowerCase() === needle);
+    };
+
     // fetch users once
     useEffect(() => {
         const fetchUsers = async () => {
@@ -500,6 +507,25 @@ const WorkOrderForm = ({ workOrder, mode = "create", onSave, onBack }) => {
                                         setAssigneeQuery(q);
                                         setAssigneeDropdownOpen(true);
                                     }}
+                                    onKeyDown={(e) => {
+                                        if (e.key === 'Enter') {
+                                            e.preventDefault();
+                                            const u = findByName(users, 'username', formData.assigneeUsername);
+                                            if (u) {
+                                                setFormData((prev) => ({ ...prev, assignee: u.id, assigneeUsername: u.username }));
+                                                setAssigneeDropdownOpen(false);
+                                            }
+                                        }
+                                    }}
+                                    onBlur={() => {
+                                        if (!formData.assignee && formData.assigneeUsername) {
+                                            const u = findByName(users, 'username', formData.assigneeUsername);
+                                            if (u) {
+                                                setFormData((prev) => ({ ...prev, assignee: u.id, assigneeUsername: u.username }));
+                                                setAssigneeDropdownOpen(false);
+                                            }
+                                        }
+                                    }}
                                     onFocus={() => setAssigneeDropdownOpen(true)}
                                     placeholder="Search user..."
                                     className="w-full h-10 rounded-md border border-gray-200 px-3 py-2"
@@ -556,6 +582,50 @@ const WorkOrderForm = ({ workOrder, mode = "create", onSave, onBack }) => {
                                             onChange={(e) => {
                                                 setAccountQuery(e.target.value);
                                                 setAccountDropdownOpen(true);
+                                            }}
+                                            onKeyDown={(e) => {
+                                                if (e.key === 'Enter') {
+                                                    e.preventDefault();
+                                                    const acc = findByName(accounts, 'accountName', e.currentTarget.value);
+                                                    if (acc) {
+                                                        const depName = departments.find(d => d.id == acc.departmentId)?.departmentName || "";
+                                                        const indName = industries.find(i => i.id == acc.industryId)?.industryName || "";
+                                                        const prodName = productBrands.find(p => p.id == acc.productId)?.productBrandName || "";
+                                                        setFormData((prev) => ({
+                                                            ...prev,
+                                                            accountId: acc.id,
+                                                            department: depName,
+                                                            departmentId: acc.departmentId || "",
+                                                            industry: indName,
+                                                            industryId: acc.industryId || "",
+                                                            productBrand: prodName,
+                                                            productBrandId: acc.productId || "",
+                                                        }));
+                                                        setAccountDropdownOpen(false);
+                                                        setAccountQuery("");
+                                                    }
+                                                }
+                                            }}
+                                            onBlur={(e) => {
+                                                if (!formData.isNewAccount && !formData.accountId) {
+                                                    const acc = findByName(accounts, 'accountName', e.currentTarget.value);
+                                                    if (acc) {
+                                                        const depName = departments.find(d => d.id == acc.departmentId)?.departmentName || "";
+                                                        const indName = industries.find(i => i.id == acc.industryId)?.industryName || "";
+                                                        const prodName = productBrands.find(p => p.id == acc.productId)?.productBrandName || "";
+                                                        setFormData((prev) => ({
+                                                            ...prev,
+                                                            accountId: acc.id,
+                                                            department: depName,
+                                                            departmentId: acc.departmentId || "",
+                                                            industry: indName,
+                                                            industryId: acc.industryId || "",
+                                                            productBrand: prodName,
+                                                            productBrandId: acc.productId || "",
+                                                        }));
+                                                        setAccountDropdownOpen(false);
+                                                    }
+                                                }
                                             }}
                                             onFocus={() => setAccountDropdownOpen(true)}
                                             placeholder="Search account..."
@@ -637,6 +707,26 @@ const WorkOrderForm = ({ workOrder, mode = "create", onSave, onBack }) => {
                                             setProductBrandQuery(q);
                                             setProductBrandDropdownOpen(true);
                                         }}
+                                        onKeyDown={(e) => {
+                                            if (e.key === 'Enter') {
+                                                e.preventDefault();
+                                                const prod = findByName(productBrands, 'productBrandName', e.currentTarget.value);
+                                                if (prod) {
+                                                    setFormData((prev) => ({ ...prev, productBrand: prod.productBrandName, productBrandId: prod.id }));
+                                                    setProductBrandDropdownOpen(false);
+                                                    setProductBrandQuery("");
+                                                }
+                                            }
+                                        }}
+                                        onBlur={(e) => {
+                                            if (formData.isNewAccount) {
+                                                const prod = findByName(productBrands, 'productBrandName', e.currentTarget.value);
+                                                if (prod) {
+                                                    setFormData((prev) => ({ ...prev, productBrand: prod.productBrandName, productBrandId: prod.id }));
+                                                    setProductBrandDropdownOpen(false);
+                                                }
+                                            }
+                                        }}
                                         onFocus={() => setProductBrandDropdownOpen(true)}
                                         placeholder="Search product/brand..."
                                         className={`w-full h-10 rounded-md border px-3 py-2 ${errors?.productBrand ? "border-red-500" : "border-gray-200"}`}
@@ -691,6 +781,26 @@ const WorkOrderForm = ({ workOrder, mode = "create", onSave, onBack }) => {
                                             setDepartmentQuery(q);
                                             setDepartmentDropdownOpen(true);
                                         }}
+                                        onKeyDown={(e) => {
+                                            if (e.key === 'Enter') {
+                                                e.preventDefault();
+                                                const dept = findByName(departments, 'departmentName', e.currentTarget.value);
+                                                if (dept) {
+                                                    setFormData((prev) => ({ ...prev, department: dept.departmentName, departmentId: dept.id }));
+                                                    setDepartmentDropdownOpen(false);
+                                                    setDepartmentQuery("");
+                                                }
+                                            }
+                                        }}
+                                        onBlur={(e) => {
+                                            if (formData.isNewAccount && !formData.departmentId) {
+                                                const dept = findByName(departments, 'departmentName', e.currentTarget.value);
+                                                if (dept) {
+                                                    setFormData((prev) => ({ ...prev, department: dept.departmentName, departmentId: dept.id }));
+                                                    setDepartmentDropdownOpen(false);
+                                                }
+                                            }
+                                        }}
                                         onFocus={() => setDepartmentDropdownOpen(true)}
                                         placeholder="Search department..."
                                         className={`w-full h-10 rounded-md border px-3 py-2 ${errors?.department ? "border-red-500" : "border-gray-200"}`}
@@ -744,6 +854,26 @@ const WorkOrderForm = ({ workOrder, mode = "create", onSave, onBack }) => {
                                             setFormData((prev) => ({ ...prev, industry: q }));
                                             setIndustryQuery(q);
                                             setIndustryDropdownOpen(true);
+                                        }}
+                                        onKeyDown={(e) => {
+                                            if (e.key === 'Enter') {
+                                                e.preventDefault();
+                                                const ind = findByName(industries, 'industryName', e.currentTarget.value);
+                                                if (ind) {
+                                                    setFormData((prev) => ({ ...prev, industry: ind.industryName, industryId: ind.id }));
+                                                    setIndustryDropdownOpen(false);
+                                                    setIndustryQuery("");
+                                                }
+                                            }
+                                        }}
+                                        onBlur={(e) => {
+                                            if (formData.isNewAccount && !formData.industryId) {
+                                                const ind = findByName(industries, 'industryName', e.currentTarget.value);
+                                                if (ind) {
+                                                    setFormData((prev) => ({ ...prev, industry: ind.industryName, industryId: ind.id }));
+                                                    setIndustryDropdownOpen(false);
+                                                }
+                                            }
                                         }}
                                         onFocus={() => setIndustryDropdownOpen(true)}
                                         placeholder="Search industry..."

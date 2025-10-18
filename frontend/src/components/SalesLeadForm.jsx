@@ -744,7 +744,7 @@ const SalesLeadForm = ({ salesLead, mode = "create", onSave, onBack, onSubmit })
                             name="nextFollowupDate"
                             type="date"
                             autoComplete="off"
-                            value={formData.nextFollowupDate}
+                            value={utils.formatDate(formData.nextFollowupDate, "YYYY-MM-DD") || ""}
                             onChange={handleChange}
                             className={`col-span-5 w-full rounded-md border px-3 py-2 focus:outline-1
                 ${errors?.nextFollowupDate ? "border-red-500" : "border-gray-200"}`}
@@ -758,7 +758,7 @@ const SalesLeadForm = ({ salesLead, mode = "create", onSave, onBack, onSubmit })
                             name="dueDate"
                             type="date"
                             autoComplete="off"
-                            value={formData.dueDate}
+                            value={utils.formatDate(formData.dueDate, "YYYY-MM-DD") || ""}
                             onChange={handleChange}
                             className={`col-span-5 w-full rounded-md border px-3 py-2 focus:outline-1
                 ${errors?.dueDate ? "border-red-500" : "border-gray-200"}`}
@@ -909,7 +909,7 @@ const SalesLeadForm = ({ salesLead, mode = "create", onSave, onBack, onSubmit })
                             name="fslDate"
                             type="date"
                             autoComplete="off"
-                            value={formData.fslDate}
+                            value={utils.formatDate(formData.fslDate, "YYYY-MM-DD") || ""}
                             onChange={handleChange}
                             className={`col-span-5 w-full rounded-md border px-3 py-2 focus:outline-1
                 ${errors?.fslDate ? "border-red-500" : "border-gray-200"}`}
@@ -991,7 +991,7 @@ const SalesLeadForm = ({ salesLead, mode = "create", onSave, onBack, onSubmit })
                             name="deadline"
                             type="date"
                             autoComplete="off"
-                            value={formData.deadline}
+                            value={utils.formatDate(formData.deadline, "YYYY-MM-DD") || ""}
                             onChange={handleChange}
                             className={`col-span-5 w-full rounded-md border px-3 py-2 focus:outline-1
                 ${errors?.deadline ? "border-red-500" : "border-gray-200"}`}
