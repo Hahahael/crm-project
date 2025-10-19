@@ -1,13 +1,14 @@
-export const accountsProductBrands = [    {
+export const accountsProductBrands = [
+  {
     id: 1,
-    productBrandName: 'Brand A'
+    productBrandName: "Brand A",
   },
   {
     id: 2,
-    productBrandName: 'Brand B'
+    productBrandName: "Brand B",
   },
   {
     id: 3,
-    productBrandName: 'Brand C'
-  }
-  ];
+    productBrandName: "Brand C",
+  },
+];

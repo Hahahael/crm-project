@@ -29,9 +29,21 @@ router.get("/", async (req, res) => {
     console.log(`Fetched ${quotations.length} quotations`);
 
     // Collect all related IDs (convert to numbers and filter out invalids)
-    const rfqIds = [...new Set(quotations.map(q => Number(q.rfq_id || q.rfqId)).filter(Boolean))];
-    const trIds = [...new Set(quotations.map(q => Number(q.tr_id || q.trId)).filter(Boolean))];
-    const woIds = [...new Set(quotations.map(q => Number(q.wo_id || q.woId)).filter(Boolean))];
+    const rfqIds = [
+      ...new Set(
+        quotations.map((q) => Number(q.rfq_id || q.rfqId)).filter(Boolean),
+      ),
+    ];
+    const trIds = [
+      ...new Set(
+        quotations.map((q) => Number(q.tr_id || q.trId)).filter(Boolean),
+      ),
+    ];
+    const woIds = [
+      ...new Set(
+        quotations.map((q) => Number(q.wo_id || q.woId)).filter(Boolean),
+      ),
+    ];
 
     console.log("Collected RFQ IDs:", rfqIds);
     console.log("Collected TR IDs:", trIds);
@@ -39,7 +51,9 @@ router.get("/", async (req, res) => {
 
     // Prepare batched queries dynamically
     const rfqQuery = rfqIds.length ? buildInQuery("rfqs", rfqIds) : null;
-    const trQuery = trIds.length ? buildInQuery("technical_recommendations", trIds) : null;
+    const trQuery = trIds.length
+      ? buildInQuery("technical_recommendations", trIds)
+      : null;
     const woQuery = woIds.length ? buildInQuery("workorders", woIds) : null;
 
     // Execute all available queries in parallel
@@ -50,16 +64,16 @@ router.get("/", async (req, res) => {
     ]);
 
     console.log(
-      `Fetched ${rfqsRes.rows.length} RFQs, ${trsRes.rows.length} TRs, ${wosRes.rows.length} Workorders`
+      `Fetched ${rfqsRes.rows.length} RFQs, ${trsRes.rows.length} TRs, ${wosRes.rows.length} Workorders`,
     );
 
     // Convert results to maps for fast lookups
-    const rfqMap = Object.fromEntries(rfqsRes.rows.map(r => [r.id, r]));
-    const trMap = Object.fromEntries(trsRes.rows.map(r => [r.id, r]));
-    const woMap = Object.fromEntries(wosRes.rows.map(r => [r.id, r]));
+    const rfqMap = Object.fromEntries(rfqsRes.rows.map((r) => [r.id, r]));
+    const trMap = Object.fromEntries(trsRes.rows.map((r) => [r.id, r]));
+    const woMap = Object.fromEntries(wosRes.rows.map((r) => [r.id, r]));
 
     // Enrich quotations
-    const enriched = quotations.map(q => ({
+    const enriched = quotations.map((q) => ({
       ...q,
       rfq: rfqMap[q.rfq_id || q.rfqId] || null,
       tr: trMap[q.tr_id || q.trId] || null,
@@ -77,7 +91,9 @@ router.get("/", async (req, res) => {
 router.get("/:id", async (req, res) => {
   try {
     const { id } = req.params;
-    const result = await db.query("SELECT * FROM quotations WHERE id = $1", [id]);
+    const result = await db.query("SELECT * FROM quotations WHERE id = $1", [
+      id,
+    ]);
     if (result.rows.length === 0)
       return res.status(404).json({ error: "Not found" });
 
@@ -85,9 +101,17 @@ router.get("/:id", async (req, res) => {
 
     // Fetch associated RFQ, TR, and Workorder in parallel (if ids present)
     const [rfqRes, trRes, woRes] = await Promise.all([
-      quotation.rfq_id ? db.query("SELECT * FROM rfqs WHERE id = $1", [quotation.rfq_id]) : Promise.resolve({ rows: [] }),
-      quotation.tr_id ? db.query("SELECT * FROM technical_recommendations WHERE id = $1", [quotation.tr_id]) : Promise.resolve({ rows: [] }),
-      quotation.wo_id ? db.query("SELECT * FROM workorders WHERE id = $1", [quotation.wo_id]) : Promise.resolve({ rows: [] }),
+      quotation.rfq_id
+        ? db.query("SELECT * FROM rfqs WHERE id = $1", [quotation.rfq_id])
+        : Promise.resolve({ rows: [] }),
+      quotation.tr_id
+        ? db.query("SELECT * FROM technical_recommendations WHERE id = $1", [
+            quotation.tr_id,
+          ])
+        : Promise.resolve({ rows: [] }),
+      quotation.wo_id
+        ? db.query("SELECT * FROM workorders WHERE id = $1", [quotation.wo_id])
+        : Promise.resolve({ rows: [] }),
     ]);
 
     const rfq = rfqRes.rows[0] || null;
@@ -116,7 +140,7 @@ router.get("/by-tr/:trId", async (req, res) => {
        LEFT JOIN sales_leads sl ON tr.sl_id = sl.id
        LEFT JOIN rfqs rfq ON tr.wo_id = rfq.wo_id
        WHERE tr.id = $1`,
-      [trId]
+      [trId],
     );
     if (result.rows.length === 0)
       return res.status(404).json({ error: "Quotation not found for this TR" });
@@ -137,10 +161,12 @@ router.get("/by-rfq/:rfqId", async (req, res) => {
        LEFT JOIN technical_recommendations tr ON rfq.wo_id = tr.wo_id
        LEFT JOIN sales_leads sl ON tr.sl_id = sl.id
        WHERE rfq.id = $1`,
-      [rfqId]
+      [rfqId],
     );
     if (result.rows.length === 0)
-      return res.status(404).json({ error: "Quotation not found for this RFQ" });
+      return res
+        .status(404)
+        .json({ error: "Quotation not found for this RFQ" });
     return res.json(result.rows[0]);
   } catch (err) {
     console.error(err);
@@ -162,7 +188,7 @@ router.get("/merged/:id", async (req, res) => {
          FROM technical_recommendations tr
          LEFT JOIN sales_leads sl ON tr.sl_id = sl.id
          WHERE tr.id = $1`,
-        [trId]
+        [trId],
       );
       if (trRes.rows.length > 0) trData = trRes.rows[0];
     }
@@ -174,18 +200,23 @@ router.get("/merged/:id", async (req, res) => {
          LEFT JOIN technical_recommendations tr ON rfq.wo_id = tr.wo_id
          LEFT JOIN sales_leads sl ON tr.sl_id = sl.id
          WHERE rfq.id = $1`,
-        [rfqId]
+        [rfqId],
       );
       if (rfqRes.rows.length > 0) rfqData = rfqRes.rows[0];
     }
     if (!trData && !rfqData) {
-      return res.status(404).json({ error: "No quotation data found for provided ids" });
+      return res
+        .status(404)
+        .json({ error: "No quotation data found for provided ids" });
     }
     // Merge logic: deduplicate attributes, keep both if values differ
     let merged = {};
     if (trData && rfqData) {
       // Merge keys
-      const allKeys = new Set([...Object.keys(trData), ...Object.keys(rfqData)]);
+      const allKeys = new Set([
+        ...Object.keys(trData),
+        ...Object.keys(rfqData),
+      ]);
       for (const key of allKeys) {
         if (trData[key] !== undefined && rfqData[key] !== undefined) {
           if (trData[key] === rfqData[key]) {
@@ -206,20 +237,36 @@ router.get("/merged/:id", async (req, res) => {
     return res.json(merged);
   } catch (err) {
     console.error(err);
-    return res.status(500).json({ error: "Failed to fetch merged quotation data" });
+    return res
+      .status(500)
+      .json({ error: "Failed to fetch merged quotation data" });
   }
 });
 
 router.post("/", async (req, res) => {
   try {
-    console.log("Received request to create quotation with body:", toSnake(req.body));
-    const { wo_id, assignee, account_id, created_by, updated_by } = toSnake(req.body);
+    console.log(
+      "Received request to create quotation with body:",
+      toSnake(req.body),
+    );
+    const { wo_id, assignee, account_id, created_by, updated_by } = toSnake(
+      req.body,
+    );
 
     // Find RFQ and TR for this WO
-    const rfqRes = await db.query("SELECT id FROM rfqs WHERE wo_id = $1 LIMIT 1", [wo_id]);
-    const trRes = await db.query("SELECT id FROM technical_recommendations WHERE wo_id = $1 LIMIT 1", [wo_id]);
+    const rfqRes = await db.query(
+      "SELECT id FROM rfqs WHERE wo_id = $1 LIMIT 1",
+      [wo_id],
+    );
+    const trRes = await db.query(
+      "SELECT id FROM technical_recommendations WHERE wo_id = $1 LIMIT 1",
+      [wo_id],
+    );
 
-    console.log("Found RFQ and TR for WO:", { rfqRes: rfqRes.rows, trRes: trRes.rows });
+    console.log("Found RFQ and TR for WO:", {
+      rfqRes: rfqRes.rows,
+      trRes: trRes.rows,
+    });
 
     const rfq_id = rfqRes.rows[0]?.id || null;
     const tr_id = trRes.rows[0]?.id || null;
@@ -228,26 +275,27 @@ router.post("/", async (req, res) => {
       return res.status(400).json({
         error: "Missing reference",
         rfq_id,
-        tr_id
+        tr_id,
       });
     }
 
     // Generate TR number
     const currentYear = new Date().getFullYear();
-    const qtNumRes = await db.query(`
+    const qtNumRes = await db.query(
+      `
         SELECT quotation_number
         FROM quotations
         WHERE quotation_number LIKE $1
         ORDER BY quotation_number DESC
         LIMIT 1`,
-        [`QUOT-${currentYear}-%`]
+      [`QUOT-${currentYear}-%`],
     );
 
     let newCounter = 1;
     if (qtNumRes.rows.length > 0) {
-        const lastQuotationNumber = qtNumRes.rows[0].quotation_number;
-        const lastCounter = parseInt(lastQuotationNumber.split("-")[2], 10);
-        newCounter = lastCounter + 1;
+      const lastQuotationNumber = qtNumRes.rows[0].quotation_number;
+      const lastCounter = parseInt(lastQuotationNumber.split("-")[2], 10);
+      newCounter = lastCounter + 1;
     }
 
     const quotation_number = `QUOT-${currentYear}-${String(newCounter).padStart(4, "0")}`;
@@ -256,7 +304,17 @@ router.post("/", async (req, res) => {
       `INSERT INTO quotations (rfq_id, tr_id, wo_id, assignee, account_id, created_at, created_by, updated_at, updated_by, quotation_number, due_date)
        VALUES ($1, $2, $3, $4, $5, NOW(), $6, NOW(), $7, $8, $9)
        RETURNING *`,
-      [rfq_id, tr_id, wo_id, assignee, account_id, created_by, updated_by, quotation_number, req.body.due_date || req.body.dueDate || null]
+      [
+        rfq_id,
+        tr_id,
+        wo_id,
+        assignee,
+        account_id,
+        created_by,
+        updated_by,
+        quotation_number,
+        req.body.due_date || req.body.dueDate || null,
+      ],
     );
 
     console.log("Created new quotation:", result.rows[0]);
@@ -265,7 +323,7 @@ router.post("/", async (req, res) => {
     await db.query(
       `INSERT INTO workflow_stages (wo_id, stage_name, status, assigned_to, created_at, updated_at)
         VALUES ($1, $2, $3, $4, NOW(), NOW())`,
-      [wo_id, 'Quotations', 'Draft', assignee]
+      [wo_id, "Quotations", "Draft", assignee],
     );
 
     return res.status(201).json(result.rows[0]);

@@ -10,10 +10,9 @@ export async function login(req, res) {
   const { username, password } = req.body;
 
   try {
-    const result = await pool.query(
-      "SELECT * FROM users WHERE username = $1",
-      [username]
-    );
+    const result = await pool.query("SELECT * FROM users WHERE username = $1", [
+      username,
+    ]);
     if (result.rows.length === 0) {
       return res.status(400).json({ message: "Invalid username or password" });
     }
@@ -32,7 +31,7 @@ export async function login(req, res) {
         permissions: user.permissions,
       },
       process.env.JWT_SECRET,
-      { expiresIn: "1h" }
+      { expiresIn: "1h" },
     );
 
     res.cookie("token", token, {

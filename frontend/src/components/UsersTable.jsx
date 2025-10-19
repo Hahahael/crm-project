@@ -2,8 +2,8 @@
 import React, { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { LuEllipsis, LuEye, LuPencil, LuTrash } from "react-icons/lu";
-import config from "../config.js"
-import util from "../helper/utils.js"
+import config from "../config.js";
+import util from "../helper/utils.js";
 
 const TRANSITION_MS = 150;
 
@@ -73,7 +73,7 @@ export default function UsersTable({ users, onView, onEdit, onDelete }) {
   };
 
   const handleDelete = (userId) => {
-    onDelete(userId); 
+    onDelete(userId);
     startClose();
   };
 
@@ -97,20 +97,39 @@ export default function UsersTable({ users, onView, onEdit, onDelete }) {
       <table className="min-w-4xl border-collapse text-left text-sm">
         <thead className="hover:bg-gray-100 border-b border-gray-200">
           <tr>
-            <th className="px-4 py-2 font-normal text-sm text-gray-500 min-w-xs">User</th>
-            <th className="px-4 py-2 font-normal text-sm text-gray-500 w-[15%]">Username</th>
-            <th className="px-4 py-2 font-normal text-sm text-gray-500 w-[15%]">Email</th>
-            <th className="px-4 py-2 font-normal text-sm text-gray-500 w-[15%]">Role</th>
-            <th className="px-4 py-2 font-normal text-sm text-gray-500 w-[15%]">Department</th>
-            <th className="px-4 py-2 font-normal text-sm text-gray-500 w-[15%]">Status</th>
-            <th className="px-4 py-2 font-normal text-sm text-gray-500 w-[15%]">Last Login</th>
-            <th className="px-4 py-2 font-normal text-sm text-gray-500 text-right">Actions</th>
+            <th className="px-4 py-2 font-normal text-sm text-gray-500 min-w-xs">
+              User
+            </th>
+            <th className="px-4 py-2 font-normal text-sm text-gray-500 w-[15%]">
+              Username
+            </th>
+            <th className="px-4 py-2 font-normal text-sm text-gray-500 w-[15%]">
+              Email
+            </th>
+            <th className="px-4 py-2 font-normal text-sm text-gray-500 w-[15%]">
+              Role
+            </th>
+            <th className="px-4 py-2 font-normal text-sm text-gray-500 w-[15%]">
+              Department
+            </th>
+            <th className="px-4 py-2 font-normal text-sm text-gray-500 w-[15%]">
+              Status
+            </th>
+            <th className="px-4 py-2 font-normal text-sm text-gray-500 w-[15%]">
+              Last Login
+            </th>
+            <th className="px-4 py-2 font-normal text-sm text-gray-500 text-right">
+              Actions
+            </th>
           </tr>
         </thead>
 
         <tbody className="divide-y divide-gray-200">
           {users.map((user) => (
-            <tr key={user.id} className="hover:bg-gray-100 transition-all duration-200">
+            <tr
+              key={user.id}
+              className="hover:bg-gray-100 transition-all duration-200"
+            >
               <td className="px-4 py-2 text-black flex text-sm">
                 <img
                   src={user.avatarUrl}
@@ -128,23 +147,29 @@ export default function UsersTable({ users, onView, onEdit, onDelete }) {
               <td className="px-4 py-2 text-black text-sm">
                 <span
                   className={`rounded-md px-3 py-1 text-xs font-semibold text-center block ${
-                    config.roleBadgeClasses[user.roleName] || "bg-gray-100 text-gray-700"
+                    config.roleBadgeClasses[user.roleName] ||
+                    "bg-gray-100 text-gray-700"
                   }`}
                 >
                   {user.roleName}
                 </span>
               </td>
-              <td className="px-4 py-2 text-black text-sm">{user.departmentName}</td>
+              <td className="px-4 py-2 text-black text-sm">
+                {user.departmentName}
+              </td>
               <td className="px-4 py-2 text-black text-sm">
                 <span
                   className={`rounded-md px-2 py-1 text-xs font-semibold text-center block ${
-                    config.statusBadgeClasses[user.statusName] || "bg-yellow-100 text-yellow-700"
+                    config.statusBadgeClasses[user.statusName] ||
+                    "bg-yellow-100 text-yellow-700"
                   }`}
                 >
                   {user.statusName}
                 </span>
               </td>
-              <td className="px-4 py-2 text-black text-sm">{util.formatDate(user.lastLogin, "DD/MM/YYYY hh:mm A")}</td>
+              <td className="px-4 py-2 text-black text-sm">
+                {util.formatDate(user.lastLogin, "DD/MM/YYYY hh:mm A")}
+              </td>
               <td className="px-4 py-2 text-black text-sm text-right">
                 <button
                   ref={(el) => (buttonRefs.current[user.id] = el)}
@@ -182,17 +207,21 @@ export default function UsersTable({ users, onView, onEdit, onDelete }) {
               >
                 <LuEye className="my-auto mr-2" /> View Details
               </li>
-              <li className="cursor-pointer px-4 py-2 hover:bg-gray-100 flex"
-                onClick={() => handleEdit(openMenuId)}>
+              <li
+                className="cursor-pointer px-4 py-2 hover:bg-gray-100 flex"
+                onClick={() => handleEdit(openMenuId)}
+              >
                 <LuPencil className="my-auto mr-2" /> Edit User
               </li>
-              <li className="cursor-pointer px-4 py-2 text-red-600 hover:bg-gray-100 flex"
-                onClick={() => handleDelete(openMenuId)}>
+              <li
+                className="cursor-pointer px-4 py-2 text-red-600 hover:bg-gray-100 flex"
+                onClick={() => handleDelete(openMenuId)}
+              >
                 <LuTrash className="my-auto mr-2" /> Delete User
               </li>
             </ul>
           </div>,
-          document.body
+          document.body,
         )}
     </div>
   );

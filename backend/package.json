@@ -8,7 +8,8 @@
     "start": "nodemon server.js",
     "test": "echo \"Error: no test specified\" && exit 1",
     "uat": "cross-env NODE_ENV=uat node server.js",
-    "prod": "cross-env NODE_ENV=production node server.js"
+    "prod": "cross-env NODE_ENV=production node server.js",
+    "pretty": "prettier --write \"./**/*.{js,jsx,mjs,cjs,ts,tsx,json}\""
   },
   "type": "module",
   "keywords": [],
@@ -35,6 +36,7 @@
     "eslint-plugin-react": "^7.37.5",
     "globals": "^16.3.0",
     "nodemon": "^3.1.10",
+    "prettier": "^3.6.2",
     "typescript-eslint": "^8.42.0"
   }
 }

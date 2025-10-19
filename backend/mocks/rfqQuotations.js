@@ -1,2 +1,1 @@
-export const rfqQuotations = [
-];
+export const rfqQuotations = [];

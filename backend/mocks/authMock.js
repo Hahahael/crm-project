@@ -4,13 +4,15 @@ const { sign, verify } = pkg;
 
 const mockUsers = [
   { id: 1, username: "123", password: "123", role: "Admin" },
-  { id: 2, username: "bob", password: "1234", role: "User" }
+  { id: 2, username: "bob", password: "1234", role: "User" },
 ];
 
 export function mockLogin(req, res) {
   const { username, password } = req.body;
 
-  const user = mockUsers.find(u => u.username === username && u.password === password);
+  const user = mockUsers.find(
+    (u) => u.username === username && u.password === password,
+  );
 
   if (!user) {
     return res.status(400).json({ message: "Invalid username or password" });
@@ -19,7 +21,7 @@ export function mockLogin(req, res) {
   const token = sign(
     { userId: user.id, role: user.role, username: user.username },
     process.env.JWT_SECRET,
-    { expiresIn: "1h" }
+    { expiresIn: "1h" },
   );
 
   res.cookie("token", token, {

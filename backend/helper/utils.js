@@ -32,7 +32,7 @@ export function formatDate(dateStr, format = "YYYY-MM-DD HH:mm") {
 
 export function parseToTimestamp(dateStr, inputFormat = "MM/DD/YYYY") {
   if (!dateStr) return null;
-  return dayjs(dateStr, inputFormat).toDate(); 
+  return dayjs(dateStr, inputFormat).toDate();
   // gives a JS Date, which pg will auto-cast to TIMESTAMP
 }
 

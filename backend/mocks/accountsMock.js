@@ -30,7 +30,7 @@ export const accounts = [
     commodity: "Steel",
     businessActivity: "Manufacturing",
     model: "X100",
-    annualTargetSales: 5000000.00,
+    annualTargetSales: 5000000.0,
     population: "500",
     sourceOfTarget: "Market Research",
     existingBellows: "Type A, Type B",
@@ -46,7 +46,7 @@ export const accounts = [
     approvedBy: 2,
     receivedBy: 2,
     acknowledgedBy: 2,
-    updatedAt: "2025-09-10T15:30:00Z"
+    updatedAt: "2025-09-10T15:30:00Z",
   },
   {
     id: 2,
@@ -79,7 +79,7 @@ export const accounts = [
     commodity: "Software",
     businessActivity: "IT Services",
     model: "B200",
-    annualTargetSales: 2000000.00,
+    annualTargetSales: 2000000.0,
     population: "50",
     sourceOfTarget: "Client Requests",
     existingBellows: "None",
@@ -95,7 +95,7 @@ export const accounts = [
     approvedBy: 1,
     receivedBy: 1,
     acknowledgedBy: 1,
-    updatedAt: "2025-09-12T11:45:00Z"
+    updatedAt: "2025-09-12T11:45:00Z",
   },
   {
     id: 3,
@@ -128,7 +128,7 @@ export const accounts = [
     commodity: "Retail",
     businessActivity: "Retail Sales",
     model: "G300",
-    annualTargetSales: 1000000.00,
+    annualTargetSales: 1000000.0,
     population: "20",
     sourceOfTarget: "Foot Traffic",
     existingBellows: "None",
@@ -144,7 +144,7 @@ export const accounts = [
     approvedBy: 1,
     receivedBy: 1,
     acknowledgedBy: 1,
-    updatedAt: "2025-09-01T08:10:00Z"
+    updatedAt: "2025-09-01T08:10:00Z",
   },
   {
     id: 4,
@@ -155,5 +155,5 @@ export const accounts = [
     departmentId: 3,
     createdAt: "2025-09-15T10:00:00Z",
     updatedAt: "2025-09-15T10:00:00Z",
-  }
+  },
 ];

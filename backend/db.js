@@ -3,7 +3,7 @@ import pg from "pg";
 import { newDb } from "pg-mem";
 import { toCamel } from "./helper/utils.js";
 
-import mockPool from "./mocks/dbMock.js"
+import mockPool from "./mocks/dbMock.js";
 
 let pool;
 

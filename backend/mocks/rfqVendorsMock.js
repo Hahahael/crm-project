@@ -1,2 +1,1 @@
-export const rfqVendors = [
-];
+export const rfqVendors = [];

@@ -1,14 +1,13 @@
 // MSSQL utilities are imported in the mssql route when needed
-import mssqlRoutes from './routes/mssqlRoutes.js';
+import mssqlRoutes from "./routes/mssqlRoutes.js";
 
-
-import express from 'express';
-import cors from 'cors';
+import express from "express";
+import cors from "cors";
 import cookieParser from "cookie-parser";
 
 import authRoutes from "./routes/authRoutes.js";
 import authMiddleware from "./middleware/authMiddleware.js";
-import usersRouter from "./routes/usersRoutes.js"
+import usersRouter from "./routes/usersRoutes.js";
 import accountsRouter from "./routes/accountsRoutes.js";
 import hierarchicalRouter from "./routes/hierarchicalRoutes.js";
 import workflowStagesRouter from "./routes/workflowStagesRoutes.js";
@@ -18,9 +17,8 @@ import technicalsRouter from "./routes/technicalsRoutes.js";
 import rfqsRouter from "./routes/rfqsRoutes.js";
 import inventoryRouter from "./routes/inventoryRoutes.js";
 import quotationsRouter from "./routes/quotationsRoutes.js";
-import mssqlInventoryRoutes from './routes/mssqlInventoryRoutes.js';
-import dashboardRoutes from './routes/dashboardRoutes.js';
-
+import mssqlInventoryRoutes from "./routes/mssqlInventoryRoutes.js";
+import dashboardRoutes from "./routes/dashboardRoutes.js";
 
 const PORT = process.env.PORT || 5000;
 const FRONTEND_URL = process.env.FRONTEND_URL || "http://localhost:5173";
@@ -29,18 +27,21 @@ const app = express();
 
 app.use(cookieParser());
 // Allow larger request bodies for complex RFQ payloads during dev
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+app.use(express.json({ limit: "10mb" }));
+app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 
 // Temporary debug endpoint (DEV ONLY): echo raw request body so clients can
 // verify exactly what the server receives. Remove or protect in production.
-app.post('/api/debug/echo', (req, res) => {
+app.post("/api/debug/echo", (req, res) => {
   try {
-    console.log('[DEBUG ECHO] headers:', { 'content-type': req.get('content-type'), 'content-length': req.get('content-length') });
-    console.log('[DEBUG ECHO] body keys:', Object.keys(req.body || {}));
+    console.log("[DEBUG ECHO] headers:", {
+      "content-type": req.get("content-type"),
+      "content-length": req.get("content-length"),
+    });
+    console.log("[DEBUG ECHO] body keys:", Object.keys(req.body || {}));
     return res.json({ ok: true, body: req.body });
   } catch (err) {
-    console.error('[DEBUG ECHO] error:', err);
+    console.error("[DEBUG ECHO] error:", err);
     return res.status(500).json({ ok: false, error: err.message });
   }
 });
@@ -65,7 +66,7 @@ app.use(
     credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
-  })
+  }),
 );
 
 // Restore /auth routes for authentication
@@ -77,9 +78,9 @@ app.get("/healthcheck", (req, res) => {
 });
 app.use(authMiddleware);
 
-app.use('/api/mssql', mssqlRoutes);
-app.use('/api/mssql/inventory', mssqlInventoryRoutes);
-app.use('/api/dashboard', dashboardRoutes);
+app.use("/api/mssql", mssqlRoutes);
+app.use("/api/mssql/inventory", mssqlInventoryRoutes);
+app.use("/api/dashboard", dashboardRoutes);
 
 app.use("/dashboard", usersRouter);
 app.use("/api/users", usersRouter);
@@ -96,7 +97,6 @@ app.use("/api/quotations", quotationsRouter);
 app.get("/", (req, res) => {
   res.send("🚀 Server is alive!");
 });
-
 
 const server = app.listen(PORT, () => {
   console.log(`✅ Server running on port ${PORT}`);

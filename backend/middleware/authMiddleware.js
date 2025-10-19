@@ -9,7 +9,9 @@ export default function (req, res, next) {
   const token = req.cookies?.token; // ✅ read from cookie instead of header
 
   if (!token) {
-    return res.status(401).json({ message: "Access denied. No token provided." });
+    return res
+      .status(401)
+      .json({ message: "Access denied. No token provided." });
   }
 
   try {

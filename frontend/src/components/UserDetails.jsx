@@ -2,7 +2,7 @@
 import React from "react";
 import { LuPrinter, LuArrowLeft, LuPencil, LuTrash } from "react-icons/lu";
 import config from "../config.js";
-import util from "../helper/utils.js"
+import util from "../helper/utils.js";
 
 const UserDetails = ({ user, onBack, onEdit, onDelete }) => {
   return (
@@ -34,7 +34,8 @@ const UserDetails = ({ user, onBack, onEdit, onDelete }) => {
           </button>
           <button
             onClick={() => onDelete(user)}
-            className="text-white bg-red-500 flex border hover:bg-red-400 transition-all duration-150 cursor-pointer px-2 py-1 rounded-md align-middle justify-center items-center text-sm">
+            className="text-white bg-red-500 flex border hover:bg-red-400 transition-all duration-150 cursor-pointer px-2 py-1 rounded-md align-middle justify-center items-center text-sm"
+          >
             <LuTrash className="my-auto mr-2 cursor-pointer" /> Delete User
           </button>
         </div>
@@ -157,7 +158,9 @@ const UserDetails = ({ user, onBack, onEdit, onDelete }) => {
               <p className="font-medium">{user.departmentName}</p>
             </div>
             <div>
-              <label className="text-sm font-medium text-gray-500">Status</label>
+              <label className="text-sm font-medium text-gray-500">
+                Status
+              </label>
               <div className="mt-1">
                 <div className="inline-flex items-center">
                   <span
@@ -183,20 +186,34 @@ const UserDetails = ({ user, onBack, onEdit, onDelete }) => {
           </div>
           <div className="p-6 pt-0 space-y-4">
             <div>
-              <label className="text-sm font-medium text-gray-500">Join Date</label>
-              <p className="font-medium">{util.formatDate(user.joinedDate, "DD/MM/YYYY") || "N/A"}</p>
+              <label className="text-sm font-medium text-gray-500">
+                Join Date
+              </label>
+              <p className="font-medium">
+                {util.formatDate(user.joinedDate, "DD/MM/YYYY") || "N/A"}
+              </p>
             </div>
             <div>
-              <label className="text-sm font-medium text-gray-500">Last Login</label>
-              <p className="font-medium">{util.formatDate(user.lastLogin, "DD/MM/YYYY hh:mm A") || "N/A"}</p>
+              <label className="text-sm font-medium text-gray-500">
+                Last Login
+              </label>
+              <p className="font-medium">
+                {util.formatDate(user.lastLogin, "DD/MM/YYYY hh:mm A") || "N/A"}
+              </p>
             </div>
             <div>
-              <label className="text-sm font-medium text-gray-500">Created By</label>
+              <label className="text-sm font-medium text-gray-500">
+                Created By
+              </label>
               <p className="font-medium">{user.createdBy || "system"}</p>
             </div>
             <div>
-              <label className="text-sm font-medium text-gray-500">Last Modified</label>
-              <p className="font-medium">{util.formatDate(user.updatedAt, "DD/MM/YYYY") || "N/A"}</p>
+              <label className="text-sm font-medium text-gray-500">
+                Last Modified
+              </label>
+              <p className="font-medium">
+                {util.formatDate(user.updatedAt, "DD/MM/YYYY") || "N/A"}
+              </p>
             </div>
           </div>
         </div>

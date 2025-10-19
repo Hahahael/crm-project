@@ -75,8 +75,11 @@ router.get("/departments", async (req, res) => {
 // GET single account by id
 router.get("/:id", async (req, res) => {
   try {
-    const result = await db.query("SELECT * FROM accounts WHERE id = $1", [req.params.id]);
-    if (result.rows.length === 0) return res.status(404).json({ error: "Account not found" });
+    const result = await db.query("SELECT * FROM accounts WHERE id = $1", [
+      req.params.id,
+    ]);
+    if (result.rows.length === 0)
+      return res.status(404).json({ error: "Account not found" });
     return res.json(result.rows[0]);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -107,14 +110,55 @@ router.put("/:id", async (req, res) => {
     const { id } = req.params;
     const data = toSnake(req.body);
     const allowedFields = [
-      "naef_number", "stage_status", "ref_number", "date_created", "requested_by", "designation", "department_id",
-      "validity_period", "due_date", "account_name", "contract_period", "industry_id", "account_designation",
-      "product_id", "contact_number", "location", "email_address", "address", "buyer_incharge", "trunkline",
-      "contract_number", "process", "secondary_email_address", "machines", "reason_to_apply", "automotive_section",
-      "source_of_inquiry", "commodity", "business_activity", "model", "annual_target_sales", "population",
-      "source_of_target", "existing_bellows", "products_to_order", "model_under", "target_areas", "analysis",
-      "from_date", "to_date", "activity_period", "prepared_by", "noted_by", "approved_by", "received_by",
-      "acknowledged_by", "updated_at", "created_at", "is_naef"
+      "naef_number",
+      "stage_status",
+      "ref_number",
+      "date_created",
+      "requested_by",
+      "designation",
+      "department_id",
+      "validity_period",
+      "due_date",
+      "account_name",
+      "contract_period",
+      "industry_id",
+      "account_designation",
+      "product_id",
+      "contact_number",
+      "location",
+      "email_address",
+      "address",
+      "buyer_incharge",
+      "trunkline",
+      "contract_number",
+      "process",
+      "secondary_email_address",
+      "machines",
+      "reason_to_apply",
+      "automotive_section",
+      "source_of_inquiry",
+      "commodity",
+      "business_activity",
+      "model",
+      "annual_target_sales",
+      "population",
+      "source_of_target",
+      "existing_bellows",
+      "products_to_order",
+      "model_under",
+      "target_areas",
+      "analysis",
+      "from_date",
+      "to_date",
+      "activity_period",
+      "prepared_by",
+      "noted_by",
+      "approved_by",
+      "received_by",
+      "acknowledged_by",
+      "updated_at",
+      "created_at",
+      "is_naef",
     ];
     console.log("UPDATING ACCOUNT", data);
     if (data.is_naef) {
@@ -126,11 +170,11 @@ router.put("/:id", async (req, res) => {
           WHERE ref_number LIKE $1
           ORDER BY ref_number DESC
           LIMIT 1`,
-        [`REF-${currentYear}-%`]
+        [`REF-${currentYear}-%`],
       );
 
       console.log("Last ref_number query result:", refNumberResult.rows);
-  
+
       let newCounter = 1;
       if (refNumberResult.rows.length > 0) {
         const lastRefNumber = refNumberResult.rows[0].refNumber;
@@ -139,23 +183,27 @@ router.put("/:id", async (req, res) => {
       }
 
       console.log("New counter for ref_number:", newCounter);
-  
+
       const ref_number = `REF-${currentYear}-${String(newCounter).padStart(4, "0")}`;
 
-      const refUpdateQuery = await db.query(`UPDATE accounts SET ref_number=$1 WHERE id = $2 RETURNING *`, [ref_number, id]);
-  
+      const refUpdateQuery = await db.query(
+        `UPDATE accounts SET ref_number=$1 WHERE id = $2 RETURNING *`,
+        [ref_number, id],
+      );
+
       const requestor = await db.query(
         `SELECT wo.contact_person
           FROM workorders wo
           WHERE wo.account_id = $1`,
-        [id]
+        [id],
       );
 
       console.log("Requestor query result:", requestor.rows);
       console.log("Ref update query result:", refUpdateQuery.rows);
-  
+
       data.ref_number = ref_number;
-      data.requested_by = requestor.rows.length > 0 ? requestor.rows[0].contactPerson : null;
+      data.requested_by =
+        requestor.rows.length > 0 ? requestor.rows[0].contactPerson : null;
 
       console.log("Generated ref_number:", ref_number);
       console.log("Fetched requestor:", data.requested_by);
@@ -163,7 +211,7 @@ router.put("/:id", async (req, res) => {
     }
 
     const filteredData = Object.fromEntries(
-      Object.entries(data).filter(([key]) => allowedFields.includes(key))
+      Object.entries(data).filter(([key]) => allowedFields.includes(key)),
     );
 
     let wo_id = data.wo_id;
@@ -175,7 +223,7 @@ router.put("/:id", async (req, res) => {
     if (!wo_id) {
       const woResult = await db.query(
         `SELECT id FROM workorders WHERE account_id = $1 LIMIT 1`,
-        [id]
+        [id],
       );
       wo_id = woResult.rows.length > 0 ? woResult.rows[0].id : null;
     }
@@ -183,10 +231,11 @@ router.put("/:id", async (req, res) => {
     if (!assignee && wo_id) {
       const stageResult = await db.query(
         `SELECT assigned_to FROM workflow_stages WHERE wo_id = $1 AND stage_name = 'NAEF' LIMIT 1`,
-        [wo_id]
+        [wo_id],
       );
       console.log("Fetched assignee from workflow_stages:", stageResult.rows);
-      assignee = stageResult.rows.length > 0 ? stageResult.rows[0].assignedTo : null;
+      assignee =
+        stageResult.rows.length > 0 ? stageResult.rows[0].assignedTo : null;
     }
     const keys = Object.keys(filteredData);
     const values = Object.values(filteredData);
@@ -201,25 +250,30 @@ router.put("/:id", async (req, res) => {
     //
     const result = await db.query(query, [...values, req.params.id]);
     console.log("Update result:", result.rows);
-    if (result.rows.length === 0) return res.status(404).json({ error: "Account not found" });
+    if (result.rows.length === 0)
+      return res.status(404).json({ error: "Account not found" });
 
     // Check if workflow_stages already has a NAEF stage for this wo_id
     const stageResult = await db.query(
       `SELECT 1 FROM workflow_stages WHERE wo_id = $1 AND stage_name = 'NAEF' LIMIT 1`,
-      [wo_id]
+      [wo_id],
     );
-    
-    const status =  data?.status ? data.status : stageResult.rows.length === 0 ? 'Draft' : 'Pending';
-    
+
+    const status = data?.status
+      ? data.status
+      : stageResult.rows.length === 0
+        ? "Draft"
+        : "Pending";
+
     await db.query(
       `INSERT INTO workflow_stages (wo_id, stage_name, status, assigned_to, created_at, updated_at)
         VALUES ($1, $2, $3, $4, NOW(), NOW())`,
-      [wo_id, 'NAEF', status, assignee]
+      [wo_id, "NAEF", status, assignee],
     );
     if (result.rows.length > 0) {
       result.rows[0].assignee = assignee;
     }
-    
+
     res.json(toCamel(result.rows[0]));
   } catch (err) {
     res.status(500).json({ error: err.message });

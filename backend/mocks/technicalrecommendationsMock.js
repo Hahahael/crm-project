@@ -3,11 +3,11 @@ export const technicalRecommendations = [
     id: 1,
     woId: 1,
     assignee: 1,
-    trNumber: 'TR-2025-0001',
-    status: 'Draft',
-    stageStatus: 'Draft',
-    priority: 'Medium',
-    title: '1',
+    trNumber: "TR-2025-0001",
+    status: "Draft",
+    stageStatus: "Draft",
+    priority: "Medium",
+    title: "1",
     slId: 1,
     accountId: 1,
     contactPerson: "Contact Name TR",
@@ -25,6 +25,6 @@ export const technicalRecommendations = [
     createdAt: "2025-10-01T12:25:53.545Z",
     createdBy: 1,
     updatedAt: "2025-10-01T12:25:53.545Z",
-    slNumber: 'FSL-2025-9001'
-  }
+    slNumber: "FSL-2025-9001",
+  },
 ];

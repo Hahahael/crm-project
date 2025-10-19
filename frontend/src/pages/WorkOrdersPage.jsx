@@ -1,7 +1,16 @@
 //src/pages/WorkOrdersPage
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { LuBell, LuCheck, LuCircleAlert, LuClipboardList, LuClock, LuPlus, LuSearch, LuX } from "react-icons/lu";
+import {
+  LuBell,
+  LuCheck,
+  LuCircleAlert,
+  LuClipboardList,
+  LuClock,
+  LuPlus,
+  LuSearch,
+  LuX,
+} from "react-icons/lu";
 import WorkOrdersTable from "../components/WorkOrdersTable";
 import WorkOrderDetails from "../components/WorkOrderDetails";
 import WorkOrderForm from "../components/WorkOrderForm";
@@ -11,7 +20,7 @@ import LoadingModal from "../components/LoadingModal";
 export default function WorkOrdersPage() {
   const timeoutRef = useRef();
   const navigate = useNavigate();
-  
+
   const [workOrders, setWorkOrders] = useState([]);
   const [search, setSearch] = useState("");
   const [selectedWO, setSelectedWO] = useState(null);
@@ -37,7 +46,9 @@ export default function WorkOrdersPage() {
       setWorkOrders(workOrdersData);
 
       // Fetch status summary
-      const summaryRes = await apiBackendFetch("/api/workorders/summary/status");
+      const summaryRes = await apiBackendFetch(
+        "/api/workorders/summary/status",
+      );
       if (summaryRes.ok) {
         const summaryData = await summaryRes.json();
         setStatusSummary({
@@ -71,7 +82,9 @@ export default function WorkOrdersPage() {
   const fetchNewAssignedWorkOrders = async () => {
     if (!currentUser) return;
     try {
-      const res = await apiBackendFetch(`/api/workflow-stages/assigned/latest/${currentUser.id}/${encodeURIComponent("Work Order")}`);
+      const res = await apiBackendFetch(
+        `/api/workflow-stages/assigned/latest/${currentUser.id}/${encodeURIComponent("Work Order")}`,
+      );
 
       if (res.ok) {
         const data = await res.json();
@@ -99,21 +112,26 @@ export default function WorkOrdersPage() {
     if (successMessage) {
       // clear any existing timeout first
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
-  
+
       timeoutRef.current = setTimeout(() => {
         setSuccessMessage("");
       }, 5000);
     }
-    
   }, [successMessage]);
 
-  if (loading) return <LoadingModal message="Loading Work Orders..." subtext="Please wait while we fetch your data." />;
+  if (loading)
+    return (
+      <LoadingModal
+        message="Loading Work Orders..."
+        subtext="Please wait while we fetch your data."
+      />
+    );
   if (error) return <p className="p-4 text-red-600">{error}</p>;
 
   const filtered = workOrders.filter(
     (wo) =>
       wo.woNumber?.toLowerCase().includes(search.toLowerCase()) ||
-      (wo.accountName || "").toLowerCase().includes(search.toLowerCase())
+      (wo.accountName || "").toLowerCase().includes(search.toLowerCase()),
   );
 
   const handleSave = async (formData, mode) => {
@@ -124,7 +142,7 @@ export default function WorkOrdersPage() {
         {
           method: mode === "edit" ? "PUT" : "POST",
           body: JSON.stringify({ ...formData, createdBy: currentUser.id }),
-        }
+        },
       );
 
       if (!response.ok) throw new Error("Failed to save workorder");
@@ -173,12 +191,12 @@ export default function WorkOrdersPage() {
           woId: passedWO.id,
           assignee: passedWO.assignee,
           contactPerson: passedWO.contactPerson,
-          contactNumber: passedWO.contactNumber
-        })
+          contactNumber: passedWO.contactNumber,
+        }),
       });
       if (!res || !res.ok) throw new Error("Failed to create sales lead");
       const newSalesLead = await res.json();
-      
+
       // 2. File workflow stage for draft sales lead
       await apiBackendFetch("/api/workflow-stages", {
         method: "POST",
@@ -186,8 +204,8 @@ export default function WorkOrdersPage() {
           wo_id: passedWO.id,
           stage_name: "Work Order",
           status: "Completed",
-          assigned_to: currentUser.id
-        })
+          assigned_to: currentUser.id,
+        }),
       });
 
       // 2. File workflow stage for draft sales lead
@@ -197,20 +215,27 @@ export default function WorkOrdersPage() {
           wo_id: passedWO.id,
           stage_name: "Sales Lead",
           status: "Draft",
-          assigned_to: currentUser.id
-        })
+          assigned_to: currentUser.id,
+        }),
       });
 
       // 3. Navigate to sales lead page with new sales lead ID
-      navigate('/salesleads', { state: { salesLeadId: newSalesLead.id } });
+      navigate("/salesleads", { state: { salesLeadId: newSalesLead.id } });
       setSelectedWO(null);
     } catch (err) {
       console.error("Error creating skeletal sales lead:", err);
     }
   };
 
-  const addWorkFlowStage = async (woId, stageName, assignedTo, mode = "create") => {
-    console.log(`Adding workflow stage: WO ID ${woId}, Stage: ${stageName}, Assigned To: ${assignedTo}, Mode: ${mode}`);
+  const addWorkFlowStage = async (
+    woId,
+    stageName,
+    assignedTo,
+    mode = "create",
+  ) => {
+    console.log(
+      `Adding workflow stage: WO ID ${woId}, Stage: ${stageName}, Assigned To: ${assignedTo}, Mode: ${mode}`,
+    );
     try {
       const response = await apiBackendFetch("/api/workflow-stages", {
         method: "POST",
@@ -219,7 +244,7 @@ export default function WorkOrdersPage() {
           stageName,
           status: mode === "create" ? "Pending" : "In Progress",
           assignedTo,
-        })
+        }),
       });
       if (!response.ok) throw new Error("Failed to add workflow stage");
       const newStage = await response.json();
@@ -230,7 +255,7 @@ export default function WorkOrdersPage() {
       setError("Failed to add workflow stage");
       return null;
     }
-  }
+  };
 
   return (
     <div className="relative w-full h-full overflow-hidden bg-white">
@@ -276,21 +301,32 @@ export default function WorkOrdersPage() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center space-x-2 mb-2">
-                    <LuCircleAlert className="h-4 w-4 text-orange-600"/>
+                    <LuCircleAlert className="h-4 w-4 text-orange-600" />
                     <p className="text-sm font-semibold text-orange-800">
                       {`You have ${newAssignedWorkOrders.length} new work order${newAssignedWorkOrders.length > 1 ? "s" : ""} assigned to you`}
                     </p>
                   </div>
                   <div className="space-y-1">
                     <p className="text-sm text-gray-900">
-                      {newAssignedWorkOrders.map(wo => wo.woNumber).join(", ")}
+                      {newAssignedWorkOrders
+                        .map((wo) => wo.woNumber)
+                        .join(", ")}
                     </p>
                   </div>
                   <div className="mt-3">
                     <button
                       onClick={() => {
-                        setSelectedWO(workOrders.find(wo => wo.id === newAssignedWorkOrders[0].woId))
-                        addWorkFlowStage(newAssignedWorkOrders[0].id, "Work Order", currentUser.id, "edit");
+                        setSelectedWO(
+                          workOrders.find(
+                            (wo) => wo.id === newAssignedWorkOrders[0].woId,
+                          ),
+                        );
+                        addWorkFlowStage(
+                          newAssignedWorkOrders[0].id,
+                          "Work Order",
+                          currentUser.id,
+                          "edit",
+                        );
                       }}
                       className="inline-flex items-center justify-center whitespace-nowrap font-medium transition-colors shadow h-8 rounded-md px-3 text-xs bg-orange-600 hover:bg-orange-700 text-white cursor-pointer"
                     >
@@ -301,7 +337,10 @@ export default function WorkOrdersPage() {
               </div>
               <button
                 className="inline-flex items-center justify-center font-medium transition-colors hover:bg-gray-100 h-8 rounded-md px-3 text-xs text-gray-400 hover:text-gray-600 cursor-pointer"
-                onClick={() => {/* Optionally dismiss banner */}}>
+                onClick={() => {
+                  /* Optionally dismiss banner */
+                }}
+              >
                 <LuX className="h-4 w-4" />
               </button>
             </div>
@@ -314,24 +353,40 @@ export default function WorkOrdersPage() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center space-x-2 mb-2">
-                    <LuCircleAlert className="h-4 w-4 text-orange-600"/>
-                    <p className="text-sm font-semibold text-orange-800">New XSL Work Order Received</p>
-                    <span
-                      className="inline-flex items-center rounded-md border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 hover:bg-secondary/80 bg-orange-100 text-orange-800 border-orange-200"
-                    >
+                    <LuCircleAlert className="h-4 w-4 text-orange-600" />
+                    <p className="text-sm font-semibold text-orange-800">
+                      New XSL Work Order Received
+                    </p>
+                    <span className="inline-flex items-center rounded-md border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 hover:bg-secondary/80 bg-orange-100 text-orange-800 border-orange-200">
                       XSL
                     </span>
                   </div>
                   <div className="space-y-1">
-                    <p className="text-sm font-medium text-gray-900">{newAssignedWorkOrders[0].woNumber} - {newAssignedWorkOrders[0].workDescription}</p>
-                    <p className="text-sm text-gray-600">Account: {newAssignedWorkOrders[0].accountName}</p>
-                    <p className="text-sm text-gray-600">Contact: {newAssignedWorkOrders[0].contactPerson}</p>
+                    <p className="text-sm font-medium text-gray-900">
+                      {newAssignedWorkOrders[0].woNumber} -{" "}
+                      {newAssignedWorkOrders[0].workDescription}
+                    </p>
+                    <p className="text-sm text-gray-600">
+                      Account: {newAssignedWorkOrders[0].accountName}
+                    </p>
+                    <p className="text-sm text-gray-600">
+                      Contact: {newAssignedWorkOrders[0].contactPerson}
+                    </p>
                   </div>
                   <div className="mt-3">
                     <button
                       onClick={() => {
-                        setSelectedWO(workOrders.find(wo => wo.id === newAssignedWorkOrders[0].woId))
-                        addWorkFlowStage(newAssignedWorkOrders[0].woId, "Work Order", currentUser.id, "edit");
+                        setSelectedWO(
+                          workOrders.find(
+                            (wo) => wo.id === newAssignedWorkOrders[0].woId,
+                          ),
+                        );
+                        addWorkFlowStage(
+                          newAssignedWorkOrders[0].woId,
+                          "Work Order",
+                          currentUser.id,
+                          "edit",
+                        );
                       }}
                       className="inline-flex items-center justify-center whitespace-nowrap font-medium transition-colors shadow h-8 rounded-md px-3 text-xs bg-orange-600 hover:bg-orange-700 text-white cursor-pointer"
                     >
@@ -342,7 +397,10 @@ export default function WorkOrdersPage() {
               </div>
               <button
                 className="inline-flex items-center justify-center font-medium transition-colors hover:bg-gray-100 h-8 rounded-md px-3 text-xs text-gray-400 hover:text-gray-600 cursor-pointer"
-                onClick={() => {/* Optionally dismiss banner */}}>
+                onClick={() => {
+                  /* Optionally dismiss banner */
+                }}
+              >
                 <LuX className="h-4 w-4" />
               </button>
             </div>
@@ -351,28 +409,36 @@ export default function WorkOrdersPage() {
           {/* Status center */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
             <div className="relative flex flex-col rounded-xl shadow-sm border border-gray-200 p-6">
-              <LuClipboardList className="absolute top-6 right-6 text-gray-600"/>
+              <LuClipboardList className="absolute top-6 right-6 text-gray-600" />
               <p className="text-sm mb-1 mr-4">Total Workorders</p>
               <h2 className="text-2xl font-bold">{statusSummary.total}</h2>
-              <p className="text-xs text-gray-500">All workorders in the system</p>
+              <p className="text-xs text-gray-500">
+                All workorders in the system
+              </p>
             </div>
             <div className="relative flex flex-col rounded-xl shadow-sm border border-gray-200 p-6">
-              <LuClock className="absolute top-6 right-6 text-yellow-600"/>
+              <LuClock className="absolute top-6 right-6 text-yellow-600" />
               <p className="text-sm mb-1 mr-4">Pending</p>
               <h2 className="text-2xl font-bold">{statusSummary.pending}</h2>
-              <p className="text-xs text-gray-500">Workorders waiting to be started</p>
+              <p className="text-xs text-gray-500">
+                Workorders waiting to be started
+              </p>
             </div>
             <div className="relative flex flex-col rounded-xl shadow-sm border border-gray-200 p-6">
-              <LuClock className="absolute top-6 right-6 text-blue-600"/>
+              <LuClock className="absolute top-6 right-6 text-blue-600" />
               <p className="text-sm mb-1 mr-4">In Progress</p>
               <h2 className="text-2xl font-bold">{statusSummary.inProgress}</h2>
-              <p className="text-xs text-gray-500">Workorders currently active</p>
+              <p className="text-xs text-gray-500">
+                Workorders currently active
+              </p>
             </div>
             <div className="relative flex flex-col rounded-xl shadow-sm border border-gray-200 p-6">
-              <LuCheck className="absolute top-6 right-6 text-green-600"/>
+              <LuCheck className="absolute top-6 right-6 text-green-600" />
               <p className="text-sm mb-1 mr-4">Completed</p>
               <h2 className="text-2xl font-bold">{statusSummary.completed}</h2>
-              <p className="text-xs text-gray-500">Successfully completed workorders</p>
+              <p className="text-xs text-gray-500">
+                Successfully completed workorders
+              </p>
             </div>
           </div>
 
@@ -380,7 +446,7 @@ export default function WorkOrdersPage() {
           <div className="flex flex-col p-6 border border-gray-200 rounded-md gap-6">
             <div className="flex">
               <div className="relative flex gap-6">
-                <LuSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4"/>
+                <LuSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
                 <input
                   type="text"
                   value={search}
@@ -391,10 +457,13 @@ export default function WorkOrdersPage() {
               </div>
               <div className="ml-auto">
                 <button
-                  onClick={() => { setEditingWO({}); setSelectedWO(null); }}
+                  onClick={() => {
+                    setEditingWO({});
+                    setSelectedWO(null);
+                  }}
                   className="ml-auto px-4 py-2 rounded-md bg-blue-500 text-white hover:bg-blue-600 font-medium transition-all duration-150 cursor-pointer text-sm flex shadow-sm"
                 >
-                  <LuPlus className="my-auto mr-2"/> Create New
+                  <LuPlus className="my-auto mr-2" /> Create New
                 </button>
               </div>
             </div>
@@ -435,7 +504,7 @@ export default function WorkOrdersPage() {
               setSelectedWO(updatedWO);
               // Optionally, update the workOrders array as well:
               setWorkOrders((prev) =>
-                prev.map((wo) => (wo.id === updatedWO.id ? updatedWO : wo))
+                prev.map((wo) => (wo.id === updatedWO.id ? updatedWO : wo)),
               );
               fetchNewAssignedWorkOrders(); // <-- refresh from backend
             }}

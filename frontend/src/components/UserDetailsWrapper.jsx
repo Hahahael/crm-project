@@ -33,7 +33,14 @@ const UserDetailsWrapper = ({ userId, onBack, onEdit, onDelete }) => {
   if (error) return <p className="p-4 text-red-600">{error}</p>;
   if (!user) return <p className="p-4 text-red-600">User not found</p>;
 
-  return <UserDetails user={user} onBack={onBack} onEdit={onEdit} onDelete={onDelete} />;
+  return (
+    <UserDetails
+      user={user}
+      onBack={onBack}
+      onEdit={onEdit}
+      onDelete={onDelete}
+    />
+  );
 };
 
 export default UserDetailsWrapper;

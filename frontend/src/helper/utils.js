@@ -35,7 +35,7 @@ export function formatDate(dateStr, format = "YYYY-MM-DD HH:mm") {
 
 export function parseToTimestamp(dateStr, inputFormat = "MM/DD/YYYY") {
   if (!dateStr) return null;
-  return dayjs(dateStr, inputFormat).toDate(); 
+  return dayjs(dateStr, inputFormat).toDate();
   // JS Date, pg auto-casts to TIMESTAMP
 }
 
@@ -60,11 +60,19 @@ export function toArray(val) {
 
 export function getVendorStatus(items) {
   if (!Array.isArray(items) || items.length === 0) return "Pending";
-  const allHavePriceAndLeadTime = items.every(item =>
-      item.unitPrice && item.leadTime && item.unitPrice !== "" && item.leadTime !== ""
+  const allHavePriceAndLeadTime = items.every(
+    (item) =>
+      item.unitPrice &&
+      item.leadTime &&
+      item.unitPrice !== "" &&
+      item.leadTime !== "",
   );
-  const someHavePriceOrLeadTime = items.some(item =>
-      item.unitPrice && item.leadTime && item.unitPrice !== "" && item.leadTime !== ""
+  const someHavePriceOrLeadTime = items.some(
+    (item) =>
+      item.unitPrice &&
+      item.leadTime &&
+      item.unitPrice !== "" &&
+      item.leadTime !== "",
   );
   if (allHavePriceAndLeadTime) return "Quoted";
   if (someHavePriceOrLeadTime) return "In Progress";
@@ -72,11 +80,16 @@ export function getVendorStatus(items) {
 }
 
 export function formatNumber(value, decimals = 2) {
-  if (value === null || value === undefined || Number.isNaN(Number(value))) return "-";
+  if (value === null || value === undefined || Number.isNaN(Number(value)))
+    return "-";
   return Number(value).toFixed(decimals);
 }
 
-export function calculateTimeliness(dueDate, doneDate = null, { graceDays = 0 } = {}) {
+export function calculateTimeliness(
+  dueDate,
+  doneDate = null,
+  { graceDays = 0 } = {},
+) {
   if (!dueDate) return { status: "unknown", daysLate: null };
 
   const due = dayjs(dueDate);
@@ -89,7 +102,10 @@ export function calculateTimeliness(dueDate, doneDate = null, { graceDays = 0 } 
 
   const now = dayjs();
   // days late as whole days (positive when now > due)
-  const daysLate = Math.max(0, now.startOf("day").diff(due.startOf("day"), "day"));
+  const daysLate = Math.max(
+    0,
+    now.startOf("day").diff(due.startOf("day"), "day"),
+  );
 
   if (now.isAfter(due.add(graceDays, "day"), "day")) {
     // beyond grace -> overdue
@@ -115,5 +131,5 @@ export default {
   formatTimeOnly,
   getVendorStatus,
   formatNumber,
-  calculateTimeliness
+  calculateTimeliness,
 };

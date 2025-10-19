@@ -56,7 +56,13 @@ const UsersPage = () => {
     fetchAllData();
   }, []);
 
-  if (loading) return <LoadingModal message="Loading Users..." subtext="Please wait while we fetch your data." />;
+  if (loading)
+    return (
+      <LoadingModal
+        message="Loading Users..."
+        subtext="Please wait while we fetch your data."
+      />
+    );
   if (error) return <p className="p-4 text-red-600">{error}</p>;
 
   // Save (create/edit) user
@@ -67,7 +73,7 @@ const UsersPage = () => {
         {
           method: mode === "edit" ? "PUT" : "POST",
           body: JSON.stringify(formData),
-        }
+        },
       );
 
       if (!response.ok) throw new Error("Failed to save user");
@@ -77,7 +83,7 @@ const UsersPage = () => {
 
       if (mode === "edit") {
         setUsers((prev) =>
-          prev.map((u) => (u.id === savedUser.id ? savedUser : u))
+          prev.map((u) => (u.id === savedUser.id ? savedUser : u)),
         );
         setSelectedUserId(savedUser.id);
       } else {
@@ -90,22 +96,22 @@ const UsersPage = () => {
       setError("Failed to save user.");
     }
   };
-  
+
   const handleDeleteUser = async (userId) => {
     try {
       const response = await apiBackendFetch(`/api/users/${userId}`, {
         method: "DELETE",
       });
-  
+
       if (!response.ok) throw new Error("Failed to delete user");
-  
+
       // Remove from local state
       setUsers((prev) => prev.filter((u) => u.id !== userId));
-  
+
       // Close drawers if deleting from details view
       if (selectedUserId === userId) setSelectedUserId(null);
       if (editingUser?.id === userId) setEditingUser(null);
-  
+
       console.log(`✅ User ${userId} deleted`);
     } catch (err) {
       console.error("❌ Error deleting user:", err);
@@ -134,7 +140,7 @@ const UsersPage = () => {
           <div className="flex items-center mb-6">
             <div className="flex flex-col sm:flex-row gap-4 flex-1">
               <div className="relative flex-1 max-w-sm">
-                <LuSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4"/>
+                <LuSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
                 <input
                   type="text"
                   className="flex h-9 w-full rounded-md border border-gray-200 bg-transparent px-3 py-1 text-sm shadow-xs transition-colors pl-10"
@@ -147,7 +153,7 @@ const UsersPage = () => {
                 onClick={() => setEditingUser({})}
                 className="ml-auto px-4 py-2 rounded-md bg-gray-950 text-white hover:bg-gray-700 font-medium transition-all duration-150 cursor-pointer text-sm flex"
               >
-                <LuPlus className="my-auto mr-2"/> Create User
+                <LuPlus className="my-auto mr-2" /> Create User
               </button>
             </div>
           </div>
@@ -182,7 +188,9 @@ const UsersPage = () => {
       {/* User Form Drawer */}
       <div
         className={`absolute top-0 right-0 h-full w-full bg-white shadow-xl transition-all duration-300 ${
-          editingUser ? "translate-x-0 opacity-100" : "translate-x-full opacity-0"
+          editingUser
+            ? "translate-x-0 opacity-100"
+            : "translate-x-full opacity-0"
         }`}
       >
         {editingUser && (
@@ -206,10 +214,10 @@ const UsersPage = () => {
         message="Are you sure you want to delete this user? This action cannot be undone."
         confirmText="Delete"
         onConfirm={() => {
-          if (deleteId) handleDeleteUser(deleteId);   // ✅ only delete after confirm
-          setDeleteId(null);                          // ✅ close modal
+          if (deleteId) handleDeleteUser(deleteId); // ✅ only delete after confirm
+          setDeleteId(null); // ✅ close modal
         }}
-        onCancel={() => setDeleteId(null)}            // ✅ close modal if canceled
+        onCancel={() => setDeleteId(null)} // ✅ close modal if canceled
         isDanger={true}
       />
     </div>

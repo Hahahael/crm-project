@@ -3,7 +3,9 @@ import { useMemo, useState } from "react";
 // Simple monthly calendar with prev/next month and today highlight
 export default function CalendarPage() {
   const today = new Date();
-  const [current, setCurrent] = useState(new Date(today.getFullYear(), today.getMonth(), 1));
+  const [current, setCurrent] = useState(
+    new Date(today.getFullYear(), today.getMonth(), 1),
+  );
 
   const monthYear = current.toLocaleDateString(undefined, {
     month: "long",
@@ -17,7 +19,11 @@ export default function CalendarPage() {
   }
 
   const { weeks } = useMemo(() => {
-    const firstDayOfMonth = new Date(current.getFullYear(), current.getMonth(), 1);
+    const firstDayOfMonth = new Date(
+      current.getFullYear(),
+      current.getMonth(),
+      1,
+    );
 
     // Determine start date (Monday as first day of week)
     const start = new Date(firstDayOfMonth);
@@ -62,7 +68,9 @@ export default function CalendarPage() {
           >
             Prev
           </button>
-          <div className="min-w-[180px] text-center font-medium">{monthYear}</div>
+          <div className="min-w-[180px] text-center font-medium">
+            {monthYear}
+          </div>
           <button
             onClick={() => setCurrent(addMonths(current, 1))}
             className="px-3 py-1 rounded bg-gray-200 hover:bg-gray-300"
@@ -70,7 +78,9 @@ export default function CalendarPage() {
             Next
           </button>
           <button
-            onClick={() => setCurrent(new Date(today.getFullYear(), today.getMonth(), 1))}
+            onClick={() =>
+              setCurrent(new Date(today.getFullYear(), today.getMonth(), 1))
+            }
             className="ml-4 px-3 py-1 rounded bg-blue-600 text-white hover:bg-blue-500"
           >
             Today
@@ -79,8 +89,10 @@ export default function CalendarPage() {
       </div>
 
       <div className="grid grid-cols-7 gap-[1px] bg-gray-300 rounded overflow-hidden">
-        {['Mon','Tue','Wed','Thu','Fri','Sat','Sun'].map((d) => (
-          <div key={d} className="bg-white p-2 text-center text-sm font-medium">{d}</div>
+        {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((d) => (
+          <div key={d} className="bg-white p-2 text-center text-sm font-medium">
+            {d}
+          </div>
         ))}
         {weeks.map((week, wi) => (
           <>
@@ -90,7 +102,7 @@ export default function CalendarPage() {
               return (
                 <div
                   key={`${wi}-${di}`}
-                  className={`bg-white h-24 p-2 align-top ${inMonth ? '' : 'text-gray-400 bg-gray-50'} ${isToday ? 'ring-2 ring-blue-500' : ''}`}
+                  className={`bg-white h-24 p-2 align-top ${inMonth ? "" : "text-gray-400 bg-gray-50"} ${isToday ? "ring-2 ring-blue-500" : ""}`}
                 >
                   <div className="text-xs">{date.getDate()}</div>
                 </div>

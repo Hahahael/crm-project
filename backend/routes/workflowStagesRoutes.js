@@ -7,11 +7,11 @@ const router = express.Router();
 
 // Get all workflows whose latest stage is 'Submitted', joined with module details
 router.get("/latest-submitted", async (req, res) => {
-    try {
-        // Get latest stage for each workflow (by wo_id), where stageName is 'Submitted'
-        // Join with workorders, sales_leads, rfqs, etc. as needed
-        // Get the latest workflow stage for each workorder
-        const unionQuery = `
+  try {
+    // Get latest stage for each workflow (by wo_id), where stageName is 'Submitted'
+    // Join with workorders, sales_leads, rfqs, etc. as needed
+    // Get the latest workflow stage for each workorder
+    const unionQuery = `
             WITH latest_stages AS (
                 -- SALES LEAD
                 SELECT 
@@ -166,188 +166,215 @@ router.get("/latest-submitted", async (req, res) => {
             FROM latest_stages
             ORDER BY submitted_date DESC;
         `;
-        const { rows } = await db.query(unionQuery);
-        console.log("Latest submitted workflow stages:", rows);
-        return res.json(rows);
-    } catch (err) {
-        console.error(err);
-        return res.status(500).json({ error: "Failed to fetch latest submitted workflow stages" });
-    }
+    const { rows } = await db.query(unionQuery);
+    console.log("Latest submitted workflow stages:", rows);
+    return res.json(rows);
+  } catch (err) {
+    console.error(err);
+    return res
+      .status(500)
+      .json({ error: "Failed to fetch latest submitted workflow stages" });
+  }
 });
 
 // Get all workflow stages
 router.get("/", async (req, res) => {
-    try {
-        const result = await db.query(
-            `SELECT ws.*, u.username AS assigned_to_username
+  try {
+    const result = await db.query(
+      `SELECT ws.*, u.username AS assigned_to_username
        FROM workflow_stages ws
        LEFT JOIN users u ON ws.assigned_to = u.id
-       ORDER BY ws.created_at ASC`
-        );
-        return res.json(result.rows);
-    } catch (err) {
-        console.error(err);
-        return res.status(500).json({ error: "Failed to fetch workflow stages" });
-    }
+       ORDER BY ws.created_at ASC`,
+    );
+    return res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: "Failed to fetch workflow stages" });
+  }
 });
 
 // Get all workflow stages for a work order
 router.get("/workorder/:woId", async (req, res) => {
-    try {
-        const { woId } = req.params;
-        const result = await db.query(
-            `SELECT ws.*, u.username AS assigned_to_username
+  try {
+    const { woId } = req.params;
+    const result = await db.query(
+      `SELECT ws.*, u.username AS assigned_to_username
        FROM workflow_stages ws
        LEFT JOIN users u ON ws.assigned_to = u.id
        WHERE ws.wo_id = $1
        ORDER BY ws.created_at ASC`,
-            [woId]
-        );
-        return res.json(result.rows);
-    } catch (err) {
-        console.error(err);
-        return res.status(500).json({ error: "Failed to fetch workflow stages" });
-    }
+      [woId],
+    );
+    return res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: "Failed to fetch workflow stages" });
+  }
 });
 
 // Get a single workflow stage by id
 router.get("/:id", async (req, res) => {
-    try {
-        const { id } = req.params;
-        const result = await db.query(
-            `SELECT ws.*, u.username AS assigned_to_username
+  try {
+    const { id } = req.params;
+    const result = await db.query(
+      `SELECT ws.*, u.username AS assigned_to_username
                 FROM workflow_stages ws
                 LEFT JOIN users u ON ws.assigned_to = u.id
                 WHERE ws.id = $1`,
-            [id]
-        );
-        if (result.rows.length === 0) return res.status(404).json({ error: "Not found" });
-        return res.json(result.rows[0]);
-    } catch (err) {
-        console.error(err);
-        return res.status(500).json({ error: "Failed to fetch workflow stage" });
-    }
+      [id],
+    );
+    if (result.rows.length === 0)
+      return res.status(404).json({ error: "Not found" });
+    return res.json(result.rows[0]);
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: "Failed to fetch workflow stage" });
+  }
 });
 
 // Create a new workflow stage
 router.post("/", async (req, res) => {
-    console.log(req.body);
+  console.log(req.body);
+  try {
+    const body = toSnake(req.body);
+    console.log("Creating workflow stage with data:", body);
+    const {
+      wo_id,
+      stage_name,
+      status,
+      assigned_to,
+      notified = false,
+      remarks, // <-- add remarks from body
+    } = body;
+    // Start transaction
+    await db.query("BEGIN");
+    let insertedStage;
     try {
-        const body = toSnake(req.body);
-        console.log("Creating workflow stage with data:", body);
-        const {
-            wo_id,
-            stage_name,
-            status,
-            assigned_to,
-            notified = false,
-            remarks, // <-- add remarks from body
-        } = body;
-        // Start transaction
-        await db.query("BEGIN");
-        let insertedStage;
-        try {
-            const result = await db.query(
-                `INSERT INTO workflow_stages
+      const result = await db.query(
+        `INSERT INTO workflow_stages
                     (wo_id, stage_name, status, assigned_to, notified, remarks, created_at, updated_at)
                 VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())
                 RETURNING *`,
-                [wo_id, stage_name, status, assigned_to, notified, remarks]
+        [wo_id, stage_name, status, assigned_to, notified, remarks],
+      );
+      insertedStage = result.rows[0];
+
+      const queryText =
+        status === "Approved"
+          ? "SET stage_status = $1, done_date = NOW() WHERE wo_id = $2"
+          : "SET stage_status = $1 WHERE wo_id = $2";
+
+      // Update stage_status in the relevant module only
+      switch (stage_name) {
+        case "Sales Lead":
+          await db.query(`UPDATE sales_leads ${queryText}`, [status, wo_id]);
+          break;
+        case "RFQ":
+          await db.query(`UPDATE rfqs ${queryText}`, [status, wo_id]);
+          break;
+        case "Technical Recommendation":
+          await db.query(`UPDATE technical_recommendations ${queryText}`, [
+            status,
+            wo_id,
+          ]);
+          break;
+        case "Account":
+        case "NAEF":
+          if (body.account_id) {
+            await db.query(
+              "UPDATE accounts SET stage_status = $1 WHERE id = $2",
+              [status, body.account_id],
             );
-            insertedStage = result.rows[0];
+          }
+          break;
+        case "Work Order":
+          await db.query(
+            "UPDATE workorders SET stage_status = $1 WHERE id = $2",
+            [status, wo_id],
+          );
+          break;
+        default:
+          // No action for unknown stage_name
+          break;
+      }
 
-            const queryText = status === "Approved" ? "SET stage_status = $1, done_date = NOW() WHERE wo_id = $2" : "SET stage_status = $1 WHERE wo_id = $2";
+      // Log all workflow stages after insert
+      const allStages = await db.query(
+        "SELECT * FROM workflow_stages ORDER BY created_at ASC",
+      );
+      console.log("All workflow stages:", allStages.rows);
 
-            // Update stage_status in the relevant module only
-            switch (stage_name) {
-                case "Sales Lead":
-                    await db.query(`UPDATE sales_leads ${queryText}`, [status, wo_id]);
-                    break;
-                case "RFQ":
-                    await db.query(`UPDATE rfqs ${queryText}`, [status, wo_id]);
-                    break;
-                case "Technical Recommendation":
-                    await db.query(`UPDATE technical_recommendations ${queryText}`, [status, wo_id]);
-                    break;
-                case "Account":
-                case "NAEF":
-                    if (body.account_id) {
-                        await db.query("UPDATE accounts SET stage_status = $1 WHERE id = $2", [status, body.account_id]);
-                    }
-                    break;
-                case "Work Order":
-                    await db.query("UPDATE workorders SET stage_status = $1 WHERE id = $2", [status, wo_id]);
-                    break;
-                default:
-                    // No action for unknown stage_name
-                    break;
-            }
-
-            // Log all workflow stages after insert
-            const allStages = await db.query("SELECT * FROM workflow_stages ORDER BY created_at ASC");
-            console.log("All workflow stages:", allStages.rows);
-
-            await db.query("COMMIT");
-        } catch (err) {
-            await db.query("ROLLBACK");
-            throw err;
-        }
-        return res.status(201).json(insertedStage);
+      await db.query("COMMIT");
     } catch (err) {
-        console.error(err);
-        return res.status(500).json({ error: "Failed to create workflow stage" });
+      await db.query("ROLLBACK");
+      throw err;
     }
+    return res.status(201).json(insertedStage);
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: "Failed to create workflow stage" });
+  }
 });
 
 // Update a workflow stage
 router.put("/:id", async (req, res) => {
-    try {
-        const { id } = req.params;
-        const body = toSnake(req.body);
-        const { status, assigned_to, notified } = body;
-        const result = await db.query(
-            `UPDATE workflow_stages
+  try {
+    const { id } = req.params;
+    const body = toSnake(req.body);
+    const { status, assigned_to, notified } = body;
+    const result = await db.query(
+      `UPDATE workflow_stages
             SET status = COALESCE($1, status),
                 assigned_to = COALESCE($2, assigned_to),
                 notified = COALESCE($3, notified),
                 updated_at = NOW()
             WHERE id = $4
             RETURNING *`,
-            [status, assigned_to, notified, id]
-        );
-        if (result.rows.length === 0) return res.status(404).json({ error: "Not found" });
-        return res.json(result.rows[0]);
-    } catch (err) {
-        console.error(err);
-        return res.status(500).json({ error: "Failed to update workflow stage" });
-    }
+      [status, assigned_to, notified, id],
+    );
+    if (result.rows.length === 0)
+      return res.status(404).json({ error: "Not found" });
+    return res.json(result.rows[0]);
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: "Failed to update workflow stage" });
+  }
 });
 
 // Delete a workflow stage
 router.delete("/:id", async (req, res) => {
-    try {
-        const { id } = req.params;
-        const result = await db.query(`DELETE FROM workflow_stages WHERE id = $1 RETURNING *`, [id]);
-        if (result.rows.length === 0) return res.status(404).json({ error: "Not found" });
-        return res.json({ message: "Workflow stage deleted" });
-    } catch (err) {
-        console.error(err);
-        return res.status(500).json({ error: "Failed to delete workflow stage" });
-    }
+  try {
+    const { id } = req.params;
+    const result = await db.query(
+      `DELETE FROM workflow_stages WHERE id = $1 RETURNING *`,
+      [id],
+    );
+    if (result.rows.length === 0)
+      return res.status(404).json({ error: "Not found" });
+    return res.json({ message: "Workflow stage deleted" });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: "Failed to delete workflow stage" });
+  }
 });
 
 // Get latest workflow stages assigned to a user with 'Pending' status for a specific stage name
 router.get("/assigned/latest/:id/:stageName", async (req, res) => {
-    console.log("Fetching latest assigned workflow stages for user:", req.params.id, "and stage:", req.params.stageName);
-    try {
-        const { id, stageName } = req.params;
+  console.log(
+    "Fetching latest assigned workflow stages for user:",
+    req.params.id,
+    "and stage:",
+    req.params.stageName,
+  );
+  try {
+    const { id, stageName } = req.params;
 
-        // Refactored: join users and sales_leads as needed
-        let query;
-        const stage = stageName.toLowerCase();
-        if (stage.includes("sales lead") || stage.includes("sl")) {
-            // For sales_leads: join users for username/department, include slNumber
-            query = `
+    // Refactored: join users and sales_leads as needed
+    let query;
+    const stage = stageName.toLowerCase();
+    if (stage.includes("sales lead") || stage.includes("sl")) {
+      // For sales_leads: join users for username/department, include slNumber
+      query = `
                 SELECT
                     ws.*,
                     sl.*,
@@ -366,9 +393,9 @@ router.get("/assigned/latest/:id/:stageName", async (req, res) => {
                 LEFT JOIN accounts a ON sl.account_id = a.id
                 WHERE ws.status = 'Pending' AND ws.stage_name = $2
             `;
-        } else if (stage.includes("workorder") || stage.includes("wo")) {
-            // For workorders: join users for username/department, include woNumber
-            query = `
+    } else if (stage.includes("workorder") || stage.includes("wo")) {
+      // For workorders: join users for username/department, include woNumber
+      query = `
                 SELECT ws.*, wo.*, wo.wo_number AS woNumber, u.username AS assigned_to_username, a.account_name AS account_name
                 FROM workflow_stages ws
                 INNER JOIN (
@@ -382,13 +409,16 @@ router.get("/assigned/latest/:id/:stageName", async (req, res) => {
                 LEFT JOIN users u ON wo.assignee = u.id
                 WHERE ws.status = 'Pending' AND ws.stage_name = $2 AND wo.assignee = $1
             `;
-        } else {
-            // For other tables: join sales_leads for sl_number, join users for username/department
-            // Table name and alias
-            console.log("Stage does not match sales lead or work order, using generic query for stage:", stageName);
-            if (stage.includes("technical reco") || stage.includes("tr")) {
-                console.log("Using technical_recommendations join");
-                query = `
+    } else {
+      // For other tables: join sales_leads for sl_number, join users for username/department
+      // Table name and alias
+      console.log(
+        "Stage does not match sales lead or work order, using generic query for stage:",
+        stageName,
+      );
+      if (stage.includes("technical reco") || stage.includes("tr")) {
+        console.log("Using technical_recommendations join");
+        query = `
                     SELECT tr.*, sl.sl_number, a.account_name AS account_name
                     FROM workflow_stages ws
                     INNER JOIN (
@@ -402,8 +432,8 @@ router.get("/assigned/latest/:id/:stageName", async (req, res) => {
                     LEFT JOIN accounts a ON tr.account_id = a.id
                     WHERE ws.status = 'Draft' AND ws.stage_name = $2
                 `;
-            } else if (stage.includes("rfq")) {
-                query = `
+      } else if (stage.includes("rfq")) {
+        query = `
                     SELECT rfq.*, sl.sl_number, a.account_name AS account_name
                     FROM workflow_stages ws
                     INNER JOIN (
@@ -417,8 +447,8 @@ router.get("/assigned/latest/:id/:stageName", async (req, res) => {
                     LEFT JOIN accounts a ON rfq.account_id = a.id
                     WHERE ws.status = 'Draft' AND ws.stage_name = $2
                 `;
-            } else if (stage.includes("quotation") || stage.includes("quote")) {
-                query = `
+      } else if (stage.includes("quotation") || stage.includes("quote")) {
+        query = `
                     SELECT ws.*, qt.*, a.account_name AS account_name
                     FROM workflow_stages ws
                     INNER JOIN (
@@ -431,8 +461,8 @@ router.get("/assigned/latest/:id/:stageName", async (req, res) => {
                     LEFT JOIN accounts a ON qt.account_id = a.id
                     WHERE ws.status = 'Draft' AND ws.stage_name = $2
                 `;
-            } else {
-                query = `
+      } else {
+        query = `
                     SELECT ws.*, wo.*, a.account_name AS account_name
                     FROM workflow_stages ws
                     INNER JOIN (
@@ -445,16 +475,16 @@ router.get("/assigned/latest/:id/:stageName", async (req, res) => {
                     LEFT JOIN accounts a ON wo.account_id = a.id
                     WHERE ws.status = 'Pending' AND ws.stage_name = $2
                 `;
-            }
-        }
-
-        const result = await db.query(query, [id, stageName]);
-        console.log("Latest assigned workflow stages result:", result.rows);
-        return res.json(result.rows);
-    } catch (err) {
-        console.error(err);
-        return res.status(500).json({ error: "Failed to fetch workflow stage" });
+      }
     }
+
+    const result = await db.query(query, [id, stageName]);
+    console.log("Latest assigned workflow stages result:", result.rows);
+    return res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: "Failed to fetch workflow stage" });
+  }
 });
 
 export default router;

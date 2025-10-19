@@ -26,7 +26,6 @@ let pool;
 
 console.log("Loading database...");
 
-
 console.log("⚡ Using pg-mem (in-memory Postgres)");
 const mem = newDb({ autoCreateForeignKeyIndices: true });
 const adapter = mem.adapters.createPg();
@@ -503,22 +502,21 @@ mem.public.none(`
 `);
 
 // seed data ...
-const esc = (val) =>
-  typeof val === "string" ? val.replace(/'/g, "''") : val;
+const esc = (val) => (typeof val === "string" ? val.replace(/'/g, "''") : val);
 
 for (const r of roles) {
   mem.public.none(
-    `INSERT INTO roles (role_name) VALUES ('${esc(r.roleName)}')`
+    `INSERT INTO roles (role_name) VALUES ('${esc(r.roleName)}')`,
   );
 }
 for (const d of departments) {
   mem.public.none(
-    `INSERT INTO departments (department_name) VALUES ('${esc(d.departmentName)}')`
+    `INSERT INTO departments (department_name) VALUES ('${esc(d.departmentName)}')`,
   );
 }
 for (const s of statuses) {
   mem.public.none(
-    `INSERT INTO statuses (status_name) VALUES ('${esc(s.statusName)}')`
+    `INSERT INTO statuses (status_name) VALUES ('${esc(s.statusName)}')`,
   );
 }
 
@@ -552,32 +550,32 @@ for (const u of users) {
 for (const v of vendors) {
   mem.public.none(
     `INSERT INTO vendors (name, contact_person, phone, email, address)
-     VALUES ('${esc(v.name)}', '${esc(v.contactPerson)}', '${esc(v.phone)}', '${esc(v.email)}', '${esc(v.address)}')`
+     VALUES ('${esc(v.name)}', '${esc(v.contactPerson)}', '${esc(v.phone)}', '${esc(v.email)}', '${esc(v.address)}')`,
   );
 }
 
 for (const i of items) {
   mem.public.none(
     `INSERT INTO items (name, model, brand, part_number, lead_time, description, unit, unit_price)
-     VALUES ('${esc(i.name)}', '${esc(i.model)}', '${esc(i.brand)}', '${esc(i.partNumber)}', '${esc(i.leadTime)}', '${esc(i.description)}', '${esc(i.unit)}', ${i.unitPrice})`
+     VALUES ('${esc(i.name)}', '${esc(i.model)}', '${esc(i.brand)}', '${esc(i.partNumber)}', '${esc(i.leadTime)}', '${esc(i.description)}', '${esc(i.unit)}', ${i.unitPrice})`,
   );
 }
 
 for (const i of accountsIndustries) {
   mem.public.none(
-    `INSERT INTO account_industries (industry_name) VALUES ('${esc(i.industryName)}')`
+    `INSERT INTO account_industries (industry_name) VALUES ('${esc(i.industryName)}')`,
   );
 }
 
 for (const pb of accountsProductBrands) {
   mem.public.none(
-    `INSERT INTO account_product_brands (product_brand_name) VALUES ('${esc(pb.productBrandName)}')`
+    `INSERT INTO account_product_brands (product_brand_name) VALUES ('${esc(pb.productBrandName)}')`,
   );
 }
 
 for (const d of accountsDepartments) {
   mem.public.none(
-    `INSERT INTO account_departments (department_name) VALUES ('${esc(d.departmentName)}')`
+    `INSERT INTO account_departments (department_name) VALUES ('${esc(d.departmentName)}')`,
   );
 }
 
@@ -631,51 +629,51 @@ for (const account of accounts) {
       updated_at,
       is_naef
     ) VALUES (
-      '${esc(account.refNumber || '')}',
-      ${account.dateCreated ? `'${account.dateCreated}'` : 'NOW()'},
-      ${account.requestedBy ? `'${esc(account.requestedBy)}'` : 'NULL'},
-      '${esc(account.designation || '')}',
-      ${account.departmentId ? `'${esc(account.departmentId)}'` : 'NULL'},
-      '${esc(account.validityPeriod || '')}',
-      ${account.dueDate ? `'${account.dueDate}'` : 'NULL'},
-      '${esc(account.accountName || '')}',
-      '${esc(account.contractPeriod || '')}',
-      ${account.industryId ? `'${esc(account.industryId)}'` : 'NULL'},
-      '${esc(account.accountDesignation || '')}',
-      ${account.productId ? `'${esc(account.productId)}'` : 'NULL'},
-      '${esc(account.contactNumber || '')}',
-      '${esc(account.location || '')}',
-      '${esc(account.emailAddress || '')}',
-      '${esc(account.address || '')}',
-      '${esc(account.buyerIncharge || '')}',
-      '${esc(account.trunkline || '')}',
-      '${esc(account.contractNumber || '')}',
-      '${esc(account.process || '')}',
-      '${esc(account.secondaryEmailAddress || '')}',
-      '${esc(account.machines || '')}',
-      '${esc(account.reasonToApply || '')}',
-      '${esc(account.automotiveSection || '')}',
-      '${esc(account.sourceOfInquiry || '')}',
-      '${esc(account.commodity || '')}',
-      '${esc(account.businessActivity || '')}',
-      '${esc(account.model || '')}',
+      '${esc(account.refNumber || "")}',
+      ${account.dateCreated ? `'${account.dateCreated}'` : "NOW()"},
+      ${account.requestedBy ? `'${esc(account.requestedBy)}'` : "NULL"},
+      '${esc(account.designation || "")}',
+      ${account.departmentId ? `'${esc(account.departmentId)}'` : "NULL"},
+      '${esc(account.validityPeriod || "")}',
+      ${account.dueDate ? `'${account.dueDate}'` : "NULL"},
+      '${esc(account.accountName || "")}',
+      '${esc(account.contractPeriod || "")}',
+      ${account.industryId ? `'${esc(account.industryId)}'` : "NULL"},
+      '${esc(account.accountDesignation || "")}',
+      ${account.productId ? `'${esc(account.productId)}'` : "NULL"},
+      '${esc(account.contactNumber || "")}',
+      '${esc(account.location || "")}',
+      '${esc(account.emailAddress || "")}',
+      '${esc(account.address || "")}',
+      '${esc(account.buyerIncharge || "")}',
+      '${esc(account.trunkline || "")}',
+      '${esc(account.contractNumber || "")}',
+      '${esc(account.process || "")}',
+      '${esc(account.secondaryEmailAddress || "")}',
+      '${esc(account.machines || "")}',
+      '${esc(account.reasonToApply || "")}',
+      '${esc(account.automotiveSection || "")}',
+      '${esc(account.sourceOfInquiry || "")}',
+      '${esc(account.commodity || "")}',
+      '${esc(account.businessActivity || "")}',
+      '${esc(account.model || "")}',
       ${account.annualTargetSales || 0},
-      '${esc(account.population || '')}',
-      '${esc(account.sourceOfTarget || '')}',
-      '${esc(account.existingBellows || '')}',
-      '${esc(account.productsToOrder || '')}',
-      '${esc(account.modelUnder || '')}',
-      '${esc(account.targetAreas || '')}',
-      '${esc(account.analysis || '')}',
-      ${account.fromDate ? `'${account.fromDate}'` : 'NULL'},
-      ${account.toDate ? `'${account.toDate}'` : 'NULL'},
-      '${esc(account.activityPeriod || '')}',
-      ${account.preparedBy ? `'${esc(account.preparedBy)}'` : 'NULL'},
-      ${account.notedBy ? `'${esc(account.notedBy)}'` : 'NULL'},
-      ${account.approvedBy ? `'${esc(account.approvedBy)}'` : 'NULL'},
-      ${account.receivedBy ? `'${esc(account.receivedBy)}'` : 'NULL'},
-      ${account.acknowledgedBy ? `'${esc(account.acknowledgedBy)}'` : 'NULL'},
-      ${account.updatedAt ? `'${account.updatedAt}'` : 'NOW()'},
+      '${esc(account.population || "")}',
+      '${esc(account.sourceOfTarget || "")}',
+      '${esc(account.existingBellows || "")}',
+      '${esc(account.productsToOrder || "")}',
+      '${esc(account.modelUnder || "")}',
+      '${esc(account.targetAreas || "")}',
+      '${esc(account.analysis || "")}',
+      ${account.fromDate ? `'${account.fromDate}'` : "NULL"},
+      ${account.toDate ? `'${account.toDate}'` : "NULL"},
+      '${esc(account.activityPeriod || "")}',
+      ${account.preparedBy ? `'${esc(account.preparedBy)}'` : "NULL"},
+      ${account.notedBy ? `'${esc(account.notedBy)}'` : "NULL"},
+      ${account.approvedBy ? `'${esc(account.approvedBy)}'` : "NULL"},
+      ${account.receivedBy ? `'${esc(account.receivedBy)}'` : "NULL"},
+      ${account.acknowledgedBy ? `'${esc(account.acknowledgedBy)}'` : "NULL"},
+      ${account.updatedAt ? `'${account.updatedAt}'` : "NOW()"},
       FALSE
     )
   `);
@@ -717,27 +715,28 @@ for (const wo of workorders) {
       '${wo.assignee}',
       '${wo.status}',
       '${esc(wo.accountId)}',
-      ${esc(wo.naefId) || 'NULL'},
-      ${wo.isNewAccount ? 'TRUE' : 'FALSE'},
+      ${esc(wo.naefId) || "NULL"},
+      ${wo.isNewAccount ? "TRUE" : "FALSE"},
       '${esc(wo.mode)}',
       '${esc(wo.contactPerson)}',
       '${esc(wo.contactNumber)}',
       '${wo.woDate}',
-      ${wo.dueDate ? `'${wo.dueDate}'` : 'NULL'},
-      ${wo.fromTime ? `'${wo.fromTime}'` : 'NULL'},
-      ${wo.toTime ? `'${wo.toTime}'` : 'NULL'},
-      ${wo.actualDate ? `'${wo.actualDate}'` : 'NULL'},
-      ${wo.actualFromTime ? `'${wo.actualFromTime}'` : 'NULL'},
-      ${wo.actualToTime ? `'${wo.actualToTime}'` : 'NULL'},
+      ${wo.dueDate ? `'${wo.dueDate}'` : "NULL"},
+      ${wo.fromTime ? `'${wo.fromTime}'` : "NULL"},
+      ${wo.toTime ? `'${wo.toTime}'` : "NULL"},
+      ${wo.actualDate ? `'${wo.actualDate}'` : "NULL"},
+      ${wo.actualFromTime ? `'${wo.actualFromTime}'` : "NULL"},
+      ${wo.actualToTime ? `'${wo.actualToTime}'` : "NULL"},
       '${esc(wo.objective)}',
       '${esc(wo.instruction)}',
       '${esc(wo.targetOutput)}',
-      ${wo.isFSL ? 'TRUE' : 'FALSE'},
-      ${wo.isESL ? 'TRUE' : 'FALSE'},
+      ${wo.isFSL ? "TRUE" : "FALSE"},
+      ${wo.isESL ? "TRUE" : "FALSE"},
       NOW(),
       ${wo.createdBy},
       NOW(),
-      ${wo.stageStatus ? `'${wo.stageStatus}'` : "'Draft'"})`)
+      ${wo.stageStatus ? `'${wo.stageStatus}'` : "'Draft'"})`,
+  );
 }
 
 for (const sl of salesLeads) {
@@ -822,9 +821,9 @@ for (const sl of salesLeads) {
       '${esc(sl.quantityAttention)}',
       '${esc(sl.qrCc)}',
       '${esc(sl.qrEmailTo)}',
-      ${sl.nextFollowupDate ? `'${sl.nextFollowupDate}'` : 'NULL'},
-      ${sl.dueDate ? `'${sl.dueDate}'` : 'NULL'},
-      ${sl.doneDate ? `'${sl.doneDate}'` : 'NULL'},
+      ${sl.nextFollowupDate ? `'${sl.nextFollowupDate}'` : "NULL"},
+      ${sl.dueDate ? `'${sl.dueDate}'` : "NULL"},
+      ${sl.doneDate ? `'${sl.doneDate}'` : "NULL"},
       '${esc(sl.account)}',
       '${esc(sl.industry)}',
       ${sl.seId},
@@ -848,7 +847,7 @@ for (const sl of salesLeads) {
       '${sl.updatedAt}',
       '${esc(sl.stageStatus)}'
     )
-    `
+    `,
   );
 }
 
@@ -985,11 +984,11 @@ for (const ws of workflowStages) {
       '${ws.stageName}',
       '${ws.status}',
       ${ws.assignedTo},
-      ${ws.notified ? 'TRUE' : 'FALSE'},
+      ${ws.notified ? "TRUE" : "FALSE"},
       '${ws.createdAt}',
       '${ws.updatedAt}'
     )
-    `
+    `,
   );
 }
 

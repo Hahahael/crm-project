@@ -1,6 +1,14 @@
 import { motion } from "framer-motion";
 
-const ConfirmModal = ({ isOpen, title, message, onConfirm, onCancel, confirmText = "Yes", isDanger = false }) => {
+const ConfirmModal = ({
+  isOpen,
+  title,
+  message,
+  onConfirm,
+  onCancel,
+  confirmText = "Yes",
+  isDanger = false,
+}) => {
   if (!isOpen) return null;
 
   return (
@@ -11,8 +19,12 @@ const ConfirmModal = ({ isOpen, title, message, onConfirm, onCancel, confirmText
         exit={{ scale: 0.9, opacity: 0 }}
         className="bg-white rounded-xl shadow-lg p-6 w-full max-w-md"
       >
-        <h2 className="text-xl font-semibold mb-4">{title || "Confirm Action"}</h2>
-        <p className="mb-6">{message || "Are you sure you want to continue?"}</p>
+        <h2 className="text-xl font-semibold mb-4">
+          {title || "Confirm Action"}
+        </h2>
+        <p className="mb-6">
+          {message || "Are you sure you want to continue?"}
+        </p>
         <div className="flex justify-end gap-3">
           <button
             onClick={onCancel}

@@ -1,13 +1,14 @@
-export const accountsIndustries = [    {
+export const accountsIndustries = [
+  {
     id: 1,
-    industryName: 'Manufacturing'
+    industryName: "Manufacturing",
   },
   {
     id: 2,
-    industryName: 'Technology'
+    industryName: "Technology",
   },
   {
     id: 3,
-    industryName: 'Machining'
-  }
-  ];
+    industryName: "Machining",
+  },
+];

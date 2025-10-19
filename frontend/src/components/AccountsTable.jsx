@@ -1,6 +1,6 @@
 //src/components/AccountsTable
 import { LuEllipsis, LuEye, LuPencil, LuTrash } from "react-icons/lu";
-import util from "../helper/utils.js"
+import util from "../helper/utils.js";
 
 export default function AccountsTable({ accounts, onView, onEdit }) {
   return (
@@ -8,30 +8,69 @@ export default function AccountsTable({ accounts, onView, onEdit }) {
       <table className="w-full border-collapse text-left text-sm min-w-4xl">
         <thead className="border-gray-200 border-b hover:bg-gray-100 transition-all duration-200">
           <tr>
-            <th className="px-4 py-2 font-normal text-gray-500 text-sm w-[8%]">Ref #</th>
-            <th className="px-4 py-2 font-normal text-gray-500 text-sm w-[8%]">Date</th>
-            <th className="px-4 py-2 font-normal text-gray-500 text-sm ">Account</th>
-            <th className="px-4 py-2 font-normal text-gray-500 text-sm w-[10%]">Industry</th>
-            <th className="px-4 py-2 font-normal text-gray-500 text-sm w-[8%]">Requestor</th>
-            <th className="px-4 py-2 font-normal text-gray-500 text-sm">Status</th>
-            <th className="px-4 py-2 font-normal text-gray-500 text-sm w-[7%]">Due Date</th>
-            <th className="px-4 py-2 font-normal text-gray-500 text-sm w-[7%]">Done Date</th>
-            <th className="px-4 py-2 font-normal text-gray-500 text-sm">Delay Status</th>
-            <th className="px-4 py-2 font-normal text-gray-500 text-sm text-right w-[5%]">Actions</th>
+            <th className="px-4 py-2 font-normal text-gray-500 text-sm w-[8%]">
+              Ref #
+            </th>
+            <th className="px-4 py-2 font-normal text-gray-500 text-sm w-[8%]">
+              Date
+            </th>
+            <th className="px-4 py-2 font-normal text-gray-500 text-sm ">
+              Account
+            </th>
+            <th className="px-4 py-2 font-normal text-gray-500 text-sm w-[10%]">
+              Industry
+            </th>
+            <th className="px-4 py-2 font-normal text-gray-500 text-sm w-[8%]">
+              Requestor
+            </th>
+            <th className="px-4 py-2 font-normal text-gray-500 text-sm">
+              Status
+            </th>
+            <th className="px-4 py-2 font-normal text-gray-500 text-sm w-[7%]">
+              Due Date
+            </th>
+            <th className="px-4 py-2 font-normal text-gray-500 text-sm w-[7%]">
+              Done Date
+            </th>
+            <th className="px-4 py-2 font-normal text-gray-500 text-sm">
+              Delay Status
+            </th>
+            <th className="px-4 py-2 font-normal text-gray-500 text-sm text-right w-[5%]">
+              Actions
+            </th>
           </tr>
         </thead>
         <tbody className="divide-y divide-gray-200">
           {accounts.map((account) => (
-            <tr key={account.id} className="hover:bg-gray-50 transition-all duration-200">
-              <td className="px-4 py-2 text-black text-sm">{account.refNumber}</td>
-              <td className="px-4 py-2 text-black text-sm">{util.formatDate(account.createdAt, "DD/MM/YYYY")}</td>
-              <td className="px-4 py-2 text-black text-sm">{account.accountName}</td>
-              <td className="px-4 py-2 text-black text-sm">{account.industryName}</td>
-              <td className="px-4 py-2 text-black text-sm">{account.requestedBy}</td>
+            <tr
+              key={account.id}
+              className="hover:bg-gray-50 transition-all duration-200"
+            >
+              <td className="px-4 py-2 text-black text-sm">
+                {account.refNumber}
+              </td>
+              <td className="px-4 py-2 text-black text-sm">
+                {util.formatDate(account.createdAt, "DD/MM/YYYY")}
+              </td>
+              <td className="px-4 py-2 text-black text-sm">
+                {account.accountName}
+              </td>
+              <td className="px-4 py-2 text-black text-sm">
+                {account.industryName}
+              </td>
+              <td className="px-4 py-2 text-black text-sm">
+                {account.requestedBy}
+              </td>
               <td className="px-4 py-2 text-black text-sm">{account.status}</td>
-              <td className="px-4 py-2 text-black text-sm">{util.formatDate(account.dueDate, "DD/MM/YYYY")}</td>
-              <td className="px-4 py-2 text-black text-sm">{util.formatDate(account.doneDate, "DD/MM/YYYY")}</td>
-              <td className="px-4 py-2 text-black text-sm">{account.delayStatus}</td>
+              <td className="px-4 py-2 text-black text-sm">
+                {util.formatDate(account.dueDate, "DD/MM/YYYY")}
+              </td>
+              <td className="px-4 py-2 text-black text-sm">
+                {util.formatDate(account.doneDate, "DD/MM/YYYY")}
+              </td>
+              <td className="px-4 py-2 text-black text-sm">
+                {account.delayStatus}
+              </td>
               <td className="px-4 py-2 text-black text-sm">
                 <div className="flex gap-2">
                   <button

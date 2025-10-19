@@ -1,29 +1,30 @@
-export const accountsDepartments = [    {
+export const accountsDepartments = [
+  {
     id: 1,
-    departmentName: 'Manufacturing'
+    departmentName: "Manufacturing",
   },
   {
     id: 2,
-    departmentName: 'Sales'
+    departmentName: "Sales",
   },
   {
     id: 3,
-    departmentName: 'Engineering'
+    departmentName: "Engineering",
   },
   {
     id: 4,
-    departmentName: 'Operations'
+    departmentName: "Operations",
   },
   {
     id: 5,
-    departmentName: 'Finance'
+    departmentName: "Finance",
   },
   {
     id: 6,
-    departmentName: 'HR'
+    departmentName: "HR",
   },
   {
     id: 7,
-    departmentName: 'Quality Assurance'
-  }
-  ];
+    departmentName: "Quality Assurance",
+  },
+];

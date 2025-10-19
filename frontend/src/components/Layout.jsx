@@ -4,9 +4,8 @@ import { Link, Outlet, useLocation } from "react-router-dom";
 const apiUrl = import.meta.env.VITE_API_URL;
 
 fetch(`${apiUrl}/healthcheck`)
-  .then(res => res.json())
-  .then(data => console.log(data));
-
+  .then((res) => res.json())
+  .then((data) => console.log(data));
 
 export default function Layout() {
   const location = useLocation();
@@ -76,12 +75,12 @@ export default function Layout() {
             >
               Calendar
             </Link>
-              <Link
-                to="/approvals"
-                className="block rounded-md px-3 py-2 hover:bg-gray-700"
-              >
-                Approvals
-              </Link>
+            <Link
+              to="/approvals"
+              className="block rounded-md px-3 py-2 hover:bg-gray-700"
+            >
+              Approvals
+            </Link>
           </nav>
           <button
             onClick={async () => {
@@ -95,7 +94,6 @@ export default function Layout() {
           >
             Logout
           </button>
-
         </aside>
       )}
 

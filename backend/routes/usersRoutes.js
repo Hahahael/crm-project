@@ -27,14 +27,17 @@ router.get("/", async (req, res) => {
 router.get("/:id", async (req, res) => {
   try {
     const { id } = req.params;
-    const result = await db.query(`
+    const result = await db.query(
+      `
       SELECT u.*, r.role_name, d.department_name, s.status_name
       FROM users u
       LEFT JOIN roles r ON u.role_id = r.id
       LEFT JOIN departments d ON u.department_id = d.id
       LEFT JOIN statuses s ON u.status_id = s.id
       WHERE u.id = $1
-    `, [id]);
+    `,
+      [id],
+    );
     if (result.rows.length === 0)
       return res.status(404).json({ error: "Not found" });
     return res.json(result.rows[0]);
@@ -84,7 +87,7 @@ router.post("/", async (req, res) => {
         avatar_url,
         password_hash,
         created_by,
-      ]
+      ],
     );
 
     return res.status(201).json(result.rows[0]); // ✅ camelCase
@@ -141,7 +144,7 @@ router.put("/:id", async (req, res) => {
         password_hash,
         last_login,
         id,
-      ]
+      ],
     );
 
     if (result.rows.length === 0)
@@ -160,7 +163,7 @@ router.delete("/:id", async (req, res) => {
     // Return deleted row if successful
     const result = await db.query(
       "DELETE FROM users WHERE id = $1 RETURNING *",
-      [id]
+      [id],
     );
 
     if (result.rows.length === 0) {

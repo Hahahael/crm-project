@@ -6,14 +6,17 @@ export async function apiBackendFetch(endpoint, options = {}) {
   console.log(`[api] ${method} ${apiUrl}${endpoint}`);
   if (options.body) {
     try {
-      const parsed = typeof options.body === 'string' ? JSON.parse(options.body) : options.body;
-      console.log('[api] body:', parsed);
+      const parsed =
+        typeof options.body === "string"
+          ? JSON.parse(options.body)
+          : options.body;
+      console.log("[api] body:", parsed);
     } catch {
-      console.log('[api] body (unparsed):', options.body);
+      console.log("[api] body (unparsed):", options.body);
     }
   } else {
     // log options without circular refs
-    console.log('[api] options:', { ...options, body: undefined });
+    console.log("[api] options:", { ...options, body: undefined });
   }
   try {
     const res = await fetch(`${apiUrl}${endpoint}`, {

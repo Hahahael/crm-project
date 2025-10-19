@@ -29,7 +29,6 @@ const config = {
     user: ["user.read", "user.write", "user.all"],
     global: ["all"], // catch-all permission
   },
-  
 };
 
 export default config;

@@ -30,7 +30,6 @@ function LoginPage() {
       setTimeout(() => {
         navigate("/dashboard");
       }, 1500);
-
     } catch (err) {
       setError(err.message);
     }
@@ -39,14 +38,20 @@ function LoginPage() {
   return (
     <div className="relative flex h-screen items-center justify-center bg-login w-full">
       <div className="w-full max-w-lg rounded-xl bg-white p-8 shadow-sm">
-        <h2 className="mb-1 text-center text-2xl font-bold text-gray-800">CRM</h2>
-        <p className="text-sm text-center text-gray-400">Sign in to your account to continue</p>
+        <h2 className="mb-1 text-center text-2xl font-bold text-gray-800">
+          CRM
+        </h2>
+        <p className="text-sm text-center text-gray-400">
+          Sign in to your account to continue
+        </p>
 
         <form onSubmit={handleLogin} className="space-y-4 mt-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700">Username</label>
+            <label className="block text-sm font-medium text-gray-700">
+              Username
+            </label>
             <div className="flex relative items-center">
-              <RxPerson className="ml-3 text-black absolute"/>
+              <RxPerson className="ml-3 text-black absolute" />
               <input
                 type="text"
                 value={username}
@@ -59,9 +64,11 @@ function LoginPage() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700">Password</label>
+            <label className="block text-sm font-medium text-gray-700">
+              Password
+            </label>
             <div className="flex relative items-center">
-              <RxLockClosed className="ml-3 text-black absolute"/>
+              <RxLockClosed className="ml-3 text-black absolute" />
               <input
                 type="password"
                 value={password}
@@ -91,13 +98,17 @@ function LoginPage() {
       {/* Login Success Overlay */}
       {loginSuccess && (
         <div className="absolute inset-0 flex items-center justify-center bg-gray-200/50 transition-all duration-200 ease-in">
-          <div className="bg-white p-6 rounded-lg shadow-lg text-center 
+          <div
+            className="bg-white p-6 rounded-lg shadow-lg text-center 
                           transform transition-transform duration-200 
-                          animate-[fadeIn_0.2s_ease-in_forwards]">
-            <h3 className="text-xl font-bold text-green-600 mb-2">Login Successful!</h3>
+                          animate-[fadeIn_0.2s_ease-in_forwards]"
+          >
+            <h3 className="text-xl font-bold text-green-600 mb-2">
+              Login Successful!
+            </h3>
             <p className="text-gray-700">Redirecting to your dashboard...</p>
           </div>
-        </div> 
+        </div>
       )}
     </div>
   );
