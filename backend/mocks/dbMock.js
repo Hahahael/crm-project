@@ -551,371 +551,371 @@ for (const u of users) {
   `);
 }
 
-for (const v of vendors) {
-  mem.public.none(
-    `INSERT INTO vendors (name, contact_person, phone, email, address)
-     VALUES ('${esc(v.name)}', '${esc(v.contactPerson)}', '${esc(v.phone)}', '${esc(v.email)}', '${esc(v.address)}')`,
-  );
-}
+// for (const v of vendors) {
+//   mem.public.none(
+//     `INSERT INTO vendors (name, contact_person, phone, email, address)
+//      VALUES ('${esc(v.name)}', '${esc(v.contactPerson)}', '${esc(v.phone)}', '${esc(v.email)}', '${esc(v.address)}')`,
+//   );
+// }
 
-for (const i of items) {
-  mem.public.none(
-    `INSERT INTO items (name, model, brand, part_number, lead_time, description, unit, unit_price)
-     VALUES ('${esc(i.name)}', '${esc(i.model)}', '${esc(i.brand)}', '${esc(i.partNumber)}', '${esc(i.leadTime)}', '${esc(i.description)}', '${esc(i.unit)}', ${i.unitPrice})`,
-  );
-}
+// for (const i of items) {
+//   mem.public.none(
+//     `INSERT INTO items (name, model, brand, part_number, lead_time, description, unit, unit_price)
+//      VALUES ('${esc(i.name)}', '${esc(i.model)}', '${esc(i.brand)}', '${esc(i.partNumber)}', '${esc(i.leadTime)}', '${esc(i.description)}', '${esc(i.unit)}', ${i.unitPrice})`,
+//   );
+// }
 
-for (const i of accountsIndustries) {
-  mem.public.none(
-    `INSERT INTO account_industries (industry_name) VALUES ('${esc(i.industryName)}')`,
-  );
-}
+// for (const i of accountsIndustries) {
+//   mem.public.none(
+//     `INSERT INTO account_industries (industry_name) VALUES ('${esc(i.industryName)}')`,
+//   );
+// }
 
-for (const pb of accountsProductBrands) {
-  mem.public.none(
-    `INSERT INTO account_product_brands (product_brand_name) VALUES ('${esc(pb.productBrandName)}')`,
-  );
-}
+// for (const pb of accountsProductBrands) {
+//   mem.public.none(
+//     `INSERT INTO account_product_brands (product_brand_name) VALUES ('${esc(pb.productBrandName)}')`,
+//   );
+// }
 
-for (const d of accountsDepartments) {
-  mem.public.none(
-    `INSERT INTO account_departments (department_name) VALUES ('${esc(d.departmentName)}')`,
-  );
-}
+// for (const d of accountsDepartments) {
+//   mem.public.none(
+//     `INSERT INTO account_departments (department_name) VALUES ('${esc(d.departmentName)}')`,
+//   );
+// }
 
-for (const account of accounts) {
-  mem.public.none(`
-    INSERT INTO accounts (
-      ref_number,
-      date_created,
-      requested_by,
-      designation,
-      department_id,
-      validity_period,
-      due_date,
-      account_name,
-      contract_period,
-      industry_id,
-      account_designation,
-      product_id,
-      contact_number,
-      location,
-      email_address,
-      address,
-      buyer_incharge,
-      trunkline,
-      contract_number,
-      process,
-      secondary_email_address,
-      machines,
-      reason_to_apply,
-      automotive_section,
-      source_of_inquiry,
-      commodity,
-      business_activity,
-      model,
-      annual_target_sales,
-      population,
-      source_of_target,
-      existing_bellows,
-      products_to_order,
-      model_under,
-      target_areas,
-      analysis,
-      from_date,
-      to_date,
-      activity_period,
-      prepared_by,
-      noted_by,
-      approved_by,
-      received_by,
-      acknowledged_by,
-      updated_at,
-      is_naef
-    ) VALUES (
-      '${esc(account.refNumber || "")}',
-      ${account.dateCreated ? `'${account.dateCreated}'` : "NOW()"},
-      ${account.requestedBy ? `'${esc(account.requestedBy)}'` : "NULL"},
-      '${esc(account.designation || "")}',
-      ${account.departmentId ? `'${esc(account.departmentId)}'` : "NULL"},
-      '${esc(account.validityPeriod || "")}',
-      ${account.dueDate ? `'${account.dueDate}'` : "NULL"},
-      '${esc(account.accountName || "")}',
-      '${esc(account.contractPeriod || "")}',
-      ${account.industryId ? `'${esc(account.industryId)}'` : "NULL"},
-      '${esc(account.accountDesignation || "")}',
-      ${account.productId ? `'${esc(account.productId)}'` : "NULL"},
-      '${esc(account.contactNumber || "")}',
-      '${esc(account.location || "")}',
-      '${esc(account.emailAddress || "")}',
-      '${esc(account.address || "")}',
-      '${esc(account.buyerIncharge || "")}',
-      '${esc(account.trunkline || "")}',
-      '${esc(account.contractNumber || "")}',
-      '${esc(account.process || "")}',
-      '${esc(account.secondaryEmailAddress || "")}',
-      '${esc(account.machines || "")}',
-      '${esc(account.reasonToApply || "")}',
-      '${esc(account.automotiveSection || "")}',
-      '${esc(account.sourceOfInquiry || "")}',
-      '${esc(account.commodity || "")}',
-      '${esc(account.businessActivity || "")}',
-      '${esc(account.model || "")}',
-      ${account.annualTargetSales || 0},
-      '${esc(account.population || "")}',
-      '${esc(account.sourceOfTarget || "")}',
-      '${esc(account.existingBellows || "")}',
-      '${esc(account.productsToOrder || "")}',
-      '${esc(account.modelUnder || "")}',
-      '${esc(account.targetAreas || "")}',
-      '${esc(account.analysis || "")}',
-      ${account.fromDate ? `'${account.fromDate}'` : "NULL"},
-      ${account.toDate ? `'${account.toDate}'` : "NULL"},
-      '${esc(account.activityPeriod || "")}',
-      ${account.preparedBy ? `'${esc(account.preparedBy)}'` : "NULL"},
-      ${account.notedBy ? `'${esc(account.notedBy)}'` : "NULL"},
-      ${account.approvedBy ? `'${esc(account.approvedBy)}'` : "NULL"},
-      ${account.receivedBy ? `'${esc(account.receivedBy)}'` : "NULL"},
-      ${account.acknowledgedBy ? `'${esc(account.acknowledgedBy)}'` : "NULL"},
-      ${account.updatedAt ? `'${account.updatedAt}'` : "NOW()"},
-      FALSE
-    )
-  `);
-}
+// for (const account of accounts) {
+//   mem.public.none(`
+//     INSERT INTO accounts (
+//       ref_number,
+//       date_created,
+//       requested_by,
+//       designation,
+//       department_id,
+//       validity_period,
+//       due_date,
+//       account_name,
+//       contract_period,
+//       industry_id,
+//       account_designation,
+//       product_id,
+//       contact_number,
+//       location,
+//       email_address,
+//       address,
+//       buyer_incharge,
+//       trunkline,
+//       contract_number,
+//       process,
+//       secondary_email_address,
+//       machines,
+//       reason_to_apply,
+//       automotive_section,
+//       source_of_inquiry,
+//       commodity,
+//       business_activity,
+//       model,
+//       annual_target_sales,
+//       population,
+//       source_of_target,
+//       existing_bellows,
+//       products_to_order,
+//       model_under,
+//       target_areas,
+//       analysis,
+//       from_date,
+//       to_date,
+//       activity_period,
+//       prepared_by,
+//       noted_by,
+//       approved_by,
+//       received_by,
+//       acknowledged_by,
+//       updated_at,
+//       is_naef
+//     ) VALUES (
+//       '${esc(account.refNumber || "")}',
+//       ${account.dateCreated ? `'${account.dateCreated}'` : "NOW()"},
+//       ${account.requestedBy ? `'${esc(account.requestedBy)}'` : "NULL"},
+//       '${esc(account.designation || "")}',
+//       ${account.departmentId ? `'${esc(account.departmentId)}'` : "NULL"},
+//       '${esc(account.validityPeriod || "")}',
+//       ${account.dueDate ? `'${account.dueDate}'` : "NULL"},
+//       '${esc(account.accountName || "")}',
+//       '${esc(account.contractPeriod || "")}',
+//       ${account.industryId ? `'${esc(account.industryId)}'` : "NULL"},
+//       '${esc(account.accountDesignation || "")}',
+//       ${account.productId ? `'${esc(account.productId)}'` : "NULL"},
+//       '${esc(account.contactNumber || "")}',
+//       '${esc(account.location || "")}',
+//       '${esc(account.emailAddress || "")}',
+//       '${esc(account.address || "")}',
+//       '${esc(account.buyerIncharge || "")}',
+//       '${esc(account.trunkline || "")}',
+//       '${esc(account.contractNumber || "")}',
+//       '${esc(account.process || "")}',
+//       '${esc(account.secondaryEmailAddress || "")}',
+//       '${esc(account.machines || "")}',
+//       '${esc(account.reasonToApply || "")}',
+//       '${esc(account.automotiveSection || "")}',
+//       '${esc(account.sourceOfInquiry || "")}',
+//       '${esc(account.commodity || "")}',
+//       '${esc(account.businessActivity || "")}',
+//       '${esc(account.model || "")}',
+//       ${account.annualTargetSales || 0},
+//       '${esc(account.population || "")}',
+//       '${esc(account.sourceOfTarget || "")}',
+//       '${esc(account.existingBellows || "")}',
+//       '${esc(account.productsToOrder || "")}',
+//       '${esc(account.modelUnder || "")}',
+//       '${esc(account.targetAreas || "")}',
+//       '${esc(account.analysis || "")}',
+//       ${account.fromDate ? `'${account.fromDate}'` : "NULL"},
+//       ${account.toDate ? `'${account.toDate}'` : "NULL"},
+//       '${esc(account.activityPeriod || "")}',
+//       ${account.preparedBy ? `'${esc(account.preparedBy)}'` : "NULL"},
+//       ${account.notedBy ? `'${esc(account.notedBy)}'` : "NULL"},
+//       ${account.approvedBy ? `'${esc(account.approvedBy)}'` : "NULL"},
+//       ${account.receivedBy ? `'${esc(account.receivedBy)}'` : "NULL"},
+//       ${account.acknowledgedBy ? `'${esc(account.acknowledgedBy)}'` : "NULL"},
+//       ${account.updatedAt ? `'${account.updatedAt}'` : "NOW()"},
+//       FALSE
+//     )
+//   `);
+// }
 
-for (const wo of workorders) {
-  console.log("Seeding workorder:", wo);
-  mem.public.none(
-    `
-    INSERT INTO workorders (
-      wo_number,
-      work_description,
-      assignee,
-      status,
-      account_id,
-      naef_id,
-      is_new_account,
-      mode,
-      contact_person,
-      contact_number,
-      wo_date,
-      due_date,
-      from_time,
-      to_time,
-      actual_date,
-      actual_from_time,
-      actual_to_time,
-      objective,
-      instruction,
-      target_output,
-      is_fsl,
-      is_esl,
-      created_at,
-      created_by,
-      updated_at,
-      stage_status
-    ) VALUES (
-      '${esc(wo.woNumber)}',
-      '${esc(wo.workDescription)}',
-      '${wo.assignee}',
-      '${wo.status}',
-      '${esc(wo.accountId)}',
-      ${esc(wo.naefId) || "NULL"},
-      ${wo.isNewAccount ? "TRUE" : "FALSE"},
-      '${esc(wo.mode)}',
-      '${esc(wo.contactPerson)}',
-      '${esc(wo.contactNumber)}',
-      '${wo.woDate}',
-      ${wo.dueDate ? `'${wo.dueDate}'` : "NULL"},
-      ${wo.fromTime ? `'${wo.fromTime}'` : "NULL"},
-      ${wo.toTime ? `'${wo.toTime}'` : "NULL"},
-      ${wo.actualDate ? `'${wo.actualDate}'` : "NULL"},
-      ${wo.actualFromTime ? `'${wo.actualFromTime}'` : "NULL"},
-      ${wo.actualToTime ? `'${wo.actualToTime}'` : "NULL"},
-      '${esc(wo.objective)}',
-      '${esc(wo.instruction)}',
-      '${esc(wo.targetOutput)}',
-      ${wo.isFSL ? "TRUE" : "FALSE"},
-      ${wo.isESL ? "TRUE" : "FALSE"},
-      NOW(),
-      ${wo.createdBy},
-      NOW(),
-      ${wo.stageStatus ? `'${wo.stageStatus}'` : "'Draft'"})`,
-  );
-}
+// for (const wo of workorders) {
+//   console.log("Seeding workorder:", wo);
+//   mem.public.none(
+//     `
+//     INSERT INTO workorders (
+//       wo_number,
+//       work_description,
+//       assignee,
+//       status,
+//       account_id,
+//       naef_id,
+//       is_new_account,
+//       mode,
+//       contact_person,
+//       contact_number,
+//       wo_date,
+//       due_date,
+//       from_time,
+//       to_time,
+//       actual_date,
+//       actual_from_time,
+//       actual_to_time,
+//       objective,
+//       instruction,
+//       target_output,
+//       is_fsl,
+//       is_esl,
+//       created_at,
+//       created_by,
+//       updated_at,
+//       stage_status
+//     ) VALUES (
+//       '${esc(wo.woNumber)}',
+//       '${esc(wo.workDescription)}',
+//       '${wo.assignee}',
+//       '${wo.status}',
+//       '${esc(wo.accountId)}',
+//       ${esc(wo.naefId) || "NULL"},
+//       ${wo.isNewAccount ? "TRUE" : "FALSE"},
+//       '${esc(wo.mode)}',
+//       '${esc(wo.contactPerson)}',
+//       '${esc(wo.contactNumber)}',
+//       '${wo.woDate}',
+//       ${wo.dueDate ? `'${wo.dueDate}'` : "NULL"},
+//       ${wo.fromTime ? `'${wo.fromTime}'` : "NULL"},
+//       ${wo.toTime ? `'${wo.toTime}'` : "NULL"},
+//       ${wo.actualDate ? `'${wo.actualDate}'` : "NULL"},
+//       ${wo.actualFromTime ? `'${wo.actualFromTime}'` : "NULL"},
+//       ${wo.actualToTime ? `'${wo.actualToTime}'` : "NULL"},
+//       '${esc(wo.objective)}',
+//       '${esc(wo.instruction)}',
+//       '${esc(wo.targetOutput)}',
+//       ${wo.isFSL ? "TRUE" : "FALSE"},
+//       ${wo.isESL ? "TRUE" : "FALSE"},
+//       NOW(),
+//       ${wo.createdBy},
+//       NOW(),
+//       ${wo.stageStatus ? `'${wo.stageStatus}'` : "'Draft'"})`,
+//   );
+// }
 
-for (const sl of salesLeads) {
-  mem.public.none(
-    `
-    INSERT INTO sales_leads (
-      sl_number,
-      account_id,
-      wo_id,
-      assignee,
-      sales_stage,
-      end_user,
-      designation,
-      department,
-      immediate_support,
-      contact_number,
-      email_address,
-      category,
-      application,
-      machine,
-      machine_process,
-      needed_product,
-      existing_specifications,
-      issues_with_existing,
-      consideration,
-      support_needed,
-      urgency,
-      model_to_quote,
-      quantity,
-      quantity_attention,
-      qr_cc,
-      qr_email_to,
-      next_followup_date,
-      due_date,
-      done_date,
-      account,
-      industry,
-      se_id,
-      sales_plan_rep,
-      fsl_ref,
-      fsl_date,
-      fsl_time,
-      fsl_location,
-      ww,
-      requirement,
-      requirement_category,
-      deadline,
-      product_application,
-      customer_issues,
-      existing_setup_items,
-      customer_suggested_setup,
-      remarks,
-      actual_picture,
-      draft_design_layout,
-      created_at,
-      updated_at,
-      stage_status
-    ) VALUES (
-      '${esc(sl.slNumber)}',
-      ${sl.accountId},
-      ${sl.woId},
-      ${sl.assignee},
-      '${esc(sl.salesStage)}',
-      '${esc(sl.endUser)}',
-      '${esc(sl.designation)}',
-      '${esc(sl.department)}',
-      '${esc(sl.immediateSupport)}',
-      '${esc(sl.contactNumber)}',
-      '${esc(sl.emailAddress)}',
-      '${esc(sl.category)}',
-      '${esc(sl.application)}',
-      '${esc(sl.machine)}',
-      '${esc(sl.machineProcess)}',
-      '${esc(sl.neededProduct)}',
-      '${esc(sl.existingSpecifications)}',
-      '${esc(sl.issuesWithExisting)}',
-      '${esc(sl.consideration)}',
-      '${esc(sl.supportNeeded)}',
-      '${esc(sl.urgency)}',
-      '${esc(sl.modelToQuote)}',
-      ${sl.quantity},
-      '${esc(sl.quantityAttention)}',
-      '${esc(sl.qrCc)}',
-      '${esc(sl.qrEmailTo)}',
-      ${sl.nextFollowupDate ? `'${sl.nextFollowupDate}'` : "NULL"},
-      ${sl.dueDate ? `'${sl.dueDate}'` : "NULL"},
-      ${sl.doneDate ? `'${sl.doneDate}'` : "NULL"},
-      '${esc(sl.account)}',
-      '${esc(sl.industry)}',
-      ${sl.seId},
-      '${esc(sl.salesPlanRep)}',
-      '${esc(sl.fslRef)}',
-      '${sl.fslDate}',
-      '${sl.fslTime}',
-      '${esc(sl.fslLocation)}',
-      '${esc(sl.ww)}',
-      '${esc(sl.requirement)}',
-      '${esc(sl.requirementCategory)}',
-      '${sl.deadline}',
-      '${esc(sl.productApplication)}',
-      '${esc(sl.customerIssues)}',
-      '${esc(sl.existingSetupItems)}',
-      '${esc(sl.customerSuggestedSetup)}',
-      '${esc(sl.remarks)}',
-      NULL,
-      NULL,
-      '${sl.createdAt}',
-      '${sl.updatedAt}',
-      '${esc(sl.stageStatus)}'
-    )
-    `,
-  );
-}
+// for (const sl of salesLeads) {
+//   mem.public.none(
+//     `
+//     INSERT INTO sales_leads (
+//       sl_number,
+//       account_id,
+//       wo_id,
+//       assignee,
+//       sales_stage,
+//       end_user,
+//       designation,
+//       department,
+//       immediate_support,
+//       contact_number,
+//       email_address,
+//       category,
+//       application,
+//       machine,
+//       machine_process,
+//       needed_product,
+//       existing_specifications,
+//       issues_with_existing,
+//       consideration,
+//       support_needed,
+//       urgency,
+//       model_to_quote,
+//       quantity,
+//       quantity_attention,
+//       qr_cc,
+//       qr_email_to,
+//       next_followup_date,
+//       due_date,
+//       done_date,
+//       account,
+//       industry,
+//       se_id,
+//       sales_plan_rep,
+//       fsl_ref,
+//       fsl_date,
+//       fsl_time,
+//       fsl_location,
+//       ww,
+//       requirement,
+//       requirement_category,
+//       deadline,
+//       product_application,
+//       customer_issues,
+//       existing_setup_items,
+//       customer_suggested_setup,
+//       remarks,
+//       actual_picture,
+//       draft_design_layout,
+//       created_at,
+//       updated_at,
+//       stage_status
+//     ) VALUES (
+//       '${esc(sl.slNumber)}',
+//       ${sl.accountId},
+//       ${sl.woId},
+//       ${sl.assignee},
+//       '${esc(sl.salesStage)}',
+//       '${esc(sl.endUser)}',
+//       '${esc(sl.designation)}',
+//       '${esc(sl.department)}',
+//       '${esc(sl.immediateSupport)}',
+//       '${esc(sl.contactNumber)}',
+//       '${esc(sl.emailAddress)}',
+//       '${esc(sl.category)}',
+//       '${esc(sl.application)}',
+//       '${esc(sl.machine)}',
+//       '${esc(sl.machineProcess)}',
+//       '${esc(sl.neededProduct)}',
+//       '${esc(sl.existingSpecifications)}',
+//       '${esc(sl.issuesWithExisting)}',
+//       '${esc(sl.consideration)}',
+//       '${esc(sl.supportNeeded)}',
+//       '${esc(sl.urgency)}',
+//       '${esc(sl.modelToQuote)}',
+//       ${sl.quantity},
+//       '${esc(sl.quantityAttention)}',
+//       '${esc(sl.qrCc)}',
+//       '${esc(sl.qrEmailTo)}',
+//       ${sl.nextFollowupDate ? `'${sl.nextFollowupDate}'` : "NULL"},
+//       ${sl.dueDate ? `'${sl.dueDate}'` : "NULL"},
+//       ${sl.doneDate ? `'${sl.doneDate}'` : "NULL"},
+//       '${esc(sl.account)}',
+//       '${esc(sl.industry)}',
+//       ${sl.seId},
+//       '${esc(sl.salesPlanRep)}',
+//       '${esc(sl.fslRef)}',
+//       '${sl.fslDate}',
+//       '${sl.fslTime}',
+//       '${esc(sl.fslLocation)}',
+//       '${esc(sl.ww)}',
+//       '${esc(sl.requirement)}',
+//       '${esc(sl.requirementCategory)}',
+//       '${sl.deadline}',
+//       '${esc(sl.productApplication)}',
+//       '${esc(sl.customerIssues)}',
+//       '${esc(sl.existingSetupItems)}',
+//       '${esc(sl.customerSuggestedSetup)}',
+//       '${esc(sl.remarks)}',
+//       NULL,
+//       NULL,
+//       '${sl.createdAt}',
+//       '${sl.updatedAt}',
+//       '${esc(sl.stageStatus)}'
+//     )
+//     `,
+//   );
+// }
 
-for (const tr of technicalRecommendations) {
-  mem.public.none(
-    `
-    INSERT INTO technical_recommendations (
-      wo_id, assignee, tr_number, status, priority, title, sl_id, account_id,
-      contact_person, contact_number, contact_email, current_system, current_system_issues,
-      proposed_solution, technical_justification, installation_requirements, training_requirements,
-      maintenance_requirements, attachments, additional_notes, created_at, created_by, updated_at
-    ) VALUES (
-      ${tr.woId},
-      ${tr.assignee},
-      '${tr.trNumber}',
-      '${tr.status}',
-      '${tr.priority}',
-      '${tr.title}',
-      ${tr.slId},
-      ${tr.accountId},
-      '${tr.contactPerson}',
-      '${tr.contactNumber}',
-      '${tr.contactEmail}',
-      '${tr.currentSystem}',
-      '${tr.currentSystemIssues}',
-      '${tr.proposedSolution}',
-      '${tr.technicalJustification}',
-      '${tr.installationRequirements}',
-      '${tr.trainingRequirements}',
-      '${tr.maintenanceRequirements}',
-      ${tr.attachments ? `'${tr.attachments}'` : 'NULL'},
-      '${tr.additionalNotes}',
-      '${tr.createdAt}',
-      ${tr.createdBy},
-      '${tr.updatedAt}'
-    )
-    `
-  );
-}
+// for (const tr of technicalRecommendations) {
+//   mem.public.none(
+//     `
+//     INSERT INTO technical_recommendations (
+//       wo_id, assignee, tr_number, status, priority, title, sl_id, account_id,
+//       contact_person, contact_number, contact_email, current_system, current_system_issues,
+//       proposed_solution, technical_justification, installation_requirements, training_requirements,
+//       maintenance_requirements, attachments, additional_notes, created_at, created_by, updated_at
+//     ) VALUES (
+//       ${tr.woId},
+//       ${tr.assignee},
+//       '${tr.trNumber}',
+//       '${tr.status}',
+//       '${tr.priority}',
+//       '${tr.title}',
+//       ${tr.slId},
+//       ${tr.accountId},
+//       '${tr.contactPerson}',
+//       '${tr.contactNumber}',
+//       '${tr.contactEmail}',
+//       '${tr.currentSystem}',
+//       '${tr.currentSystemIssues}',
+//       '${tr.proposedSolution}',
+//       '${tr.technicalJustification}',
+//       '${tr.installationRequirements}',
+//       '${tr.trainingRequirements}',
+//       '${tr.maintenanceRequirements}',
+//       ${tr.attachments ? `'${tr.attachments}'` : 'NULL'},
+//       '${tr.additionalNotes}',
+//       '${tr.createdAt}',
+//       ${tr.createdBy},
+//       '${tr.updatedAt}'
+//     )
+//     `
+//   );
+// }
 
-for (const ti of trProducts) {
-  mem.public.none(
-    `
-    INSERT INTO technical_recommendation_products (
-      technical_recommendation_id,
-      product_name,
-      model,
-      description,
-      quantity,
-      unit_price,
-      total_price
-    ) VALUES (
-      ${ti.trId},
-      '${esc(ti.productName)}',
-      '${esc(ti.model)}',
-      '${esc(ti.description)}',
-      ${ti.quantity},
-      ${ti.unitPrice},
-      ${ti.totalPrice}
-    )
-    `
-  );
-}
+// for (const ti of trProducts) {
+//   mem.public.none(
+//     `
+//     INSERT INTO technical_recommendation_products (
+//       technical_recommendation_id,
+//       product_name,
+//       model,
+//       description,
+//       quantity,
+//       unit_price,
+//       total_price
+//     ) VALUES (
+//       ${ti.trId},
+//       '${esc(ti.productName)}',
+//       '${esc(ti.model)}',
+//       '${esc(ti.description)}',
+//       ${ti.quantity},
+//       ${ti.unitPrice},
+//       ${ti.totalPrice}
+//     )
+//     `
+//   );
+// }
 
 // for (const r of rfqs) {
 //   mem.public.none(
@@ -1003,23 +1003,23 @@ for (const ti of trProducts) {
 //   );
 // }
 
-for (const ws of workflowStages) {
-  mem.public.none(
-    `
-    INSERT INTO workflow_stages (
-      wo_id, stage_name, status, assigned_to, notified, created_at, updated_at
-    ) VALUES (
-      ${ws.woId},
-      '${ws.stageName}',
-      '${ws.status}',
-      ${ws.assignedTo},
-      ${ws.notified ? "TRUE" : "FALSE"},
-      '${ws.createdAt}',
-      '${ws.updatedAt}'
-    )
-    `,
-  );
-}
+// for (const ws of workflowStages) {
+//   mem.public.none(
+//     `
+//     INSERT INTO workflow_stages (
+//       wo_id, stage_name, status, assigned_to, notified, created_at, updated_at
+//     ) VALUES (
+//       ${ws.woId},
+//       '${ws.stageName}',
+//       '${ws.status}',
+//       ${ws.assignedTo},
+//       ${ws.notified ? "TRUE" : "FALSE"},
+//       '${ws.createdAt}',
+//       '${ws.updatedAt}'
+//     )
+//     `,
+//   );
+// }
 
 pool = new adapter.Pool();
 

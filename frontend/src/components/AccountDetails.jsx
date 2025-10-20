@@ -85,7 +85,7 @@ const AccountDetails = ({
           </button>
           <button
             onClick={() => onSubmit(account)}
-            className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-light shadow h-9 px-4 py-2 bg-purple-500 hover:bg-purple-600 text-white"
+            className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-light shadow h-9 px-4 py-2 bg-green-500 hover:bg-green-600 text-white"
           >
             <LuFileCheck className="mr-2" />
             Submit for Approval
@@ -114,11 +114,11 @@ const AccountDetails = ({
               <Detail label="Validity Period" value={accountFinal.validity_period} />
               <Detail
                 label="Due Date"
-                value={utils.formatDate(accountFinal.dueDate, "DD/MM/YYYY") || "-"}
+                value={utils.formatDate(accountFinal.due_date, "DD/MM/YYYY") || "-"}
               />
               <Detail
                 label="Done Date"
-                value={utils.formatDate(accountFinal.doneDate, "DD/MM/YYYY") || "-"}
+                value={utils.formatDate(accountFinal.done_date, "DD/MM/YYYY") || "-"}
               />
               {/* <Detail label="Delay Status" value={accountFinal.refNumber} /> */}
             </div>

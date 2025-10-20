@@ -7,6 +7,48 @@ import { toSnake } from "../helper/utils.js";
 
 const router = express.Router();
 
+// DANGER: Purge CRM accounts with id >= minId (MSSQL only)
+// Usage:
+//   DELETE /api/accounts/purge?minId=661&dryRun=true
+//   DELETE /api/accounts/purge  { minId: 661, dryRun: false }
+// Notes:
+//   - Requires MSSQL CRM connection (poolCrmPromise)
+//   - Uses a parameterized query to avoid injection
+router.delete("/purge", async (req, res) => {
+  try {
+    const minIdRaw = req.body?.minId ?? req.query.minId ?? 661;
+    const dryRunRaw = req.body?.dryRun ?? req.query.dryRun ?? "false";
+    const minId = Number(minIdRaw);
+    const dryRun = String(dryRunRaw).toLowerCase() === "true";
+
+    if (!Number.isFinite(minId)) {
+      return res.status(400).json({ error: "Invalid minId" });
+    }
+
+    const [crmPool] = await Promise.all([poolCrmPromise]);
+
+    if (dryRun) {
+      const r = await crmPool
+        .request()
+        .input("minId", minId)
+        .query("SELECT COUNT(*) AS cnt FROM crmdb.accounts WHERE id >= @minId");
+      const count = r?.recordset?.[0]?.cnt ?? 0;
+      return res.json({ dryRun: true, minId, toDelete: count });
+    }
+
+    const del = await crmPool
+      .request()
+      .input("minId", minId)
+      .query("DELETE FROM crmdb.accounts WHERE id >= @minId");
+
+    const affected = Array.isArray(del?.rowsAffected) ? del.rowsAffected[0] ?? 0 : 0;
+    return res.json({ minId, deleted: affected });
+  } catch (err) {
+    console.error("DELETE /api/accounts/purge error:", err);
+    return res.status(500).json({ error: err.message });
+  }
+});
+
 // GET all accounts (enriched with SPI lookups)
 router.get("/", async (req, res) => {
   try {
@@ -78,11 +120,37 @@ router.get("/naefs", async (req, res) => {
     // 2️⃣ Fetch CRM accounts with is_naef = 1
     const accSql = `SELECT * FROM crmdb.accounts WHERE is_naef = 1 ORDER BY created_at DESC`;
     const accRes = await crmPool.request().query(accSql);
-    const crmAccounts = accRes.recordset || [];
+    let crmAccounts = accRes.recordset || [];
     console.log("Fetched CRM accounts for NAEFs:", crmAccounts.length);
 
     if (crmAccounts.length === 0) {
       return res.json([]); // No NAEFs found
+    }
+
+    // 2.5️⃣ Filter by existing workflow stage 'NAEF' with same wo_id (Postgres)
+    try {
+      const woIds = [...new Set(crmAccounts.map((a) => a.wo_id).filter((v) => v != null))];
+      console.log("Filtering NAEF accounts by workflow stages, woIds:", woIds);
+      console.log("Number of woIds to filter:", woIds.length);
+      console.log("CRM Accounts before filtering:", crmAccounts);
+      if (woIds.length > 0) {
+        const placeholders = woIds.map((_, i) => `$${i + 1}`).join(", ");
+        console.log("Placeholders for workflow stage query:",placeholders);
+        const stageSql = `SELECT DISTINCT wo_id FROM workflow_stages WHERE stage_name = 'NAEF' AND wo_id IN (${placeholders})`;
+        const stageRes = await db.query(stageSql, woIds);
+        console.log(stageRes.rows);
+        const allowedWo = new Set((stageRes.rows || []).map((r) => r.wo_id ?? r.woId));
+        console.log("Allowed workflow IDs for NAEF accounts:", allowedWo);
+        crmAccounts = crmAccounts.filter((a) => a.wo_id != null && allowedWo.has(a.wo_id));
+        console.log("Filtered NAEF accounts by workflow presence:", crmAccounts.length);
+      } else {
+        // No wo_id to match, return empty
+        return res.json([]);
+      }
+    } catch (filterErr) {
+      console.warn("Failed filtering NAEFs by workflow stages:", filterErr.message);
+      // If filtering fails, conservatively return empty to avoid wrong data
+      return res.json([]);
     }
 
     // 3️⃣ Collect distinct SPI lookup IDs
@@ -644,6 +712,14 @@ router.put("/naef/:id", async (req, res) => {
       console.warn("Failed to update NAEF row:", nErr.message);
     }
 
+    // Create workflow stage for new technical recommendation (Draft)
+    await db.query(
+      `
+        INSERT INTO workflow_stages (wo_id, stage_name, status, assigned_to, created_at, updated_at)
+        VALUES ($1, $2, $3, $4, NOW(), NOW())`,
+      [req.body?.wo_id, "NAEF", "Draft", req.body?.assignee ?? req.body?.prepared_by],
+    );
+
     return res.json({ ...updatedCrm, kristem, brand, industry, department, naef: updatedNaef });
   } catch (err) {
     console.error("PUT /api/accounts/:id error:", err);
@@ -746,6 +822,14 @@ router.put("/approval/:id", async (req, res) => {
     const brand = lookups[1]?.recordset?.[0] || null;
     const industry = lookups[2]?.recordset?.[0] || null;
     const department = lookups[3]?.recordset?.[0] || null;
+
+    // Create workflow stage for new technical recommendation (Draft)
+    await db.query(
+      `
+        INSERT INTO workflow_stages (wo_id, stage_name, status, assigned_to, created_at, updated_at)
+        VALUES ($1, $2, $3, $4, NOW(), NOW())`,
+      [req.body?.woId, "NAEF", "Draft", req.body?.assignee],
+    );
 
     return res.json({ ...updatedCrm, kristem, brand, industry, department });
   } catch (err) {
