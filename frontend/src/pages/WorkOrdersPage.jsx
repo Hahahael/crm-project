@@ -1,5 +1,5 @@
 //src/pages/WorkOrdersPage
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   LuBell,
@@ -53,11 +53,14 @@ export default function WorkOrdersPage() {
       );
       if (summaryRes.ok) {
         const summaryData = await summaryRes.json();
+        console.log("Fetched status summary:", summaryData);
         setStatusSummary({
-          total: Number(summaryData.total) || 0,
-          pending: Number(summaryData.pending) || 0,
-          inProgress: Number(summaryData.inProgress) || 0,
-          completed: Number(summaryData.completed) || 0,
+          total: Number(summaryData.total ?? 0) || 0,
+          pending: Number(summaryData.pending ?? summaryData.inPendingFix ?? 0) || 0,
+          inProgress: Number(
+            summaryData.inProgress ?? summaryData.in_progress ?? 0,
+          ) || 0,
+          completed: Number(summaryData.completed ?? 0) || 0,
         });
       }
 
@@ -81,7 +84,7 @@ export default function WorkOrdersPage() {
     }
   };
 
-  const fetchNewAssignedWorkOrders = async () => {
+  const fetchNewAssignedWorkOrders = useCallback(async () => {
     if (!currentUser) return;
     try {
       const res = await apiBackendFetch(
@@ -92,12 +95,11 @@ export default function WorkOrdersPage() {
         const data = await res.json();
         console.log("New assigned workorders:", data);
         setNewAssignedWorkOrders(data);
-      }
-      console.log("New Assigned Work Orders:", newAssignedWorkOrders);
+  }
     } catch (err) {
       console.error("Failed to fetch assigned workorders", err);
     }
-  };
+  }, [currentUser]);
 
   useEffect(() => {
     fetchCurrentUser();
@@ -108,7 +110,7 @@ export default function WorkOrdersPage() {
     if (currentUser) {
       fetchNewAssignedWorkOrders();
     }
-  }, [currentUser]);
+  }, [currentUser, fetchNewAssignedWorkOrders]);
 
   useEffect(() => {
     if (successMessage) {
@@ -173,10 +175,10 @@ export default function WorkOrdersPage() {
         await apiBackendFetch("/api/workflow-stages", {
           method: "POST",
           body: JSON.stringify({
-            woId: savedWorkOrder.id,
-            stageName: "Work Order",
+            wo_id: savedWorkOrder?.wo_id ?? savedWorkOrder?.woId ?? savedWorkOrder?.id,
+            stage_name: "Work Order",
             status: "Pending",
-            assignedTo: savedWorkOrder.assignee,
+            assigned_to: savedWorkOrder?.assignee ?? null,
           }),
         });
       }
@@ -220,7 +222,7 @@ export default function WorkOrdersPage() {
         body: JSON.stringify({
           wo_id: passedWO.id,
           stage_name: "Work Order",
-          status: "Completed",
+          status: "In Progress",
           assigned_to: currentUser.id,
         }),
       });
@@ -304,10 +306,10 @@ export default function WorkOrdersPage() {
       const response = await apiBackendFetch("/api/workflow-stages", {
         method: "POST",
         body: JSON.stringify({
-          woId,
-          stageName,
+          wo_id: woId,
+          stage_name: stageName,
           status: mode === "create" ? "Pending" : "In Progress",
-          assignedTo,
+          assigned_to: assignedTo,
         }),
       });
       if (!response.ok) throw new Error("Failed to add workflow stage");

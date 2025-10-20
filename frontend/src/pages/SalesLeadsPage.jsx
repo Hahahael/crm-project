@@ -41,10 +41,11 @@ export default function SalesLeadsPage() {
       await apiBackendFetch("/api/workflow-stages", {
         method: "POST",
         body: JSON.stringify({
-          wo_id: savedSalesLead.woId,
+          wo_id:
+            savedSalesLead?.wo_id ?? savedSalesLead?.woId ?? formData?.wo_id ?? formData?.woId ?? null,
           stage_name: "Sales Lead",
           status: "Submitted",
-          assigned_to: savedSalesLead.assignee,
+          assigned_to: savedSalesLead?.assignee ?? formData?.assignee ?? null,
         }),
       });
 
@@ -52,6 +53,7 @@ export default function SalesLeadsPage() {
         method: "PUT",
         body: JSON.stringify({
           ...formData,
+          stageStatus: "Submitted",
           actualToTime: new Date().toTimeString().slice(0, 8),
         }),
         headers: { "Content-Type": "application/json" },
@@ -103,6 +105,7 @@ export default function SalesLeadsPage() {
     pending: 0,
     inProgress: 0,
     completed: 0,
+    highUrgency: 0,
   });
 
   const fetchAllData = async () => {
@@ -115,18 +118,47 @@ export default function SalesLeadsPage() {
         Array.isArray(salesLeadsData) ? salesLeadsData : [salesLeadsData],
       );
 
-      // Fetch status summary
-      const summaryRes = await apiBackendFetch(
-        "/api/salesleads/summary/status",
-      );
-      if (summaryRes.ok) {
-        const summaryData = await summaryRes.json();
-        setStatusSummary({
-          total: Number(summaryData.total) || 0,
-          pending: Number(summaryData.pending) || 0,
-          inProgress: Number(summaryData.inProgress) || 0,
-          completed: Number(summaryData.completed) || 0,
-        });
+      // Compute High Urgency locally from salesLeads
+      const highUrgencyCount = (Array.isArray(salesLeadsData)
+        ? salesLeadsData
+        : [salesLeadsData]
+      ).filter((sl) =>
+        String(sl?.urgency || "").toLowerCase().includes("high"),
+      ).length;
+
+      // Fetch latest summary per workorder and map to cards
+      try {
+        const latestRes = await apiBackendFetch(
+          "/api/workflow-stages/summary/latest",
+        );
+        if (latestRes.ok) {
+          const latest = await latestRes.json();
+          const pick = (row) =>
+            String(row?.stage_name || row?.stageName || "").toLowerCase();
+          const total = Array.isArray(latest) ? latest.length : 0;
+          const salesLeadStage = latest.filter(
+            (r) => pick(r) === "sales lead",
+          ).length;
+          const technicalStage = latest.filter(
+            (r) => pick(r) === "technical recommendation",
+          ).length;
+          const rfqNaefQuotation = latest.filter((r) => {
+            const s = pick(r);
+            return s === "rfq" || s === "naef" || s === "quotations";
+          }).length;
+
+          setStatusSummary({
+            total,
+            pending: salesLeadStage,
+            inProgress: technicalStage,
+            completed: rfqNaefQuotation,
+            highUrgency: highUrgencyCount,
+          });
+        } else {
+          setStatusSummary((prev) => ({ ...prev, highUrgency: highUrgencyCount }));
+        }
+      } catch (e) {
+        setStatusSummary((prev) => ({ ...prev, highUrgency: highUrgencyCount }));
       }
 
       console.log("Fetched sales leads:", salesLeadsData);
@@ -243,11 +275,14 @@ export default function SalesLeadsPage() {
     );
   if (error) return <p className="p-4 text-red-600">{error}</p>;
 
-  const filtered = salesLeads.filter(
-    (wo) =>
-      wo.woNumber?.toLowerCase().includes(search.toLowerCase()) ||
-      (wo.accountName || "").toLowerCase().includes(search.toLowerCase()),
-  );
+  const term = (search || "").toLowerCase();
+  const filtered = salesLeads.filter((sl) => {
+    const slNum = (sl.slNumber || sl.sl_number || "").toLowerCase();
+    const accName = (
+      sl.account?.account_name || sl.accountName || sl.account_name || ""
+    ).toLowerCase();
+    return slNum.includes(term) || accName.includes(term);
+  });
 
   const handleSave = async (formData, mode) => {
     console.log("Trying to save!");
@@ -276,10 +311,11 @@ export default function SalesLeadsPage() {
       await apiBackendFetch("/api/workflow-stages", {
         method: "POST",
         body: JSON.stringify({
-          wo_id: savedSalesLead.woId,
+          wo_id:
+            savedSalesLead?.wo_id ?? savedSalesLead?.woId ?? formData?.wo_id ?? formData?.woId ?? null,
           stage_name: "Sales Lead",
-          status: savedSalesLead.status || "Pending",
-          assigned_to: savedSalesLead.assignee,
+          status: savedSalesLead?.status || "Pending",
+          assigned_to: savedSalesLead?.assignee ?? formData?.assignee ?? null,
         }),
       });
 
@@ -313,10 +349,10 @@ export default function SalesLeadsPage() {
       const response = await apiBackendFetch("/api/workflow-stages", {
         method: "POST",
         body: JSON.stringify({
-          woId,
-          stageName,
+          wo_id: woId,
+          stage_name: stageName,
           status: mode === "create" ? "Pending" : "In Progress",
-          assignedTo,
+          assigned_to: assignedTo,
         }),
       });
       if (!response.ok) throw new Error("Failed to add workflow stage");
@@ -366,7 +402,7 @@ export default function SalesLeadsPage() {
           </div>
 
           {/* Banner Notifications */}
-          {currentUser && newAssignedSalesLeads.length > 1 && (
+          {/* {currentUser && newAssignedSalesLeads.length > 1 && (
             <div className="flex border-blue-200 border-2 rounded-xl p-4 mb-6 bg-blue-50 items-start justify-between text-card-foreground shadow-lg animate-pulse">
               <div className="flex space-x-3">
                 <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-100">
@@ -401,7 +437,6 @@ export default function SalesLeadsPage() {
               <button
                 className="inline-flex items-center justify-center font-medium transition-colors hover:bg-gray-100 h-8 rounded-md px-3 text-xs text-gray-400 hover:text-gray-600 cursor-pointer"
                 onClick={() => {
-                  /* Optionally dismiss banner */
                 }}
               >
                 <LuX className="h-4 w-4" />
@@ -451,14 +486,12 @@ export default function SalesLeadsPage() {
               </div>
               <button
                 className="inline-flex items-center justify-center font-medium transition-colors hover:bg-gray-100 h-8 rounded-md px-3 text-xs text-gray-400 hover:text-gray-600 cursor-pointer"
-                onClick={() => {
-                  /* Optionally dismiss banner */
-                }}
+                onClick={() => {}}
               >
                 <LuX className="h-4 w-4" />
               </button>
             </div>
-          )}
+          )} */}
 
           {/* Status center */}
           <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
@@ -489,7 +522,7 @@ export default function SalesLeadsPage() {
             <div className="relative flex flex-col rounded-xl shadow-sm border border-gray-200 p-6">
               <LuChartLine className="absolute top-6 right-6 text-gray-600" />
               <p className="text-sm mb-1 mr-4">RFQ / NAEF / Quotation</p>
-              <h2 className="text-2xl font-bold">{statusSummary.completed}</h2>
+              <h2 className="text-2xl font-bold">{statusSummary.highUrgency}</h2>
               <p className="text-xs text-gray-500">
                 Successfully completed salesleads
               </p>

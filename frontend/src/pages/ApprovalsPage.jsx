@@ -1,11 +1,12 @@
 //src/pages/ApprovalsPage
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { LuSearch } from "react-icons/lu";
 import ApprovalsTable from "../components/ApprovalsTable";
 import SalesLeadDetails from "../components/SalesLeadDetails";
 import TechnicalDetails from "../components/TechnicalDetails";
 import RFQDetails from "../components/RFQDetails";
 import WorkOrderDetails from "../components/WorkOrderDetails";
+import AccountDetails from "../components/AccountDetails";
 import UserDetails from "../components/UserDetails";
 import ApprovalActionModal from "../components/ApprovalActionModal";
 import { apiBackendFetch } from "../services/api";
@@ -19,14 +20,15 @@ const ApprovalsPage = () => {
   const [detailsData, setDetailsData] = useState(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [modalType, setModalType] = useState(null); // 'approve' or 'reject'
-  const [modalData, setModalData] = useState({
+  const [_modalData, setModalData] = useState({
     assignee: "",
     dueDate: "",
     fromTime: "",
     toTime: "",
     remarks: "",
   });
-  const [submitting, setSubmitting] = useState(false);
+  const [moduleFilter, setModuleFilter] = useState("all"); // all | account | naef | others
+  const [_submitting, setSubmitting] = useState(false);
 
   const fetchApprovals = async () => {
     try {
@@ -55,7 +57,7 @@ const ApprovalsPage = () => {
     }
   };
 
-  const fetchDetails = async () => {
+  const fetchDetails = useCallback(async () => {
     console.log(
       "fetchDetails called with selectedApproval:",
       selectedApproval,
@@ -106,7 +108,7 @@ const ApprovalsPage = () => {
     } catch {
       setDetailsData(null);
     }
-  };
+  }, [selectedApproval, actionApproval]);
 
   useEffect(() => {
     fetchAllApprovals();
@@ -120,7 +122,7 @@ const ApprovalsPage = () => {
       return;
     }
     fetchDetails();
-  }, [selectedApproval]);
+  }, [selectedApproval, fetchDetails]);
 
   // Fetch details when actionApproval changes
   useEffect(() => {
@@ -129,7 +131,7 @@ const ApprovalsPage = () => {
       return;
     }
     fetchDetails();
-  }, [actionApproval]);
+  }, [actionApproval, fetchDetails]);
 
   // Modal open handler
   const handleAction = (row, type) => {
@@ -183,23 +185,7 @@ const ApprovalsPage = () => {
         ) {
           nextModuleType = nextStage;
         } else if (currentType === "Technical Recommendation" || currentType === "technical_recommendation") {
-          // Fetch work order details to check isNew
-          let woIsNew = false;
-          console.log("Fetching work order to determine isNewAccount for RFQ approval");
-          if (actionApproval.woId) {
-            try {
-              const woRes = await apiBackendFetch(
-                `/api/workorders/${actionApproval.woId}`,
-              );
-              console.log("Fetched work order for RFQ approval, response:", woRes);
-              if (woRes.ok) {
-                const woData = await woRes.json();
-                console.log("Fetched work order for RFQ approval:", woData);
-                woIsNew = !!woData.isNewAccount || woData.is_new_account;
-                accountId = woData.accountId || woData.account_id;
-              }
-            } catch {}
-          }
+          // For TR approval, just proceed to the provided next stage
           nextModuleType = nextStage;
         } else if (currentType === "RFQ" || currentType === "rfq") {
           // Fetch work order details to check isNew
@@ -217,7 +203,9 @@ const ApprovalsPage = () => {
                 woIsNew = !!woData.isNewAccount || woData.is_new_account;
                 accountId = woData.accountId || woData.account_id;
               }
-            } catch {}
+            } catch {
+              // ignore
+            }
           }
           nextModuleType = woIsNew ? "NAEF" : "Quotations";
         } else if (currentType === "NAEF" || currentType === "naef") {
@@ -266,13 +254,13 @@ const ApprovalsPage = () => {
           await apiBackendFetch("/api/workflow-stages", {
             method: "POST",
             body: JSON.stringify({
-              woId: actionApproval.woId,
-              stageName: currentType,
+              wo_id: actionApproval?.wo_id ?? actionApproval?.woId ?? null,
+              stage_name: currentType,
               status: "Approved",
-              assignedTo: assignee,
+              assigned_to: assignee,
               notified: false,
               remarks,
-              nextStage: nextModuleType,
+              next_stage: nextModuleType,
             }),
           });
 
@@ -301,13 +289,13 @@ const ApprovalsPage = () => {
         await apiBackendFetch("/api/workflow-stages", {
           method: "POST",
           body: JSON.stringify({
-            woId: actionApproval.woId,
-            stageName: currentType,
+            wo_id: actionApproval?.wo_id ?? actionApproval?.woId ?? null,
+            stage_name: currentType,
             status: "Rejected",
-            assignedTo: assignee,
+            assigned_to: assignee,
             notified: false,
             remarks,
-            nextStage: null,
+            next_stage: null,
           }),
         });
       }
@@ -323,7 +311,7 @@ const ApprovalsPage = () => {
         remarks: "",
       });
       await fetchApprovals();
-    } catch (err) {
+    } catch {
       setError("Failed to submit approval/rejection");
     } finally {
       setSubmitting(false);
@@ -373,15 +361,32 @@ const ApprovalsPage = () => {
       case "account":
       case "NAEF":
         return (
-          <UserDetails
-            user={detailsData}
+          <AccountDetails
+            account={detailsData}
+            currentUser={null}
+            workWeeks={[]}
             onBack={() => setSelectedApproval(null)}
+            onEdit={() => {}}
+            onAccountUpdated={() => {}}
+            onPrint={() => {}}
+            onSubmit={() => {}}
           />
         );
       default:
         return <div className="p-4">No details available for this module.</div>;
     }
   };
+
+  // Apply simple module filter
+  const visibleApprovals = approvals.filter((row) => {
+    const stage = (row.stageName || row.stage_name || row.module || "").toString();
+    const isAccount = stage === "Account" || stage === "account" || row.module === "account";
+    const isNaef = stage === "NAEF" || stage === "naef";
+    if (moduleFilter === "account") return isAccount && !isNaef;
+    if (moduleFilter === "naef") return isNaef;
+    if (moduleFilter === "others") return !isAccount && !isNaef;
+    return true;
+  });
 
   return (
     <div className="p-6 relative">
@@ -409,10 +414,36 @@ const ApprovalsPage = () => {
                   placeholder="Search users..."
                 />
               </div>
+              <div className="flex items-center gap-2">
+                <button
+                  className={`h-9 px-3 rounded-md text-sm border ${moduleFilter === "all" ? "bg-gray-800 text-white" : "bg-white"}`}
+                  onClick={() => setModuleFilter("all")}
+                >
+                  All
+                </button>
+                <button
+                  className={`h-9 px-3 rounded-md text-sm border ${moduleFilter === "account" ? "bg-gray-800 text-white" : "bg-white"}`}
+                  onClick={() => setModuleFilter("account")}
+                >
+                  Account
+                </button>
+                <button
+                  className={`h-9 px-3 rounded-md text-sm border ${moduleFilter === "naef" ? "bg-gray-800 text-white" : "bg-white"}`}
+                  onClick={() => setModuleFilter("naef")}
+                >
+                  NAEF
+                </button>
+                <button
+                  className={`h-9 px-3 rounded-md text-sm border ${moduleFilter === "others" ? "bg-gray-800 text-white" : "bg-white"}`}
+                  onClick={() => setModuleFilter("others")}
+                >
+                  Others
+                </button>
+              </div>
             </div>
           </div>
           <ApprovalsTable
-            approvals={approvals}
+            approvals={visibleApprovals}
             onView={setSelectedApproval}
             onEdit={() => {}}
             onApprove={(row) => handleAction(row, "approve")}

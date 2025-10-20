@@ -243,6 +243,33 @@ router.get("/merged/:id", async (req, res) => {
   }
 });
 
+// Update quotation (e.g., submit to Kristem)
+router.put("/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const body = toSnake(req.body);
+    // Update allowed fields; minimally status and due_date
+    const result = await db.query(
+      `UPDATE quotations
+         SET status = COALESCE($1, status),
+             due_date = COALESCE($2, due_date),
+             updated_at = NOW()
+       WHERE id = $3
+       RETURNING *`,
+      [body.status, body.due_date, id],
+    );
+    if (result.rows.length === 0) return res.status(404).json({ error: "Not found" });
+    const quotation = result.rows[0];
+
+    // Note: Work Order is marked Completed only after successful MSSQL submission
+
+    return res.json(quotation);
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: "Failed to update quotation" });
+  }
+});
+
 router.post("/", async (req, res) => {
   try {
     console.log(

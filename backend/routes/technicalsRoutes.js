@@ -657,4 +657,30 @@ router.put("/:id", async (req, res) => {
   }
 });
 
+// Get technical recommendations status summary
+router.get("/summary/status", async (req, res) => {
+  try {
+    const result = await db.query(`
+      SELECT
+        COUNT(*) AS total,
+        SUM(CASE WHEN stage_status IN ('Draft', 'Pending') THEN 1 ELSE 0 END) AS in_pending_fix,
+        SUM(CASE WHEN stage_status = 'In Progress' THEN 1 ELSE 0 END) AS in_progress,
+        SUM(CASE WHEN stage_status = 'Completed' THEN 1 ELSE 0 END) AS completed,
+        SUM(CASE WHEN stage_status = 'Approved' THEN 1 ELSE 0 END) AS approved,
+        SUM(CASE WHEN stage_status = 'Submitted' THEN 1 ELSE 0 END) AS submitted
+      FROM technical_recommendations;
+    `);
+
+    // Back-compat: expose 'pending' key (alias) for frontend consumption
+    const row = result.rows[0] || {};
+    row.pending = row.in_pending_fix ?? row.inPendingFix ?? 0;
+    delete row.in_pending_fix;
+    delete row.inPendingFix;
+    return res.json(row);
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: "Failed to fetch status summary" });
+  }
+});
+
 export default router;

@@ -1,5 +1,6 @@
 import express from "express";
 import { poolPromise } from "../mssql.js";
+import db from "../db.js";
 
 const router = express.Router();
 
@@ -263,6 +264,35 @@ router.post("/quotations", async (req, res) => {
     // Attach details array to returned object
     insertedQuotation.details = insertedDetails;
     console.log("Inserted quotation:", insertedQuotation);
+
+    // Side-effect: mark linked Work Order as Completed if a WO context was provided upstream.
+    // We expect the frontend to submit to Postgres first and know the wo_id. Since MSSQL schema
+    // doesn't carry wo_id, we rely on a hint via Code or an explicit POSTGRES_WO_ID in the payload
+    // when available. Best-effort update guarded in try/catch.
+    const hintedWoId = req.body?.POSTGRES_WO_ID || null;
+    if (hintedWoId) {
+      try {
+        await db.query(
+          `UPDATE workorders SET stage_status = 'Completed', updated_at = NOW() WHERE id = $1`,
+          [hintedWoId],
+        );
+        // Record a workflow stage: Quotations -> Submitted (idempotent)
+        const existing = await db.query(
+          `SELECT * FROM workflow_stages WHERE wo_id = $1 AND stage_name = 'Quotations' ORDER BY created_at DESC LIMIT 1`,
+          [hintedWoId],
+        );
+        const latest = existing.rows?.[0];
+        if (!latest || String(latest.status) !== "Submitted") {
+          await db.query(
+            `INSERT INTO workflow_stages (wo_id, stage_name, status, assigned_to, notified, created_at, updated_at)
+             VALUES ($1, $2, $3, $4, $5, NOW(), NOW())`,
+            [hintedWoId, "Quotations", "Submitted", null, false],
+          );
+        }
+      } catch (sideErr) {
+        console.warn("Post-MSSQL completion side-effect failed:", sideErr.message);
+      }
+    }
 
     return res.status(201).json(insertedQuotation);
   } catch (err) {

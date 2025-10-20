@@ -452,15 +452,15 @@ const AccountForm = ({
                 />
               </div>
               <div>
-                <label className="text-sm font-medium" htmlFor="contract_number">
+                <label className="text-sm font-medium" htmlFor="contact_number">
                   Contact No.
                 </label>
                 <input
                   className="flex h-9 w-full rounded-md border border-input px-3 py-2 text-sm shadow-sm bg-yellow-50"
-                  id="contract_number"
+                  id="contact_number"
                   type="text"
-                  name="contract_number"
-                  value={formData.contract_number}
+                  name="contact_number"
+                  value={formData.contact_number}
                   onChange={handleChange}
                 />
               </div>

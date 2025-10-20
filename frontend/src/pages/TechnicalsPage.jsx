@@ -7,6 +7,7 @@ import {
   LuCircleCheck,
   LuClipboard,
   LuFileText,
+  LuForward,
   LuSearch,
   LuX,
 } from "react-icons/lu";
@@ -51,18 +52,30 @@ export default function TechnicalsPage() {
       const technicalRecosData = await technicalRecosRes.json();
       setTechnicalRecos(technicalRecosData);
       console.log("Fetched technical recommendations:", technicalRecosData);
+      
+      // Compute High Urgency locally from salesLeads
+      const highUrgencyCount = (Array.isArray(technicalRecosData)
+        ? technicalRecosData
+        : [technicalRecosData]
+      ).filter((sl) =>
+        String(sl?.priority || "").toLowerCase().includes("high"),
+      ).length;
 
       // Fetch status summary
-      // const summaryRes = await apiBackendFetch("/api/technicals/summary/status");
-      // if (summaryRes.ok) {
-      //     const summaryData = await summaryRes.json();
-      //     setStatusSummary({
-      //         total: Number(summaryData.total) || 0,
-      //         pending: Number(summaryData.pending) || 0,
-      //         inProgress: Number(summaryData.inProgress) || 0,
-      //         completed: Number(summaryData.completed) || 0,
-      //     });
-      // }
+      const summaryRes = await apiBackendFetch("/api/technicals/summary/status");
+      if (summaryRes.ok) {
+          const summaryData = await summaryRes.json();
+          console.log("Fetched technical recommendations status summary:", summaryData);
+          setStatusSummary({
+              total: Number(summaryData.total) || 0,
+              pending: Number(summaryData.pending) || 0,
+              inProgress: Number(summaryData.inProgress) || 0,
+              completed: Number(summaryData.completed) || 0,
+              submitted: Number(summaryData.submitted) || 0,
+              approved: Number(summaryData.approved) || 0,
+
+          });
+      }
       setTimeout(() => setLoading(false), 500);
     } catch (err) {
       console.error("Error retrieving technical recommendations:", err);
@@ -134,11 +147,14 @@ export default function TechnicalsPage() {
     );
   if (error) return <p className="p-4 text-red-600">{error}</p>;
 
-  const filtered = technicalRecos.filter(
-    (wo) =>
-      wo.woNumber?.toLowerCase().includes(search.toLowerCase()) ||
-      (wo.accountName || "").toLowerCase().includes(search.toLowerCase()),
-  );
+  const term = (search || "").toLowerCase();
+  const filtered = technicalRecos.filter((tr) => {
+    const trNum = (tr.trNumber || tr.tr_number || "").toLowerCase();
+    const accName = (
+      tr.account?.account_name || tr.accountName || tr.account_name || ""
+    ).toLowerCase();
+    return trNum.includes(term) || accName.includes(term);
+  });
 
   const handleSave = async (formData, mode) => {
     console.log("Saving technical recommendation:", formData, "Mode:", mode);
@@ -157,10 +173,11 @@ export default function TechnicalsPage() {
       await apiBackendFetch("/api/workflow-stages", {
         method: "POST",
         body: JSON.stringify({
-          wo_id: savedTechnicalReco.woId,
+          wo_id:
+            savedTechnicalReco?.wo_id ?? savedTechnicalReco?.woId ?? formData?.wo_id ?? formData?.woId ?? null,
           stage_name: "Technical Recommendation",
           status: "Pending",
-          assigned_to: savedTechnicalReco.assignee,
+          assigned_to: savedTechnicalReco?.assignee ?? formData?.assignee ?? null,
         }),
       });
 
@@ -199,10 +216,11 @@ export default function TechnicalsPage() {
       await apiBackendFetch("/api/workflow-stages", {
         method: "POST",
         body: JSON.stringify({
-          wo_id: savedTechnicalReco.woId,
+          wo_id:
+            savedTechnicalReco?.wo_id ?? savedTechnicalReco?.woId ?? formData?.wo_id ?? formData?.woId ?? null,
           stage_name: "Technical Recommendation",
           status: "Submitted",
-          assigned_to: savedTechnicalReco.assignee,
+          assigned_to: savedTechnicalReco?.assignee ?? formData?.assignee ?? null,
         }),
       });
 
@@ -217,20 +235,7 @@ export default function TechnicalsPage() {
     }
   };
 
-  const fetchAssignedTR = async (trId) => {
-    if (!currentUser) return;
-    try {
-      const res = await apiBackendFetch(`/api/technicals/${trId}`);
-
-      if (res.ok) {
-        const data = await res.json();
-        setSelectedTR(data);
-        setEditingTR(null);
-      }
-    } catch (err) {
-      console.error("Failed to fetch assigned RFQ", err);
-    }
-  };
+  // removed fetchAssignedTR (unused) to satisfy linter
 
   // Fetch a single sales lead and set as selected (details view)
   const fetchSelectedTR = async (id) => {
@@ -412,7 +417,7 @@ export default function TechnicalsPage() {
           )}
 
           {/* Status center */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
             <div className="relative flex flex-col rounded-xl shadow-sm border border-gray-200 p-6">
               <LuFileText className="absolute top-6 right-6 text-gray-600" />
               <p className="text-sm mb-1 mr-4">Total Recommendations</p>
@@ -430,9 +435,15 @@ export default function TechnicalsPage() {
               </p>
             </div>
             <div className="relative flex flex-col rounded-xl shadow-sm border border-gray-200 p-6">
+              <LuForward className="absolute top-6 right-6 text-gray-600" />
+              <p className="text-sm mb-1 mr-4">Submitted</p>
+              <h2 className="text-2xl font-bold">{statusSummary.submitted}</h2>
+              <p className="text-xs text-gray-500">Recommendations submitted for approval</p>
+            </div>
+            <div className="relative flex flex-col rounded-xl shadow-sm border border-gray-200 p-6">
               <LuCircleCheck className="absolute top-6 right-6 text-gray-600" />
               <p className="text-sm mb-1 mr-4">Approved</p>
-              <h2 className="text-2xl font-bold">{statusSummary.inProgress}</h2>
+              <h2 className="text-2xl font-bold">{statusSummary.approved}</h2>
               <p className="text-xs text-gray-500">Approved recommendations</p>
             </div>
             <div className="relative flex flex-col rounded-xl shadow-sm border border-gray-200 p-6">

@@ -132,11 +132,12 @@ export default function AccountsPage() {
     );
   if (error) return <p className="p-4 text-red-600">{error}</p>;
 
-  const filtered = accounts.filter(
-    (wo) =>
-      wo.woNumber?.toLowerCase().includes(search.toLowerCase()) ||
-      (wo.accountName || "").toLowerCase().includes(search.toLowerCase()),
-  );
+  const filtered = accounts.filter((a) => {
+    const q = (search || "").toLowerCase();
+    const name = (a.kristem?.Name || a.account_name || "").toLowerCase();
+    const code = (a.kristem?.Code || "").toLowerCase();
+    return name.includes(q) || code.includes(q);
+  });
 
   // Fetch a single account and set as selected (details view)
   const fetchSelectedAccount = async (id) => {
@@ -195,13 +196,13 @@ export default function AccountsPage() {
       if (!response.ok) throw new Error("Failed to save account");
       const savedAccount = await response.json();
 
-      await apiBackendFetch("/api/workflowstages", {
+      await apiBackendFetch("/api/workflow-stages", {
         method: "POST",
         body: JSON.stringify({
-          wo_id: savedAccount.woId,
+          wo_id: savedAccount?.wo_id ?? savedAccount?.woId ?? formData?.wo_id ?? formData?.woId ?? null,
           stage_name: "NAEF",
-          status: savedAccount.status || "Pending",
-          assigned_to: savedAccount.assignee,
+          status: "Pending",
+          assigned_to: savedAccount?.assignee ?? formData?.assignee ?? null,
         }),
       });
 
@@ -212,7 +213,7 @@ export default function AccountsPage() {
         console.log("All workflow stages:", allStages);
       }
 
-      setSuccessMessage("NAEF Stage saved successfully!"); // ✅ trigger success message
+  setSuccessMessage("Account saved successfully!");
       await fetchAllData();
       setSelectedAccount(savedAccount);
       setEditingAccount(null);

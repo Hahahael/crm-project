@@ -200,7 +200,7 @@ const RFQDetails = ({
           </button>
           <button
             onClick={() => onSubmit(rfq)}
-            className={`items-center justify-center whitespace-nowrap rounded-md text-sm font-light shadow h-9 px-4 py-2 bg-purple-500 hover:bg-purple-600 text-white ${rfq.stageStatus === "Submitted" || rfq.stageStatus === "Approved" ? "hidden" : "inline-flex"}`}
+            className={`items-center justify-center whitespace-nowrap rounded-md text-sm font-light shadow h-9 px-4 py-2 bg-green-500 hover:bg-green-600 text-white ${rfq.stageStatus === "Submitted" || rfq.stageStatus === "Approved" ? "hidden" : "inline-flex"}`}
           >
             <LuFileCheck className="mr-2" />
             Submit for Approval
@@ -286,7 +286,7 @@ const RFQDetails = ({
               <div className="grid grid-cols-1 gap-4">
                 <button
                   onClick={() => onEdit(rfq, "vendors")}
-                  className="flex items-center justify-center whitespace-nowrap rounded-md text-xs font-light shadow h-9 px-4 py-2 bg-purple-500 hover:bg-purple-600 text-white"
+                  className={`flex items-center justify-center whitespace-nowrap rounded-md text-xs font-light shadow h-9 px-4 py-2 bg-purple-500 hover:bg-purple-600 text-white ${rfq.stageStatus === "Submitted" || rfq.stageStatus === "Approved" ? "hidden" : "inline-flex"}`}
                 >
                   <LuPencil className="h-4 w-4 mr-2" />
                   Manage Vendors

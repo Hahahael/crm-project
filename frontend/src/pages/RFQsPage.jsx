@@ -1,6 +1,5 @@
 //src/pages/RFQsPage
-import { useState, useEffect, useRef, use } from "react";
-import { useLocation } from "react-router-dom";
+import { useState, useEffect, useRef, useCallback } from "react";
 import {
   LuBell,
   LuCircleAlert,
@@ -16,10 +15,10 @@ import RFQDetails from "../components/RFQDetails";
 import RFQForm from "../components/RFQFormWrapper";
 import { apiBackendFetch } from "../services/api";
 import LoadingModal from "../components/LoadingModal";
+import RFQCanvassSheet from "../components/RFQCanvassSheet";
 
 export default function RFQsPage() {
   const timeoutRef = useRef();
-  const location = useLocation();
 
   const [RFQs, setRFQs] = useState([]);
   const [search, setSearch] = useState("");
@@ -31,7 +30,7 @@ export default function RFQsPage() {
   const [currentUser, setCurrentUser] = useState(null);
   const [selectedTab, setSelectedTab] = useState("details");
   const [newAssignedRFQs, setNewAssignedRFQs] = useState([]);
-  const [statusSummary, setStatusSummary] = useState({
+  const [statusSummary] = useState({
     total: 0,
     pending: 0,
     inProgress: 0,
@@ -77,7 +76,7 @@ export default function RFQsPage() {
     }
   };
 
-  const fetchNewAssignedRFQs = async () => {
+  const fetchNewAssignedRFQs = useCallback(async () => {
     console.log("fetchNewRFQs called");
     if (!currentUser) return;
     try {
@@ -92,7 +91,7 @@ export default function RFQsPage() {
     } catch (err) {
       console.error("Failed to fetch assigned RFQs", err);
     }
-  };
+  }, [currentUser]);
 
   useEffect(() => {
     fetchCurrentUser();
@@ -103,7 +102,7 @@ export default function RFQsPage() {
     if (currentUser) {
       fetchNewAssignedRFQs();
     }
-  }, [currentUser]);
+  }, [currentUser, fetchNewAssignedRFQs]);
 
   useEffect(() => {
     if (successMessage) {
@@ -125,11 +124,14 @@ export default function RFQsPage() {
     );
   if (error) return <p className="p-4 text-red-600">{error}</p>;
 
-  const filtered = RFQs.filter(
-    (wo) =>
-      wo.woNumber?.toLowerCase().includes(search.toLowerCase()) ||
-      (wo.accountName || "").toLowerCase().includes(search.toLowerCase()),
-  );
+  const term = (search || "").toLowerCase();
+  const filtered = RFQs.filter((rfq) => {
+    const rfqNum = (rfq.rfqNumber || rfq.rfq_number || "").toLowerCase();
+    const accName = (
+      rfq.account?.account_name || rfq.accountName || rfq.account_name || ""
+    ).toLowerCase();
+    return rfqNum.includes(term) || accName.includes(term);
+  });
 
   const handleSave = async (formData, mode) => {
     console.log("Saving RFQ:", formData, "Mode:", mode);
@@ -154,16 +156,16 @@ export default function RFQsPage() {
 
       const rfqData = await rfqRes.json();
       console.log("Saved RFQ data:", rfqData);
-      const rfqWOId = rfqData.woId;
+  const rfqWOId = rfqData?.wo_id ?? rfqData?.woId ?? null;
 
       // Create a new workflow stage for this sales lead
       await apiBackendFetch("/api/workflow-stages", {
         method: "POST",
         body: JSON.stringify({
-          woId: rfqWOId,
-          stageName: "RFQ",
+          wo_id: rfqWOId,
+          stage_name: "RFQ",
           status: "In Progress",
-          assignedTo: currentUser.id,
+          assigned_to: currentUser?.id ?? null,
         }),
       });
 
@@ -199,10 +201,10 @@ export default function RFQsPage() {
       await apiBackendFetch("/api/workflow-stages", {
         method: "POST",
         body: JSON.stringify({
-          wo_id: savedRFQ.woId,
+          wo_id: savedRFQ?.wo_id ?? savedRFQ?.woId ?? formData?.wo_id ?? formData?.woId ?? null,
           stage_name: "RFQ",
           status: "Submitted",
-          assigned_to: savedRFQ.assignee,
+          assigned_to: savedRFQ?.assignee ?? formData?.assignee ?? null,
         }),
       });
 
@@ -254,22 +256,7 @@ export default function RFQsPage() {
     }
   };
 
-  const saveRFQById = async (formData) => {
-    try {
-      const res = await apiBackendFetch(`/api/rfqs/${formData.id}`, {
-        method: "PUT",
-        body: JSON.stringify(formData),
-      });
-
-      if (res.ok) {
-        const data = await res.json();
-        setSelectedRFQ(data);
-        setEditingRFQ(data);
-      }
-    } catch (err) {
-      console.error("Failed to fetch assigned RFQ", err);
-    }
-  };
+  // removed unused saveRFQById to satisfy linter
 
   return (
     <div className="relative w-full h-full overflow-hidden bg-white">
@@ -520,6 +507,7 @@ export default function RFQsPage() {
               mode={editingRFQ?.id ? "edit" : "create"}
               onSave={(formData, mode) => handleSave(formData, mode)}
               onBack={() => setEditingRFQ(null)}
+              isApproved={editingRFQ.stageStatus === "Approved"}
             />
           </>
         )}

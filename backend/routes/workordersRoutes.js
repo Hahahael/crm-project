@@ -21,21 +21,35 @@ router.get("/", async (req, res) => {
 
     const workorders = workordersResult.rows;
 
-    // For each workorder, get the latest stage
-    for (const w of workorders) {
-      const wsRes = await db.query(
-        `
-          SELECT stage_name
-          FROM workflow_stages
-          WHERE wo_id = $1
-          ORDER BY created_at DESC
-          LIMIT 1
-        `,
-        [w.id],
-      );
-
-      // Append stage_name (null if no workflow_stages)
-      w.stageName = wsRes.rows[0]?.stageName || null;
+    // Attach latest module/stage for each workorder (batch)
+    try {
+      const woIds = workorders.map((w) => w.id).filter(Boolean);
+      if (woIds.length > 0) {
+        const latestRes = await db.query(
+          `
+            SELECT ws.wo_id, ws.stage_name
+            FROM workflow_stages ws
+            INNER JOIN (
+              SELECT wo_id, MAX(created_at) AS max_created
+              FROM workflow_stages
+              -- WHERE wo_id = ANY($1::int[])
+              GROUP BY wo_id
+            ) latest ON ws.wo_id = latest.wo_id AND ws.created_at = latest.max_created
+          `,
+          [woIds],
+        );
+        console.log("Latest workflow stages result:", latestRes);
+        const latestMap = new Map(
+          (latestRes.rows || []).map((r) => [Number(r.wo_id ?? r.woId), r]),
+        );
+        for (const w of workorders) {
+          const lr = latestMap.get(Number(w.id));
+          w.stageName = lr?.stage_name ?? lr?.stageName ?? null; // back-compat
+          w.currentStageName = w.stageName;
+        }
+      }
+    } catch (stageErr) {
+      console.warn("Failed to attach latest stage to workorders:", stageErr.message);
     }
 
     // Enrich with CRM + SPI account data in batch
@@ -133,16 +147,16 @@ router.get("/", async (req, res) => {
           ]);
 
           const custMap = new Map(
-            (custRes.recordset || []).map((c) => [c.Id, c]),
+            (custRes.recordset || []).map((c) => [String(c.Id), c]),
           );
           const brandMap = new Map(
-            (brandRes.recordset || []).map((b) => [b.ID, b]),
+            (brandRes.recordset || []).map((b) => [String(b.ID), b]),
           );
           const indMap = new Map(
-            (indRes.recordset || []).map((i) => [i.Id, i]),
+            (indRes.recordset || []).map((i) => [String(i.Id), i]),
           );
           const deptMap = new Map(
-            (deptRes.recordset || []).map((d) => [d.Id, d]),
+            (deptRes.recordset || []).map((d) => [String(d.Id), d]),
           );
 
           console.log("Customer Map:", custMap);
@@ -202,7 +216,7 @@ router.get("/assigned", async (req, res) => {
           u.username AS assignee_username
         FROM workorders w
         LEFT JOIN users u ON w.assignee = u.id
-        WHERE user.username = $1
+        WHERE u.username = $1
         ORDER BY w.id ASC
       `,
       [username],
@@ -261,6 +275,25 @@ router.get("/:id", async (req, res) => {
     if (result.rows.length === 0)
       return res.status(404).json({ error: "Not found" });
     const wo = result.rows[0];
+
+    // Attach latest workflow stage for this workorder
+    try {
+      const wsRes = await db.query(
+        `SELECT stage_name
+           FROM workflow_stages
+          WHERE wo_id = $1
+          ORDER BY created_at DESC
+          LIMIT 1`,
+        [id],
+      );
+      console.log("Latest workflow stage result:", wsRes);
+      if (wsRes.rows && wsRes.rows[0]) {
+        wo.stageName = wsRes.rows[0].stage_name ?? wsRes.rows[0].stageName ?? null;
+        wo.currentStageName = wo.stageName;
+      }
+    } catch (wserr) {
+      console.warn("Failed to fetch latest stage for workorder", id, wserr.message);
+    }
 
     // Enrich account details via MSSQL like accountsRoutes
     try {
@@ -380,7 +413,7 @@ router.post("/", async (req, res) => {
 
     let newCounter = 1;
     if (result.rows.length > 0) {
-      const lastWoNumber = result.rows[0].woNumber; // e.g. "WO-2025-0042"
+      const lastWoNumber = result.rows[0].wo_number; // e.g. "WO-2025-0042"
       const lastCounter = parseInt(lastWoNumber.split("-")[2], 10);
       newCounter = lastCounter + 1;
     }
@@ -392,8 +425,8 @@ router.post("/", async (req, res) => {
     const insertResult = await db.query(
       `
         INSERT INTO workorders 
-          (wo_number, work_description, assignee, account_id, is_new_account, mode, contact_person, contact_number, wo_date, due_date, from_time, to_time, actual_date, actual_from_time, actual_to_time, objective, instruction, target_output, is_fsl, is_esl, created_at, created_by, updated_at)
-        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,NOW(),$21,NOW())
+          (wo_number, work_description, assignee, account_id, is_new_account, mode, contact_person, contact_number, wo_date, due_date, from_time, to_time, actual_date, actual_from_time, actual_to_time, objective, instruction, target_output, is_fsl, is_esl, stage_status, created_at, created_by, updated_at)
+        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,NOW(),$22,NOW())
         RETURNING id
       `,
       [
@@ -417,6 +450,7 @@ router.post("/", async (req, res) => {
         target_output,
         is_fsl,
         is_esl,
+        "Draft",
         created_by,
       ],
     );
@@ -546,13 +580,18 @@ router.get("/summary/status", async (req, res) => {
     const result = await db.query(`
       SELECT
         COUNT(*) AS total,
-        SUM(CASE WHEN status = 'Pending' THEN 1 ELSE 0 END) AS pending,
-        SUM(CASE WHEN status = 'In Progress' THEN 1 ELSE 0 END) AS in_progress,
-        SUM(CASE WHEN status = 'Completed' THEN 1 ELSE 0 END) AS completed
+        SUM(CASE WHEN stage_status IN ('Draft', 'Pending') THEN 1 ELSE 0 END) AS in_pending_fix,
+        SUM(CASE WHEN stage_status = 'In Progress' THEN 1 ELSE 0 END) AS in_progress,
+        SUM(CASE WHEN stage_status = 'Completed' THEN 1 ELSE 0 END) AS completed
       FROM workorders;
     `);
 
-    return res.json(result.rows[0]);
+    // Back-compat: expose 'pending' key (alias) for frontend consumption
+    const row = result.rows[0] || {};
+    row.pending = row.in_pending_fix ?? row.inPendingFix ?? 0;
+    delete row.in_pending_fix;
+    delete row.inPendingFix;
+    return res.json(row);
   } catch (err) {
     console.error(err);
     return res.status(500).json({ error: "Failed to fetch status summary" });

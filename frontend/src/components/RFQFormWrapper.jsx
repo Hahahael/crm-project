@@ -30,6 +30,7 @@ export default function RFQFormWrapper({
   mode = "create",
   onBack,
   onSave,
+  isApproved = false,
 }) {
   console.log("RFQFormWrapper props", { rfq, tab, mode });
   //console.log("RFQFormWrapper render", { rfq, tab, mode });
@@ -308,12 +309,14 @@ export default function RFQFormWrapper({
               &nbsp;Back to RFQ Details
             </button>
             <h1 className="text-2xl font-bold">
-              {mode === "edit"
-                ? "Edit Multi-Vendor RFQ"
-                : "New Multi-Vendor RFQ"}
+              {rfq.stageStatus === "Approved"
+                ? "View RFQ Canvass Sheet" 
+                : mode === "edit"
+                  ? "Edit Multi-Vendor RFQ"
+                  : "New Multi-Vendor RFQ"}
             </h1>
             <h2 className="text-lg text-gray-500">
-              {rfq?.trNumber ? `${rfq.rfqNumber}` : "RFQ# (auto-generated)"} -{" "}
+              {rfq?.rfqNumber ? `${rfq.rfqNumber}` : "RFQ# (auto-generated)"} -{" "}
               {rfq?.description || ""}
             </h2>
           </div>
@@ -321,20 +324,20 @@ export default function RFQFormWrapper({
             <button
               type="button"
               onClick={onBack}
-              className="flex border border-red-200 bg-red-400 hover:bg-red-500 transition-all duration-150 cursor-pointer px-4 py-2 rounded-md items-center text-sm text-white"
+              className={`border border-red-200 bg-red-400 hover:bg-red-500 transition-all duration-150 cursor-pointer px-4 py-2 rounded-md items-center text-sm text-white ${rfq.stageStatus === 'Approved' ? 'hidden' : 'flex'}`}
             >
               <LuX className="mr-2" /> Cancel
             </button>
             <button
               type="submit"
-              className="flex border border-blue-200 bg-blue-500 hover:bg-blue-600 transition-all duration-150 cursor-pointer px-4 py-2 rounded-md items-center text-sm text-white"
+              className={`border border-blue-200 bg-blue-500 hover:bg-blue-600 transition-all duration-150 cursor-pointer px-4 py-2 rounded-md items-center text-sm text-white ${rfq.stageStatus === 'Approved' ? 'hidden' : 'flex'}`}
             >
               <LuSave className="mr-2" /> Save
             </button>
             <button
               type="button"
               onClick={onBack}
-              className="flex border border-green-200 bg-green-500 hover:bg-green-600 transition-all duration-150 cursor-pointer px-4 py-2 rounded-md items-center text-sm text-white"
+              className={`border border-green-200 bg-green-500 hover:bg-green-600 transition-all duration-150 cursor-pointer px-4 py-2 rounded-md items-center text-sm text-white ${rfq.stageStatus === 'Approved' ? 'hidden' : 'flex'}`}
             >
               <LuCheck className="mr-2" /> For Approval
             </button>
@@ -344,7 +347,7 @@ export default function RFQFormWrapper({
           role="tablist"
           className="tab-header p-1 space-x-1 bg-gray-100 rounded-sm flex justify-center w-full h-12 mb-6"
         >
-          {TABS.map((tab) => (
+          {TABS.filter((tab) => !isApproved || tab.key === "canvass").map((tab) => (
             <button
               type="button"
               key={tab.key}
@@ -386,6 +389,7 @@ export default function RFQFormWrapper({
               setFormItems={setFormItems}
               setFormData={setFormData}
               mode={mode}
+              source={isApproved ? "quotations" : "rfq"}
             />
           )}
         </div>

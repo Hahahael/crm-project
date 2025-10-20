@@ -1,5 +1,5 @@
 //src/pages/QuotationsPage
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import {
     LuArrowBigLeft,
   LuArrowLeft,
@@ -102,7 +102,7 @@ export default function QuotationsPage() {
     }
   };
 
-  const fetchNewAssignedQuotations = async () => {
+  const fetchNewAssignedQuotations = useCallback(async () => {
     if (!currentUser) return;
     try {
       const res = await apiBackendFetch(
@@ -116,7 +116,7 @@ export default function QuotationsPage() {
     } catch (err) {
       console.error("Failed to fetch assigned Quotations", err);
     }
-  };
+  }, [currentUser]);
 
   const getTRAndRFQ = async (quotation) => {
     try {
@@ -247,7 +247,10 @@ export default function QuotationsPage() {
     try {
       // Ensure we have the related TR and RFQ available before building the MSSQL payload
       const { trData, rfqData } = await getTRAndRFQ(quotation);
-      const payload = buildMssqlPayload(quotation, rfqData, trData);
+  const payload = buildMssqlPayload(quotation, rfqData, trData);
+  // Provide a hint to the backend MSSQL handler so it can mark the corresponding
+  // Postgres Work Order as Completed only after a successful MSSQL insert.
+  payload.POSTGRES_WO_ID = quotation?.wo_id || quotation?.woId || quotation?.workorder?.id || null;
       console.log("Sending MSSQL payload:", payload);
       // Use quick endpoint for demo/testing that inserts quotation + details
       const res = await apiBackendFetch("/api/mssql/quotations", {
@@ -260,7 +263,29 @@ export default function QuotationsPage() {
       }
       const data = await res.json();
       console.log("MSSQL insert result:", data);
-      setSuccessMessage("Quotation sent to MSSQL successfully");
+
+      // Mark quotation as submitted in Postgres to complete the Work Order
+      try {
+        const qid = quotation?.id ?? selectedQuotation?.id;
+        if (qid) {
+          const submitRes = await apiBackendFetch(`/api/quotations/${qid}`, {
+            method: "PUT",
+            body: JSON.stringify({ status: "Submitted" }),
+          });
+          if (!submitRes.ok) {
+            const txt = await submitRes.text();
+            console.warn("Failed to mark quotation submitted:", txt);
+          } else {
+            console.log("Quotation marked as Submitted; WO should be Completed");
+          }
+        } else {
+          console.warn("No quotation id available to mark as Submitted");
+        }
+      } catch (submitErr) {
+        console.warn("Error submitting quotation status:", submitErr);
+      }
+
+  setSuccessMessage("Quotation submitted to Kristem and recorded.");
     } catch (err) {
       console.error("Failed to send to MSSQL:", err);
       setError("Failed to send quotation to MSSQL.");
@@ -282,8 +307,7 @@ export default function QuotationsPage() {
     if (currentUser) {
       fetchNewAssignedQuotations();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentUser]);
+  }, [currentUser, fetchNewAssignedQuotations]);
 
   useEffect(() => {
     if (successMessage) {
@@ -305,11 +329,16 @@ export default function QuotationsPage() {
     );
   if (error) return <p className="p-4 text-red-600">{error}</p>;
 
-  const filtered = quotations.filter(
-    (wo) =>
-      wo.woNumber?.toLowerCase().includes(search.toLowerCase()) ||
-      (wo.accountName || "").toLowerCase().includes(search.toLowerCase()),
-  );
+  const term = (search || "").toLowerCase();
+  const filtered = quotations.filter((qt) => {
+    const code = (
+      qt.quotationNumber || qt.quotation_number || qt.refNumber || qt.Code || ""
+    ).toLowerCase();
+    const accName = (
+      qt.account?.account_name || qt.accountName || qt.account_name || ""
+    ).toLowerCase();
+    return code.includes(term) || accName.includes(term);
+  });
 
   return (
     <div className="relative w-full h-full overflow-hidden bg-white">

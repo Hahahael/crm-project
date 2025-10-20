@@ -425,7 +425,22 @@ router.post("/", async (req, res) => {
       notified = false,
       remarks, // <-- add remarks from body
     } = body;
-    // Start transaction
+
+    // Idempotency: if the latest stage for the same wo_id + stage_name already has the same status, return it
+    try {
+      const existing = await db.query(
+        `SELECT * FROM workflow_stages WHERE wo_id = $1 AND stage_name = $2 ORDER BY created_at DESC LIMIT 1`,
+        [wo_id, stage_name],
+      );
+      const latest = existing.rows?.[0];
+      if (latest && String(latest.status) === String(status)) {
+        console.log("Idempotent workflow stage hit; returning existing stage", latest.id);
+        return res.status(200).json(latest);
+      }
+    } catch (checkErr) {
+      console.warn("Idempotency precheck failed; proceeding with insert:", checkErr.message);
+    }
+  // Start transaction
     await db.query("BEGIN");
     let insertedStage;
     try {
@@ -667,3 +682,40 @@ router.get("/assigned/latest/:id/:stageName", async (req, res) => {
 });
 
 export default router;
+
+// Summary: latest stage per workorder
+// GET /api/workflow-stages/summary/latest
+// Optional query parameters:
+//  - wo_ids: comma-separated list of workorder ids to restrict (e.g. wo_ids=1,2,3)
+//  - status: filter by stage status (e.g. status=Submitted)
+router.get("/summary/latest", async (req, res) => {
+  try {
+    // Build base query using CTE to get latest created_at per wo_id (no filters)
+    const sql = `
+      SELECT
+        ws.id,
+        ws.wo_id,
+        ws.stage_name,
+        ws.status,
+        ws.assigned_to,
+        ws.remarks,
+        ws.created_at,
+        ws.updated_at
+      FROM workflow_stages ws
+      INNER JOIN (
+        SELECT wo_id, MAX(created_at) AS max_created
+        FROM workflow_stages
+        GROUP BY wo_id
+      ) latest
+        ON ws.wo_id = latest.wo_id
+        AND ws.created_at = latest.max_created
+      ORDER BY ws.created_at DESC;
+    `;
+
+    const result = await db.query(sql);
+    return res.json(result.rows || []);
+  } catch (err) {
+    console.error("Failed to fetch summary latest workflow stages:", err);
+    return res.status(500).json({ error: "Failed to fetch summary" });
+  }
+});

@@ -325,6 +325,18 @@ router.post("/", async (req, res) => {
     );
     const newId = insertResult.rows[0].id;
 
+    // Update linked Work Order stage_status to 'In Progress'
+    if (wo_id) {
+      try {
+        await db.query(
+          `UPDATE workorders SET stage_status = $1, updated_at = NOW() WHERE id = $2`,
+          ["In Progress", wo_id],
+        );
+      } catch (woErr) {
+        console.warn("Failed to update workorder stage_status to In Progress:", woErr.message);
+      }
+    }
+
     // Return the new skeletal sales lead
     const final = await db.query(
       `SELECT sl.*, u.username AS se_username
@@ -345,7 +357,6 @@ router.post("/", async (req, res) => {
 router.put("/approved/:id", async (req, res) => {
   try {
     const { id } = req.params;
-    const body = toSnake(req.body);
     // Add all fields you want to update here
     const updateResult = await db.query(
       `UPDATE sales_leads 
@@ -382,7 +393,7 @@ router.put("/:id", async (req, res) => {
     const updateResult = await db.query(
       `UPDATE sales_leads 
         SET 
-          stage_status = $1,
+          stage_status = COALESCE($1, stage_status),
           contact_number = $2,
           sales_stage = $3,
           designation = $4,
@@ -421,7 +432,7 @@ router.put("/:id", async (req, res) => {
         WHERE id=$36
         RETURNING id`,
       [
-        "Pending",
+        body.stage_status || null,
         body.contact_number,
         body.sales_stage,
         body.designation,

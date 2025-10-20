@@ -215,8 +215,8 @@ export default function SalesLeadsTable({ salesLeads, onView, onEdit }) {
               className="hover:bg-gray-50 transition-all duration-200"
             >
               <td className="px-4 py-2 text-black text-sm">{sl.slNumber}</td>
-              <td className="px-4 py-2 text-black text-sm">{sl.accountName}</td>
-              <td className="px-4 py-2 text-black text-sm">{sl.accountName}</td>
+              <td className="px-4 py-2 text-black text-sm">{sl.account?.kristem?.Name}</td>
+              <td className="px-4 py-2 text-black text-sm">{sl.account?.kristem?.Name}</td>
               <td className="px-4 py-2 text-black text-sm">{sl.application}</td>
               <td className="px-4 py-2 text-black text-sm">{sl.machine}</td>
               <td className="px-4 py-2 text-black text-sm">
