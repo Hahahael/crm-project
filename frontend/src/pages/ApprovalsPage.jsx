@@ -179,23 +179,43 @@ const ApprovalsPage = () => {
       if (modalType === "approve") {
         if (
           currentType === "Sales Lead" ||
-          currentType === "sales_lead" ||
-          currentType === "Technical Recommendation" ||
-          currentType === "technical_recommendation"
+          currentType === "sales_lead"
         ) {
           nextModuleType = nextStage;
-        } else if (currentType === "RFQ" || currentType === "rfq") {
+        } else if (currentType === "Technical Recommendation" || currentType === "technical_recommendation") {
           // Fetch work order details to check isNew
           let woIsNew = false;
+          console.log("Fetching work order to determine isNewAccount for RFQ approval");
           if (actionApproval.woId) {
             try {
               const woRes = await apiBackendFetch(
                 `/api/workorders/${actionApproval.woId}`,
               );
+              console.log("Fetched work order for RFQ approval, response:", woRes);
               if (woRes.ok) {
                 const woData = await woRes.json();
-                woIsNew = !!woData.isNewAccount;
-                accountId = woData.accountId;
+                console.log("Fetched work order for RFQ approval:", woData);
+                woIsNew = !!woData.isNewAccount || woData.is_new_account;
+                accountId = woData.accountId || woData.account_id;
+              }
+            } catch {}
+          }
+          nextModuleType = nextStage;
+        } else if (currentType === "RFQ" || currentType === "rfq") {
+          // Fetch work order details to check isNew
+          let woIsNew = false;
+          console.log("Fetching work order to determine isNewAccount for RFQ approval");
+          if (actionApproval.woId) {
+            try {
+              const woRes = await apiBackendFetch(
+                `/api/workorders/${actionApproval.woId}`,
+              );
+              console.log("Fetched work order for RFQ approval, response:", woRes);
+              if (woRes.ok) {
+                const woData = await woRes.json();
+                console.log("Fetched work order for RFQ approval:", woData);
+                woIsNew = !!woData.isNewAccount || woData.is_new_account;
+                accountId = woData.accountId || woData.account_id;
               }
             } catch {}
           }
@@ -217,7 +237,7 @@ const ApprovalsPage = () => {
             break;
           case "NAEF":
           case "naef":
-            endpoint = `/api/accounts/${accountId}`;
+            endpoint = `/api/accounts/approval/${accountId}`;
             payload = {
               isNaef: true,
               stageStatus: "Draft",

@@ -2,7 +2,6 @@
 import { compare } from "bcryptjs";
 import pool from "../db.js";
 import pkg from "jsonwebtoken";
-import { toSnake } from "../helper/utils.js";
 
 const { sign, verify } = pkg;
 

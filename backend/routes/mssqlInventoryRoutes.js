@@ -15,11 +15,11 @@ router.get("/vendors", async (req, res) => {
       .request()
       .input("limit", sql.Int, limit)
       .input("offset", sql.Int, offset).query(`
-  SELECT Id, Code, Name, Address, PhoneNumber, FaxNumber, POPaymentTerm, Currency_Id
-  FROM spidb.vendor
-        ORDER BY Id
-        OFFSET @offset ROWS FETCH NEXT @limit ROWS ONLY
-      `);
+    SELECT Id, Code, Name, Address, PhoneNumber, FaxNumber, POPaymentTerm, Currency_Id
+    FROM spidb.vendor
+                ORDER BY Id
+                OFFSET @offset ROWS FETCH NEXT @limit ROWS ONLY
+            `);
 
     const vendorIds = vendorsResult.recordset.map((v) => v.Id);
 
@@ -30,11 +30,11 @@ router.get("/vendors", async (req, res) => {
       vendorIds.forEach((id, i) => reqQ.input(`id${i}`, sql.Int, id));
       const inClause = vendorIds.map((_, i) => `@id${i}`).join(",");
       const detailsQuery = `
-        SELECT Id, Name, EmailAddress, Vendor_Id, Designation, IsActive
-        FROM spidb.vendor_details
-        WHERE Vendor_Id IN (${inClause})
-        ORDER BY Vendor_Id, Id
-      `;
+                SELECT Id, Name, EmailAddress, Vendor_Id, Designation, IsActive
+                FROM spidb.vendor_details
+                WHERE Vendor_Id IN (${inClause})
+                ORDER BY Vendor_Id, Id
+            `;
       const detRes = await reqQ.query(detailsQuery);
       details = detRes.recordset;
     }
@@ -63,13 +63,13 @@ router.get("/stocks", async (req, res) => {
       .request()
       .input("limit", sql.Int, limit)
       .input("offset", sql.Int, offset).query(`
-        SELECT Id, Code, Description, ReOrderLevel, MOQPurchase, MOQSales, Stock_Type_Id, BOM_ID, BRAND_ID, Vendor_Id,
-            InventoryQty, AllocatedQty, AvailableQty, Status, Category_Id, SK_UOM, PUR_UOM, SALES_UOM,
-            ExpectedQty, MOQMultiplier, DesiredInvQty
-        FROM spidb.stock
-        ORDER BY Id
-        OFFSET @offset ROWS FETCH NEXT @limit ROWS ONLY
-      `);
+                SELECT Id, Code, Description, ReOrderLevel, MOQPurchase, MOQSales, Stock_Type_Id, BOM_ID, BRAND_ID, Vendor_Id,
+                        InventoryQty, AllocatedQty, AvailableQty, Status, Category_Id, SK_UOM, PUR_UOM, SALES_UOM,
+                        ExpectedQty, MOQMultiplier, DesiredInvQty
+                FROM spidb.stock
+                ORDER BY Id
+                OFFSET @offset ROWS FETCH NEXT @limit ROWS ONLY
+            `);
 
     const stockIds = stocksResult.recordset.map((s) => s.Id);
 
@@ -79,11 +79,11 @@ router.get("/stocks", async (req, res) => {
       stockIds.forEach((id, i) => reqQ.input(`id${i}`, sql.BigInt, id));
       const inClause = stockIds.map((_, i) => `@id${i}`).join(",");
       const detailsQuery = `
-        SELECT Id, Code, Description, Price, PriceValidity, ModifiedBy, DateModified, Stock_Id, LocalPrice, SourcePrice, Source_currency_Id, LeadTimeFrom, LeadTimeTo, LeadTimeUnit
-        FROM spidb.stock_details
-        WHERE Stock_Id IN (${inClause})
-        ORDER BY Stock_Id, Id
-      `;
+                SELECT Id, Code, Description, Price, PriceValidity, ModifiedBy, DateModified, Stock_Id, LocalPrice, SourcePrice, Source_currency_Id, LeadTimeFrom, LeadTimeTo, LeadTimeUnit
+                FROM spidb.stock_details
+                WHERE Stock_Id IN (${inClause})
+                ORDER BY Stock_Id, Id
+            `;
       const detRes = await reqQ.query(detailsQuery);
       details = detRes.recordset;
     }

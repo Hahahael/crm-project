@@ -341,7 +341,7 @@ export default function TechnicalsPage() {
                   <div className="mt-3">
                     <button
                       onClick={() =>
-                        fetchAssignedTR(newAssignedTechnicalRecos[0].id)
+                        fetchSelectedTR(newAssignedTechnicalRecos[0].id)
                       }
                       className="inline-flex items-center justify-center whitespace-nowrap font-medium transition-colors shadow h-8 rounded-md px-3 text-xs bg-purple-600 hover:bg-purple-700 text-white cursor-pointer"
                     >
@@ -391,7 +391,7 @@ export default function TechnicalsPage() {
                   <div className="mt-3">
                     <button
                       onClick={() => {
-                        fetchAssignedTR(newAssignedTechnicalRecos[0].id);
+                        fetchSelectedTR(newAssignedTechnicalRecos[0].id);
                       }}
                       className="inline-flex items-center justify-center whitespace-nowrap font-medium transition-colors shadow h-8 rounded-md px-3 text-xs bg-purple-600 hover:bg-purple-700 text-white cursor-pointer"
                     >

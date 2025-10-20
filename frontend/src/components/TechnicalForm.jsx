@@ -423,7 +423,7 @@ const TechnicalForm = ({
                   value={formData.status}
                   onChange={handleChange}
                   className={`flex h-9 w-full rounded-md border border-input px-3 py-2 text-sm shadow-sm bg-yellow-50
-                                        ${errors?.status ? "border-red-500" : "border-gray-200"}`}
+                                                                                ${errors?.status ? "border-red-500" : "border-gray-200"}`}
                 >
                   <option value="Draft">Draft</option>
                   <option value="Submitted">Submitted</option>
@@ -441,7 +441,7 @@ const TechnicalForm = ({
                   name="priority"
                   value={formData.priority}
                   className={`flex h-9 w-full rounded-md border border-input px-3 py-2 text-sm shadow-sm bg-yellow-50
-                                        ${errors?.priority ? "border-red-500" : "border-gray-200"}`}
+                                                                                ${errors?.priority ? "border-red-500" : "border-gray-200"}`}
                   onChange={handleChange}
                 >
                   <option value="Low">Low</option>
@@ -462,7 +462,7 @@ const TechnicalForm = ({
                 </label>
                 <input
                   className={`flex h-9 w-full rounded-md border border-input px-3 py-2 text-sm shadow-sm bg-yellow-50
-                                        ${errors?.title ? "border-red-500" : "border-gray-200"}`}
+                                                                                ${errors?.title ? "border-red-500" : "border-gray-200"}`}
                   id="title"
                   name="title"
                   value={formData.title}
@@ -496,7 +496,7 @@ const TechnicalForm = ({
                 <input
                   id="accountId"
                   name="accountId"
-                  value={formData.accountName}
+                  value={formData.account?.kristem?.Name}
                   readOnly
                   className={`col-span-5 text-sm w-full rounded-md border border-gray-200 px-3 py-2 focus:outline-1 focus:outline-gray-200 focus:border-gray-400 text-gray-600`}
                   onChange={handleChange}
@@ -511,7 +511,7 @@ const TechnicalForm = ({
                   name="contactPerson"
                   value={formData.contactPerson}
                   className={`flex h-9 w-full rounded-md border border-input px-3 py-2 text-sm shadow-sm bg-yellow-50
-                                        ${errors?.contactPerson ? "border-red-500" : "border-gray-200"}`}
+                                                                                ${errors?.contactPerson ? "border-red-500" : "border-gray-200"}`}
                   onChange={handleChange}
                 />
                 {errors?.contactPerson && (
@@ -530,7 +530,7 @@ const TechnicalForm = ({
                   name="contactEmail"
                   value={formData.contactEmail}
                   className={`flex h-9 w-full rounded-md border border-input px-3 py-2 text-sm shadow-sm bg-yellow-50
-                                        ${errors?.contactEmail ? "border-red-500" : "border-gray-200"}`}
+                                                                                ${errors?.contactEmail ? "border-red-500" : "border-gray-200"}`}
                   onChange={handleChange}
                 />
                 {errors?.contactEmail && (
@@ -548,7 +548,7 @@ const TechnicalForm = ({
                   name="contactNumber"
                   value={formData.contactNumber}
                   className={`flex h-9 w-full rounded-md border border-input px-3 py-2 text-sm shadow-sm bg-yellow-50
-                                        ${errors?.contactNumber ? "border-red-500" : "border-gray-200"}`}
+                                                                                ${errors?.contactNumber ? "border-red-500" : "border-gray-200"}`}
                   onChange={handleChange}
                 />
                 {errors?.contactNumber && (
@@ -583,7 +583,7 @@ const TechnicalForm = ({
                 value={formData.currentSystem}
                 onChange={handleChange}
                 className={`flex min-h-[60px] w-full rounded-md border border-input px-3 py-2 text-sm shadow-sm bg-yellow-50
-                                    ${errors?.currentSystem ? "border-red-500" : "border-gray-200"}`}
+                                                                        ${errors?.currentSystem ? "border-red-500" : "border-gray-200"}`}
                 placeholder="Describe the current system in detail"
               />
               {errors?.currentSystem && (
@@ -606,7 +606,7 @@ const TechnicalForm = ({
                 value={formData.currentSystemIssues}
                 onChange={handleChange}
                 className={`flex min-h-[60px] w-full rounded-md border border-input px-3 py-2 text-sm shadow-sm bg-yellow-50
-                                    ${errors?.currentSystemIssues ? "border-red-500" : "border-gray-200"}`}
+                                                                        ${errors?.currentSystemIssues ? "border-red-500" : "border-gray-200"}`}
                 placeholder="Describe the issues with the current system"
               />
               {errors?.currentSystemIssues && (
@@ -625,7 +625,7 @@ const TechnicalForm = ({
                 rows={3}
                 value={formData.proposedSolution}
                 className={`flex min-h-[60px] w-full rounded-md border border-input px-3 py-2 text-sm shadow-sm bg-yellow-50
-                                    ${errors?.proposedSolution ? "border-red-500" : "border-gray-200"}`}
+                                                                        ${errors?.proposedSolution ? "border-red-500" : "border-gray-200"}`}
                 onChange={handleChange}
                 placeholder="Describe the proposed solution in detail"
               />
@@ -648,7 +648,7 @@ const TechnicalForm = ({
                 rows={3}
                 value={formData.technicalJustification}
                 className={`flex min-h-[60px] w-full rounded-md border border-input px-3 py-2 text-sm shadow-sm bg-yellow-50
-                                    ${errors?.technicalJustification ? "border-red-500" : "border-gray-200"}`}
+                                                                        ${errors?.technicalJustification ? "border-red-500" : "border-gray-200"}`}
                 onChange={handleChange}
                 placeholder="Provide technical justification for the proposed solution"
               />

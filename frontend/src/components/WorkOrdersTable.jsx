@@ -175,7 +175,7 @@ export default function WorkOrdersTable({ workOrders, onView, onEdit }) {
               <td className="px-4 py-2 text-black text-sm">
                 {wo.workDescription}
               </td>
-              <td className="px-4 py-2 text-black text-sm">{wo.accountName}</td>
+              <td className="px-4 py-2 text-black text-sm">{wo.account?.kristem?.Name}</td>
               <td className="px-4 py-2 text-black text-sm">
                 <span
                   className={`rounded-full px-2 py-1 text-xs mr-2 ${

@@ -1,6 +1,8 @@
 //src/pages/QuotationsPage
 import { useState, useEffect, useRef } from "react";
 import {
+    LuArrowBigLeft,
+  LuArrowLeft,
   LuBell,
   LuCircleAlert,
   LuClipboard,
@@ -54,13 +56,13 @@ export default function QuotationsPage() {
       // Fetch status summary
       // const summaryRes = await apiBackendFetch("/api/rfqs/summary/status");
       // if (summaryRes.ok) {
-      //     const summaryData = await summaryRes.json();
-      //     setStatusSummary({
-      //         total: Number(summaryData.total) || 0,
-      //         pending: Number(summaryData.pending) || 0,
-      //         inProgress: Number(summaryData.inProgress) || 0,
-      //         completed: Number(summaryData.completed) || 0,
-      //     });
+      //         const summaryData = await summaryRes.json();
+      //         setStatusSummary({
+      //                 total: Number(summaryData.total) || 0,
+      //                 pending: Number(summaryData.pending) || 0,
+      //                 inProgress: Number(summaryData.inProgress) || 0,
+      //                 completed: Number(summaryData.completed) || 0,
+      //         });
       // }
       setTimeout(() => setLoading(false), 500);
     } catch (err) {
@@ -314,7 +316,7 @@ export default function QuotationsPage() {
       {/* Toast Notification */}
       <div
         className={`z-50 absolute top-4 right-4 bg-green-500 text-white px-4 py-2 rounded-md shadow-md transition-all duration-500
-          ${successMessage ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"}`}
+                    ${successMessage ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"}`}
       >
         <div className="flex items-center">
           <span className="flex-1">{successMessage || "\u00A0"}</span>
@@ -531,33 +533,48 @@ export default function QuotationsPage() {
       >
         {selectedQuotation && (
           <div className="w-full h-full p-6 overflow-auto">
-            <button
-              className="mb-4 inline-flex items-center justify-center font-medium transition-colors hover:bg-gray-100 h-8 rounded-md px-3 text-xs text-gray-400 hover:text-gray-600 cursor-pointer"
-              onClick={() => {
-                console.log("Closing drawer");
-                console.log(
-                  "Selected quotation before closing:",
-                  selectedQuotation,
-                );
-                console.log("Selected TR before closing:", selectedTR);
-                console.log("Selected RFQ before closing:", selectedRFQ);
-                sendQuotationToMssql(selectedQuotation);
-              }}
-            >
-              <LuSend className="h-4 w-4 mr-2" />
-              Submit Quotation
-            </button>
+            <div className="flex items-center justify-between mb-4">
+              {/* Left side: title + back button */}
+              <div className="flex flex-col space-x-3">
+                <button
+                  className="inline-flex items-center font-medium transition-colors hover:text-gray-400 h-8 rounded-md text-sm text-gray-900 mb-3 cursor-pointer"
+                  onClick={() => {setSelectedQuotation(null); setSelectedTR(null); setSelectedRFQ(null);}}
+                >
+                  <LuArrowLeft className="h-5 w-5 mr-2" />
+                  Back to Quotations
+                </button>
+                <p className="text-2xl font-bold text-gray-800">{selectedQuotation.quotationNumber}</p>
+              </div>
+
+              {/* Right side: submit button */}
+              <button
+                className="inline-flex items-center justify-center font-medium transition-colors bg-green-600 hover:bg-green-500 h-10 rounded-md px-4 text-sm text-white shadow-sm cursor-pointer"
+                onClick={() => {
+                  console.log("Submitting quotation");
+                  console.log("Selected quotation before closing:", selectedQuotation);
+                  console.log("Selected TR before closing:", selectedTR);
+                  console.log("Selected RFQ before closing:", selectedRFQ);
+                  sendQuotationToMssql(selectedQuotation);
+                }}
+              >
+                <LuSend className="h-5 w-5 mr-2" />
+                Submit Quotation
+              </button>
+            </div>
+
             {selectedTR && (
-              <TechnicalDetails technicalReco={selectedTR} onBack={() => {}} />
+              <TechnicalDetails technicalReco={selectedTR} onBack={() => {}} source="quotations" />
             )}
             {selectedRFQ && (
+              <div className="container mx-auto p-6 overflow-auto">
               <RFQCanvassSheet
                 rfq={selectedRFQ}
                 formItems={selectedRFQ?.items}
                 formVendors={selectedRFQ?.vendors}
                 mode="view"
                 setFormData={setSelectedRFQ}
-              />
+                source="quotations"
+              /></div>
             )}
           </div>
         )}

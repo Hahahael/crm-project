@@ -20,6 +20,7 @@ export default function RFQCanvassSheet({
   onForApproval,
   onExportExcel,
   onExportPDF,
+  source = "rfq"
 }) {
   console.log("RFQCanvassSheet rendering with props:", {
     rfq,
@@ -219,7 +220,7 @@ export default function RFQCanvassSheet({
       .reduce((sum, q) => sum + q.total, 0);
     return {
       id: vendor.vendorId,
-      name: vendor.Name || vendor.vendor?.Name || vendor.name || "-",
+      name: vendor.Name || vendor.vendor?.Name || vendor.name || vendor.details?.Name || "-",
       total: total,
       recommended: false, // will be set below
       diff: null, // will be set below
@@ -266,7 +267,7 @@ export default function RFQCanvassSheet({
         <div className="flex items-center space-x-2">
           <button
             type="button"
-            className={`bg-primary text-white rounded-md px-4 py-2 flex items-center cursor-pointer ${readOnly ? "opacity-50 cursor-not-allowed" : ""}`}
+            className={`bg-primary text-white rounded-md px-4 py-2 flex items-center cursor-pointer ${readOnly ? "hidden cursor-not-allowed" : ""}`}
             onClick={readOnly ? undefined : onExportExcel}
             disabled={readOnly}
             aria-disabled={readOnly}
@@ -276,7 +277,7 @@ export default function RFQCanvassSheet({
             Export Excel
           </button>
           <button
-            className={`bg-primary text-white rounded-md px-4 py-2 flex items-center cursor-pointer ${readOnly ? "opacity-50 cursor-not-allowed" : ""}`}
+            className={`bg-primary text-white rounded-md px-4 py-2 flex items-center cursor-pointer ${readOnly ? "hidden cursor-not-allowed" : ""}`}
             onClick={readOnly ? undefined : onExportPDF}
             disabled={readOnly}
             aria-disabled={readOnly}
@@ -322,45 +323,50 @@ export default function RFQCanvassSheet({
           </h3>
         </div>
         <div className="p-6 pt-0 space-y-4">
-          {vendorTotals.map((v, id) => (
-            <div
-              key={v.name}
-              className={`flex items-center justify-between p-3 rounded-lg border ${
-                v.recommended
-                  ? "bg-green-50 border-green-200"
-                  : "bg-gray-50 border-gray-200"
-              }`}
-            >
-              <div className="flex items-center space-x-3">
+        {vendorTotals.map((v, id) => {
+            console.log("Vendor object:", v); // 👈 Logs each vendor as the component renders
+
+            return (
                 <div
-                  className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${
+                key={v.name || v.details?.Name}
+                className={`flex items-center justify-between p-3 rounded-lg border ${
                     v.recommended
-                      ? "bg-green-500 text-white"
-                      : "bg-gray-300 text-gray-600"
-                  }`}
+                    ? "bg-green-50 border-green-200"
+                    : "bg-gray-50 border-gray-200"
+                }`}
                 >
-                  {id + 1}
+                <div className="flex items-center space-x-3">
+                    <div
+                    className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${
+                        v.recommended
+                        ? "bg-green-500 text-white"
+                        : "bg-gray-300 text-gray-600"
+                    }`}
+                    >
+                    {id + 1}
+                    </div>
+                    <div>
+                    <p className="font-medium">{v.name}</p>
+                    {v.recommended && (
+                        <span className="inline-flex items-center rounded-md px-2.5 py-0.5 font-semibold bg-green-100 text-green-800 text-xs ml-2 shadow">
+                        Recommended
+                        </span>
+                    )}
+                    </div>
                 </div>
-                <div>
-                  <p className="font-medium">{v.name}</p>
-                  {v.recommended && (
-                    <span className="inline-flex items-center rounded-md px-2.5 py-0.5 font-semibold bg-green-100 text-green-800 text-xs ml-2 shadow">
-                      Recommended
-                    </span>
-                  )}
+                <div className="text-right">
+                    <p className="text-lg font-bold">${v.total}</p>
+                    {v.diff && <p className="text-sm text-red-600">{v.diff}</p>}
                 </div>
-              </div>
-              <div className="text-right">
-                <p className="text-lg font-bold">${v.total}</p>
-                {v.diff && <p className="text-sm text-red-600">{v.diff}</p>}
-              </div>
-            </div>
-          ))}
+                </div>
+            );
+            })}
+
         </div>
       </div>
 
       {/* Item-by-Item Comparison */}
-      <div className="rounded-xl border bg-card text-card-foreground shadow">
+      <div className="rounded-xl border border-gray-200 bg-card text-card-foreground shadow-md">
         <div className="flex flex-col space-y-1.5 p-6">
           <div className="flex items-center justify-between">
             <h3 className="font-semibold leading-none tracking-tight">
@@ -492,7 +498,7 @@ export default function RFQCanvassSheet({
         <div>
           <button
             type="button"
-            className="bg-green-600 hover:bg-green-700 text-white rounded-md px-8 h-10"
+            className={`bg-green-600 hover:bg-green-700 text-white rounded-md px-8 h-10 ${source === 'rfq' ? '' : 'hidden'}`}
             onClick={handleSelectRecommendedVendors}
           >
             Select Recommended Vendor
@@ -500,7 +506,7 @@ export default function RFQCanvassSheet({
         </div>
         <button
           type="button"
-          className="bg-blue-600 hover:bg-blue-700 text-white rounded-md px-8 h-10 border-blue-600"
+          className={`bg-blue-600 hover:bg-blue-700 text-white rounded-md px-8 h-10 border-blue-600 ${source === 'rfq' ? '' : 'hidden'}`}
           onClick={onForApproval}
         >
           For Approval

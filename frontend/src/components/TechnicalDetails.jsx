@@ -11,6 +11,7 @@ const TechnicalDetails = ({
   onSave,
   onPrint,
   onSubmit,
+  source = "technicalDetails"
 }) => {
   console.log("TechnicalDetails - technicalReco:", technicalReco);
   const isAssignedToMe =
@@ -109,13 +110,13 @@ const TechnicalDetails = ({
         <div>
           <button
             onClick={onBack}
-            className="flex items-center mb-2 text-gray-500 hover:text-gray-700 cursor-pointer"
+            className={`flex items-center mb-2 text-gray-500 hover:text-gray-700 cursor-pointer ${source === 'technicalDetails' ? '' : 'hidden'}`}
           >
             <LuArrowLeft className="h-4 w-4 mr-1" />
             Back to Technical Recommendations
           </button>
           <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-bold">{technicalReco.trNumber}</h1>
+            <h1 className={`font-bold ${source === 'technicalDetails' ? 'text-2xl ' : 'text-lg'}`}>{technicalReco.trNumber}</h1>
             <div
               className={`inline-flex items-center rounded-md border px-2.5 py-0.5 text-xs font-semibold ${renderStatusBadge(technicalReco.stageStatus)}`}
             >
@@ -144,14 +145,14 @@ const TechnicalDetails = ({
                     </button> */}
           <button
             onClick={onPrint}
-            className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-light shadow h-9 px-4 py-2 bg-gray-500 hover:bg-gray-600 text-white"
+            className={`items-center justify-center whitespace-nowrap rounded-md text-sm font-light shadow h-9 px-4 py-2 bg-gray-500 hover:bg-gray-600 text-white ${technicalReco.stageStatus === "Approved" || technicalReco.stageStatus === "Submitted" ? "hidden pointer-events-none" : "inline-flex"}`}
           >
             <LuPrinter className="h-4 w-4 mr-2" />
             Print
           </button>
           <button
             onClick={() => onEdit(technicalReco)}
-            className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-light shadow h-9 px-4 py-2 bg-purple-500 hover:bg-purple-600 text-white"
+            className={`items-center justify-center whitespace-nowrap rounded-md text-sm font-light shadow h-9 px-4 py-2 bg-purple-500 hover:bg-purple-600 text-white ${technicalReco.stageStatus === "Approved" || technicalReco.stageStatus === "Submitted" ? "hidden pointer-events-none" : "inline-flex"}`}
           >
             <LuPencil className="h-4 w-4 mr-2" />
             Edit
@@ -202,7 +203,7 @@ const TechnicalDetails = ({
           </div>
           <div className="p-6 pt-0">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <Detail label="Customer Name" value={technicalReco.accountName} />
+              <Detail label="Customer Name" value={technicalReco.account?.kristem?.Name} />
               <Detail
                 label="Contact Person"
                 value={technicalReco.contactPerson}

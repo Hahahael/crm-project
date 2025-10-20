@@ -15,15 +15,15 @@ function buildInQuery(table, ids) {
 router.get("/", async (req, res) => {
   try {
     const qRes = await db.query(`
-      SELECT 
-        q.*, 
-        u.username AS username,
-        a.account_name AS account_name
-      FROM quotations q
-      LEFT JOIN users u ON q.assignee = u.id
-      LEFT JOIN accounts a ON q.account_id = a.id
-      ORDER BY q.id ASC
-    `);
+            SELECT 
+                q.*, 
+                u.username AS username,
+                a.account_name AS account_name
+            FROM quotations q
+            LEFT JOIN users u ON q.assignee = u.id
+            LEFT JOIN accounts a ON q.account_id = a.id
+            ORDER BY q.id ASC
+        `);
     const quotations = qRes.rows;
 
     console.log(`Fetched ${quotations.length} quotations`);
@@ -136,10 +136,10 @@ router.get("/by-tr/:trId", async (req, res) => {
     const { trId } = req.params;
     const result = await db.query(
       `SELECT tr.*, sl.sl_number, sl.account_id, sl.title AS sl_title, rfq.rfq_number, rfq.status AS rfq_status
-       FROM technical_recommendations tr
-       LEFT JOIN sales_leads sl ON tr.sl_id = sl.id
-       LEFT JOIN rfqs rfq ON tr.wo_id = rfq.wo_id
-       WHERE tr.id = $1`,
+             FROM technical_recommendations tr
+             LEFT JOIN sales_leads sl ON tr.sl_id = sl.id
+             LEFT JOIN rfqs rfq ON tr.wo_id = rfq.wo_id
+             WHERE tr.id = $1`,
       [trId],
     );
     if (result.rows.length === 0)
@@ -157,10 +157,10 @@ router.get("/by-rfq/:rfqId", async (req, res) => {
     const { rfqId } = req.params;
     const result = await db.query(
       `SELECT rfq.*, tr.id AS tr_id, tr.status AS tr_status, sl.sl_number, sl.account_id, sl.title AS sl_title
-       FROM rfqs rfq
-       LEFT JOIN technical_recommendations tr ON rfq.wo_id = tr.wo_id
-       LEFT JOIN sales_leads sl ON tr.sl_id = sl.id
-       WHERE rfq.id = $1`,
+             FROM rfqs rfq
+             LEFT JOIN technical_recommendations tr ON rfq.wo_id = tr.wo_id
+             LEFT JOIN sales_leads sl ON tr.sl_id = sl.id
+             WHERE rfq.id = $1`,
       [rfqId],
     );
     if (result.rows.length === 0)
@@ -185,9 +185,9 @@ router.get("/merged/:id", async (req, res) => {
     if (trId) {
       const trRes = await db.query(
         `SELECT tr.*, sl.sl_number, sl.account_id, sl.title AS sl_title
-         FROM technical_recommendations tr
-         LEFT JOIN sales_leads sl ON tr.sl_id = sl.id
-         WHERE tr.id = $1`,
+                 FROM technical_recommendations tr
+                 LEFT JOIN sales_leads sl ON tr.sl_id = sl.id
+                 WHERE tr.id = $1`,
         [trId],
       );
       if (trRes.rows.length > 0) trData = trRes.rows[0];
@@ -196,10 +196,10 @@ router.get("/merged/:id", async (req, res) => {
     if (rfqId) {
       const rfqRes = await db.query(
         `SELECT rfq.*, tr.id AS tr_id, tr.status AS tr_status, sl.sl_number, sl.account_id, sl.title AS sl_title
-         FROM rfqs rfq
-         LEFT JOIN technical_recommendations tr ON rfq.wo_id = tr.wo_id
-         LEFT JOIN sales_leads sl ON tr.sl_id = sl.id
-         WHERE rfq.id = $1`,
+                 FROM rfqs rfq
+                 LEFT JOIN technical_recommendations tr ON rfq.wo_id = tr.wo_id
+                 LEFT JOIN sales_leads sl ON tr.sl_id = sl.id
+                 WHERE rfq.id = $1`,
         [rfqId],
       );
       if (rfqRes.rows.length > 0) rfqData = rfqRes.rows[0];
@@ -283,11 +283,11 @@ router.post("/", async (req, res) => {
     const currentYear = new Date().getFullYear();
     const qtNumRes = await db.query(
       `
-        SELECT quotation_number
-        FROM quotations
-        WHERE quotation_number LIKE $1
-        ORDER BY quotation_number DESC
-        LIMIT 1`,
+                SELECT quotation_number
+                FROM quotations
+                WHERE quotation_number LIKE $1
+                ORDER BY quotation_number DESC
+                LIMIT 1`,
       [`QUOT-${currentYear}-%`],
     );
 
@@ -302,8 +302,8 @@ router.post("/", async (req, res) => {
 
     const result = await db.query(
       `INSERT INTO quotations (rfq_id, tr_id, wo_id, assignee, account_id, created_at, created_by, updated_at, updated_by, quotation_number, due_date)
-       VALUES ($1, $2, $3, $4, $5, NOW(), $6, NOW(), $7, $8, $9)
-       RETURNING *`,
+             VALUES ($1, $2, $3, $4, $5, NOW(), $6, NOW(), $7, $8, $9)
+             RETURNING *`,
       [
         rfq_id,
         tr_id,
@@ -322,7 +322,7 @@ router.post("/", async (req, res) => {
     // Create workflow stage for new technical recommendation (Draft)
     await db.query(
       `INSERT INTO workflow_stages (wo_id, stage_name, status, assigned_to, created_at, updated_at)
-        VALUES ($1, $2, $3, $4, NOW(), NOW())`,
+                VALUES ($1, $2, $3, $4, NOW(), NOW())`,
       [wo_id, "Quotations", "Draft", assignee],
     );
 

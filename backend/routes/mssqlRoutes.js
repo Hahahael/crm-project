@@ -51,7 +51,7 @@ router.get("/quotations", async (req, res) => {
     let q = "SELECT TOP (@limit) * FROM spidb.quotation ORDER BY id DESC";
     // If wo_id provided, filter
     // if (wo_id) {
-    //   q = 'SELECT * FROM quotation WHERE wo_id = @wo_id ORDER BY id DESC';
+    //     q = 'SELECT * FROM quotation WHERE wo_id = @wo_id ORDER BY id DESC';
     // }
 
     const request = pool.request();
@@ -484,62 +484,62 @@ router.post("/quotations/search", async (req, res) => {
 
     // Build query using ROW_NUMBER for pagination
     const sql = `
-      SELECT rn, * FROM (
-        SELECT ROW_NUMBER() OVER (ORDER BY s.id DESC) AS rn, s.*
-        FROM (
-          SELECT DISTINCT
-            q.Id,
-            q.Code AS QuotationNo,
-            c.[Name] AS CustomerName,
-            CONVERT(varchar, q.ValidityDate, 101) AS ValidityDate,
-            CONVERT(varchar, q.DateModified, 101) AS DateCreated,
-            u.Createdby AS CreatedBy,
-            u.Id AS ModifiedBy,
-            qrs.qr_status_setup_id,
-            CONVERT(varchar, qrs.next_ff, 101) AS next_ff
-          FROM spidb.quotation q
-            INNER JOIN (SELECT LEFT(firstname,1) + '. ' + Lastname AS Createdby, * FROM spidb.users) u
-              ON q.ModifiedBy = u.Id
-            INNER JOIN spidb.customer c ON q.Customer_Id = c.Id
-            INNER JOIN spidb.quotation_details qd ON q.Id = qd.[Quotation_Id]
-            LEFT JOIN (SELECT Quotation_Id, COUNT(1) ctr FROM spidb.quotation_details GROUP BY Quotation_Id) qod
-              ON qod.Quotation_Id = q.Id
-            INNER JOIN (SELECT Id, Stock_id, Code AS PartNumber FROM spidb.stock_details) std
-              ON qd.Stock_Id = std.Id
-            INNER JOIN spidb.stock s ON s.Id = std.Stock_Id
-            INNER JOIN (SELECT ID, [Description] AS Model FROM spidb.brand) b ON s.BRAND_ID = b.ID
-            LEFT JOIN spidb.qr_status qrs ON q.Id = qrs.QRId
-          WHERE q.isConvertedToSO IS NULL
-            AND q.DateCancelled IS NULL
-            AND (@Code = '%%' OR q.Code LIKE @Code)
-            AND (@CreatedBy = '%%' OR u.Createdby LIKE @CreatedBy)
-            AND (@Name = '%%' OR c.[Name] LIKE @Name)
-            AND (@Model = '%%' OR b.Model LIKE @Model)
-        ) s
-      ) t
-      WHERE rn BETWEEN @offset AND (@offset + @pageSize - 1)
-      ORDER BY rn;
+            SELECT rn, * FROM (
+                SELECT ROW_NUMBER() OVER (ORDER BY s.id DESC) AS rn, s.*
+                FROM (
+                    SELECT DISTINCT
+                        q.Id,
+                        q.Code AS QuotationNo,
+                        c.[Name] AS CustomerName,
+                        CONVERT(varchar, q.ValidityDate, 101) AS ValidityDate,
+                        CONVERT(varchar, q.DateModified, 101) AS DateCreated,
+                        u.Createdby AS CreatedBy,
+                        u.Id AS ModifiedBy,
+                        qrs.qr_status_setup_id,
+                        CONVERT(varchar, qrs.next_ff, 101) AS next_ff
+                    FROM spidb.quotation q
+                        INNER JOIN (SELECT LEFT(firstname,1) + '. ' + Lastname AS Createdby, * FROM spidb.users) u
+                            ON q.ModifiedBy = u.Id
+                        INNER JOIN spidb.customer c ON q.Customer_Id = c.Id
+                        INNER JOIN spidb.quotation_details qd ON q.Id = qd.[Quotation_Id]
+                        LEFT JOIN (SELECT Quotation_Id, COUNT(1) ctr FROM spidb.quotation_details GROUP BY Quotation_Id) qod
+                            ON qod.Quotation_Id = q.Id
+                        INNER JOIN (SELECT Id, Stock_id, Code AS PartNumber FROM spidb.stock_details) std
+                            ON qd.Stock_Id = std.Id
+                        INNER JOIN spidb.stock s ON s.Id = std.Stock_Id
+                        INNER JOIN (SELECT ID, [Description] AS Model FROM spidb.brand) b ON s.BRAND_ID = b.ID
+                        LEFT JOIN spidb.qr_status qrs ON q.Id = qrs.QRId
+                    WHERE q.isConvertedToSO IS NULL
+                        AND q.DateCancelled IS NULL
+                        AND (@Code = '%%' OR q.Code LIKE @Code)
+                        AND (@CreatedBy = '%%' OR u.Createdby LIKE @CreatedBy)
+                        AND (@Name = '%%' OR c.[Name] LIKE @Name)
+                        AND (@Model = '%%' OR b.Model LIKE @Model)
+                ) s
+            ) t
+            WHERE rn BETWEEN @offset AND (@offset + @pageSize - 1)
+            ORDER BY rn;
 
-      -- total count
-      SELECT COUNT(1) AS total FROM (
-        SELECT DISTINCT q.Id
-        FROM spidb.quotation q
-          INNER JOIN (SELECT LEFT(firstname,1) + '. ' + Lastname AS Createdby, * FROM spidb.users) u
-            ON q.ModifiedBy = u.Id
-          INNER JOIN spidb.customer c ON q.Customer_Id = c.Id
-          INNER JOIN spidb.quotation_details qd ON q.Id = qd.[Quotation_Id]
-          INNER JOIN (SELECT Id, Stock_id FROM spidb.stock_details) std ON qd.Stock_Id = std.Id
-          INNER JOIN spidb.stock s ON s.Id = std.Stock_Id
-          INNER JOIN (SELECT ID, [Description] AS Model FROM spidb.brand) b ON s.BRAND_ID = b.ID
-          LEFT JOIN spidb.qr_status qrs ON q.Id = qrs.QRId
-        WHERE q.isConvertedToSO IS NULL
-          AND q.DateCancelled IS NULL
-          AND (@Code = '%%' OR q.Code LIKE @Code)
-          AND (@CreatedBy = '%%' OR u.Createdby LIKE @CreatedBy)
-          AND (@Name = '%%' OR c.[Name] LIKE @Name)
-          AND (@Model = '%%' OR b.Model LIKE @Model)
-      ) c;
-    `;
+            -- total count
+            SELECT COUNT(1) AS total FROM (
+                SELECT DISTINCT q.Id
+                FROM spidb.quotation q
+                    INNER JOIN (SELECT LEFT(firstname,1) + '. ' + Lastname AS Createdby, * FROM spidb.users) u
+                        ON q.ModifiedBy = u.Id
+                    INNER JOIN spidb.customer c ON q.Customer_Id = c.Id
+                    INNER JOIN spidb.quotation_details qd ON q.Id = qd.[Quotation_Id]
+                    INNER JOIN (SELECT Id, Stock_id FROM spidb.stock_details) std ON qd.Stock_Id = std.Id
+                    INNER JOIN spidb.stock s ON s.Id = std.Stock_Id
+                    INNER JOIN (SELECT ID, [Description] AS Model FROM spidb.brand) b ON s.BRAND_ID = b.ID
+                    LEFT JOIN spidb.qr_status qrs ON q.Id = qrs.QRId
+                WHERE q.isConvertedToSO IS NULL
+                    AND q.DateCancelled IS NULL
+                    AND (@Code = '%%' OR q.Code LIKE @Code)
+                    AND (@CreatedBy = '%%' OR u.Createdby LIKE @CreatedBy)
+                    AND (@Name = '%%' OR c.[Name] LIKE @Name)
+                    AND (@Model = '%%' OR b.Model LIKE @Model)
+            ) c;
+        `;
 
     const result = await request.query(sql);
 

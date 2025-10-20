@@ -407,7 +407,7 @@ const SalesLeadForm = ({
 
     // sales engineer: either seId (>0) or salesPlanRep present
     // if ((!data.seId || Number(data.seId) <= 0) && (!data.salesPlanRep || String(data.salesPlanRep).trim() === "")) {
-    //     errors.salesEngineer = "Sales engineer is required.";
+    //         errors.salesEngineer = "Sales engineer is required.";
     // }
 
     // FSL details
@@ -465,13 +465,13 @@ const SalesLeadForm = ({
     // Find missing required fields
     // const missing = Object.entries(requiredFields).filter(([, value]) => value === "" || value === null || value === undefined);
     // if (missing.length > 0) {
-    //     // Mark missing fields as errors
-    //     const newErrors = {};
-    //     missing.forEach(([key]) => {
-    //         newErrors[key] = true;
-    //     });
-    //     setErrors(newErrors);
-    //     return;
+    //         // Mark missing fields as errors
+    //         const newErrors = {};
+    //         missing.forEach(([key]) => {
+    //                 newErrors[key] = true;
+    //         });
+    //         setErrors(newErrors);
+    //         return;
     // }
     console.log("Submitting form with data:", formData);
     // ✅ Reset errors if all fields are valid
@@ -518,12 +518,12 @@ const SalesLeadForm = ({
     } = formData;
     // const missing = Object.entries(requiredFields).filter(([, value]) => value === "" || value === null || value === undefined);
     // if (missing.length > 0) {
-    //     const newErrors = {};
-    //     missing.forEach(([key]) => {
-    //         newErrors[key] = true;
-    //     });
-    //     setErrors(newErrors);
-    //     return;
+    //         const newErrors = {};
+    //         missing.forEach(([key]) => {
+    //                 newErrors[key] = true;
+    //         });
+    //         setErrors(newErrors);
+    //         return;
     // }
     const { valid, errors: validationErrors } = validateForm(formData);
     if (!valid) {
@@ -603,7 +603,7 @@ const SalesLeadForm = ({
             <input
               id="endUser"
               name="endUser"
-              value={formData.accountName}
+              value={formData.account?.kristem?.Name}
               readOnly
               className={`col-span-5 w-full rounded-md border border-gray-200 px-3 py-2 focus:outline-1 focus:outline-gray-200 focus:border-gray-400 text-gray-600`}
             />
@@ -618,7 +618,7 @@ const SalesLeadForm = ({
               onChange={handleChange}
               placeholder="Select Sales Stage"
               className={`col-span-5 w-full rounded-md border px-3 py-2 focus:outline-1
-                ${errors?.salesStage ? "border-red-500" : "border-gray-200"}`}
+                                ${errors?.salesStage ? "border-red-500" : "border-gray-200"}`}
             >
               <option value="" disabled hidden>
                 Select Sales Stage
@@ -640,7 +640,7 @@ const SalesLeadForm = ({
               id="department"
               name="department"
               autoComplete="off"
-              value={formData.accountDepartmentName}
+              value={formData.account?.department?.Department}
               readOnly
               // onChange={handleChange}
               className={`col-span-5 w-full rounded-md border border-gray-200 px-3 py-2 focus:outline-1 focus:outline-gray-200 focus:border-gray-400 text-gray-600`}
@@ -654,7 +654,7 @@ const SalesLeadForm = ({
               value={formData.designation}
               onChange={handleChange}
               className={`col-span-5 w-full rounded-md border px-3 py-2 focus:outline-1
-                ${errors?.designation ? "border-red-500" : "border-gray-200"}`}
+                                ${errors?.designation ? "border-red-500" : "border-gray-200"}`}
             />
             {errors?.designation && (
               <p className="text-xs text-red-600 mt-1">{errors.designation}</p>
@@ -668,7 +668,7 @@ const SalesLeadForm = ({
               value={formData.contactNumber}
               onChange={handleChange}
               className={`col-span-5 w-full rounded-md border px-3 py-2 focus:outline-1
-                ${errors?.contactNumber ? "border-red-500" : "border-gray-200"}`}
+                                ${errors?.contactNumber ? "border-red-500" : "border-gray-200"}`}
             />
           </div>
           <div>
@@ -690,7 +690,7 @@ const SalesLeadForm = ({
               value={formData.emailAddress}
               onChange={handleChange}
               className={`col-span-5 w-full rounded-md border px-3 py-2 focus:outline-1
-                ${errors?.emailAddress ? "border-red-500" : "border-gray-200"}`}
+                                ${errors?.emailAddress ? "border-red-500" : "border-gray-200"}`}
             />
             {errors?.emailAddress && (
               <p className="text-xs text-red-600 mt-1">{errors.emailAddress}</p>
@@ -712,7 +712,7 @@ const SalesLeadForm = ({
               value={formData.category}
               onChange={handleChange}
               className={`col-span-5 w-full rounded-md border px-3 py-2 focus:outline-1
-                ${errors?.category ? "border-red-500" : "border-gray-200"}`}
+                                ${errors?.category ? "border-red-500" : "border-gray-200"}`}
             >
               <option value="" disabled hidden>
                 Select Category
@@ -735,7 +735,7 @@ const SalesLeadForm = ({
               value={formData.application}
               onChange={handleChange}
               className={`col-span-5 w-full rounded-md border px-3 py-2 focus:outline-1
-                ${errors?.application ? "border-red-500" : "border-gray-200"}`}
+                                ${errors?.application ? "border-red-500" : "border-gray-200"}`}
             >
               <option value="" disabled hidden>
                 Select Application
@@ -758,7 +758,7 @@ const SalesLeadForm = ({
               value={formData.machine}
               onChange={handleChange}
               className={`col-span-5 w-full rounded-md border px-3 py-2 focus:outline-1
-                ${errors?.machine ? "border-red-500" : "border-gray-200"}`}
+                                ${errors?.machine ? "border-red-500" : "border-gray-200"}`}
             />
             {errors?.machine && (
               <p className="text-xs text-red-600 mt-1">{errors.machine}</p>
@@ -773,7 +773,7 @@ const SalesLeadForm = ({
               value={formData.machineProcess}
               onChange={handleChange}
               className={`col-span-5 w-full rounded-md border px-3 py-2 focus:outline-1
-                ${errors?.machineProcess ? "border-red-500" : "border-gray-200"}`}
+                                ${errors?.machineProcess ? "border-red-500" : "border-gray-200"}`}
             >
               <option value="" disabled hidden>
                 Select Machine Process
@@ -796,7 +796,7 @@ const SalesLeadForm = ({
               value={formData.neededProduct}
               onChange={handleChange}
               className={`col-span-5 w-full rounded-md border px-3 py-2 focus:outline-1
-                ${errors?.neededProduct ? "border-red-500" : "border-gray-200"}`}
+                                ${errors?.neededProduct ? "border-red-500" : "border-gray-200"}`}
             />
             {errors?.neededProduct && (
               <p className="text-xs text-red-600 mt-1">
@@ -814,7 +814,7 @@ const SalesLeadForm = ({
               value={formData.existingSpecifications}
               onChange={handleChange}
               className={`col-span-5 w-full rounded-md border px-3 py-2 focus:outline-1
-                ${errors?.existingSpecifications ? "border-red-500" : "border-gray-200"}`}
+                                ${errors?.existingSpecifications ? "border-red-500" : "border-gray-200"}`}
             />
           </div>
           <div>
@@ -837,7 +837,7 @@ const SalesLeadForm = ({
               value={formData.consideration}
               onChange={handleChange}
               className={`col-span-5 w-full rounded-md border px-3 py-2 focus:outline-1
-                ${errors?.consideration ? "border-red-500" : "border-gray-200"}`}
+                                ${errors?.consideration ? "border-red-500" : "border-gray-200"}`}
               rows={2}
               maxLength={500}
             />
@@ -858,7 +858,7 @@ const SalesLeadForm = ({
               value={formData.supportNeeded}
               onChange={handleChange}
               className={`col-span-5 w-full rounded-md border px-3 py-2 focus:outline-1
-                ${errors?.supportNeeded ? "border-red-500" : "border-gray-200"}`}
+                                ${errors?.supportNeeded ? "border-red-500" : "border-gray-200"}`}
             >
               <option value="" disabled hidden>
                 Select Support Needed
@@ -885,7 +885,7 @@ const SalesLeadForm = ({
               onChange={handleChange}
               autoComplete="off"
               className={`col-span-5 w-full rounded-md border px-3 py-2 focus:outline-1
-                ${errors?.urgency ? "border-red-500" : "border-gray-200"}`}
+                                ${errors?.urgency ? "border-red-500" : "border-gray-200"}`}
             >
               <option value="" disabled hidden>
                 Select Urgency
@@ -909,7 +909,7 @@ const SalesLeadForm = ({
               value={formData.modelToQuote}
               onChange={handleChange}
               className={`col-span-5 w-full rounded-md border px-3 py-2 focus:outline-1
-                ${errors?.modelToQuote ? "border-red-500" : "border-gray-200"}`}
+                                ${errors?.modelToQuote ? "border-red-500" : "border-gray-200"}`}
             />
             {errors?.modelToQuote && (
               <p className="text-xs text-red-600 mt-1">{errors.modelToQuote}</p>
@@ -924,7 +924,7 @@ const SalesLeadForm = ({
               value={formData.quantity}
               onChange={handleChange}
               className={`col-span-5 w-full rounded-md border px-3 py-2 focus:outline-1
-                ${errors?.quantity ? "border-red-500" : "border-gray-200"}`}
+                                ${errors?.quantity ? "border-red-500" : "border-gray-200"}`}
             />
             {errors?.quantity && (
               <p className="text-xs text-red-600 mt-1">{errors.quantity}</p>
@@ -958,7 +958,7 @@ const SalesLeadForm = ({
               value={formData.qrEmailTo}
               onChange={handleChange}
               className={`col-span-5 w-full rounded-md border px-3 py-2 focus:outline-1
-                ${errors?.qrEmailTo ? "border-red-500" : "border-gray-200"}`}
+                                ${errors?.qrEmailTo ? "border-red-500" : "border-gray-200"}`}
             />
             {errors?.qrEmailTo && (
               <p className="text-xs text-red-600 mt-1">{errors.qrEmailTo}</p>
@@ -976,7 +976,7 @@ const SalesLeadForm = ({
                 value={formData.nextFollowupDate || ""}
                 onChange={handleDateChange("nextFollowupDate")}
                 className={`hide-native-date-icon col-span-5 w-full rounded-md border px-3 pr-10 py-2 focus:outline-1
-                ${errors?.nextFollowupDate ? "border-red-500" : "border-gray-200"}`}
+                                ${errors?.nextFollowupDate ? "border-red-500" : "border-gray-200"}`}
               />
               <button
                 type="button"
@@ -1013,7 +1013,7 @@ const SalesLeadForm = ({
                 value={formData.dueDate || ""}
                 onChange={handleDateChange("dueDate")}
                 className={`hide-native-date-icon col-span-5 w-full rounded-md border px-3 pr-10 py-2 focus:outline-1
-                ${errors?.dueDate ? "border-red-500" : "border-gray-200"}`}
+                                ${errors?.dueDate ? "border-red-500" : "border-gray-200"}`}
               />
               <button
                 type="button"
@@ -1037,17 +1037,17 @@ const SalesLeadForm = ({
             )}
           </div>
           {/* <div>
-                        <label htmlFor="doneDate">Done Date</label>
-                        <input
-                            id="doneDate"
-                            name="doneDate"
-                            type="date"
-                            value={formData.doneDate}
-                            onChange={handleChange}
-                            className={`col-span-5 w-full rounded-md border px-3 py-2 focus:outline-1
-                ${errors?.doneDate ? "border-red-500" : "border-gray-200"}`}
-                        />
-                    </div> */}
+                                                <label htmlFor="doneDate">Done Date</label>
+                                                <input
+                                                        id="doneDate"
+                                                        name="doneDate"
+                                                        type="date"
+                                                        value={formData.doneDate}
+                                                        onChange={handleChange}
+                                                        className={`col-span-5 w-full rounded-md border px-3 py-2 focus:outline-1
+                                ${errors?.doneDate ? "border-red-500" : "border-gray-200"}`}
+                                                />
+                                        </div> */}
         </div>
       </div>
 
@@ -1060,7 +1060,7 @@ const SalesLeadForm = ({
             <input
               id="account"
               name="account"
-              value={formData.accountName}
+              value={formData.account?.kristem?.Name}
               readOnly
               // onChange={handleChange}
               className={`col-span-5 w-full rounded-md border border-gray-200 px-3 py-2 focus:outline-1 focus:outline-gray-200 focus:border-gray-400 text-gray-600`}
@@ -1071,7 +1071,7 @@ const SalesLeadForm = ({
             <input
               id="endUser"
               name="endUser"
-              value={formData.accountName}
+              value={formData.account?.kristem?.Name}
               // onChange={handleChange}
               readOnly
               className={`col-span-5 w-full rounded-md border border-gray-200 px-3 py-2 focus:outline-1 focus:outline-gray-200 focus:border-gray-400 text-gray-600`}
@@ -1082,7 +1082,7 @@ const SalesLeadForm = ({
             <input
               id="industry"
               name="industry"
-              value={formData.industryName}
+              value={formData.account?.industry?.Code}
               // onChange={handleChange}
               readOnly
               className={`col-span-5 w-full rounded-md border border-gray-200 px-3 py-2 focus:outline-1 focus:outline-gray-200 focus:border-gray-400 text-gray-600`}
@@ -1096,7 +1096,7 @@ const SalesLeadForm = ({
               value={formData.designation}
               onChange={handleChange}
               className={`col-span-5 w-full rounded-md border px-3 py-2 focus:outline-1
-                ${errors?.designation ? "border-red-500" : "border-gray-200"}`}
+                                ${errors?.designation ? "border-red-500" : "border-gray-200"}`}
             />
           </div>
           <div>
@@ -1107,7 +1107,7 @@ const SalesLeadForm = ({
               value={formData.contactNumber}
               onChange={handleChange}
               className={`col-span-5 w-full rounded-md border px-3 py-2 focus:outline-1
-                ${errors?.contactNumber ? "border-red-500" : "border-gray-200"}`}
+                                ${errors?.contactNumber ? "border-red-500" : "border-gray-200"}`}
             />
           </div>
           <div>
@@ -1119,7 +1119,7 @@ const SalesLeadForm = ({
               value={formData.emailAddress}
               onChange={handleChange}
               className={`col-span-5 w-full rounded-md border px-3 py-2 focus:outline-1
-                ${errors?.emailAddress ? "border-red-500" : "border-gray-200"}`}
+                                ${errors?.emailAddress ? "border-red-500" : "border-gray-200"}`}
             />
           </div>
           <div>
@@ -1131,7 +1131,7 @@ const SalesLeadForm = ({
               onChange={handleChange}
               autoComplete="off"
               className={`col-span-5 w-full rounded-md border px-3 py-2 focus:outline-1
-                ${errors?.category ? "border-red-500" : "border-gray-200"}`}
+                                ${errors?.category ? "border-red-500" : "border-gray-200"}`}
             >
               <option value="Direct Application">Direct Application</option>
               <option value="Replacement">Replacement</option>
@@ -1143,27 +1143,27 @@ const SalesLeadForm = ({
             )}
           </div>
           {/* <div>
-                        <label htmlFor="seId">SE (Sales Engineer)</label>
-                        <input
-                            id="seId"
-                            name="seId"
-                            type="number"
-                            value={formData.seId}
-                            onChange={handleChange}
-                            className={`col-span-5 w-full rounded-md border px-3 py-2 focus:outline-1
-                ${errors?.seId ? "border-red-500" : "border-gray-200"}`}
-                        />
-                    </div>
-                    <div>
-                        <label htmlFor="salesPlanRep">Sales Plan Rep</label>
-                        <input
-                            id="salesPlanRep"
-                            name="salesPlanRep"
-                            value={formData.salesPlanRep}
-                            onChange={handleChange}
-                            className="col-span-5 w-full rounded-md border px-3 py-2 focus:outline-1 border-gray-200"
-                        />
-                    </div> */}
+                                                <label htmlFor="seId">SE (Sales Engineer)</label>
+                                                <input
+                                                        id="seId"
+                                                        name="seId"
+                                                        type="number"
+                                                        value={formData.seId}
+                                                        onChange={handleChange}
+                                                        className={`col-span-5 w-full rounded-md border px-3 py-2 focus:outline-1
+                                ${errors?.seId ? "border-red-500" : "border-gray-200"}`}
+                                                />
+                                        </div>
+                                        <div>
+                                                <label htmlFor="salesPlanRep">Sales Plan Rep</label>
+                                                <input
+                                                        id="salesPlanRep"
+                                                        name="salesPlanRep"
+                                                        value={formData.salesPlanRep}
+                                                        onChange={handleChange}
+                                                        className="col-span-5 w-full rounded-md border px-3 py-2 focus:outline-1 border-gray-200"
+                                                />
+                                        </div> */}
           <div>
             <label htmlFor="fslRef">FSL Ref</label>
             <input
@@ -1187,7 +1187,7 @@ const SalesLeadForm = ({
                 value={formData.fslDate || ""}
                 onChange={handleDateChange("fslDate")}
                 className={`hide-native-date-icon col-span-5 w-full rounded-md border px-3 pr-10 py-2 focus:outline-1
-                ${errors?.fslDate ? "border-red-500" : "border-gray-200"}`}
+                                ${errors?.fslDate ? "border-red-500" : "border-gray-200"}`}
               />
               <button
                 type="button"
@@ -1220,7 +1220,7 @@ const SalesLeadForm = ({
               value={formData.fslTime}
               onChange={handleChange}
               className={`col-span-5 w-full rounded-md border px-3 py-2 focus:outline-1
-                ${errors?.fslTime ? "border-red-500" : "border-gray-200"}`}
+                                ${errors?.fslTime ? "border-red-500" : "border-gray-200"}`}
             />
             {errors?.fslTime && (
               <p className="text-xs text-red-600 mt-1">{errors.fslTime}</p>
@@ -1234,7 +1234,7 @@ const SalesLeadForm = ({
               value={formData.fslLocation}
               onChange={handleChange}
               className={`col-span-5 w-full rounded-md border px-3 py-2 focus:outline-1
-                ${errors?.fslLocation ? "border-red-500" : "border-gray-200"}`}
+                                ${errors?.fslLocation ? "border-red-500" : "border-gray-200"}`}
             />
             {errors?.fslLocation && (
               <p className="text-xs text-red-600 mt-1">{errors.fslLocation}</p>
@@ -1265,7 +1265,7 @@ const SalesLeadForm = ({
               value={formData.requirement}
               onChange={handleChange}
               className={`col-span-5 w-full rounded-md border px-3 py-2 focus:outline-1
-                ${errors?.requirement ? "border-red-500" : "border-gray-200"}`}
+                                ${errors?.requirement ? "border-red-500" : "border-gray-200"}`}
               maxLength={1000}
             />
             {errors?.requirement && (
@@ -1280,7 +1280,7 @@ const SalesLeadForm = ({
               value={formData.requirementCategory}
               onChange={handleChange}
               className={`col-span-5 w-full rounded-md border px-3 py-2 focus:outline-1
-                ${errors?.requirementCategory ? "border-red-500" : "border-gray-200"}`}
+                                ${errors?.requirementCategory ? "border-red-500" : "border-gray-200"}`}
               maxLength={500}
             />
           </div>
@@ -1296,7 +1296,7 @@ const SalesLeadForm = ({
                 value={formData.deadline || ""}
                 onChange={handleDateChange("deadline")}
                 className={`hide-native-date-icon col-span-5 w-full rounded-md border px-3 pr-10 py-2 focus:outline-1
-                ${errors?.deadline ? "border-red-500" : "border-gray-200"}`}
+                                ${errors?.deadline ? "border-red-500" : "border-gray-200"}`}
               />
               <button
                 type="button"
@@ -1327,7 +1327,7 @@ const SalesLeadForm = ({
               value={formData.machine}
               onChange={handleChange}
               className={`col-span-5 w-full rounded-md border px-3 py-2 focus:outline-1
-                ${errors?.machine ? "border-red-500" : "border-gray-200"}`}
+                                ${errors?.machine ? "border-red-500" : "border-gray-200"}`}
             />
           </div>
           <div>
@@ -1339,7 +1339,7 @@ const SalesLeadForm = ({
               value={formData.machineProcess}
               onChange={handleChange}
               className={`col-span-5 w-full rounded-md border px-3 py-2 focus:outline-1
-                ${errors?.machineProcess ? "border-red-500" : "border-gray-200"}`}
+                                ${errors?.machineProcess ? "border-red-500" : "border-gray-200"}`}
             >
               <option value="">Select Machine Process</option>
               <option value="Assembly Line">Assembly Line</option>
@@ -1360,7 +1360,7 @@ const SalesLeadForm = ({
               value={formData.productApplication}
               onChange={handleChange}
               className={`col-span-5 w-full rounded-md border px-3 py-2 focus:outline-1
-                ${errors?.productApplication ? "border-red-500" : "border-gray-200"}`}
+                                ${errors?.productApplication ? "border-red-500" : "border-gray-200"}`}
             />
           </div>
           <div>

@@ -89,7 +89,7 @@ const SalesLeadDetails = ({
               {salesLead.urgency}
             </div>
           </div>
-          <p className="text-gray-500">{salesLead.account}</p>
+          <p className="text-gray-500">{salesLead.account?.kristem?.Name}</p>
         </div>
         <div className="flex gap-2">
           <button
@@ -133,11 +133,11 @@ const SalesLeadDetails = ({
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               <Detail label="SL Number" value={salesLead.slNumber} />
               <Detail label="Sales Stage" value={salesLead.salesStage} />
-              <Detail label="End User" value={salesLead.accountName} />
+              <Detail label="End User" value={salesLead.account?.kristem?.Name} />
               <Detail label="Designation" value={salesLead.designation} />
               <Detail
                 label="Department"
-                value={salesLead.accountDepartmentName}
+                value={salesLead.account?.department?.Department}
               />
               <Detail
                 label="Immediate Support"
@@ -226,7 +226,7 @@ const SalesLeadDetails = ({
           </div>
           <div className="p-6 pt-0">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              <Detail label="Account" value={salesLead.accountName} />
+              <Detail label="Account" value={salesLead.account?.kristem?.Name} />
               {/* <Detail
                                 label="Sales Engineer"
                                 value={salesLead.seUsername || salesLead.seId}

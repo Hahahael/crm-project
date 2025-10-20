@@ -3,6 +3,7 @@ import { LuEllipsis, LuEye, LuPencil, LuTrash } from "react-icons/lu";
 import util from "../helper/utils.js";
 
 export default function AccountsTable({ accounts, onView, onEdit }) {
+  console.log("Accounts in Table:", accounts);
   return (
     <div className="relative overflow-x-auto rounded-lg border border-gray-200 bg-white">
       <table className="w-full border-collapse text-left text-sm min-w-4xl">
@@ -47,26 +48,26 @@ export default function AccountsTable({ accounts, onView, onEdit }) {
               className="hover:bg-gray-50 transition-all duration-200"
             >
               <td className="px-4 py-2 text-black text-sm">
-                {account.refNumber}
+                {account.kristem?.Code}
               </td>
               <td className="px-4 py-2 text-black text-sm">
-                {util.formatDate(account.createdAt, "DD/MM/YYYY")}
+                {util.formatDate(account.created_at, "DD/MM/YYYY")}
               </td>
               <td className="px-4 py-2 text-black text-sm">
-                {account.accountName}
+                {account.kristem?.Name}
               </td>
               <td className="px-4 py-2 text-black text-sm">
-                {account.industryName}
+                {account.industry?.Code}
               </td>
               <td className="px-4 py-2 text-black text-sm">
-                {account.requestedBy}
+                {account.requested_by}
               </td>
-              <td className="px-4 py-2 text-black text-sm">{account.status}</td>
+              <td className="px-4 py-2 text-black text-sm">{account.stage_status}</td>
               <td className="px-4 py-2 text-black text-sm">
-                {util.formatDate(account.dueDate, "DD/MM/YYYY")}
+                {util.formatDate(account.due_date, "DD/MM/YYYY")}
               </td>
               <td className="px-4 py-2 text-black text-sm">
-                {util.formatDate(account.doneDate, "DD/MM/YYYY")}
+                {util.formatDate(account.done_date, "DD/MM/YYYY")}
               </td>
               <td className="px-4 py-2 text-black text-sm">
                 {account.delayStatus}

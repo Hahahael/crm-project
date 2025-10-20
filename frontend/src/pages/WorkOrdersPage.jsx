@@ -16,6 +16,7 @@ import WorkOrderDetails from "../components/WorkOrderDetails";
 import WorkOrderForm from "../components/WorkOrderForm";
 import { apiBackendFetch } from "../services/api";
 import LoadingModal from "../components/LoadingModal";
+import { toSnake } from "../helper/utils";
 
 export default function WorkOrdersPage() {
   const timeoutRef = useRef();
@@ -43,6 +44,7 @@ export default function WorkOrdersPage() {
       if (!workOrdersRes.ok) throw new Error("Failed to fetch Work Orders");
 
       const workOrdersData = await workOrdersRes.json();
+      console.log("Fetched work orders:", workOrdersData);
       setWorkOrders(workOrdersData);
 
       // Fetch status summary
@@ -137,11 +139,28 @@ export default function WorkOrdersPage() {
   const handleSave = async (formData, mode) => {
     console.log("Handle Save called with data:", formData, "Mode:", mode);
     try {
+      // If creating a new account, also create the account
+      if (formData.is_new_account) {
+        const accountResponse = await apiBackendFetch(
+          mode === "edit" ? `/api/accounts/${formData.accountId}` : "/api/accounts",
+          {
+            method: mode === "edit" ? "PUT" : "POST",
+            body: JSON.stringify(formData),
+          }
+        );
+        if (!accountResponse.ok) throw new Error("Failed to create/update account");
+        const newAccount = await accountResponse.json();
+        console.log("Created/Updated new account:", newAccount);
+        formData.accountId = newAccount.id;
+      }
+
+      console.log("Final formData to be saved:", formData);
+
       const response = await apiBackendFetch(
         mode === "edit" ? `/api/workorders/${formData.id}` : "/api/workorders",
         {
           method: mode === "edit" ? "PUT" : "POST",
-          body: JSON.stringify({ ...formData, createdBy: currentUser.id }),
+          body: JSON.stringify({ ...formData, created_by: currentUser.id }),
         },
       );
 
@@ -171,9 +190,7 @@ export default function WorkOrdersPage() {
 
       setSuccessMessage("Work order saved successfully!");
       await fetchAllData();
-      setSelectedWO(savedWorkOrder);
-      setEditingWO(null);
-      return savedWorkOrder;
+      await fetchSelectedWO(savedWorkOrder.id);
     } catch (err) {
       console.error("Error saving workorder:", err);
       setError("Failed to save work order");
@@ -224,6 +241,53 @@ export default function WorkOrdersPage() {
       setSelectedWO(null);
     } catch (err) {
       console.error("Error creating skeletal sales lead:", err);
+    }
+  };
+
+
+  // Fetch a single work order and set as selected (details view)
+  const fetchSelectedWO = async (id) => {
+    if (!id) return;
+    console.log("Fetching selected work order with id:", id);
+
+    // 🧠 handle case when id is actually an object
+    const resolvedId = typeof id === "object" && id.id ? id.id : id;
+
+    try {
+      // setLoading(true);
+      const res = await apiBackendFetch(`/api/workorders/${resolvedId}`);
+      if (!res.ok) throw new Error("Failed to fetch work order");
+      const wo = await res.json();
+      console.log("Fetched selected work order:", wo);
+      setSelectedWO(wo);
+      setEditingWO(null);
+    } catch (err) {
+      console.error("Error fetching selected work order", err);
+      setError("Failed to load work order");
+    } finally {
+      // setLoading(false);
+    }
+  };
+
+  // Fetch a single work order and set into editing drawer
+  const fetchEditingWO = async (id) => {
+    if (!id) return;
+
+    // 🧠 handle case when id is actually an object
+    const resolvedId = typeof id === "object" && id.id ? id.id : id;
+
+    try {
+      // setLoading(true);
+      const res = await apiBackendFetch(`/api/workorders/${resolvedId}`);
+      if (!res.ok) throw new Error("Failed to fetch work order for edit");
+      const wo = await res.json();
+      setEditingWO(wo);
+      setSelectedWO(null);
+    } catch (err) {
+      console.error("Error fetching editing work order", err);
+      setError("Failed to load work order for editing");
+    } finally {
+      // setLoading(false);
     }
   };
 
@@ -471,12 +535,10 @@ export default function WorkOrdersPage() {
             <WorkOrdersTable
               workOrders={filtered}
               onView={(workOrder) => {
-                setSelectedWO(workOrder);
-                setEditingWO(null);
+                fetchSelectedWO(workOrder);
               }}
               onEdit={(workOrder) => {
-                setEditingWO(workOrder);
-                setSelectedWO(null);
+                fetchEditingWO(workOrder);
               }}
             />
           </div>
@@ -499,9 +561,9 @@ export default function WorkOrdersPage() {
               setSelectedWO(null);
               fetchNewAssignedWorkOrders();
             }}
-            onEdit={() => setEditingWO(selectedWO)}
+            onEdit={() => fetchEditingWO(selectedWO)}
             onWorkOrderUpdated={(updatedWO) => {
-              setSelectedWO(updatedWO);
+              fetchSelectedWO(updatedWO);
               // Optionally, update the workOrders array as well:
               setWorkOrders((prev) =>
                 prev.map((wo) => (wo.id === updatedWO.id ? updatedWO : wo)),
@@ -521,7 +583,7 @@ export default function WorkOrdersPage() {
       >
         {editingWO && (
           <WorkOrderForm
-            workOrder={editingWO}
+            workOrder={toSnake(editingWO)}
             mode={editingWO?.id ? "edit" : "create"}
             onSave={handleSave}
             onBack={() => setEditingWO(null)}

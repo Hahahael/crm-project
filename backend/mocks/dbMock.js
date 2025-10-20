@@ -14,6 +14,7 @@ import { accountsDepartments } from "./accountsDepartmentsMock.js";
 import { workorders } from "./workordersMock.js";
 import { salesLeads } from "./salesleadsMock.js";
 import { technicalRecommendations } from "./technicalrecommendationsMock.js";
+import { trProducts } from "./trProductsMock.js";
 import { rfqs } from "./rfqsMock.js";
 import { rfqItems } from "./rfqItemsMock.js";
 import { rfqVendors } from "./rfqVendorsMock.js";
@@ -120,20 +121,21 @@ mem.public.none(`
   -- ACCOUNTS TABLE (commented out for now)
   CREATE TABLE accounts (
   id SERIAL PRIMARY KEY,
+  kristem_account_id INT,
   naef_number VARCHAR(20) UNIQUE,
   stage_status VARCHAR(20) DEFAULT 'Draft',
     ref_number VARCHAR(20) UNIQUE,
     date_created TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     requested_by VARCHAR(100),
     designation VARCHAR(100),
-    department_id INT REFERENCES account_departments(id) ON DELETE SET NULL,
+    department_id INT,
     validity_period VARCHAR(50),
     due_date DATE,
     account_name VARCHAR(255) NOT NULL,
     contract_period VARCHAR(50),
-    industry_id INT REFERENCES account_industries(id) ON DELETE SET NULL,
+    industry_id INT,
     account_designation VARCHAR(100),
-    product_id INT REFERENCES account_product_brands(id) ON DELETE SET NULL,
+    product_id INT,
     contact_number VARCHAR(20),
     location VARCHAR(255),
     email_address VARCHAR(100),
@@ -177,9 +179,9 @@ mem.public.none(`
 mem.public.none(`
   CREATE TABLE naef (
     id SERIAL PRIMARY KEY,
-    department_id INT REFERENCES account_departments(id) ON DELETE SET NULL,
-    industry_id INT REFERENCES account_industries(id) ON DELETE SET NULL,
-    product_brand_id INT REFERENCES account_product_brands(id) ON DELETE SET NULL,
+    department_id INT,
+    industry_id INT,
+    product_brand_id INT,
     naef_number VARCHAR(20) UNIQUE NOT NULL,
     account_name VARCHAR(100) NOT NULL,
     contact_person VARCHAR(100),
@@ -213,7 +215,7 @@ mem.public.none(`
   stage_status VARCHAR(20) DEFAULT 'Draft',
     
     -- Account Info
-    account_id INT REFERENCES accounts(id) ON DELETE SET NULL,
+    account_id INT,
     naef_id INT REFERENCES naef(id) ON DELETE SET NULL,
     is_new_account BOOLEAN DEFAULT FALSE,
     mode VARCHAR(50),
@@ -274,7 +276,7 @@ mem.public.none(`
   sl_number VARCHAR(20) UNIQUE NOT NULL,
   wo_id INT NOT NULL REFERENCES workorders(id) ON DELETE SET NULL,
   assignee INT REFERENCES users(id) ON DELETE SET NULL,
-  account_id INT REFERENCES accounts(id) ON DELETE SET NULL,
+  account_id INT,
   stage_status VARCHAR(20) DEFAULT 'Draft',
   end_user VARCHAR(100),
   department VARCHAR(75),
@@ -372,7 +374,7 @@ mem.public.none(`
   priority VARCHAR(50) DEFAULT 'Medium',
   title VARCHAR(255) DEFAULT '',
   sl_id INT REFERENCES sales_leads(id) ON DELETE SET NULL,
-  account_id INT REFERENCES accounts(id) ON DELETE SET NULL,
+  account_id INT,
   contact_person VARCHAR(100),
   contact_number VARCHAR(20),
   contact_email VARCHAR(100),
@@ -390,7 +392,8 @@ mem.public.none(`
   actual_to_time TIME,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   created_by INT REFERENCES users(id) ON DELETE SET NULL,
-  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  done_date DATE
   );
 
   -- TECHNICAL RECOMMENDATION PRODUCTS
@@ -428,7 +431,7 @@ mem.public.none(`
       assignee INT REFERENCES users(id),
       stage_status VARCHAR(50),
       sl_id INT REFERENCES sales_leads(id),
-      account_id INT REFERENCES accounts(id) ON DELETE SET NULL,
+      account_id INT,
       subtotal NUMERIC(12,2),
       vat NUMERIC(12,2),
       grand_total NUMERIC(12,2),
@@ -439,6 +442,7 @@ mem.public.none(`
       created_by INT REFERENCES users(id),
       updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       updated_by INT REFERENCES users(id),
+      done_date DATE,
       selected_vendors_by_item JSONB -- New column to track selected vendors per item
   );
 
@@ -485,7 +489,7 @@ mem.public.none(`
       rfq_id INT REFERENCES rfqs(id) ON DELETE CASCADE,
       tr_id INT REFERENCES technical_recommendations(id),
       wo_id INT REFERENCES workorders(id),
-      account_id INT REFERENCES accounts(id) ON DELETE SET NULL,
+      account_id INT,
       assignee INT REFERENCES users(id),
       actual_date DATE,
       actual_from_time TIME,
@@ -680,6 +684,7 @@ for (const account of accounts) {
 }
 
 for (const wo of workorders) {
+  console.log("Seeding workorder:", wo);
   mem.public.none(
     `
     INSERT INTO workorders (
@@ -851,42 +856,66 @@ for (const sl of salesLeads) {
   );
 }
 
-// for (const tr of technicalRecommendations) {
-//   mem.public.none(
-//     `
-//     INSERT INTO technical_recommendations (
-//       wo_id, assignee, tr_number, status, priority, title, sl_id, account_id,
-//       contact_person, contact_number, contact_email, current_system, current_system_issues,
-//       proposed_solution, technical_justification, installation_requirements, training_requirements,
-//       maintenance_requirements, attachments, additional_notes, created_at, created_by, updated_at
-//     ) VALUES (
-//       ${tr.woId},
-//       ${tr.assignee},
-//       '${tr.trNumber}',
-//       '${tr.status}',
-//       '${tr.priority}',
-//       '${tr.title}',
-//       ${tr.slId},
-//       ${tr.accountId},
-//       '${tr.contactPerson}',
-//       '${tr.contactNumber}',
-//       '${tr.contactEmail}',
-//       '${tr.currentSystem}',
-//       '${tr.currentSystemIssues}',
-//       '${tr.proposedSolution}',
-//       '${tr.technicalJustification}',
-//       '${tr.installationRequirements}',
-//       '${tr.trainingRequirements}',
-//       '${tr.maintenanceRequirements}',
-//       ${tr.attachments ? `'${tr.attachments}'` : 'NULL'},
-//       '${tr.additionalNotes}',
-//       '${tr.createdAt}',
-//       ${tr.createdBy},
-//       '${tr.updatedAt}'
-//     )
-//     `
-//   );
-// }
+for (const tr of technicalRecommendations) {
+  mem.public.none(
+    `
+    INSERT INTO technical_recommendations (
+      wo_id, assignee, tr_number, status, priority, title, sl_id, account_id,
+      contact_person, contact_number, contact_email, current_system, current_system_issues,
+      proposed_solution, technical_justification, installation_requirements, training_requirements,
+      maintenance_requirements, attachments, additional_notes, created_at, created_by, updated_at
+    ) VALUES (
+      ${tr.woId},
+      ${tr.assignee},
+      '${tr.trNumber}',
+      '${tr.status}',
+      '${tr.priority}',
+      '${tr.title}',
+      ${tr.slId},
+      ${tr.accountId},
+      '${tr.contactPerson}',
+      '${tr.contactNumber}',
+      '${tr.contactEmail}',
+      '${tr.currentSystem}',
+      '${tr.currentSystemIssues}',
+      '${tr.proposedSolution}',
+      '${tr.technicalJustification}',
+      '${tr.installationRequirements}',
+      '${tr.trainingRequirements}',
+      '${tr.maintenanceRequirements}',
+      ${tr.attachments ? `'${tr.attachments}'` : 'NULL'},
+      '${tr.additionalNotes}',
+      '${tr.createdAt}',
+      ${tr.createdBy},
+      '${tr.updatedAt}'
+    )
+    `
+  );
+}
+
+for (const ti of trProducts) {
+  mem.public.none(
+    `
+    INSERT INTO technical_recommendation_products (
+      technical_recommendation_id,
+      product_name,
+      model,
+      description,
+      quantity,
+      unit_price,
+      total_price
+    ) VALUES (
+      ${ti.trId},
+      '${esc(ti.productName)}',
+      '${esc(ti.model)}',
+      '${esc(ti.description)}',
+      ${ti.quantity},
+      ${ti.unitPrice},
+      ${ti.totalPrice}
+    )
+    `
+  );
+}
 
 // for (const r of rfqs) {
 //   mem.public.none(

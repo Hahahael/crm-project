@@ -357,7 +357,7 @@ export default function RFQVendorsForm({
                     <LuCoins className="h-5 w-5 text-gray-500 mr-2" />
                     <div className="flex flex-col">
                       <p className="text-sm font-medium">
-                        ₱ {vendor.totalAmount}
+                        ₱ {vendor.grandTotal}
                       </p>
                       <p className="text-xs text-muted-foreground">
                         Total Amount

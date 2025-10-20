@@ -7,8 +7,8 @@ This repo is a split React + Node Express CRM prototype. Frontend is a Vite + Re
 - Frontend: `frontend/` (Vite, React Router, components in `src/components`, pages in `src/pages`). Dev server runs on port 5173 by default.
 - Backend: `backend/` (ES modules). Entry: `backend/server.js`. Routes are registered under `/api/*` (for example `/api/users`, `/api/accounts`, `/api/rfqs`) and `/auth/*` for authentication.
 - Database: two modes
-  - Mock mode: set `USE_MOCK=true` to use `backend/mocks/dbMock.js` (fast local dev and tests).
-  - Real Postgres: environment vars `DB_USER`, `DB_HOST`, `DB_NAME`, `DB_PASS`, `DB_PORT` used by `backend/db.js`.
+    - Mock mode: set `USE_MOCK=true` to use `backend/mocks/dbMock.js` (fast local dev and tests).
+    - Real Postgres: environment vars `DB_USER`, `DB_HOST`, `DB_NAME`, `DB_PASS`, `DB_PORT` used by `backend/db.js`.
 - MSSQL: `backend/mssql.js` exports `poolPromise` and `sql`. Routes that need MSSQL import it via the `/api/mssql` router.
 
 ## Important conventions and patterns
@@ -33,18 +33,18 @@ This repo is a split React + Node Express CRM prototype. Frontend is a Vite + Re
 
 - Backend (development with .env.dev):
 
-  - From repo root: `cd backend` then `npm run dev`
-    - `npm run dev` uses `cross-env NODE_ENV=dev nodemon -r dotenv/config server.js dotenv_config_path=.env.dev` so dotenv is loaded from `.env.dev`.
+    - From repo root: `cd backend` then `npm run dev`
+        - `npm run dev` uses `cross-env NODE_ENV=dev nodemon -r dotenv/config server.js dotenv_config_path=.env.dev` so dotenv is loaded from `.env.dev`.
 
 - Frontend:
 
-  - From repo root: `cd frontend` then `npm run dev` (starts Vite on 5173 by default)
+    - From repo root: `cd frontend` then `npm run dev` (starts Vite on 5173 by default)
 
 - Smoke test (quick):
 
-  - Start backend (with mock DB): `cd backend; set USE_MOCK=true; npm run dev`
-  - Start frontend: `cd frontend; npm run dev`
-  - Open the app and try login (the mocks contain test users in `backend/mocks/usersMock.js`).
+    - Start backend (with mock DB): `cd backend; set USE_MOCK=true; npm run dev`
+    - Start frontend: `cd frontend; npm run dev`
+    - Open the app and try login (the mocks contain test users in `backend/mocks/usersMock.js`).
 
 ## API surface notes and examples
 

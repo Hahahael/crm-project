@@ -13,8 +13,9 @@ const AccountDetails = ({
   onPrint,
   onSubmit,
 }) => {
-  const isAssignedToMe = currentUser && account.preparedBy === currentUser.id;
-  const isCreator = currentUser && account.preparedBy === currentUser.id;
+  const isAssignedToMe = currentUser && account.prepared_by === currentUser.id;
+  const isCreator = currentUser && account.prepared_by === currentUser.id;
+  const accountFinal = account.account ?? account;
 
   console.log("Account Details:", account);
   function Detail({ label, value }) {
@@ -27,17 +28,17 @@ const AccountDetails = ({
   }
 
   useEffect(() => {
-    if (isAssignedToMe && !account.actualDate && !account.actualFromTime) {
+    if (isAssignedToMe && !account.actual_date && !account.actual_from_time) {
       const now = new Date();
-      const actualDate = now.toISOString().split("T")[0]; // YYYY-MM-DD
-      const actualFromTime = now.toTimeString().slice(0, 8); // HH:MM:SS
+      const actual_date = now.toISOString().split("T")[0]; // YYYY-MM-DD
+      const actual_from_time = now.toTimeString().slice(0, 8); // HH:MM:SS
 
-      apiBackendFetch(`/api/technicals/${account.id}`, {
+      apiBackendFetch(`/api/accounts/${account.id}`, {
         method: "PUT",
         body: JSON.stringify({
           ...account,
-          actualDate,
-          actualFromTime,
+          actual_date,
+          actual_from_time,
         }),
         headers: { "Content-Type": "application/json" },
       })
@@ -63,7 +64,7 @@ const AccountDetails = ({
             </button>
             <h1 className="text-2xl font-bold">NAEF Details</h1>
             <div className="inline-flex items-center rounded-md border px-2.5 py-0.5 text-xs font-semibold bg-green-100 text-green-800">
-              {account.status}
+              {account.stage_status}
             </div>
           </div>
         </div>
@@ -104,22 +105,22 @@ const AccountDetails = ({
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <Detail
                 label="Date"
-                value={utils.formatDate(account.createdAt, "DD/MM/YYYY")}
+                value={utils.formatDate(accountFinal.created_at, "DD/MM/YYYY")}
               />
-              <Detail label="Requestor" value={account.requestBy} />
-              <Detail label="Ref #" value={account.refNumber} />
-              <Detail label="Designation" value={account.designation} />
-              <Detail label="Department" value={account.departmentName} />
-              <Detail label="Validity Period" value={account.validityPeriod} />
+              <Detail label="Requestor" value={accountFinal?.requested_by} />
+              <Detail label="Ref #" value={accountFinal?.kristem?.Code} />
+              <Detail label="Designation" value={accountFinal?.designation} />
+              <Detail label="Department" value={accountFinal?.department?.Department} />
+              <Detail label="Validity Period" value={accountFinal.validity_period} />
               <Detail
                 label="Due Date"
-                value={utils.formatDate(account.dueDate, "DD/MM/YYYY") || "-"}
+                value={utils.formatDate(accountFinal.dueDate, "DD/MM/YYYY") || "-"}
               />
               <Detail
                 label="Done Date"
-                value={utils.formatDate(account.doneDate, "DD/MM/YYYY") || "-"}
+                value={utils.formatDate(accountFinal.doneDate, "DD/MM/YYYY") || "-"}
               />
-              <Detail label="Delay Status" value={account.refNumber} />
+              {/* <Detail label="Delay Status" value={accountFinal.refNumber} /> */}
             </div>
           </div>
         </div>
@@ -133,21 +134,21 @@ const AccountDetails = ({
           </div>
           <div className="p-6">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <Detail label="Account" value={account.accountName} />
-              <Detail label="Contract Period" value={account.contractPeriod} />
-              <Detail label="Industry" value={account.industryName} />
-              <Detail label="Designation" value={account.designation} />
-              <Detail label="Product" value={account.productBrandName} />
-              <Detail label="Contact No." value={account.contactNumber} />
-              <Detail label="Location" value={account.location} />
-              <Detail label="Email Address" value={account.emailAddress} />
-              <Detail label="Address" value={account.address} />
-              <Detail label="Buyer Incharge" value={account.buyerIncharge} />
-              <Detail label="Trunkline" value={account.trunkline} />
-              <Detail label="Contract No" value={account.contractNumber} />
-              <Detail label="Process" value={account.process} />
-              <Detail label="Email Address" value={account.emailAddress} />
-              <Detail label="Machines" value={account.machines} />
+              <Detail label="Account" value={accountFinal?.kristem?.Name} />
+              <Detail label="Contract Period" value={accountFinal.contract_period} />
+              <Detail label="Industry" value={accountFinal?.industry?.Code} />
+              <Detail label="Designation" value={accountFinal?.designation} />
+              <Detail label="Product" value={accountFinal?.brand?.Description} />
+              <Detail label="Contact No." value={accountFinal.contact_number} />
+              <Detail label="Location" value={accountFinal.location} />
+              <Detail label="Email Address" value={accountFinal.email_address} />
+              <Detail label="Address" value={accountFinal.address} />
+              <Detail label="Buyer Incharge" value={accountFinal.buyer_incharge} />
+              <Detail label="Trunkline" value={accountFinal.trunkline} />
+              <Detail label="Contract No" value={accountFinal.contract_number} />
+              <Detail label="Process" value={accountFinal.process} />
+              <Detail label="Email Address" value={accountFinal.email_address} />
+              <Detail label="Machines" value={accountFinal.machines} />
             </div>
           </div>
         </div>
@@ -161,27 +162,27 @@ const AccountDetails = ({
           </div>
           <div className="p-6">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <Detail label="Reason to Apply" value={account.reasonToApply} />
+              <Detail label="Reason to Apply" value={accountFinal.reason_to_apply} />
               <Detail
                 label="Automotive Section"
-                value={account.automotiveSection}
+                value={accountFinal.automotive_section}
               />
               <Detail
                 label="Source of Inquiry"
-                value={account.sourceOfInquiry}
+                value={accountFinal.source_of_inquiry}
               />
-              <Detail label="Commodity" value={account.date} />
-              <Detail label="Business Activity" value={account.requestor} />
-              <Detail label="Model" value={account.refNumber} />
-              <Detail label="Annual Target Sales" value={account.date} />
-              <Detail label="Population" value={account.requestor} />
-              <Detail label="Source of Target" value={account.refNumber} />
-              <Detail label="Existing Bellow" value={account.date} />
-              <Detail label="Products to Order" value={account.requestor} />
-              <Detail label="Model Under" value={account.refNumber} />
-              <Detail label="Target Areas" value={account.date} />
-              <Detail label="Additional" value={account.requestor} />
-              <Detail label="Analysis" value={account.refNumber} />
+              <Detail label="Commodity" value={accountFinal.commodity} />
+              <Detail label="Business Activity" value={accountFinal.business_activity} />
+              <Detail label="Model" value={accountFinal.model} />
+              <Detail label="Annual Target Sales" value={accountFinal.annual_target_sales} />
+              <Detail label="Population" value={accountFinal.population} />
+              <Detail label="Source of Target" value={accountFinal.source_of_target} />
+              <Detail label="Existing Bellows" value={accountFinal.existing_bellows} />
+              <Detail label="Products to Order" value={accountFinal.products_to_order} />
+              <Detail label="Model Under" value={accountFinal.model_under} />
+              <Detail label="Target Areas" value={accountFinal.target_areas} />
+              <Detail label="Additional" value={accountFinal.additional} />
+              <Detail label="Analysis" value={accountFinal.analysis} />
             </div>
           </div>
         </div>
@@ -195,9 +196,9 @@ const AccountDetails = ({
           </div>
           <div className="p-6 space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <Detail label="Date" value={account.date} />
-              <Detail label="Requestor" value={account.requestor} />
-              <Detail label="Ref #" value={account.refNumber} />
+              <Detail label="Date" value={accountFinal.date} />
+              <Detail label="Requestor" value={accountFinal.requestor} />
+              <Detail label="Ref #" value={accountFinal.refNumber} />
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2">
               <div className="w-full overflow-auto">
@@ -311,7 +312,7 @@ const AccountDetails = ({
           <p className="text-sm">
             I commit to provide excellent customer service which serves as a
             factor for a continuous good business relationship with this
-            account.
+            accountFinal.
           </p>
         </div>
 
@@ -323,13 +324,13 @@ const AccountDetails = ({
             </h3>
           </div>
           <div className="p-6 pt-0 grid grid-cols-1 md:grid-cols-2 gap-6">
-            <Detail label="Prepared by" value={account.approvedBy} />
-            <Detail label="Noted by" value={account.approvedDate} />
-            <Detail label="Approved by" value={account.approvedDate} />
-            <Detail label="Received by" value={account.approvedDate} />
+            <Detail label="Prepared by User ID" value={accountFinal.prepared_by} />
+            <Detail label="Noted by User ID" value={accountFinal.noted_by} />
+            <Detail label="Approved by User ID" value={accountFinal.approved_by} />
+            <Detail label="Received by User ID" value={accountFinal.received_by} />
             <Detail
-              label="Acknowledge Approved by"
-              value={account.approvedDate}
+              label="Acknowledge Approved by User ID"
+              value={accountFinal.approved_date}
             />
           </div>
         </div>

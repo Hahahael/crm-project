@@ -42,7 +42,7 @@ export default function AccountsPage() {
   const fetchAllData = async () => {
     console.log("fetchAllData called");
     try {
-      const accountsRes = await apiBackendFetch("/api/accounts");
+      const accountsRes = await apiBackendFetch("/api/accounts/naefs");
       if (!accountsRes.ok) throw new Error("Failed to fetch Accounts");
 
       console.log("Accounts response:", accountsRes);
@@ -138,12 +138,57 @@ export default function AccountsPage() {
       (wo.accountName || "").toLowerCase().includes(search.toLowerCase()),
   );
 
+  // Fetch a single account and set as selected (details view)
+  const fetchSelectedAccount = async (id) => {
+    if (!id) return;
+
+    // 🧠 handle case when id is actually an object
+    const resolvedId = typeof id === "object" && id.id ? id.id : id;
+
+    try {
+      // setLoading(true);
+      const res = await apiBackendFetch(`/api/accounts/${resolvedId}`);
+      if (!res.ok) throw new Error("Failed to fetch account");
+      const account = await res.json();
+      console.log("Fetched selected account:", account);
+      setSelectedAccount(account);
+      setEditingAccount(null);
+    } catch (err) {
+      console.error("Error fetching selected account", err);
+      setError("Failed to load account");
+    } finally {
+      // setLoading(false);
+    }
+  };
+
+  // Fetch a single sales lead and set into editing drawer
+  const fetchEditingAccount = async (id) => {
+    if (!id) return;
+
+    // 🧠 handle case when id is actually an object
+    const resolvedId = typeof id === "object" && id.id ? id.id : id;
+
+    try {
+      // setLoading(true);
+      const res = await apiBackendFetch(`/api/accounts/${resolvedId}`);
+      if (!res.ok) throw new Error("Failed to fetch account for edit");
+      const account = await res.json();
+      setEditingAccount(account);
+      setSelectedAccount(null);
+    } catch (err) {
+      console.error("Error fetching editing account", err);
+      setError("Failed to load account for editing");
+    } finally {
+      // setLoading(false);
+    }
+  };
+
   const handleSave = async (formData, mode) => {
     console.log("Saving account:", formData, "Mode:", mode);
     try {
       console.log(formData.id);
-      const response = await apiBackendFetch(`/api/accounts/${formData.id}`, {
-        method: mode === "edit" ? "PUT" : "POST",
+      const response = await apiBackendFetch(`/api/accounts/naef/${formData.id}`, {
+        method: "PUT",
         body: JSON.stringify(formData),
       });
 
@@ -193,10 +238,10 @@ export default function AccountsPage() {
       const result = await apiBackendFetch("/api/workflow-stages", {
         method: "POST",
         body: JSON.stringify({
-          wo_id: savedAccount.id,
+          wo_id: savedAccount.wo_id,
           stage_name: "NAEF",
           status: "Submitted",
-          assigned_to: savedAccount.assignee,
+          assigned_to: savedAccount.prepared_by,
         }),
       });
 
@@ -242,10 +287,10 @@ export default function AccountsPage() {
           <div className="flex items-center mb-6">
             <div className="flex flex-col">
               <h1 className="text-2xl font-bold">
-                Technical Recommendations Management
+                NAEF Management
               </h1>
               <h2 className="text-md text-gray-700">
-                View and manage all technical recommendations
+                View and manage all New Account Enrollment Forms
               </h2>
             </div>
           </div>
@@ -276,7 +321,7 @@ export default function AccountsPage() {
                       onClick={() => setSelectedAccount(newAssignedAccounts[0])}
                       className="inline-flex items-center justify-center whitespace-nowrap font-medium transition-colors shadow h-8 rounded-md px-3 text-xs bg-purple-600 hover:bg-purple-700 text-white cursor-pointer"
                     >
-                      View First Technical Recommendation
+                      View First NAEF
                     </button>
                   </div>
                 </div>
@@ -394,13 +439,11 @@ export default function AccountsPage() {
 
             <AccountsTable
               accounts={filtered}
-              onView={(technicalReco) => {
-                setSelectedAccount(technicalReco);
-                setEditingAccount(null);
+              onView={(account) => {
+                fetchSelectedAccount(account);
               }}
-              onEdit={(technicalReco) => {
-                setEditingAccount(technicalReco);
-                setSelectedAccount(null);
+              onEdit={(account) => {
+                fetchEditingAccount(account);
               }}
             />
           </div>
@@ -420,7 +463,7 @@ export default function AccountsPage() {
             account={selectedAccount}
             currentUser={currentUser}
             onBack={() => setSelectedAccount(null)}
-            onEdit={() => setEditingAccount(selectedAccount)}
+            onEdit={() => fetchEditingAccount(selectedAccount)}
             onTechnicalRecoUpdated={(updatedTR) => {
               setSelectedAccount(updatedTR);
               // Optionally, update the accounts array as well:
@@ -444,7 +487,7 @@ export default function AccountsPage() {
       >
         {editingAccount && (
           <AccountForm
-            technicalReco={editingAccount}
+            account={editingAccount}
             mode={editingAccount?.id ? "edit" : "create"}
             onSave={(formData, mode) => handleSave(formData, mode)}
             onBack={() => {

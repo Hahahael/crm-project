@@ -148,7 +148,7 @@ const WorkOrderDetails = ({
                 Department
               </label>
               <div className="col-span-2 w-full rounded-md bg-yellow-50 text-md border border-gray-200 px-3 py-3">
-                {workOrder.department || workOrder.accountDepartment || ""}
+                {workOrder.account?.department?.Department ?? ""}
               </div>
             </div>
 
@@ -161,7 +161,7 @@ const WorkOrderDetails = ({
               </label>
               <div className="col-span-5 flex gap-6">
                 <div className="col-span-5 w-full rounded-md bg-yellow-50 text-md border border-gray-200 px-3 py-3">
-                  {workOrder.accountName || ""}
+                  {workOrder.account_name ?? workOrder.account?.kristem?.Name ?? ""}
                 </div>
                 <div className="flex items-center gap-2">
                   <input
@@ -186,7 +186,7 @@ const WorkOrderDetails = ({
                 Industry
               </label>
               <div className="col-span-2 w-full rounded-md bg-yellow-50 text-md border border-gray-200 px-3 py-3">
-                {workOrder.industry || workOrder.accountIndustry || ""}
+                {workOrder.account?.industry?.Description ?? ""}
               </div>
               <label
                 htmlFor="woNumberInput"
@@ -207,7 +207,7 @@ const WorkOrderDetails = ({
                 Product/Brand
               </label>
               <div className="col-span-5 w-full rounded-md bg-yellow-50 text-md border border-gray-200 px-3 py-3">
-                {workOrder.productBrand || workOrder.accountProductBrand || ""}
+                {workOrder.account?.brand?.Description ?? ""}
               </div>
             </div>
 

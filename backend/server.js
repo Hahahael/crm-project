@@ -1,3 +1,6 @@
+// Colorize console.error globally (must be first import)
+import "./helper/logColors.js";
+
 // MSSQL utilities are imported in the mssql route when needed
 import mssqlRoutes from "./routes/mssqlRoutes.js";
 
@@ -18,6 +21,7 @@ import rfqsRouter from "./routes/rfqsRoutes.js";
 import inventoryRouter from "./routes/inventoryRoutes.js";
 import quotationsRouter from "./routes/quotationsRoutes.js";
 import mssqlInventoryRoutes from "./routes/mssqlInventoryRoutes.js";
+import mssqlAccountsRoutes from "./routes/mssqlAccountsRoutes.js";
 import dashboardRoutes from "./routes/dashboardRoutes.js";
 
 const PORT = process.env.PORT || 5000;
@@ -80,6 +84,7 @@ app.use(authMiddleware);
 
 app.use("/api/mssql", mssqlRoutes);
 app.use("/api/mssql/inventory", mssqlInventoryRoutes);
+app.use("/api/mssql/accounts", mssqlAccountsRoutes);
 app.use("/api/dashboard", dashboardRoutes);
 
 app.use("/dashboard", usersRouter);

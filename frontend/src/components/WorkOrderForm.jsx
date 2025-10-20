@@ -6,65 +6,84 @@ import { apiBackendFetch } from "../services/api";
 import utils from "../helper/utils.js";
 
 const WorkOrderForm = ({ workOrder, mode = "create", onSave, onBack }) => {
+    console.log("WorkOrderForm mode:", mode, "workOrder:", workOrder);
   const [errors, setErrors] = useState(null);
   const [formData, setFormData] = useState({
-    woNumber: "",
-    workDescription: "",
+    wo_number: "",
+    work_description: "",
     assignee: "",
-    assigneeUsername: "", // 🔹 added for display
-    departmentId: "",
-    accountId: "", // <-- use accountId instead of accountName
-    isNewAccount: false,
-    industryId: "",
+    assignee_username: "", // 🔹 added for display
+    department_id: "",
+    account_id: "", // <-- use account_id instead of accountName
+    is_new_account: false,
+    industry_id: "",
     mode: "",
-    productBrandId: "",
-    contactPerson: "",
-    contactNumber: "",
-    isFsl: false,
-    isEsl: false,
-    woDate: dayjs().format("YYYY-MM-DD"),
-    dueDate: "",
-    fromTime: "",
-    toTime: "",
-    actualDate: "",
-    actualFromTime: "",
-    actualToTime: "",
+    product_id: "",
+    contact_person: "",
+    contact_number: "",
+    is_fsl: false,
+    is_esl: false,
+    wo_date: dayjs().format("YYYY-MM-DD"),
+    due_date: "",
+    from_time: "",
+    to_time: "",
+    actual_date: "",
+    actual_from_time: "",
+    actual_to_time: "",
     objective: "",
     instruction: "",
-    targetOutput: "",
+    target_output: "",
   });
 
   // 🔹 user search state
   const [users, setUsers] = useState([]);
   const [accounts, setAccounts] = useState([]);
-  const [industries, setIndustries] = useState([]); // [{id, industryName}]
-  const [productBrands, setProductBrands] = useState([]); // [{id, productBrandName}]
-  const [departments, setDepartments] = useState([]); // [{id, departmentName}]
+  const [industries, setIndustries] = useState([]); // [{id, Code}]
+  const [product_brands, setProductBrands] = useState([]); // [{id, Description}]
+  const [departments, setDepartments] = useState([]); // [{id, Department}]
   const [departmentDropdownOpen, setDepartmentDropdownOpen] = useState(false);
   const departmentRef = useRef(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [assigneeQuery, setAssigneeQuery] = useState("");
   const [accountQuery, setAccountQuery] = useState("");
-  const [productBrandQuery, setProductBrandQuery] = useState("");
+  const [product_brandQuery, setProductBrandQuery] = useState("");
   const [departmentQuery, setDepartmentQuery] = useState("");
   const [industryQuery, setIndustryQuery] = useState("");
   // Distinct dropdown states
   const [assigneeDropdownOpen, setAssigneeDropdownOpen] = useState(false);
   const [accountDropdownOpen, setAccountDropdownOpen] = useState(false);
   const [industryDropdownOpen, setIndustryDropdownOpen] = useState(false);
-  const [productBrandDropdownOpen, setProductBrandDropdownOpen] =
+  const [product_brandDropdownOpen, setProductBrandDropdownOpen] =
     useState(false);
   const assigneeRef = useRef(null);
   const accountRef = useRef(null);
   const industryRef = useRef(null);
-  const productBrandRef = useRef(null);
-  const dueDateRef = useRef(null);
+  const product_brandRef = useRef(null);
+  const due_dateRef = useRef(null);
 
   // Helper to find by display name (case-insensitive exact match)
   const findByName = (list, key, value) => {
     if (!value) return undefined;
     const needle = String(value).trim().toLowerCase();
     return list.find((x) => String(x[key]).trim().toLowerCase() === needle);
+  };
+
+  // Prefer local accountName, then other common fields, then kristem.Name
+  const accountDisplayName = (a) => {
+    if (!a) return "";
+    const name =
+      a.accountName ??
+      a.account_name ??
+      a.name ??
+      a.Name ??
+      (a.kristem && a.kristem.Name ? a.kristem.Name : "");
+    return String(name || "");
+  };
+
+  const findAccountByDisplayName = (list, value) => {
+    if (!value) return undefined;
+    const needle = String(value).trim().toLowerCase();
+    return list.find((a) => accountDisplayName(a).trim().toLowerCase() === needle);
   };
 
   // fetch users once
@@ -81,7 +100,7 @@ const WorkOrderForm = ({ workOrder, mode = "create", onSave, onBack }) => {
 
     const fetchAccounts = async () => {
       try {
-        const res = await apiBackendFetch("/api/accounts/all");
+        const res = await apiBackendFetch("/api/accounts/");
         const data = await res.json();
         console.log("Fetched accounts:", data);
         setAccounts(data);
@@ -129,46 +148,46 @@ const WorkOrderForm = ({ workOrder, mode = "create", onSave, onBack }) => {
 
   // Hydrate display-only fields when editing and option lists/users are loaded
   useEffect(() => {
-    // Populate assigneeUsername from assignee id if missing
-    if (formData.assignee && !formData.assigneeUsername && users.length > 0) {
+    // Populate assignee_username from assignee id if missing
+    if (formData.assignee && !formData.assignee_username && users.length > 0) {
       const u = users.find((x) => x.id == formData.assignee);
       if (u) {
-        setFormData((prev) => ({ ...prev, assigneeUsername: u.username }));
+        setFormData((prev) => ({ ...prev, assignee_username: u.username }));
       }
     }
-    // Populate account-related display fields when accountId exists (edit mode)
+    // Populate account-related display fields when account_id exists (edit mode)
     if (
-      !formData.isNewAccount &&
-      formData.accountId &&
+      !formData.is_new_account &&
+      formData.account_id &&
       (accounts.length > 0 ||
         industries.length > 0 ||
-        productBrands.length > 0 ||
+        product_brands.length > 0 ||
         departments.length > 0)
     ) {
       setFormData((prev) => {
         // If already hydrated, skip
-        const acc = accounts.find((a) => a.id == prev.accountId);
+        const acc = accounts.find((a) => a.id == prev.account_id);
         if (!acc) return prev;
-        const depName =
-          departments.find((d) => d.id == acc.departmentId)?.departmentName ||
+        const department_name =
+          departments.find((d) => d.Id == acc.department_id)?.Department ||
           prev.department ||
           "";
-        const indName =
-          industries.find((i) => i.id == acc.industryId)?.industryName ||
+        const industry_name =
+          industries.find((i) => i.Id == acc.industry_id)?.Code ||
           prev.industry ||
           "";
-        const prodName =
-          productBrands.find((p) => p.id == acc.productId)?.productBrandName ||
-          prev.productBrand ||
+        const product_name =
+          product_brands.find((p) => p.ID == acc.product_id)?.Description ||
+          prev.product_brand ||
           "";
         return {
           ...prev,
-          department: depName,
-          departmentId: acc.departmentId || prev.departmentId,
-          industry: indName,
-          industryId: acc.industryId || prev.industryId,
-          productBrand: prodName,
-          productBrandId: acc.productId || prev.productBrandId,
+          department: department_name,
+          department_id: acc.department_id || prev.department_id,
+          industry: industry_name,
+          industry_id: acc.industry_id || prev.industry_id,
+          product_brand: product_name,
+          product_id: acc.product_id || prev.product_id,
         };
       });
     }
@@ -176,12 +195,12 @@ const WorkOrderForm = ({ workOrder, mode = "create", onSave, onBack }) => {
     users,
     accounts,
     industries,
-    productBrands,
+    product_brands,
     departments,
     formData.assignee,
-    formData.assigneeUsername,
-    formData.accountId,
-    formData.isNewAccount,
+    formData.assignee_username,
+    formData.account_id,
+    formData.is_new_account,
   ]);
 
   // filter users by search
@@ -189,16 +208,16 @@ const WorkOrderForm = ({ workOrder, mode = "create", onSave, onBack }) => {
     u.username.toLowerCase().includes(assigneeQuery.toLowerCase()),
   );
   const filteredAccounts = accounts.filter((a) =>
-    a.accountName.toLowerCase().includes(accountQuery.toLowerCase()),
+    accountDisplayName(a).toLowerCase().includes(accountQuery.toLowerCase()),
   );
-  const filteredProductBrands = productBrands.filter((p) =>
-    p.productBrandName.toLowerCase().includes(productBrandQuery.toLowerCase()),
+  const filteredProductBrands = product_brands.filter((p) =>
+    p.Description.toLowerCase().includes(product_brandQuery.toLowerCase()),
   );
   const filteredDepartments = departments.filter((d) =>
-    d.departmentName.toLowerCase().includes(departmentQuery.toLowerCase()),
+    d.Department.toLowerCase().includes(departmentQuery.toLowerCase()),
   );
   const filteredIndustries = industries.filter((i) =>
-    i.industryName.toLowerCase().includes(industryQuery.toLowerCase()),
+    i.Code.toLowerCase().includes(industryQuery.toLowerCase())
   );
 
   // close dropdown on outside click
@@ -226,9 +245,9 @@ const WorkOrderForm = ({ workOrder, mode = "create", onSave, onBack }) => {
         setIndustryDropdownOpen(false);
       }
       if (
-        productBrandDropdownOpen &&
-        productBrandRef.current &&
-        !productBrandRef.current.contains(e.target)
+        product_brandDropdownOpen &&
+        product_brandRef.current &&
+        !product_brandRef.current.contains(e.target)
       ) {
         setProductBrandDropdownOpen(false);
       }
@@ -246,7 +265,7 @@ const WorkOrderForm = ({ workOrder, mode = "create", onSave, onBack }) => {
     assigneeDropdownOpen,
     accountDropdownOpen,
     industryDropdownOpen,
-    productBrandDropdownOpen,
+    product_brandDropdownOpen,
     departmentDropdownOpen,
   ]);
 
@@ -256,45 +275,46 @@ const WorkOrderForm = ({ workOrder, mode = "create", onSave, onBack }) => {
       setFormData((prev) => ({
         ...prev,
         ...workOrder,
-        woDate: workOrder.woDate || prev.woDate,
-        // normalize incoming dueDate to a YYYY-MM-DD string once
-        dueDate:
-          utils.formatDate(workOrder.dueDate, "YYYY-MM-DD") ||
-          prev.dueDate ||
+        wo_date: workOrder.wo_date || prev.wo_date,
+        // normalize incoming due_date to a YYYY-MM-DD string once
+        due_date:
+          utils.formatDate(workOrder.due_date, "YYYY-MM-DD") ||
+          prev.due_date ||
           "",
       }));
     } else if (workOrder && Object.keys(workOrder).length === 0) {
       setFormData((prev) => ({
         ...prev,
-        woNumber: "",
-        workDescription: "",
+        wo_number: "",
+        work_description: "",
         assignee: "",
-        assigneeUsername: "",
-        departmentId: "",
-        accountId: "",
-        isNewAccount: false,
-        industryId: "",
+        assignee_username: "",
+        department_id: "",
+        account_id: "",
+        is_new_account: false,
+        industry_id: "",
         mode: "",
-        productBrandId: "",
-        contactPerson: "",
-        contactNumber: "",
-        isFsl: false,
-        isEsl: false,
-        woDate: prev.woDate || dayjs().format("YYYY-MM-DD"),
-        dueDate: "",
-        fromTime: "",
-        toTime: "",
-        actualDate: "",
-        actualFromTime: "",
-        actualToTime: "",
+        product_id: "",
+        contact_person: "",
+        contact_number: "",
+        is_fsl: false,
+        is_esl: false,
+        wo_date: prev.wo_date || dayjs().format("YYYY-MM-DD"),
+        due_date: "",
+        from_time: "",
+        to_time: "",
+        actual_date: "",
+        actual_from_time: "",
+        actual_to_time: "",
         objective: "",
         instruction: "",
-        targetOutput: "",
+        target_output: "",
       }));
     }
   }, [workOrder]);
 
   const handleChange = (e) => {
+    console.log("Handling change for", e.target.name, "with value", e.target.value);
     const { name, value, type, checked } = e.target;
     const newValue = type === "checkbox" ? checked : value;
 
@@ -323,11 +343,11 @@ const WorkOrderForm = ({ workOrder, mode = "create", onSave, onBack }) => {
       parts[0] = (parts[0] || "").replace(/\D/g, "").slice(0, 4);
     }
     const normalized = parts.join("-");
-    setFormData((prev) => ({ ...prev, dueDate: normalized }));
+    setFormData((prev) => ({ ...prev, due_date: normalized }));
     setErrors((prevErrors) => {
       if (!prevErrors) return prevErrors;
       if (normalized) {
-        const { dueDate, ...rest } = prevErrors;
+        const { due_date, ...rest } = prevErrors;
         return rest;
       }
       return prevErrors;
@@ -356,13 +376,13 @@ const WorkOrderForm = ({ workOrder, mode = "create", onSave, onBack }) => {
     // Clean optional fields to null
     const cleanedFormData = {
       ...formData,
-      actualDate: formData.actualDate || null,
-      actualFromTime: formData.actualFromTime || null,
-      actualToTime: formData.actualToTime || null,
-      fromTime: formData.fromTime || null,
-      toTime: formData.toTime || null,
+      actual_date: formData.actual_date || null,
+      actual_from_time: formData.actual_from_time || null,
+      actual_to_time: formData.actual_to_time || null,
+      from_time: formData.from_time || null,
+      to_time: formData.to_time || null,
     };
-    if (!formData.isNewAccount) delete cleanedFormData.accountName;
+    if (!formData.is_new_account) delete cleanedFormData.accountName;
     // prevent double submit from rapid clicks or re-renders
     if (submitting) return;
     try {
@@ -390,27 +410,48 @@ const WorkOrderForm = ({ workOrder, mode = "create", onSave, onBack }) => {
   }
 
   function validateForm(data) {
+    console.log("Validating form data:", data);
     const errors = {};
-    // workDescription
+    // work_description
     if (
-      !data.workDescription ||
-      String(data.workDescription).trim().length < 3
+      !data.work_description ||
+      String(data.work_description).trim().length < 3
     ) {
-      errors.workDescription = "Work description is required (min 3 chars).";
+      errors.work_description = "Work description is required (min 3 chars).";
     }
     // assignee
     if (!data.assignee) errors.assignee = "Assignee is required.";
 
     // account/new-account rules
-    if (data.isNewAccount) {
+    if (data.is_new_account) {
       if (!data.accountName || String(data.accountName).trim() === "")
         errors.accountName = "Account name is required for new accounts.";
-      if (!data.departmentId) errors.department = "Department is required.";
-      if (!data.industryId) errors.industry = "Industry is required.";
-      if (!data.productBrandId)
-        errors.productBrand = "Product/Brand is required.";
+      if (!data.department_id) errors.department = "Department is required.";
+      if (!data.industry_id) errors.industry = "Industry is required.";
+      if (!data.product_id)
+        errors.product_brand = "Product/Brand is required.";
     } else {
-      if (!data.accountId) errors.accountId = "Account is required.";
+      if (!data.account_id) {
+        errors.account_id = "Account is required.";
+      } else {
+        // If selected account has no mapping, require the field
+        const hasDept = !!(
+          selectedAccountObj?.department_id ?? selectedAccountObj?.department_id
+        );
+        const hasInd = !!(
+          selectedAccountObj?.industry_id ?? selectedAccountObj?.industry_id
+        );
+        const hasBrand = !!(
+          selectedAccountObj?.product_id ?? selectedAccountObj?.product_id
+        );
+
+        if (!hasDept && !data.department_id)
+          errors.department = "Department is required.";
+        if (!hasInd && !data.industry_id)
+          errors.industry = "Industry is required.";
+        if (!hasBrand && !data.product_id)
+          errors.product_brand = "Product/Brand is required.";
+      }
     }
 
     // mode
@@ -419,62 +460,67 @@ const WorkOrderForm = ({ workOrder, mode = "create", onSave, onBack }) => {
     }
 
     // FSL/ESL: exactly one must be selected
-    if (!!data.isFsl === !!data.isEsl) {
+    if (!!data.is_fsl === !!data.is_esl) {
       // both true or both false
       errors.fslEsl = "Please select exactly one of FSL or ESL.";
     }
 
     // dates
-    if (!isValidDate(data.woDate))
-      errors.woDate = "WO Date is required and must be valid.";
-    if (!isValidDate(data.dueDate)) {
-      errors.dueDate = "Due Date is required and must be valid.";
+    if (!isValidDate(data.wo_date))
+      errors.wo_date = "WO Date is required and must be valid.";
+    if (!isValidDate(data.due_date)) {
+      errors.due_date = "Due Date is required and must be valid.";
     } else {
-      // dueDate must be strictly after today
+      // due_date must be strictly after today
       const today = dayjs().startOf("day");
-      const due = dayjs(data.dueDate).startOf("day");
+      const due = dayjs(data.due_date).startOf("day");
       if (!due.isAfter(today)) {
-        errors.dueDate = "Due Date must be later than today.";
+        errors.due_date = "Due Date must be later than today.";
       }
     }
-    if (isValidDate(data.woDate) && isValidDate(data.dueDate)) {
-      if (dayjs(data.dueDate).isBefore(dayjs(data.woDate), "day"))
-        errors.dueDate = "Due Date cannot be before WO Date.";
-      // if dueDate equals woDate, it's also invalid per rule (due must be after today and woDate is today)
+    if (isValidDate(data.wo_date) && isValidDate(data.due_date)) {
+      if (dayjs(data.due_date).isBefore(dayjs(data.wo_date), "day"))
+        errors.due_date = "Due Date cannot be before WO Date.";
+      // if due_date equals wo_date, it's also invalid per rule (due must be after today and wo_date is today)
     }
 
     // times
-    if (data.fromTime && !isValidTime(data.fromTime))
-      errors.fromTime = "Invalid time (HH:mm).";
-    if (data.toTime && !isValidTime(data.toTime))
-      errors.toTime = "Invalid time (HH:mm).";
+    if (data.from_time && !isValidTime(data.from_time))
+      errors.from_time = "Invalid time (HH:mm).";
+    if (data.to_time && !isValidTime(data.to_time))
+      errors.to_time = "Invalid time (HH:mm).";
     if (
-      data.fromTime &&
-      data.toTime &&
-      isValidTime(data.fromTime) &&
-      isValidTime(data.toTime)
+      data.from_time &&
+      data.to_time &&
+      isValidTime(data.from_time) &&
+      isValidTime(data.to_time)
     ) {
-      const from = dayjs(data.fromTime, "HH:mm");
-      const to = dayjs(data.toTime, "HH:mm");
+      const from = dayjs(data.from_time, "HH:mm");
+      const to = dayjs(data.to_time, "HH:mm");
       if (to.isBefore(from))
-        errors.toTime = "End time must be same or after start time.";
+        errors.to_time = "End time must be same or after start time.";
     }
 
     // contact
-    if (!data.contactPerson || String(data.contactPerson).trim().length === 0) {
-      errors.contactPerson = "Contact person is required.";
+    if (!data.contact_person || String(data.contact_person).trim().length === 0) {
+      errors.contact_person = "Contact person is required.";
     }
-    if (!data.contactNumber || String(data.contactNumber).trim().length === 0) {
-      errors.contactNumber = "Contact number is required.";
-    } else if (!PHONE_RE.test(String(data.contactNumber))) {
-      errors.contactNumber = "Invalid phone number.";
+    if (!data.contact_number || String(data.contact_number).trim().length === 0) {
+      errors.contact_number = "Contact number is required.";
+    } else if (!PHONE_RE.test(String(data.contact_number))) {
+      errors.contact_number = "Invalid phone number.";
     }
 
     return { valid: Object.keys(errors).length === 0, errors };
   }
 
   // Helper: get selected account object (use loose equality to avoid number/string mismatches)
-  const selectedAccountObj = accounts.find((a) => a.id == formData.accountId);
+  const selectedAccountObj = accounts.find((a) => a.id == formData.account_id);
+
+  // Field editability depends only on "New Account" flag
+  const canEditProductBrand = !!formData.is_new_account;
+  const canEditDepartment = !!formData.is_new_account;
+  const canEditIndustry = !!formData.is_new_account;
 
   return (
     <form onSubmit={handleSubmit} className="h-full w-full p-6 overflow-y-auto">
@@ -527,8 +573,8 @@ const WorkOrderForm = ({ workOrder, mode = "create", onSave, onBack }) => {
                 <label className="text-sm text-right my-auto">WO#</label>
                 <input
                   type="text"
-                  name="woNumber"
-                  value={formData.woNumber}
+                  name="wo_number"
+                  value={formData.wo_number}
                   className="col-span-11 w-full rounded-md border border-gray-200 bg-gray-100 px-3 py-2 text-gray-400 focus:outline-none focus:ring-0 cursor-not-allowed"
                   placeholder="WO-2025-0001"
                   readOnly
@@ -541,15 +587,15 @@ const WorkOrderForm = ({ workOrder, mode = "create", onSave, onBack }) => {
                 </label>
                 <input
                   type="text"
-                  name="workDescription"
-                  value={formData.workDescription}
+                  name="work_description"
+                  value={formData.work_description}
                   onChange={handleChange}
                   className={`col-span-8 xl:col-span-9 w-full h-10 my-auto rounded-md border px-3 py-2 focus:outline-1
-                                        ${errors?.workDescription ? "border-red-500" : "border-gray-200"}`}
+                                                                                ${errors?.work_description ? "border-red-500" : "border-gray-200"}`}
                 />
-                {errors?.workDescription && (
+                {errors?.work_description && (
                   <p className="text-xs text-red-600 mt-1 col-span-10 col-start-2">
-                    {errors.workDescription}
+                    {errors.work_description}
                   </p>
                 )}
               </div>
@@ -559,23 +605,23 @@ const WorkOrderForm = ({ workOrder, mode = "create", onSave, onBack }) => {
                   <label className="flex items-center gap-2">
                     <input
                       type="checkbox"
-                      name="isFsl"
-                      checked={formData.isFsl}
+                      name="is_fsl"
+                      checked={formData.is_fsl}
                       onChange={(e) => {
                         const checked = e.target.checked;
                         // compute new state and update errors accordingly
                         setFormData((prev) => {
                           const ns = {
                             ...prev,
-                            isFsl: checked,
-                            isEsl: checked ? false : prev.isEsl,
+                            is_fsl: checked,
+                            is_esl: checked ? false : prev.is_esl,
                           };
                           setErrors((prevErr) => {
                             if (!prevErr) return prevErr;
                             // if exactly one selected now, remove the fslEsl error
                             if (
-                              (ns.isFsl && !ns.isEsl) ||
-                              (!ns.isFsl && ns.isEsl)
+                              (ns.is_fsl && !ns.is_esl) ||
+                              (!ns.is_fsl && ns.is_esl)
                             ) {
                               const { fslEsl, ...rest } = prevErr;
                               return rest;
@@ -592,21 +638,21 @@ const WorkOrderForm = ({ workOrder, mode = "create", onSave, onBack }) => {
                   <label className="flex items-center gap-2">
                     <input
                       type="checkbox"
-                      name="isEsl"
-                      checked={formData.isEsl}
+                      name="is_esl"
+                      checked={formData.is_esl}
                       onChange={(e) => {
                         const checked = e.target.checked;
                         setFormData((prev) => {
                           const ns = {
                             ...prev,
-                            isEsl: checked,
-                            isFsl: checked ? false : prev.isFsl,
+                            is_esl: checked,
+                            is_fsl: checked ? false : prev.is_fsl,
                           };
                           setErrors((prevErr) => {
                             if (!prevErr) return prevErr;
                             if (
-                              (ns.isFsl && !ns.isEsl) ||
-                              (!ns.isFsl && ns.isEsl)
+                              (ns.is_fsl && !ns.is_esl) ||
+                              (!ns.is_fsl && ns.is_esl)
                             ) {
                               const { fslEsl, ...rest } = prevErr;
                               return rest;
@@ -638,12 +684,13 @@ const WorkOrderForm = ({ workOrder, mode = "create", onSave, onBack }) => {
                 <input
                   type="text"
                   autoComplete="off"
-                  value={formData.assigneeUsername || ""}
+                  value={formData.assignee_username || ""}
                   onChange={(e) => {
                     const q = e.target.value;
                     setFormData((prev) => ({
                       ...prev,
-                      assigneeUsername: q,
+                      assignee_username: q,
+                      assignee: q === "" ? "" : prev.assignee,
                     }));
                     setAssigneeQuery(q);
                     setAssigneeDropdownOpen(true);
@@ -654,32 +701,35 @@ const WorkOrderForm = ({ workOrder, mode = "create", onSave, onBack }) => {
                       const u = findByName(
                         users,
                         "username",
-                        formData.assigneeUsername,
+                        formData.assignee_username,
                       );
                       if (u) {
                         setFormData((prev) => ({
                           ...prev,
                           assignee: u.id,
-                          assigneeUsername: u.username,
+                          assignee_username: u.username,
                         }));
                         setAssigneeDropdownOpen(false);
                       }
                     }
                   }}
                   onBlur={() => {
-                    if (!formData.assignee && formData.assigneeUsername) {
+                    if (!formData.assignee && formData.assignee_username) {
                       const u = findByName(
                         users,
                         "username",
-                        formData.assigneeUsername,
+                        formData.assignee_username,
                       );
                       if (u) {
                         setFormData((prev) => ({
                           ...prev,
                           assignee: u.id,
-                          assigneeUsername: u.username,
+                          assignee_username: u.username,
                         }));
                         setAssigneeDropdownOpen(false);
+                      } else {
+                        // if user cleared or typed arbitrary text, keep cleared state
+                        setFormData((prev) => ({ ...prev, assignee: "" }));
                       }
                     }
                   }}
@@ -697,7 +747,7 @@ const WorkOrderForm = ({ workOrder, mode = "create", onSave, onBack }) => {
                             setFormData((prev) => ({
                               ...prev,
                               assignee: user.id, // store FK
-                              assigneeUsername: user.username, // display username
+                              assignee_username: user.username, // display username
                             }));
                             setAssigneeDropdownOpen(false);
                             setAssigneeQuery("");
@@ -724,7 +774,7 @@ const WorkOrderForm = ({ workOrder, mode = "create", onSave, onBack }) => {
             <div className="grid grid-cols-6 gap-x-4">
               <label className="text-sm text-right my-auto">Account</label>
               <div className="col-span-4">
-                {formData.isNewAccount ? (
+                {formData.is_new_account ? (
                   <input
                     type="text"
                     name="accountName"
@@ -740,38 +790,58 @@ const WorkOrderForm = ({ workOrder, mode = "create", onSave, onBack }) => {
                       type="text"
                       name="accountSearch"
                       autoComplete="off"
-                      value={selectedAccountObj?.accountName || accountQuery}
+                      value={accountQuery !== "" ? accountQuery : (selectedAccountObj ? accountDisplayName(selectedAccountObj) : "")}
                       onChange={(e) => {
-                        setAccountQuery(e.target.value);
+                        const val = e.target.value;
+                        setAccountQuery(val);
                         setAccountDropdownOpen(true);
+                        // If user types and it diverges from the selected account display, clear selection and mapped fields
+                        setFormData((prev) => {
+                          if (prev.account_id) {
+                            const prevName = selectedAccountObj ? accountDisplayName(selectedAccountObj) : "";
+                            if (val !== prevName) {
+                              return {
+                                ...prev,
+                                account_id: "",
+                                department: "",
+                                department_id: "",
+                                industry: "",
+                                industry_id: "",
+                                product_brand: "",
+                                product_id: "",
+                              };
+                            }
+                          }
+                          return prev;
+                        });
                       }}
                       onKeyDown={(e) => {
                         if (e.key === "Enter") {
                           e.preventDefault();
-                          const acc = findByName(
+                          const acc = findAccountByDisplayName(
                             accounts,
-                            "accountName",
                             e.currentTarget.value,
                           );
                           if (acc) {
-                            const depName =
-                              departments.find((d) => d.id == acc.departmentId)
-                                ?.departmentName || "";
-                            const indName =
-                              industries.find((i) => i.id == acc.industryId)
-                                ?.industryName || "";
-                            const prodName =
-                              productBrands.find((p) => p.id == acc.productId)
-                                ?.productBrandName || "";
+                            console.log("Selected account on Enter:", acc);
+                            const department_name =
+                              departments.find((d) => d.Id == acc.department_id)
+                                ?.Department || "";
+                            const industry_name =
+                              industries.find((i) => i.Id == acc.industry_id)
+                                ?.Code || "";
+                            const product_name =
+                              product_brands.find((p) => p.ID == acc.product_id)
+                                ?.Description || "";
                             setFormData((prev) => ({
                               ...prev,
-                              accountId: acc.id,
-                              department: depName,
-                              departmentId: acc.departmentId || "",
-                              industry: indName,
-                              industryId: acc.industryId || "",
-                              productBrand: prodName,
-                              productBrandId: acc.productId || "",
+                              account_id: acc.id,
+                              department: department_name,
+                              department_id: acc.department_id || "",
+                              industry: industry_name,
+                              industry_id: acc.industry_id || "",
+                              product_brand: product_name,
+                              product_id: acc.product_id || "",
                             }));
                             setAccountDropdownOpen(false);
                             setAccountQuery("");
@@ -779,33 +849,33 @@ const WorkOrderForm = ({ workOrder, mode = "create", onSave, onBack }) => {
                         }
                       }}
                       onBlur={(e) => {
-                        if (!formData.isNewAccount && !formData.accountId) {
-                          const acc = findByName(
+                        if (!formData.is_new_account && !formData.account_id) {
+                          const acc = findAccountByDisplayName(
                             accounts,
-                            "accountName",
                             e.currentTarget.value,
                           );
                           if (acc) {
-                            const depName =
-                              departments.find((d) => d.id == acc.departmentId)
-                                ?.departmentName || "";
-                            const indName =
-                              industries.find((i) => i.id == acc.industryId)
-                                ?.industryName || "";
-                            const prodName =
-                              productBrands.find((p) => p.id == acc.productId)
-                                ?.productBrandName || "";
+                            const department_name =
+                              departments.find((d) => d.Id == acc.department_id)
+                                ?.Department || "";
+                            const industry_name =
+                              industries.find((i) => i.Id == acc.industry_id)
+                                ?.Code || "";
+                            const product_name =
+                              product_brands.find((p) => p.ID == acc.product_id)
+                                ?.Description || "";
                             setFormData((prev) => ({
                               ...prev,
-                              accountId: acc.id,
-                              department: depName,
-                              departmentId: acc.departmentId || "",
-                              industry: indName,
-                              industryId: acc.industryId || "",
-                              productBrand: prodName,
-                              productBrandId: acc.productId || "",
+                              account_id: acc.id,
+                              department: department_name,
+                              department_id: acc.department_id || "",
+                              industry: industry_name,
+                              industry_id: acc.industry_id || "",
+                              product_brand: product_name,
+                              product_id: acc.product_id || "",
                             }));
                             setAccountDropdownOpen(false);
+                            setAccountQuery("");
                           }
                         }
                       }}
@@ -820,31 +890,35 @@ const WorkOrderForm = ({ workOrder, mode = "create", onSave, onBack }) => {
                             <li
                               key={account.id}
                               onClick={() => {
+                                console.log("Selected account:", account);
+                                console.log("Departments:", departments);
+                                console.log("Industry:", industries);
+                                console.log("Product Brands:", product_brands);
                                 setFormData((prev) => ({
                                   ...prev,
-                                  accountId: account.id,
+                                  account_id: account.id,
                                   department:
                                     departments.find(
-                                      (d) => d.id === account.departmentId,
-                                    )?.departmentName || "",
-                                  departmentId: account.departmentId || "",
+                                      (d) => d.Id === account.department_id,
+                                    )?.Department || "",
+                                  department_id: account.department_id || "",
                                   industry:
                                     industries.find(
-                                      (i) => i.id === account.industryId,
-                                    )?.industryName || "",
-                                  industryId: account.industryId || "",
-                                  productBrand:
-                                    productBrands.find(
-                                      (p) => p.id === account.productId,
-                                    )?.productBrandName || "",
-                                  productBrandId: account.productId || "",
+                                      (i) => i.Id === account.industry_id,
+                                    )?.Code || "",
+                                  industry_id: account.industry_id || "",
+                                  product_brand:
+                                    product_brands.find(
+                                      (p) => p.ID === account.product_id,
+                                    )?.Description || "",
+                                  product_id: account.product_id || "",
                                 }));
                                 setAccountDropdownOpen(false);
                                 setAccountQuery("");
                               }}
                               className="px-3 py-2 cursor-pointer hover:bg-gray-100 text-sm"
                             >
-                              {account.accountName}
+                              {accountDisplayName(account)}
                             </li>
                           ))
                         ) : (
@@ -854,9 +928,9 @@ const WorkOrderForm = ({ workOrder, mode = "create", onSave, onBack }) => {
                         )}
                       </ul>
                     )}
-                    {!formData.isNewAccount && errors?.accountId && (
+                    {!formData.is_new_account && errors?.account_id && (
                       <p className="text-xs text-red-600 mt-1">
-                        {errors.accountId}
+                        {errors.account_id}
                       </p>
                     )}
                   </div>
@@ -870,20 +944,20 @@ const WorkOrderForm = ({ workOrder, mode = "create", onSave, onBack }) => {
               <div className="flex items-center gap-2 justify-end">
                 <input
                   type="checkbox"
-                  name="isNewAccount"
-                  checked={!!formData.isNewAccount}
+                  name="is_new_account"
+                  checked={!!formData.is_new_account}
                   onChange={(e) => {
                     const checked = e.target.checked;
                     setFormData((prev) => ({
                       ...prev,
-                      isNewAccount: checked,
+                      is_new_account: checked,
                       department: "",
-                      departmentId: "",
+                      department_id: "",
                       industry: "",
-                      industryId: "",
-                      productBrand: "",
-                      productBrandId: "",
-                      accountId: "",
+                      industry_id: "",
+                      product_brand: "",
+                      product_id: "",
+                      account_id: "",
                       accountName: "",
                     }));
                   }}
@@ -898,16 +972,16 @@ const WorkOrderForm = ({ workOrder, mode = "create", onSave, onBack }) => {
               <label className="text-sm text-right my-auto break-words hyphens-auto">
                 Product/Brand
               </label>
-              <div className="col-span-5 relative" ref={productBrandRef}>
-                {formData.isNewAccount ? (
+              <div className="col-span-5 relative" ref={product_brandRef}>
+                {canEditProductBrand ? (
                   <input
                     type="text"
-                    name="productBrand"
+                    name="product_brand"
                     autoComplete="off"
-                    value={productBrandQuery || formData.productBrand}
+                    value={product_brandQuery || formData.product_brand}
                     onChange={(e) => {
                       const q = e.target.value;
-                      setFormData((prev) => ({ ...prev, productBrand: q }));
+                      setFormData((prev) => ({ ...prev, product_brand: q }));
                       setProductBrandQuery(q);
                       setProductBrandDropdownOpen(true);
                     }}
@@ -915,15 +989,15 @@ const WorkOrderForm = ({ workOrder, mode = "create", onSave, onBack }) => {
                       if (e.key === "Enter") {
                         e.preventDefault();
                         const prod = findByName(
-                          productBrands,
-                          "productBrandName",
+                          product_brands,
+                          "Description",
                           e.currentTarget.value,
                         );
                         if (prod) {
                           setFormData((prev) => ({
                             ...prev,
-                            productBrand: prod.productBrandName,
-                            productBrandId: prod.id,
+                            product_brand: prod.Description,
+                            product_id: prod.ID,
                           }));
                           setProductBrandDropdownOpen(false);
                           setProductBrandQuery("");
@@ -931,17 +1005,17 @@ const WorkOrderForm = ({ workOrder, mode = "create", onSave, onBack }) => {
                       }
                     }}
                     onBlur={(e) => {
-                      if (formData.isNewAccount) {
+                      if (formData.is_new_account) {
                         const prod = findByName(
-                          productBrands,
-                          "productBrandName",
+                          product_brands,
+                          "Description",
                           e.currentTarget.value,
                         );
                         if (prod) {
                           setFormData((prev) => ({
                             ...prev,
-                            productBrand: prod.productBrandName,
-                            productBrandId: prod.id,
+                            product_brand: prod.Description,
+                            product_id: prod.ID,
                           }));
                           setProductBrandDropdownOpen(false);
                         }
@@ -949,36 +1023,36 @@ const WorkOrderForm = ({ workOrder, mode = "create", onSave, onBack }) => {
                     }}
                     onFocus={() => setProductBrandDropdownOpen(true)}
                     placeholder="Search product/brand..."
-                    className={`w-full h-10 rounded-md border px-3 py-2 ${errors?.productBrand ? "border-red-500" : "border-gray-200"}`}
+                    className={`w-full h-10 rounded-md border px-3 py-2 ${errors?.product_brand ? "border-red-500" : "border-gray-200"}`}
                   />
                 ) : (
                   <input
                     type="text"
-                    name="productBrand"
+                    name="product_brand"
                     autoComplete="off"
-                    value={formData.productBrand}
+                    value={formData.product_brand}
                     className="w-full h-10 rounded-md border border-gray-200 bg-gray-100 px-3 py-2"
                     readOnly
                   />
                 )}
-                {formData.isNewAccount && productBrandDropdownOpen && (
+                {canEditProductBrand && product_brandDropdownOpen && (
                   <ul className="absolute z-10 mt-1 w-full bg-white border border-gray-200 rounded-md shadow-lg max-h-40 overflow-y-auto">
                     {filteredProductBrands.length > 0 ? (
                       filteredProductBrands.map((prod) => (
                         <li
-                          key={prod.id}
+                          key={prod.ID}
                           onClick={() => {
                             setFormData((prev) => ({
                               ...prev,
-                              productBrand: prod.productBrandName,
-                              productBrandId: prod.id,
+                              product_brand: prod.Description,
+                              product_id: prod.ID,
                             }));
                             setProductBrandDropdownOpen(false);
                             setProductBrandQuery("");
                           }}
                           className="px-3 py-2 cursor-pointer hover:bg-gray-100 text-sm"
                         >
-                          {prod.productBrandName}
+                          {prod.Description}
                         </li>
                       ))
                     ) : (
@@ -989,9 +1063,9 @@ const WorkOrderForm = ({ workOrder, mode = "create", onSave, onBack }) => {
                   </ul>
                 )}
               </div>
-              {errors?.productBrand && (
+              {errors?.product_brand && (
                 <p className="text-xs text-red-600 mt-1 col-span-5 col-start-2">
-                  {errors.productBrand}
+                  {errors.product_brand}
                 </p>
               )}
             </div>
@@ -1002,7 +1076,7 @@ const WorkOrderForm = ({ workOrder, mode = "create", onSave, onBack }) => {
                 Department
               </label>
               <div className="col-span-5 relative" ref={departmentRef}>
-                {formData.isNewAccount ? (
+                {canEditDepartment ? (
                   <input
                     type="text"
                     name="department"
@@ -1019,14 +1093,14 @@ const WorkOrderForm = ({ workOrder, mode = "create", onSave, onBack }) => {
                         e.preventDefault();
                         const dept = findByName(
                           departments,
-                          "departmentName",
+                          "Department",
                           e.currentTarget.value,
                         );
                         if (dept) {
                           setFormData((prev) => ({
                             ...prev,
-                            department: dept.departmentName,
-                            departmentId: dept.id,
+                            department: dept.Department,
+                            department_id: dept.Id,
                           }));
                           setDepartmentDropdownOpen(false);
                           setDepartmentQuery("");
@@ -1034,17 +1108,17 @@ const WorkOrderForm = ({ workOrder, mode = "create", onSave, onBack }) => {
                       }
                     }}
                     onBlur={(e) => {
-                      if (formData.isNewAccount && !formData.departmentId) {
+                      if (formData.is_new_account && !formData.department_id) {
                         const dept = findByName(
                           departments,
-                          "departmentName",
+                          "Department",
                           e.currentTarget.value,
                         );
                         if (dept) {
                           setFormData((prev) => ({
                             ...prev,
-                            department: dept.departmentName,
-                            departmentId: dept.id,
+                            department: dept.Department,
+                            department_id: dept.Id,
                           }));
                           setDepartmentDropdownOpen(false);
                         }
@@ -1064,24 +1138,24 @@ const WorkOrderForm = ({ workOrder, mode = "create", onSave, onBack }) => {
                     readOnly
                   />
                 )}
-                {formData.isNewAccount && departmentDropdownOpen && (
+                {canEditDepartment && departmentDropdownOpen && (
                   <ul className="absolute z-10 mt-1 w-full bg-white border border-gray-200 rounded-md shadow-lg max-h-40 overflow-y-auto">
                     {filteredDepartments.length > 0 ? (
                       filteredDepartments.map((dept) => (
                         <li
-                          key={dept.id}
+                          key={dept.Id}
                           onClick={() => {
                             setFormData((prev) => ({
                               ...prev,
-                              department: dept.departmentName,
-                              departmentId: dept.id,
+                              department: dept.Department,
+                              department_id: dept.Id,
                             }));
                             setDepartmentDropdownOpen(false);
                             setDepartmentQuery("");
                           }}
                           className="px-3 py-2 cursor-pointer hover:bg-gray-100 text-sm"
                         >
-                          {dept.departmentName}
+                          {dept.Department}
                         </li>
                       ))
                     ) : (
@@ -1105,7 +1179,7 @@ const WorkOrderForm = ({ workOrder, mode = "create", onSave, onBack }) => {
                 Industry
               </label>
               <div className="col-span-5 relative" ref={industryRef}>
-                {formData.isNewAccount ? (
+                {canEditIndustry ? (
                   <input
                     type="text"
                     name="industry"
@@ -1122,14 +1196,14 @@ const WorkOrderForm = ({ workOrder, mode = "create", onSave, onBack }) => {
                         e.preventDefault();
                         const ind = findByName(
                           industries,
-                          "industryName",
+                          "Code",
                           e.currentTarget.value,
                         );
                         if (ind) {
                           setFormData((prev) => ({
                             ...prev,
-                            industry: ind.industryName,
-                            industryId: ind.id,
+                            industry: ind.Code,
+                            industry_id: ind.Id,
                           }));
                           setIndustryDropdownOpen(false);
                           setIndustryQuery("");
@@ -1137,17 +1211,17 @@ const WorkOrderForm = ({ workOrder, mode = "create", onSave, onBack }) => {
                       }
                     }}
                     onBlur={(e) => {
-                      if (formData.isNewAccount && !formData.industryId) {
+                      if (formData.is_new_account && !formData.industry_id) {
                         const ind = findByName(
                           industries,
-                          "industryName",
+                          "Code",
                           e.currentTarget.value,
                         );
                         if (ind) {
                           setFormData((prev) => ({
                             ...prev,
-                            industry: ind.industryName,
-                            industryId: ind.id,
+                            industry: ind.Code,
+                            industry_id: ind.Id,
                           }));
                           setIndustryDropdownOpen(false);
                         }
@@ -1167,24 +1241,24 @@ const WorkOrderForm = ({ workOrder, mode = "create", onSave, onBack }) => {
                     readOnly
                   />
                 )}
-                {formData.isNewAccount && industryDropdownOpen && (
+                {canEditIndustry && industryDropdownOpen && (
                   <ul className="absolute z-10 mt-1 w-full bg-white border border-gray-200 rounded-md shadow-lg max-h-40 overflow-y-auto">
                     {filteredIndustries.length > 0 ? (
                       filteredIndustries.map((ind) => (
                         <li
-                          key={ind.id}
+                          key={ind.Id}
                           onClick={() => {
                             setFormData((prev) => ({
                               ...prev,
-                              industry: ind.industryName,
-                              industryId: ind.id,
+                              industry: ind.Code,
+                              industry_id: ind.Id,
                             }));
                             setIndustryDropdownOpen(false);
                             setIndustryQuery("");
                           }}
                           className="px-3 py-2 cursor-pointer hover:bg-gray-100 text-sm"
                         >
-                          {ind.industryName}
+                          {ind.Code}
                         </li>
                       ))
                     ) : (
@@ -1229,14 +1303,14 @@ const WorkOrderForm = ({ workOrder, mode = "create", onSave, onBack }) => {
               </label>
               <input
                 type="text"
-                name="contactPerson"
-                value={formData.contactPerson}
+                name="contact_person"
+                value={formData.contact_person}
                 onChange={handleChange}
                 className="col-span-5 w-full h-10 rounded-md border border-gray-200 px-3 py-2"
               />
-              {errors?.contactPerson && (
+              {errors?.contact_person && (
                 <p className="text-xs text-red-600 mt-1 col-span-5 col-start-2">
-                  {errors.contactPerson}
+                  {errors.contact_person}
                 </p>
               )}
             </div>
@@ -1248,14 +1322,14 @@ const WorkOrderForm = ({ workOrder, mode = "create", onSave, onBack }) => {
               </label>
               <input
                 type="text"
-                name="contactNumber"
-                value={formData.contactNumber}
+                name="contact_number"
+                value={formData.contact_number}
                 onChange={handleChange}
                 className="col-span-5 w-full h-10 rounded-md border border-gray-200 px-3 py-2"
               />
-              {errors?.contactNumber && (
+              {errors?.contact_number && (
                 <p className="text-xs text-red-600 mt-1 col-span-5 col-start-2">
-                  {errors.contactNumber}
+                  {errors.contact_number}
                 </p>
               )}
             </div>
@@ -1264,14 +1338,14 @@ const WorkOrderForm = ({ workOrder, mode = "create", onSave, onBack }) => {
               <label className="text-sm text-right my-auto">WO Date</label>
               <input
                 type="date"
-                name="woDate"
+                name="wo_date"
                 autoComplete="off"
-                value={formData.woDate}
+                value={formData.wo_date}
                 readOnly
                 className="col-span-5 w-full h-10 rounded-md border border-gray-200 px-3 py-2 bg-gray-100 cursor-not-allowed"
               />
-              {errors?.woDate && (
-                <p className="text-xs text-red-600 mt-1">{errors.woDate}</p>
+              {errors?.wo_date && (
+                <p className="text-xs text-red-600 mt-1">{errors.wo_date}</p>
               )}
             </div>
 
@@ -1280,11 +1354,11 @@ const WorkOrderForm = ({ workOrder, mode = "create", onSave, onBack }) => {
               <label className="text-sm text-right my-auto">Due Date</label>
               <div className="col-span-5 relative">
                 <input
-                  ref={dueDateRef}
+                  ref={due_dateRef}
                   type="date"
-                  name="dueDate"
+                  name="due_date"
                   autoComplete="off"
-                  value={formData.dueDate || ""}
+                  value={formData.due_date || ""}
                   onChange={handleDueDateChange}
                   max="2099-12-31"
                   className="hide-native-date-icon w-full h-10 rounded-md border border-gray-200 px-3 pr-10 py-2"
@@ -1292,7 +1366,7 @@ const WorkOrderForm = ({ workOrder, mode = "create", onSave, onBack }) => {
                 <button
                   type="button"
                   onClick={() => {
-                    const el = dueDateRef.current;
+                    const el = due_dateRef.current;
                     if (!el) return;
                     if (typeof el.showPicker === "function") {
                       el.showPicker();
@@ -1307,9 +1381,9 @@ const WorkOrderForm = ({ workOrder, mode = "create", onSave, onBack }) => {
                   <LuCalendar className="w-5 h-5" />
                 </button>
               </div>
-              {errors?.dueDate && (
+              {errors?.due_date && (
                 <p className="text-xs text-red-600 mt-1 col-span-5 col-start-2">
-                  {errors.dueDate}
+                  {errors.due_date}
                 </p>
               )}
             </div>
@@ -1319,15 +1393,15 @@ const WorkOrderForm = ({ workOrder, mode = "create", onSave, onBack }) => {
               <label className="text-sm text-right my-auto">From Time</label>
               <input
                 type="time"
-                name="fromTime"
+                name="from_time"
                 autoComplete="off"
-                value={formData.fromTime}
+                value={formData.from_time}
                 onChange={handleChange}
                 className="col-span-5 w-full h-10 rounded-md border border-gray-200 px-3 py-2"
               />
-              {errors?.fromTime && (
+              {errors?.from_time && (
                 <p className="text-xs text-red-600 mt-1 col-span-5 col-start-2">
-                  {errors.fromTime}
+                  {errors.from_time}
                 </p>
               )}
             </div>
@@ -1336,55 +1410,55 @@ const WorkOrderForm = ({ workOrder, mode = "create", onSave, onBack }) => {
               <label className="text-sm text-right my-auto">To Time</label>
               <input
                 type="time"
-                name="toTime"
+                name="to_time"
                 autoComplete="off"
-                value={formData.toTime}
+                value={formData.to_time}
                 onChange={handleChange}
                 className="col-span-5 w-full h-10 rounded-md border border-gray-200 px-3 py-2"
               />
-              {errors?.toTime && (
+              {errors?.to_time && (
                 <p className="text-xs text-red-600 mt-1 col-span-5 col-start-2">
-                  {errors.toTime}
+                  {errors.to_time}
                 </p>
               )}
             </div>
 
             {/* Actuals */}
             {/* <div className="grid grid-cols-6 gap-x-4">
-                            <label className="text-sm text-right my-auto">Actual Date</label>
-                            <input
-                                type="date"
-                                name="actualDate"
-                                value={utils.formatDate(formData.actualDate, "YYYY-MM-DD")}
-                                onChange={handleChange}
-                                className="col-span-5 rounded-md border border-gray-200 px-3 py-2"
-                                readOnly
-                            />
-                        </div>
+                                                        <label className="text-sm text-right my-auto">Actual Date</label>
+                                                        <input
+                                                                type="date"
+                                                                name="actual_date"
+                                                                value={utils.formatDate(formData.actual_date, "YYYY-MM-DD")}
+                                                                onChange={handleChange}
+                                                                className="col-span-5 rounded-md border border-gray-200 px-3 py-2"
+                                                                readOnly
+                                                        />
+                                                </div>
 
-                        <div className="grid grid-cols-6 gap-x-4">
-                            <label className="text-sm text-right my-auto">Actual From</label>
-                            <input
-                                type="time"
-                                name="actualFromTime"
-                                value={formData.actualFromTime}
-                                onChange={handleChange}
-                                className="col-span-5 rounded-md border border-gray-200 px-3 py-2"
-                                readOnly
-                            />
-                        </div>
+                                                <div className="grid grid-cols-6 gap-x-4">
+                                                        <label className="text-sm text-right my-auto">Actual From</label>
+                                                        <input
+                                                                type="time"
+                                                                name="actual_from_time"
+                                                                value={formData.actual_from_time}
+                                                                onChange={handleChange}
+                                                                className="col-span-5 rounded-md border border-gray-200 px-3 py-2"
+                                                                readOnly
+                                                        />
+                                                </div>
 
-                        <div className="grid grid-cols-6 gap-x-4">
-                            <label className="text-sm text-right my-auto">Actual To</label>
-                            <input
-                                type="time"
-                                name="actualToTime"
-                                value={formData.actualToTime}
-                                onChange={handleChange}
-                                className="col-span-5 rounded-md border border-gray-200 px-3 py-2"
-                                readOnly
-                            />
-                        </div> */}
+                                                <div className="grid grid-cols-6 gap-x-4">
+                                                        <label className="text-sm text-right my-auto">Actual To</label>
+                                                        <input
+                                                                type="time"
+                                                                name="actual_to_time"
+                                                                value={formData.actual_to_time}
+                                                                onChange={handleChange}
+                                                                className="col-span-5 rounded-md border border-gray-200 px-3 py-2"
+                                                                readOnly
+                                                        />
+                                                </div> */}
           </div>
         </div>
 
@@ -1419,8 +1493,8 @@ const WorkOrderForm = ({ workOrder, mode = "create", onSave, onBack }) => {
               Target Output
             </label>
             <textarea
-              name="targetOutput"
-              value={formData.targetOutput}
+              name="target_output"
+              value={formData.target_output}
               onChange={handleChange}
               className="col-span-10 xl:col-span-11 min-h-[80px] rounded-md border border-gray-200 px-3 py-2"
             />

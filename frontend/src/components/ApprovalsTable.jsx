@@ -156,7 +156,7 @@ export default function ApprovalsTable({
                 {renderSubstatusBadge(row.stageName)}
               </td>
               <td className="px-4 py-2 text-black text-sm">
-                {row.accountName}
+                {row.account?.kristem?.Name}
               </td>
               <td className="p-2 align-middle max-w-[200px] truncate">
                 {row.title || "-"}

@@ -7,27 +7,27 @@ const router = express.Router();
 async function tableExists(tableName) {
   // Use information_schema which pg-mem supports
   const q = `
-        SELECT EXISTS (
-            SELECT 1
-            FROM information_schema.tables
-            WHERE table_schema = 'public'
-                AND lower(table_name) = lower($1)
-        ) AS exists
-    `;
+    SELECT EXISTS (
+      SELECT 1
+      FROM information_schema.tables
+      WHERE table_schema = 'public'
+        AND lower(table_name) = lower($1)
+    ) AS exists
+  `;
   const r = await db.query(q, [tableName]);
   return !!(r.rows && r.rows[0] && r.rows[0].exists);
 }
 
 async function columnExists(tableName, columnName) {
   const q = `
-        SELECT EXISTS (
-            SELECT 1
-            FROM information_schema.columns
-            WHERE lower(table_name) = lower($1)
-                AND lower(column_name) = lower($2)
-                AND table_schema = 'public'
-        ) AS exists
-    `;
+    SELECT EXISTS (
+      SELECT 1
+      FROM information_schema.columns
+      WHERE lower(table_name) = lower($1)
+        AND lower(column_name) = lower($2)
+        AND table_schema = 'public'
+    ) AS exists
+  `;
   const r = await db.query(q, [tableName, columnName]);
   return !!(r.rows && r.rows[0] && r.rows[0].exists);
 }
@@ -71,28 +71,28 @@ async function tryQuery(primarySql, fallbackSql = null, params = []) {
 router.get("/summary", async (req, res) => {
   try {
     const primarySql = `
-            SELECT
-                COUNT(*) AS total,
-                SUM(CASE WHEN stage_status = 'Pending' THEN 1 ELSE 0 END) AS pending,
-                SUM(CASE WHEN stage_status = 'In Progress' THEN 1 ELSE 0 END) AS "inProgress",
-                SUM(CASE WHEN stage_status = 'Completed' THEN 1 ELSE 0 END) AS completed,
-                SUM(CASE WHEN (due_date::date < CURRENT_DATE AND done_date IS NULL) THEN 1 ELSE 0 END) AS overdue,
-                SUM(CASE WHEN (due_date::date BETWEEN CURRENT_DATE AND (CURRENT_DATE + INTERVAL '3 days') AND done_date IS NULL) THEN 1 ELSE 0 END) AS "dueSoon",
-                SUM(CASE WHEN done_date IS NOT NULL AND done_date::date <= due_date::date THEN 1 ELSE 0 END) AS "onTimeCount"
-            FROM workorders
-        `;
+      SELECT
+        COUNT(*) AS total,
+        SUM(CASE WHEN stage_status = 'Pending' THEN 1 ELSE 0 END) AS pending,
+        SUM(CASE WHEN stage_status = 'In Progress' THEN 1 ELSE 0 END) AS "inProgress",
+        SUM(CASE WHEN stage_status = 'Completed' THEN 1 ELSE 0 END) AS completed,
+        SUM(CASE WHEN (due_date::date < CURRENT_DATE AND done_date IS NULL) THEN 1 ELSE 0 END) AS overdue,
+        SUM(CASE WHEN (due_date::date BETWEEN CURRENT_DATE AND (CURRENT_DATE + INTERVAL '3 days') AND done_date IS NULL) THEN 1 ELSE 0 END) AS "dueSoon",
+        SUM(CASE WHEN done_date IS NOT NULL AND done_date::date <= due_date::date THEN 1 ELSE 0 END) AS "onTimeCount"
+      FROM workorders
+    `;
 
     const fallbackSql = `
-            SELECT
-                COUNT(*) AS total,
-                SUM(CASE WHEN stage_status = 'Pending' THEN 1 ELSE 0 END) AS pending,
-                SUM(CASE WHEN stage_status = 'In Progress' THEN 1 ELSE 0 END) AS "inProgress",
-                SUM(CASE WHEN stage_status = 'Completed' THEN 1 ELSE 0 END) AS completed,
-                SUM(CASE WHEN (DATE(due_date) < DATE(NOW()) AND (done_date IS NULL)) THEN 1 ELSE 0 END) AS overdue,
-                SUM(CASE WHEN (DATE(due_date) >= DATE(NOW()) AND DATE(due_date) <= DATE(NOW() + INTERVAL '3 days') AND (done_date IS NULL)) THEN 1 ELSE 0 END) AS "dueSoon",
-                SUM(CASE WHEN done_date IS NOT NULL AND DATE(done_date) <= DATE(due_date) THEN 1 ELSE 0 END) AS "onTimeCount"
-            FROM rfqs
-        `;
+      SELECT
+        COUNT(*) AS total,
+        SUM(CASE WHEN stage_status = 'Pending' THEN 1 ELSE 0 END) AS pending,
+        SUM(CASE WHEN stage_status = 'In Progress' THEN 1 ELSE 0 END) AS "inProgress",
+        SUM(CASE WHEN stage_status = 'Completed' THEN 1 ELSE 0 END) AS completed,
+        SUM(CASE WHEN (DATE(due_date) < DATE(NOW()) AND (done_date IS NULL)) THEN 1 ELSE 0 END) AS overdue,
+        SUM(CASE WHEN (DATE(due_date) >= DATE(NOW()) AND DATE(due_date) <= DATE(NOW() + INTERVAL '3 days') AND (done_date IS NULL)) THEN 1 ELSE 0 END) AS "dueSoon",
+        SUM(CASE WHEN done_date IS NOT NULL AND DATE(done_date) <= DATE(due_date) THEN 1 ELSE 0 END) AS "onTimeCount"
+      FROM rfqs
+    `;
 
     const result = await tryQuery(primarySql, fallbackSql);
     let row = result.rows && result.rows[0] ? result.rows[0] : {};
@@ -130,24 +130,24 @@ router.get("/summary", async (req, res) => {
 router.get("/due-performance", async (req, res) => {
   try {
     const primarySql = `
-        SELECT
-          SUM(CASE WHEN done_date IS NOT NULL AND done_date <= due_date THEN 1 ELSE 0 END) AS early,
-          SUM(CASE WHEN done_date IS NOT NULL AND done_date = due_date THEN 1 ELSE 0 END) AS onTime,
-          SUM(CASE WHEN done_date IS NULL AND due_date BETWEEN NOW() AND (NOW() + INTERVAL '3 days') THEN 1 ELSE 0 END) AS dueSoon,
-          SUM(CASE WHEN done_date IS NULL AND due_date < NOW() THEN 1 ELSE 0 END) AS overdue,
-          SUM(CASE WHEN done_date IS NULL THEN 1 ELSE 0 END) AS notCompleted
-        FROM workorders
-      `;
+      SELECT
+        SUM(CASE WHEN done_date IS NOT NULL AND done_date <= due_date THEN 1 ELSE 0 END) AS early,
+        SUM(CASE WHEN done_date IS NOT NULL AND done_date = due_date THEN 1 ELSE 0 END) AS onTime,
+        SUM(CASE WHEN done_date IS NULL AND due_date BETWEEN NOW() AND (NOW() + INTERVAL '3 days') THEN 1 ELSE 0 END) AS dueSoon,
+        SUM(CASE WHEN done_date IS NULL AND due_date < NOW() THEN 1 ELSE 0 END) AS overdue,
+        SUM(CASE WHEN done_date IS NULL THEN 1 ELSE 0 END) AS notCompleted
+      FROM workorders
+    `;
 
     const fallbackSql = `
-        SELECT
-          SUM(CASE WHEN done_date IS NOT NULL AND done_date <= due_date THEN 1 ELSE 0 END) AS early,
-          SUM(CASE WHEN done_date IS NOT NULL AND done_date = due_date THEN 1 ELSE 0 END) AS onTime,
-          SUM(CASE WHEN done_date IS NULL AND due_date >= NOW() AND due_date <= (NOW() + INTERVAL '3 days') THEN 1 ELSE 0 END) AS dueSoon,
-          SUM(CASE WHEN done_date IS NULL AND due_date < NOW() THEN 1 ELSE 0 END) AS overdue,
-          SUM(CASE WHEN done_date IS NULL THEN 1 ELSE 0 END) AS notCompleted
-        FROM rfqs
-      `;
+      SELECT
+        SUM(CASE WHEN done_date IS NOT NULL AND done_date <= due_date THEN 1 ELSE 0 END) AS early,
+        SUM(CASE WHEN done_date IS NOT NULL AND done_date = due_date THEN 1 ELSE 0 END) AS onTime,
+        SUM(CASE WHEN done_date IS NULL AND due_date >= NOW() AND due_date <= (NOW() + INTERVAL '3 days') THEN 1 ELSE 0 END) AS dueSoon,
+        SUM(CASE WHEN done_date IS NULL AND due_date < NOW() THEN 1 ELSE 0 END) AS overdue,
+        SUM(CASE WHEN done_date IS NULL THEN 1 ELSE 0 END) AS notCompleted
+      FROM rfqs
+    `;
 
     const result = await tryQuery(primarySql, fallbackSql);
     let row = result.rows && result.rows[0] ? result.rows[0] : {};
@@ -164,18 +164,18 @@ router.get("/due-performance", async (req, res) => {
 
           if (hasDone) {
             simpleSql = `
-                SELECT
-                  SUM(CASE WHEN done_date IS NOT NULL THEN 1 ELSE 0 END) AS completed,
-                  SUM(CASE WHEN done_date IS NULL AND due_date::timestamp < (NOW()::timestamp) THEN 1 ELSE 0 END) AS overdue
-                FROM ${table};
-              `;
+              SELECT
+                SUM(CASE WHEN done_date IS NOT NULL THEN 1 ELSE 0 END) AS completed,
+                SUM(CASE WHEN done_date IS NULL AND due_date::timestamp < (NOW()::timestamp) THEN 1 ELSE 0 END) AS overdue
+              FROM ${table};
+            `;
           } else {
             simpleSql = `
-                SELECT
-                  0 AS completed,
-                  SUM(CASE WHEN due_date::timestamp < (NOW()::timestamp) THEN 1 ELSE 0 END) AS overdue
-                FROM ${table};
-              `;
+              SELECT
+                0 AS completed,
+                SUM(CASE WHEN due_date::timestamp < (NOW()::timestamp) THEN 1 ELSE 0 END) AS overdue
+              FROM ${table};
+            `;
           }
 
           const s = await db.query(simpleSql);
@@ -228,24 +228,24 @@ router.get("/assignees", async (req, res) => {
     const limit = parseInt(req.query.limit, 10) || 10;
     // Primary tries to use workorders + users; fallback uses rfqs
     const primarySql = `
-            SELECT u.id AS assignee_id,
-                    COALESCE(u.username, (u.first_name || ' ' || u.last_name)) AS assignee_name,
-                    COUNT(*) AS count
-            FROM workorders w
-            LEFT JOIN users u ON u.id = COALESCE(w.assigned_to, w.assignee)
-            WHERE COALESCE(w.assigned_to, w.assignee) IS NOT NULL
-            GROUP BY u.id, u.username, u.first_name, u.last_name
-            ORDER BY count DESC
-            LIMIT $1
-        `;
+      SELECT u.id AS assignee_id,
+        COALESCE(u.username, (u.first_name || ' ' || u.last_name)) AS assignee_name,
+        COUNT(*) AS count
+      FROM workorders w
+      LEFT JOIN users u ON u.id = COALESCE(w.assigned_to, w.assignee)
+      WHERE COALESCE(w.assigned_to, w.assignee) IS NOT NULL
+      GROUP BY u.id, u.username, u.first_name, u.last_name
+      ORDER BY count DESC
+      LIMIT $1
+    `;
     const fallbackSql = `
-            SELECT r.assignee AS assignee_id, NULL AS assignee_name, COUNT(*) AS count
-            FROM rfqs r
-            WHERE r.assignee IS NOT NULL
-            GROUP BY r.assignee
-            ORDER BY count DESC
-            LIMIT $1
-        `;
+      SELECT r.assignee AS assignee_id, NULL AS assignee_name, COUNT(*) AS count
+      FROM rfqs r
+      WHERE r.assignee IS NOT NULL
+      GROUP BY r.assignee
+      ORDER BY count DESC
+      LIMIT $1
+    `;
     const result = await tryQuery(primarySql, fallbackSql, [limit]);
     const rows = result.rows || [];
     return res.json({

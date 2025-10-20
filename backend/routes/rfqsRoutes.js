@@ -46,17 +46,17 @@ function mergePrimaryWithParent(detail, parent) {
 router.get("/", async (req, res) => {
   try {
     const result = await db.query(`
-        SELECT 
-            r.*, 
-            u.username AS assignee_username,
-            sl.sl_number AS sl_number,
-            a.account_name AS account_name
-        FROM rfqs r
-        LEFT JOIN users u ON r.assignee = u.id
-        LEFT JOIN sales_leads sl ON r.sl_id = sl.id
-        LEFT JOIN accounts a ON r.account_id = a.id
-        ORDER BY r.id ASC
-        `);
+                SELECT 
+                        r.*, 
+                        u.username AS assignee_username,
+                        sl.sl_number AS sl_number,
+                        a.account_name AS account_name
+                FROM rfqs r
+                LEFT JOIN users u ON r.assignee = u.id
+                LEFT JOIN sales_leads sl ON r.sl_id = sl.id
+                LEFT JOIN accounts a ON r.account_id = a.id
+                ORDER BY r.id ASC
+                `);
     return res.json(result.rows);
   } catch (err) {
     console.error(err);
@@ -81,17 +81,17 @@ router.get("/:id", async (req, res) => {
     const { id } = req.params;
     const result = await db.query(
       `
-            SELECT 
-                r.*, 
-                u.username AS assignee_username,
-                sl.sl_number AS sl_number,
-                a.account_name AS account_name
-            FROM rfqs r
-            LEFT JOIN users u ON r.assignee = u.id
-            LEFT JOIN sales_leads sl ON r.sl_id = sl.id
-            LEFT JOIN accounts a ON r.account_id = a.id
-            WHERE r.id = $1
-            `,
+                        SELECT 
+                                r.*, 
+                                u.username AS assignee_username,
+                                sl.sl_number AS sl_number,
+                                a.account_name AS account_name
+                        FROM rfqs r
+                        LEFT JOIN users u ON r.assignee = u.id
+                        LEFT JOIN sales_leads sl ON r.sl_id = sl.id
+                        LEFT JOIN accounts a ON r.account_id = a.id
+                        WHERE r.id = $1
+                        `,
       [id],
     );
     if (result.rows.length === 0)
@@ -221,11 +221,11 @@ router.get("/:id", async (req, res) => {
     // Get quotations with item and vendor details
     const quotationsRes = await db.query(
       `
-            SELECT q.*
-            FROM rfq_quotations q
-            WHERE q.rfq_id = $1
-            ORDER BY q.id ASC
-            `,
+                        SELECT q.*
+                        FROM rfq_quotations q
+                        WHERE q.rfq_id = $1
+                        ORDER BY q.id ASC
+                        `,
       [id],
     );
     const quotations = quotationsRes.rows;
@@ -246,16 +246,16 @@ router.get("/:id", async (req, res) => {
 
     // Set price & leadTime for items based on selected quote
     // items = items.map((item) => {
-    //     // Find selected quote for this item
-    //     const selectedQuote = quotations.find((q) => q.itemId === item.itemId && q.isSelected);
-    //     if (selectedQuote) {
-    //         return {
-    //             ...item,
-    //             unitPrice: selectedQuote.unitPrice,
-    //             leadTime: selectedQuote.leadTime,
-    //         };
-    //     }
-    //     return item;
+    //         // Find selected quote for this item
+    //         const selectedQuote = quotations.find((q) => q.itemId === item.itemId && q.isSelected);
+    //         if (selectedQuote) {
+    //                 return {
+    //                         ...item,
+    //                         unitPrice: selectedQuote.unitPrice,
+    //                         leadTime: selectedQuote.leadTime,
+    //                 };
+    //         }
+    //         return item;
     // });
 
     console.log("Final items with prices and lead times:", items);
@@ -293,11 +293,11 @@ router.post("/", async (req, res) => {
     const currentYear = new Date().getFullYear();
     const result = await db.query(
       `
-            SELECT rfq_number
-            FROM rfqs
-            WHERE rfq_number LIKE $1
-            ORDER BY rfq_number DESC
-            LIMIT 1`,
+                        SELECT rfq_number
+                        FROM rfqs
+                        WHERE rfq_number LIKE $1
+                        ORDER BY rfq_number DESC
+                        LIMIT 1`,
       [`RFQ-${currentYear}-%`],
     );
 
@@ -322,10 +322,10 @@ router.post("/", async (req, res) => {
     // Insert into DB
     const insertResult = await db.query(
       `
-            INSERT INTO rfqs 
-            (wo_id, assignee, rfq_number, stage_status, due_date, sl_id, account_id, selected_vendors_by_item, created_at, created_by, updated_at)
-            VALUES ($1,$2,$3,$4,$5,$6,$7,$8,NOW(),$9,NOW())
-            RETURNING id`,
+                        INSERT INTO rfqs 
+                        (wo_id, assignee, rfq_number, stage_status, due_date, sl_id, account_id, selected_vendors_by_item, created_at, created_by, updated_at)
+                        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,NOW(),$9,NOW())
+                        RETURNING id`,
       [
         wo_id,
         assignee,
@@ -357,18 +357,18 @@ router.post("/", async (req, res) => {
     // Create workflow stage for new technical recommendation (Draft)
     await db.query(
       `
-            INSERT INTO workflow_stages (wo_id, stage_name, status, assigned_to, created_at, updated_at)
-            VALUES ($1, $2, $3, $4, NOW(), NOW())`,
+                        INSERT INTO workflow_stages (wo_id, stage_name, status, assigned_to, created_at, updated_at)
+                        VALUES ($1, $2, $3, $4, NOW(), NOW())`,
       [wo_id, "RFQ", "Draft", assignee],
     );
 
     const final = await db.query(
       `
-            SELECT r.*, u.username AS assignee_username, a.account_name AS account_name
-            FROM rfqs r
-            LEFT JOIN users u ON r.assignee = u.id
-            LEFT JOIN accounts a ON r.account_id = a.id
-            WHERE r.id = $1`,
+                        SELECT r.*, u.username AS assignee_username, a.account_name AS account_name
+                        FROM rfqs r
+                        LEFT JOIN users u ON r.assignee = u.id
+                        LEFT JOIN accounts a ON r.account_id = a.id
+                        WHERE r.id = $1`,
       [newId],
     );
 
@@ -424,13 +424,13 @@ router.put("/:id", async (req, res) => {
 
     const updateResult = await db.query(
       `UPDATE rfqs 
-            SET 
-                wo_id=$1, assignee=$2, rfq_number=$3, due_date=$4, description=$5,
-                sl_id=$6, account_id=$7, payment_terms=$8, notes=$9, subtotal=$10,
-                vat=$11, grand_total=$12, actual_date=$13, actual_from_time=$14, created_at=$15,
-                selected_vendors_by_item=$17, updated_by=$16, updated_at=NOW()
-            WHERE id=$18
-            RETURNING id`,
+                        SET 
+                                wo_id=$1, assignee=$2, rfq_number=$3, due_date=$4, description=$5,
+                                sl_id=$6, account_id=$7, payment_terms=$8, notes=$9, subtotal=$10,
+                                vat=$11, grand_total=$12, actual_date=$13, actual_from_time=$14, created_at=$15,
+                                selected_vendors_by_item=$17, updated_by=$16, updated_at=NOW()
+                        WHERE id=$18
+                        RETURNING id`,
       [
         body.wo_id,
         body.assignee,
@@ -615,10 +615,10 @@ router.put("/:id", async (req, res) => {
 
     const result = await db.query(
       `SELECT r.*, u.username AS assignee_username, a.account_name AS account_name
-            FROM rfqs r
-            LEFT JOIN users u ON r.assignee = u.id
-            LEFT JOIN accounts a ON r.account_id = a.id
-            WHERE r.id = $1`,
+                        FROM rfqs r
+                        LEFT JOIN users u ON r.assignee = u.id
+                        LEFT JOIN accounts a ON r.account_id = a.id
+                        WHERE r.id = $1`,
       [updatedId],
     );
     if (result.rows.length === 0)
@@ -646,10 +646,10 @@ router.get("/:id/items", async (req, res) => {
       items.map(async (item) => {
         const quotesResult = await db.query(
           `SELECT q.*, v.name AS vendor_name, v.contact_person, v.phone, v.email, v.address
-         FROM rfq_quotations q
-         LEFT JOIN vendors v ON q.vendor_id = v.id
-         WHERE q.item_id = $1 AND q.rfq_id = $2
-         ORDER BY q.id ASC`,
+                 FROM rfq_quotations q
+                 LEFT JOIN vendors v ON q.vendor_id = v.id
+                 WHERE q.item_id = $1 AND q.rfq_id = $2
+                 ORDER BY q.id ASC`,
           [item.item_id, id],
         );
         return {
@@ -711,7 +711,7 @@ router.post("/:id/items", async (req, res) => {
         // Insert
         const result = await db.query(
           `INSERT INTO rfq_items (rfq_id, description, brand, part_number, quantity, unit, lead_time, unit_price, amount)
-           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`,
+                     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`,
           [
             id,
             item.description,
@@ -777,7 +777,7 @@ router.post("/:id/vendors", async (req, res) => {
         // Insert
         const result = await db.query(
           `INSERT INTO rfq_vendors (rfq_id, vendor_id, contact_person, status, quote_date, grand_total, notes)
-           VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *`,
+                     VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *`,
           [
             id,
             vendor.vendor_id,
@@ -851,7 +851,7 @@ router.post("/:id/item-quotes", async (req, res) => {
         // Insert
         const result = await db.query(
           `INSERT INTO rfq_item_vendor_quotes (rfq_item_id, vendor_id, unit_price, total, lead_time, lead_time_color, quote_date, status, notes)
-           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`,
+                     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`,
           [
             quote.rfq_item_id,
             quote.vendor_id,
@@ -881,10 +881,10 @@ router.get("/:id/vendors", async (req, res) => {
     const { id } = req.params;
     const result = await db.query(
       `SELECT rv.*, v.name, v.phone, v.email, v.address
-       FROM rfq_vendors rv
-       LEFT JOIN vendors v ON rv.vendor_id = v.id
-       WHERE rv.rfq_id = $1
-       ORDER BY rv.id ASC`,
+             FROM rfq_vendors rv
+             LEFT JOIN vendors v ON rv.vendor_id = v.id
+             WHERE rv.rfq_id = $1
+             ORDER BY rv.id ASC`,
       [id],
     );
     return res.json(result.rows);
