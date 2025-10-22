@@ -273,7 +273,7 @@ router.post("/quotations", async (req, res) => {
     if (hintedWoId) {
       try {
         await db.query(
-          `UPDATE workorders SET stage_status = 'Completed', updated_at = NOW() WHERE id = $1`,
+          `UPDATE workorders SET stage_status = 'Completed', updated_at = NOW(), done_date = NOW() WHERE id = $1`,
           [hintedWoId],
         );
         // Record a workflow stage: Quotations -> Submitted (idempotent)

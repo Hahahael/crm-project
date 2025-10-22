@@ -230,6 +230,7 @@ mem.public.none(`
     actual_date DATE,
     actual_from_time TIME,
     actual_to_time TIME,
+    done_date DATE,
 
     -- Details
     objective TEXT,
@@ -463,6 +464,7 @@ mem.public.none(`
       rfq_id INT REFERENCES rfqs(id) ON DELETE CASCADE,
       vendor_id INT,
       valid_until DATE,
+      quoted_date DATE,
       payment_terms TEXT,
       notes TEXT
   );
