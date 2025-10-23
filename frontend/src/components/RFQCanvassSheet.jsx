@@ -30,19 +30,24 @@ export default function RFQCanvassSheet({
   });
   const formData = rfq;
   const readOnly = mode === "view";
+  // Canonical ID helpers to avoid camel/snake and string/number mismatches
+  const canonItemId = (obj) => (obj ? (obj.itemId ?? obj.item_id ?? obj.id) : undefined);
+  const canonVendorId = (obj) => (obj ? (obj.vendorId ?? obj.vendor_id ?? obj.id) : undefined);
+  const idEq = (a, b) => String(a ?? "") === String(b ?? "");
   // Handler to select best vendor per item
   const handleSelectRecommendedVendors = () => {
     if (readOnly) return;
     const newSelection = {};
     const itemsSource = formItems || [];
     const updatedItems = itemsSource.map((item) => {
+      const iid = canonItemId(item);
       const itemQuotes = generateQuotations(selectedVendorsByItem).filter(
-        (q) => q.itemId === item.itemId,
+        (q) => idEq(q.itemId, iid),
       );
       const minTotal = Math.min(...itemQuotes.map((q) => q.total));
       const bestQuote = itemQuotes.find((q) => q.total === minTotal);
       if (bestQuote) {
-        newSelection[item.itemId] = bestQuote.vendorId;
+        newSelection[iid] = bestQuote.vendorId;
         return {
           ...item,
           unitPrice: bestQuote.unitPrice,
@@ -74,7 +79,8 @@ export default function RFQCanvassSheet({
     }
     const initial = {};
     (formItems || []).forEach((item) => {
-      if (item.bestVendorId) initial[item.itemId] = item.bestVendorId;
+      const iid = canonItemId(item);
+      if (item.bestVendorId) initial[iid] = item.bestVendorId;
     });
     return initial;
   });
@@ -85,12 +91,13 @@ export default function RFQCanvassSheet({
       const arr = [];
       const itemsSource = formItems || [];
       itemsSource.forEach((item) => {
+        const iid = canonItemId(item);
         (formVendors || []).forEach((vendor) => {
+          const vid = canonVendorId(vendor);
           // vendor.quotes may come from different sources and use snake_case (item_id) or camelCase (itemId)
           const vendorItem = Array.isArray(vendor.quotes)
             ? vendor.quotes.find(
-                (q) =>
-                  (q.itemId || q.item_id) === (item.itemId || item.item_id),
+                (q) => idEq(q.itemId ?? q.item_id, iid),
               )
             : undefined;
 
@@ -106,8 +113,8 @@ export default function RFQCanvassSheet({
             : (item.quantity ?? 1);
 
           arr.push({
-            itemId: item.itemId ?? item.item_id,
-            vendorId: vendor.vendorId ?? vendor.vendor_id,
+            itemId: iid,
+            vendorId: vid,
             unitPrice,
             quantity,
             leadTime: vendorItem
@@ -118,15 +125,14 @@ export default function RFQCanvassSheet({
               : "",
             total: unitPrice * quantity,
             // FIX: isSelected should compare selected vendorId for this item
-            isSelected:
-              selectedVendorsByItem[item.itemId ?? item.item_id] ===
-              (vendor.vendorId ?? vendor.vendor_id),
+            isSelected: idEq(selectedVendorsByItem[iid], vid),
           });
         });
       });
       // Mark best option per item
       (formItems || []).forEach((item) => {
-        const itemQuotes = arr.filter((q) => q.itemId === item.itemId);
+        const iid2 = canonItemId(item);
+        const itemQuotes = arr.filter((q) => idEq(q.itemId, iid2));
         const minTotal = Math.min(...itemQuotes.map((q) => q.total));
         itemQuotes.forEach((q) => {
           q.isBestOption = q.total === minTotal;
@@ -140,7 +146,8 @@ export default function RFQCanvassSheet({
   const [quotations, setQuotations] = useState(() =>
     generateQuotations({
       ...(formItems || []).reduce((acc, item) => {
-        if (item.bestVendorId) acc[item.itemId] = item.bestVendorId;
+        const iid = canonItemId(item);
+        if (item.bestVendorId) acc[iid] = item.bestVendorId;
         return acc;
       }, {}),
     }),
@@ -166,11 +173,11 @@ export default function RFQCanvassSheet({
     if (readOnly) return;
     // Find the selected quotation
     const selectedQuote = quotations.find(
-      (q) => q.itemId === itemId && q.vendorId === vendorId,
+      (q) => idEq(q.itemId, itemId) && idEq(q.vendorId, vendorId),
     );
     // Update all relevant fields in the item
     const updatedItems = (formItems || []).map((item) =>
-      item.itemId === itemId
+      idEq(canonItemId(item), itemId)
         ? {
             ...item,
             unitPrice: selectedQuote?.unitPrice ?? item.unitPrice,
@@ -215,11 +222,12 @@ export default function RFQCanvassSheet({
 
   // Calculate vendorTotals from quotations array
   const vendorTotals = (formVendors || []).map((vendor) => {
+    const vid = canonVendorId(vendor);
     let total = quotations
-      .filter((q) => q.vendorId === vendor.vendorId)
+      .filter((q) => idEq(q.vendorId, vid))
       .reduce((sum, q) => sum + q.total, 0);
     return {
-      id: vendor.vendorId,
+      id: vid,
       name: vendor.Name || vendor.vendor?.Name || vendor.name || vendor.details?.Name || "-",
       total: total,
       recommended: false, // will be set below
@@ -415,7 +423,7 @@ export default function RFQCanvassSheet({
                   {formData.vendors.map((v) => {
                     const quote = quotations.find(
                       (q) =>
-                        q.itemId === item.itemId && q.vendorId === v.vendorId,
+                        idEq(q.itemId, canonItemId(item)) && idEq(q.vendorId, canonVendorId(v)),
                     );
                     console.log(
                       "Quote",
@@ -431,7 +439,7 @@ export default function RFQCanvassSheet({
                         }`}
                         onClick={() => {
                           !readOnly &&
-                            handleSelectVendor(item.itemId, v.vendorId);
+                            handleSelectVendor(canonItemId(item), canonVendorId(v));
                         }}
                         aria-disabled={readOnly}
                         role={readOnly ? "button" : "button"}
@@ -467,11 +475,11 @@ export default function RFQCanvassSheet({
                       {(() => {
                         // Find the best option quote for this item
                         const bestQuote = quotations.find(
-                          (q) => q.itemId === item.itemId && q.isBestOption,
+                          (q) => idEq(q.itemId, canonItemId(item)) && q.isBestOption,
                         );
                         if (bestQuote) {
                           const bestVendor = formData.vendors.find(
-                            (v) => v.vendorId === bestQuote.vendorId,
+                            (v) => idEq(canonVendorId(v), bestQuote.vendorId),
                           );
                           return (
                             <>
