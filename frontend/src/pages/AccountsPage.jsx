@@ -201,7 +201,7 @@ export default function AccountsPage() {
         body: JSON.stringify({
           wo_id: savedAccount?.wo_id ?? savedAccount?.woId ?? formData?.wo_id ?? formData?.woId ?? null,
           stage_name: "NAEF",
-          status: "Pending",
+          status: "In Progress",
           assigned_to: savedAccount?.assignee ?? formData?.assignee ?? null,
         }),
       });

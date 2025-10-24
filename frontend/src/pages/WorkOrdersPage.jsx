@@ -1,6 +1,6 @@
 //src/pages/WorkOrdersPage
 import { useState, useEffect, useRef, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import {
   LuBell,
   LuCheck,
@@ -21,6 +21,7 @@ import { toSnake } from "../helper/utils";
 export default function WorkOrdersPage() {
   const timeoutRef = useRef();
   const navigate = useNavigate();
+  const location = useLocation();
 
   const [workOrders, setWorkOrders] = useState([]);
   const [search, setSearch] = useState("");
@@ -106,6 +107,17 @@ export default function WorkOrdersPage() {
     fetchAllData();
   }, []);
 
+  // Open create form when navigated from Calendar with a selected date
+  useEffect(() => {
+    const state = location?.state;
+    if (state && state.openCreate) {
+      setSelectedWO(null);
+      setEditingWO({ wo_date: state.woDate || undefined });
+      // Clear the navigation state to avoid reopening on back/refresh
+      navigate("/workorders", { replace: true });
+    }
+  }, [location?.state, navigate]);
+
   useEffect(() => {
     if (currentUser) {
       fetchNewAssignedWorkOrders();
@@ -177,7 +189,7 @@ export default function WorkOrdersPage() {
           body: JSON.stringify({
             wo_id: savedWorkOrder?.wo_id ?? savedWorkOrder?.woId ?? savedWorkOrder?.id,
             stage_name: "Work Order",
-            status: "Pending",
+            status: "In Progress",
             assigned_to: savedWorkOrder?.assignee ?? null,
           }),
         });

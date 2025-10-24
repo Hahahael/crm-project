@@ -176,7 +176,7 @@ export default function TechnicalsPage() {
           wo_id:
             savedTechnicalReco?.wo_id ?? savedTechnicalReco?.woId ?? formData?.wo_id ?? formData?.woId ?? null,
           stage_name: "Technical Recommendation",
-          status: "Pending",
+          status: "In Progress",
           assigned_to: savedTechnicalReco?.assignee ?? formData?.assignee ?? null,
         }),
       });

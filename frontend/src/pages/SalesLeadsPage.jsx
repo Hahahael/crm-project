@@ -314,7 +314,7 @@ export default function SalesLeadsPage() {
           wo_id:
             savedSalesLead?.wo_id ?? savedSalesLead?.woId ?? formData?.wo_id ?? formData?.woId ?? null,
           stage_name: "Sales Lead",
-          status: savedSalesLead?.status || "Pending",
+          status: savedSalesLead?.status || "In Progress",
           assigned_to: savedSalesLead?.assignee ?? formData?.assignee ?? null,
         }),
       });

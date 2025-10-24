@@ -681,8 +681,6 @@ router.get("/assigned/latest/:id/:stageName", async (req, res) => {
   }
 });
 
-export default router;
-
 // Summary: latest stage per workorder
 // GET /api/workflow-stages/summary/latest
 // Optional query parameters:
@@ -700,7 +698,8 @@ router.get("/summary/latest", async (req, res) => {
         ws.assigned_to,
         ws.remarks,
         ws.created_at,
-        ws.updated_at
+        ws.updated_at,
+        u.username AS assigned_to_username
       FROM workflow_stages ws
       INNER JOIN (
         SELECT wo_id, MAX(created_at) AS max_created
@@ -709,6 +708,7 @@ router.get("/summary/latest", async (req, res) => {
       ) latest
         ON ws.wo_id = latest.wo_id
         AND ws.created_at = latest.max_created
+      LEFT JOIN users u ON ws.assigned_to = u.id
       ORDER BY ws.created_at DESC;
     `;
 
@@ -719,3 +719,5 @@ router.get("/summary/latest", async (req, res) => {
     return res.status(500).json({ error: "Failed to fetch summary" });
   }
 });
+
+export default router;
