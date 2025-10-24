@@ -581,32 +581,20 @@ router.put("/:id", async (req, res) => {
         const unitPrice = q.unit_price === "" ? null : q.unit_price;
         const isSelected = q.is_selected === "" ? null : q.is_selected;
         if (existingIds.has(`${q.vendor_id}-${q.item_id}-${q.rfq_id}`)) {
-<<<<<<< HEAD
           // Detect change vs previous values
-=======
-          // detect change versus previous
->>>>>>> 90ec9e3 (Added updated routes for dashboards and summaries)
           try {
             const prev = existing.find(
               (e) => e.vendor_id === q.vendor_id && e.item_id === q.item_id && e.rfq_id === q.rfq_id,
             );
             if (prev) {
-<<<<<<< HEAD
-              if (prev.unit_price !== unitPrice || prev.lead_time !== leadTime) {
-=======
               const prevUnit = prev.unit_price;
               const prevLead = prev.lead_time;
               if (prevUnit !== unitPrice || prevLead !== leadTime) {
->>>>>>> 90ec9e3 (Added updated routes for dashboards and summaries)
                 vendorChanged.set(q.vendor_id, true);
               }
             }
           } catch {
-<<<<<<< HEAD
             // ignore change detection errors
-=======
-            // ignore comparison failure
->>>>>>> 90ec9e3 (Added updated routes for dashboards and summaries)
           }
           await db.query(
             `UPDATE rfq_quotations SET item_id=$1, vendor_id=$2, quantity=$3, lead_time=$4, is_selected=$5, unit_price=$6 WHERE item_id=$7 AND vendor_id=$8 AND rfq_id=$9`,
@@ -623,10 +611,7 @@ router.put("/:id", async (req, res) => {
             ],
           );
         } else {
-<<<<<<< HEAD
           // Treat insertion with meaningful values as a change
-=======
->>>>>>> 90ec9e3 (Added updated routes for dashboards and summaries)
           if (q.vendor_id && (unitPrice != null || leadTime != null)) {
             vendorChanged.set(q.vendor_id, true);
           }
@@ -646,7 +631,6 @@ router.put("/:id", async (req, res) => {
       }
     }
 
-<<<<<<< HEAD
     // After upserts, compute and set/update vendor quote_date
     try {
       // Vendors on this RFQ (need id, vendor_id, quote_date)
@@ -657,18 +641,6 @@ router.put("/:id", async (req, res) => {
       const rfqVendors = vendorsRes2.rows || [];
 
       // Get all item_ids for this RFQ to define completeness set
-=======
-    // Compute and set/update quoted_date for vendors
-    try {
-      // Get vendors on this RFQ (id, vendor_id, quoted_date)
-      const vendorsRes = await db.query(
-        "SELECT id, vendor_id, quoted_date FROM rfq_vendors WHERE rfq_id = $1",
-        [id],
-      );
-      const rfqVendors = vendorsRes.rows || [];
-
-      // Get all item_ids for this RFQ
->>>>>>> 90ec9e3 (Added updated routes for dashboards and summaries)
       const itemsRes2 = await db.query(
         "SELECT item_id FROM rfq_items WHERE rfq_id = $1",
         [id],
@@ -676,7 +648,6 @@ router.put("/:id", async (req, res) => {
       const itemIds = itemsRes2.rows.map((r) => r.item_id);
 
       for (const v of rfqVendors) {
-<<<<<<< HEAD
         if (!itemIds || itemIds.length === 0) continue;
         // Count of items for which this vendor has both price and lead time
         const cntRes = await db.query(
@@ -687,56 +658,30 @@ router.put("/:id", async (req, res) => {
               AND item_id = ANY($3)
               AND unit_price IS NOT NULL
               AND lead_time IS NOT NULL`,
-=======
-        if (itemIds.length === 0) continue;
-        // Count how many items have both price and lead time for this vendor
-        const cntRes = await db.query(
-          `SELECT COUNT(DISTINCT item_id) AS cnt
-             FROM rfq_quotations
-            WHERE rfq_id = $1 AND vendor_id = $2 AND unit_price IS NOT NULL AND lead_time IS NOT NULL
-              AND item_id = ANY($3)`,
->>>>>>> 90ec9e3 (Added updated routes for dashboards and summaries)
           [id, v.vendor_id, itemIds],
         );
         const completeCount = Number(cntRes.rows?.[0]?.cnt || 0);
         const allComplete = completeCount === itemIds.length;
 
-<<<<<<< HEAD
         if (v.quote_date == null && allComplete) {
           // First time vendor completed all items
           await db.query(
             `UPDATE rfq_vendors SET quote_date = NOW() WHERE id = $1`,
-=======
-        if (v.quoted_date == null && allComplete) {
-          await db.query(
-            `UPDATE rfq_vendors SET quoted_date = NOW() WHERE id = $1`,
->>>>>>> 90ec9e3 (Added updated routes for dashboards and summaries)
             [v.id],
           );
           continue;
         }
 
-<<<<<<< HEAD
         if (v.quote_date != null && vendorChanged.get(v.vendor_id)) {
           // Vendor edited quotes after initial completion
           await db.query(
             `UPDATE rfq_vendors SET quote_date = NOW() WHERE id = $1`,
-=======
-        if (v.quoted_date != null && vendorChanged.get(v.vendor_id)) {
-          await db.query(
-            `UPDATE rfq_vendors SET quoted_date = NOW() WHERE id = $1`,
->>>>>>> 90ec9e3 (Added updated routes for dashboards and summaries)
             [v.id],
           );
         }
       }
-<<<<<<< HEAD
     } catch (qdErr) {
       console.warn("Failed to compute/update quote_date:", qdErr.message);
-=======
-    } catch (e) {
-      console.warn("Failed to update vendor quoted_date on RFQ PUT:", e.message);
->>>>>>> 90ec9e3 (Added updated routes for dashboards and summaries)
     }
 
     const result = await db.query(
@@ -887,22 +832,14 @@ router.post("/:id/vendors", async (req, res) => {
       if (vendor.id && existingIds.has(vendor.id)) {
         // Update
         const result = await db.query(
-<<<<<<< HEAD
           `UPDATE rfq_vendors SET vendor_id=$1, contact_person=$2, status=$3, quote_date=$4, subtotal=$5, vat=$6, grand_total=$7, notes=$8 WHERE id=$9 RETURNING *`,
-=======
-          `UPDATE rfq_vendors SET vendor_id=$1, contact_person=$2, status=$3, quoted_date=$4, grand_total=$5, notes=$6 WHERE id=$7 RETURNING *`,
->>>>>>> 90ec9e3 (Added updated routes for dashboards and summaries)
           [
             vendor.vendor_id,
             vendor.contact_person,
             vendor.status,
-<<<<<<< HEAD
             vendor.quote_date,
             vendor.subtotal,
             vendor.vat,
-=======
-            vendor.quoted_date,
->>>>>>> 90ec9e3 (Added updated routes for dashboards and summaries)
             vendor.grand_total,
             vendor.notes,
             vendor.id,
@@ -912,25 +849,16 @@ router.post("/:id/vendors", async (req, res) => {
       } else {
         // Insert
         const result = await db.query(
-<<<<<<< HEAD
           `INSERT INTO rfq_vendors (rfq_id, vendor_id, contact_person, status, quote_date, subtotal, vat, grand_total, notes)
             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`,
-=======
-          `INSERT INTO rfq_vendors (rfq_id, vendor_id, contact_person, status, quoted_date, grand_total, notes)
-                     VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *`,
->>>>>>> 90ec9e3 (Added updated routes for dashboards and summaries)
           [
             id,
             vendor.vendor_id,
             vendor.contact_person,
             vendor.status,
-<<<<<<< HEAD
             vendor.quote_date,
             vendor.subtotal,
             vendor.vat,
-=======
-            vendor.quoted_date,
->>>>>>> 90ec9e3 (Added updated routes for dashboards and summaries)
             vendor.grand_total,
             vendor.notes,
           ],
