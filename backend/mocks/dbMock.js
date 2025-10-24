@@ -466,6 +466,10 @@ mem.public.none(`
       valid_until DATE,
       quoted_date DATE,
       payment_terms TEXT,
+      subtotal NUMERIC(12,2),
+      vat NUMERIC(12,2),
+      grand_total NUMERIC(12,2),
+      quote_date DATE,
       notes TEXT
   );
 
@@ -479,32 +483,32 @@ mem.public.none(`
       unit_price NUMERIC(12, 2),
       is_selected BOOLEAN DEFAULT FALSE,
       quantity INT NOT NULL DEFAULT 1
-);
+  );
 `);
 
 // Quotations Table
 mem.public.none(`
   -- Quotations table
   CREATE TABLE quotations (
-      id SERIAL PRIMARY KEY,
-      quotation_number VARCHAR(50) NOT NULL,
-      rfq_id INT REFERENCES rfqs(id) ON DELETE CASCADE,
-      tr_id INT REFERENCES technical_recommendations(id),
-      wo_id INT REFERENCES workorders(id),
-      account_id INT,
-      assignee INT REFERENCES users(id),
-      actual_date DATE,
-      actual_from_time TIME,
-      actual_to_time TIME,
-      due_date DATE,
-      done_date DATE,
-      title VARCHAR(255) DEFAULT '',
-      stage_status VARCHAR(50) DEFAULT 'Ongoing',
-      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-      created_by INT REFERENCES users(id),
-      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-      updated_by INT REFERENCES users(id)
-);
+    id SERIAL PRIMARY KEY,
+    quotation_number VARCHAR(50) NOT NULL,
+    rfq_id INT REFERENCES rfqs(id) ON DELETE CASCADE,
+    tr_id INT REFERENCES technical_recommendations(id),
+    wo_id INT REFERENCES workorders(id),
+    account_id INT,
+    assignee INT REFERENCES users(id),
+    actual_date DATE,
+    actual_from_time TIME,
+    actual_to_time TIME,
+    due_date DATE,
+    done_date DATE,
+    title VARCHAR(255) DEFAULT '',
+    stage_status VARCHAR(50) DEFAULT 'Ongoing',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    created_by INT REFERENCES users(id),
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_by INT REFERENCES users(id)
+  );
 `);
 
 // seed data ...

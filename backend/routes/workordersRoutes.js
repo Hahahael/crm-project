@@ -413,7 +413,7 @@ router.post("/", async (req, res) => {
 
     let newCounter = 1;
     if (result.rows.length > 0) {
-      const lastWoNumber = result.rows[0].wo_number; // e.g. "WO-2025-0042"
+      const lastWoNumber = result.rows[0].woNumber; // e.g. "WO-2025-0042"
       const lastCounter = parseInt(lastWoNumber.split("-")[2], 10);
       newCounter = lastCounter + 1;
     }

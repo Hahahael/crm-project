@@ -64,17 +64,17 @@ router.get("/:id", async (req, res) => {
     const { id } = req.params;
     const result = await db.query(
       `
-                        SELECT 
-                                r.*, 
-                                u.username AS assignee_username,
-                                sl.sl_number AS sl_number,
-                                a.account_name AS account_name
-                        FROM rfqs r
-                        LEFT JOIN users u ON r.assignee = u.id
-                        LEFT JOIN sales_leads sl ON r.sl_id = sl.id
-                        LEFT JOIN accounts a ON r.account_id = a.id
-                        WHERE r.id = $1
-                        `,
+        SELECT 
+                r.*, 
+                u.username AS assignee_username,
+                sl.sl_number AS sl_number,
+                a.account_name AS account_name
+        FROM rfqs r
+        LEFT JOIN users u ON r.assignee = u.id
+        LEFT JOIN sales_leads sl ON r.sl_id = sl.id
+        LEFT JOIN accounts a ON r.account_id = a.id
+        WHERE r.id = $1
+      `,
       [id],
     );
     if (result.rows.length === 0)
@@ -177,8 +177,10 @@ router.get("/:id", async (req, res) => {
             ? detailsRes.recordset[0]
             : null;
         const merged = mergePrimaryWithParent(detail, parent);
-        let vendorToPush = { ...rv };
-        if (merged) vendorToPush.details = merged;
+        let vendorToPush = { ...rv, ...parent };
+        // if (merged) vendorToPush.details = merged;
+        vendorToPush.details = detail;
+        vendorToPush.items = items.map((it) => ({ price: null, leadTime: "", ...it }));
         // canonicalize vendor id fields
         vendorToPush.vendorId =
           vendorToPush.vendorId ??
@@ -504,13 +506,24 @@ router.put("/:id", async (req, res) => {
         const paymentTerms =
           vendor.paymentTerms === "" ? null : vendor.paymentTerms;
         const notes = vendor.notes === "" ? null : vendor.notes;
+        const subtotal = vendor.subtotal === "" ? null : vendor.subtotal;
+        const vat = vendor.vat === "" ? null : vendor.vat;
+        const grandTotal =
+          vendor.grandTotal === "" ? null : vendor.grandTotal;
+        const quoteDate =
+          vendor.quoteDate === "" ? null : vendor.quoteDate;
+        // If the incoming vendor provides a vendor_id that already exists for this RFQ, update the record
         if (vendor.vendor_id && existingIds.has(vendor.vendor_id)) {
           await db.query(
-            `UPDATE rfq_vendors SET vendor_id=$1, valid_until=$2, payment_terms=$3, notes=$4 WHERE vendor_id=$5 AND rfq_id=$6`,
+            `UPDATE rfq_vendors SET vendor_id=$1, valid_until=$2, payment_terms=$3, subtotal=$4, vat=$5, grand_total=$6, quote_date=$7, notes=$8 WHERE vendor_id=$9 AND rfq_id=$10`,
             [
               vendor.vendor_id,
               validUntil,
               paymentTerms,
+              subtotal,
+              vat,
+              grandTotal,
+              quoteDate,
               notes,
               vendor.vendor_id,
               id,
@@ -518,8 +531,8 @@ router.put("/:id", async (req, res) => {
           );
         } else {
           await db.query(
-            `INSERT INTO rfq_vendors (rfq_id, vendor_id, valid_until, payment_terms, notes) VALUES ($1,$2,$3,$4,$5)`,
-            [id, vendor.vendor_id, validUntil, paymentTerms, notes],
+            `INSERT INTO rfq_vendors (rfq_id, vendor_id, valid_until, payment_terms, subtotal, vat, grand_total, quote_date, notes) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
+            [id, vendor.vendor_id, validUntil, paymentTerms, subtotal, vat, grandTotal, quoteDate, notes],
           );
         }
       }
@@ -568,7 +581,7 @@ router.put("/:id", async (req, res) => {
         const unitPrice = q.unit_price === "" ? null : q.unit_price;
         const isSelected = q.is_selected === "" ? null : q.is_selected;
         if (existingIds.has(`${q.vendor_id}-${q.item_id}-${q.rfq_id}`)) {
-          // detect change versus previous
+          // Detect change vs previous values
           try {
             const prev = existing.find(
               (e) => e.vendor_id === q.vendor_id && e.item_id === q.item_id && e.rfq_id === q.rfq_id,
@@ -581,7 +594,7 @@ router.put("/:id", async (req, res) => {
               }
             }
           } catch {
-            // ignore comparison failure
+            // ignore change detection errors
           }
           await db.query(
             `UPDATE rfq_quotations SET item_id=$1, vendor_id=$2, quantity=$3, lead_time=$4, is_selected=$5, unit_price=$6 WHERE item_id=$7 AND vendor_id=$8 AND rfq_id=$9`,
@@ -598,6 +611,7 @@ router.put("/:id", async (req, res) => {
             ],
           );
         } else {
+          // Treat insertion with meaningful values as a change
           if (q.vendor_id && (unitPrice != null || leadTime != null)) {
             vendorChanged.set(q.vendor_id, true);
           }
@@ -617,16 +631,16 @@ router.put("/:id", async (req, res) => {
       }
     }
 
-    // Compute and set/update quoted_date for vendors
+    // After upserts, compute and set/update vendor quote_date
     try {
-      // Get vendors on this RFQ (id, vendor_id, quoted_date)
-      const vendorsRes = await db.query(
-        "SELECT id, vendor_id, quoted_date FROM rfq_vendors WHERE rfq_id = $1",
+      // Vendors on this RFQ (need id, vendor_id, quote_date)
+      const vendorsRes2 = await db.query(
+        "SELECT id, vendor_id, quote_date FROM rfq_vendors WHERE rfq_id = $1",
         [id],
       );
-      const rfqVendors = vendorsRes.rows || [];
+      const rfqVendors = vendorsRes2.rows || [];
 
-      // Get all item_ids for this RFQ
+      // Get all item_ids for this RFQ to define completeness set
       const itemsRes2 = await db.query(
         "SELECT item_id FROM rfq_items WHERE rfq_id = $1",
         [id],
@@ -634,35 +648,40 @@ router.put("/:id", async (req, res) => {
       const itemIds = itemsRes2.rows.map((r) => r.item_id);
 
       for (const v of rfqVendors) {
-        if (itemIds.length === 0) continue;
-        // Count how many items have both price and lead time for this vendor
+        if (!itemIds || itemIds.length === 0) continue;
+        // Count of items for which this vendor has both price and lead time
         const cntRes = await db.query(
           `SELECT COUNT(DISTINCT item_id) AS cnt
              FROM rfq_quotations
-            WHERE rfq_id = $1 AND vendor_id = $2 AND unit_price IS NOT NULL AND lead_time IS NOT NULL
-              AND item_id = ANY($3)`,
+            WHERE rfq_id = $1
+              AND vendor_id = $2
+              AND item_id = ANY($3)
+              AND unit_price IS NOT NULL
+              AND lead_time IS NOT NULL`,
           [id, v.vendor_id, itemIds],
         );
         const completeCount = Number(cntRes.rows?.[0]?.cnt || 0);
         const allComplete = completeCount === itemIds.length;
 
-        if (v.quoted_date == null && allComplete) {
+        if (v.quote_date == null && allComplete) {
+          // First time vendor completed all items
           await db.query(
-            `UPDATE rfq_vendors SET quoted_date = NOW() WHERE id = $1`,
+            `UPDATE rfq_vendors SET quote_date = NOW() WHERE id = $1`,
             [v.id],
           );
           continue;
         }
 
-        if (v.quoted_date != null && vendorChanged.get(v.vendor_id)) {
+        if (v.quote_date != null && vendorChanged.get(v.vendor_id)) {
+          // Vendor edited quotes after initial completion
           await db.query(
-            `UPDATE rfq_vendors SET quoted_date = NOW() WHERE id = $1`,
+            `UPDATE rfq_vendors SET quote_date = NOW() WHERE id = $1`,
             [v.id],
           );
         }
       }
-    } catch (e) {
-      console.warn("Failed to update vendor quoted_date on RFQ PUT:", e.message);
+    } catch (qdErr) {
+      console.warn("Failed to compute/update quote_date:", qdErr.message);
     }
 
     const result = await db.query(
@@ -813,12 +832,14 @@ router.post("/:id/vendors", async (req, res) => {
       if (vendor.id && existingIds.has(vendor.id)) {
         // Update
         const result = await db.query(
-          `UPDATE rfq_vendors SET vendor_id=$1, contact_person=$2, status=$3, quoted_date=$4, grand_total=$5, notes=$6 WHERE id=$7 RETURNING *`,
+          `UPDATE rfq_vendors SET vendor_id=$1, contact_person=$2, status=$3, quote_date=$4, subtotal=$5, vat=$6, grand_total=$7, notes=$8 WHERE id=$9 RETURNING *`,
           [
             vendor.vendor_id,
             vendor.contact_person,
             vendor.status,
-            vendor.quoted_date,
+            vendor.quote_date,
+            vendor.subtotal,
+            vendor.vat,
             vendor.grand_total,
             vendor.notes,
             vendor.id,
@@ -828,14 +849,16 @@ router.post("/:id/vendors", async (req, res) => {
       } else {
         // Insert
         const result = await db.query(
-          `INSERT INTO rfq_vendors (rfq_id, vendor_id, contact_person, status, quoted_date, grand_total, notes)
-                     VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *`,
+          `INSERT INTO rfq_vendors (rfq_id, vendor_id, contact_person, status, quote_date, subtotal, vat, grand_total, notes)
+            VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`,
           [
             id,
             vendor.vendor_id,
             vendor.contact_person,
             vendor.status,
-            vendor.quoted_date,
+            vendor.quote_date,
+            vendor.subtotal,
+            vendor.vat,
             vendor.grand_total,
             vendor.notes,
           ],
