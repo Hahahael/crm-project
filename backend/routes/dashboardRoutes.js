@@ -76,9 +76,9 @@ router.get("/summary", async (req, res) => {
         SUM(CASE WHEN stage_status = 'Pending' THEN 1 ELSE 0 END) AS pending,
         SUM(CASE WHEN stage_status = 'In Progress' THEN 1 ELSE 0 END) AS "inProgress",
         SUM(CASE WHEN stage_status = 'Completed' THEN 1 ELSE 0 END) AS completed,
-        SUM(CASE WHEN (due_date::date < CURRENT_DATE AND done_date IS NULL) THEN 1 ELSE 0 END) AS overdue,
-        SUM(CASE WHEN (due_date::date BETWEEN CURRENT_DATE AND (CURRENT_DATE + INTERVAL '3 days') AND done_date IS NULL) THEN 1 ELSE 0 END) AS "dueSoon",
-        SUM(CASE WHEN done_date IS NOT NULL AND done_date::date <= due_date::date THEN 1 ELSE 0 END) AS "onTimeCount"
+        SUM(CASE WHEN (DATE(due_date) < CURRENT_DATE AND done_date IS NULL) THEN 1 ELSE 0 END) AS overdue,
+        SUM(CASE WHEN (DATE(due_date) BETWEEN CURRENT_DATE AND (CURRENT_DATE + INTERVAL '3 days') AND done_date IS NULL) THEN 1 ELSE 0 END) AS "dueSoon",
+        SUM(CASE WHEN done_date IS NOT NULL AND DATE(done_date) <= DATE(due_date) THEN 1 ELSE 0 END) AS "onTimeCount"
       FROM workorders
     `;
 
@@ -131,22 +131,24 @@ router.get("/due-performance", async (req, res) => {
   try {
     const primarySql = `
       SELECT
-        SUM(CASE WHEN done_date IS NOT NULL AND done_date <= due_date THEN 1 ELSE 0 END) AS early,
-        SUM(CASE WHEN done_date IS NOT NULL AND done_date = due_date THEN 1 ELSE 0 END) AS onTime,
-        SUM(CASE WHEN done_date IS NULL AND due_date BETWEEN NOW() AND (NOW() + INTERVAL '3 days') THEN 1 ELSE 0 END) AS dueSoon,
-        SUM(CASE WHEN done_date IS NULL AND due_date < NOW() THEN 1 ELSE 0 END) AS overdue,
+        SUM(CASE WHEN done_date IS NOT NULL AND CAST(done_date AS timestamp) < CAST(due_date AS timestamp) THEN 1 ELSE 0 END) AS early,
+        SUM(CASE WHEN done_date IS NOT NULL AND CAST(done_date AS timestamp) = CAST(due_date AS timestamp) THEN 1 ELSE 0 END) AS onTime,
+        SUM(CASE WHEN done_date IS NULL AND CAST(due_date AS timestamp) >= CAST(NOW() AS timestamp)
+                AND CAST(due_date AS timestamp) <= CAST((NOW() + INTERVAL '3 days') AS timestamp) THEN 1 ELSE 0 END) AS dueSoon,
+        SUM(CASE WHEN done_date IS NULL AND CAST(due_date AS timestamp) < CAST(NOW() AS timestamp) THEN 1 ELSE 0 END) AS overdue,
         SUM(CASE WHEN done_date IS NULL THEN 1 ELSE 0 END) AS notCompleted
-      FROM workorders
+      FROM workorders;
     `;
 
     const fallbackSql = `
       SELECT
-        SUM(CASE WHEN done_date IS NOT NULL AND done_date <= due_date THEN 1 ELSE 0 END) AS early,
-        SUM(CASE WHEN done_date IS NOT NULL AND done_date = due_date THEN 1 ELSE 0 END) AS onTime,
-        SUM(CASE WHEN done_date IS NULL AND due_date >= NOW() AND due_date <= (NOW() + INTERVAL '3 days') THEN 1 ELSE 0 END) AS dueSoon,
-        SUM(CASE WHEN done_date IS NULL AND due_date < NOW() THEN 1 ELSE 0 END) AS overdue,
+        SUM(CASE WHEN done_date IS NOT NULL AND CAST(done_date AS timestamp) < CAST(due_date AS timestamp) THEN 1 ELSE 0 END) AS early,
+        SUM(CASE WHEN done_date IS NOT NULL AND CAST(done_date AS timestamp) = CAST(due_date AS timestamp) THEN 1 ELSE 0 END) AS onTime,
+        SUM(CASE WHEN done_date IS NULL AND CAST(due_date AS timestamp) >= CAST(NOW() AS timestamp)
+                AND CAST(due_date AS timestamp) <= CAST((NOW() + INTERVAL '3 days') AS timestamp) THEN 1 ELSE 0 END) AS dueSoon,
+        SUM(CASE WHEN done_date IS NULL AND CAST(due_date AS timestamp) < CAST(NOW() AS timestamp) THEN 1 ELSE 0 END) AS overdue,
         SUM(CASE WHEN done_date IS NULL THEN 1 ELSE 0 END) AS notCompleted
-      FROM rfqs
+      FROM rfqs;
     `;
 
     const result = await tryQuery(primarySql, fallbackSql);
@@ -258,6 +260,66 @@ router.get("/assignees", async (req, res) => {
   } catch (err) {
     console.error("Dashboard assignees error:", err);
     return res.status(500).json({ error: "Failed to compute assignee stats" });
+  }
+});
+
+router.get("/summary/latest", async (req, res) => {
+  try {
+    // Build base query using CTE to get latest created_at per wo_id (no filters)
+    const sql = `
+      SELECT
+        ws.id,
+        ws.wo_id,
+        ws.stage_name,
+        ws.status,
+        ws.assigned_to,
+        ws.remarks,
+        ws.created_at,
+        ws.updated_at
+      FROM workflow_stages ws
+      INNER JOIN (
+        SELECT wo_id, MAX(created_at) AS max_created
+        FROM workflow_stages
+        GROUP BY wo_id
+      ) latest
+        ON ws.wo_id = latest.wo_id
+        AND ws.created_at = latest.max_created
+      ORDER BY ws.created_at DESC;
+    `;
+
+    const result = await db.query(sql);
+    const rows = result.rows || [];
+    for (const row of rows) {
+      console.log("Fetching details for row:", row);
+      let rowQuery = "";
+      if (row.stageName.toLowerCase().includes("work order")) {
+        rowQuery = `SELECT * FROM workorders WHERE id = $1`;
+      } else if (row.stageName.toLowerCase().includes("sales lead")) {
+        rowQuery = `SELECT * FROM sales_leads WHERE wo_id = $1`;
+      } else if (row.stageName.toLowerCase().includes("technical")) {
+        rowQuery = `SELECT * FROM technical_recommendations WHERE wo_id = $1`;
+      } else if (row.stageName.toLowerCase().includes("rfq")) {
+        rowQuery = `SELECT * FROM rfqs WHERE id = $1`;
+      } else if (row.stageName.toLowerCase().includes("naef") || row.stageName.toLowerCase().includes("accounts")) {
+        rowQuery = `SELECT * FROM accounts WHERE wo_id = $1`;
+      } else if (row.stageName.toLowerCase().includes("quotation")) {
+        rowQuery = `SELECT * FROM quotations WHERE wo_id = $1`;
+      }
+
+      if (rowQuery) {
+        try {
+          const rowResult = await db.query(rowQuery, [row.woId]);
+          row.details = rowResult.rows[0] || null;
+        } catch (err) {
+          console.error("Failed to fetch row details:", err);
+        }
+      }
+    }
+
+    return res.json(rows || []);
+  } catch (err) {
+    console.error("Failed to fetch summary latest workflow stages:", err);
+    return res.status(500).json({ error: "Failed to fetch summary" });
   }
 });
 

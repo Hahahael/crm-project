@@ -5,24 +5,7 @@ import { poolPromise } from "../mssql.js";
 
 const router = express.Router();
 
-function logAttributes(label, obj) {
-  try {
-    if (!obj) return console.log(`${label}: <empty>`);
-    if (Array.isArray(obj)) {
-      const keys = new Set();
-      obj.forEach((r) => {
-        if (r && typeof r === "object")
-          Object.keys(r).forEach((k) => keys.add(k));
-      });
-      return console.log(`${label} keys:`, Array.from(keys));
-    }
-    if (typeof obj === "object")
-      return console.log(`${label} keys:`, Object.keys(obj));
-    return console.log(`${label}:`, obj);
-  } catch (err) {
-    console.error("logAttributes error:", err);
-  }
-}
+// (helper removed: was only used in commented debug)
 
 // Merge primary (detail) and parent objects. Primary wins; parent fields that collide are stored as <key>_secondary
 function mergePrimaryWithParent(detail, parent) {
@@ -426,13 +409,13 @@ router.put("/:id", async (req, res) => {
 
     const updateResult = await db.query(
       `UPDATE rfqs 
-                        SET 
-                                wo_id=$1, assignee=$2, rfq_number=$3, due_date=$4, description=$5,
-                                sl_id=$6, account_id=$7, payment_terms=$8, notes=$9, subtotal=$10,
-                                vat=$11, grand_total=$12, actual_date=$13, actual_from_time=$14, created_at=$15,
-                                selected_vendors_by_item=$17, updated_by=$16, updated_at=NOW()
-                        WHERE id=$18
-                        RETURNING id`,
+        SET 
+          wo_id=$1, assignee=$2, rfq_number=$3, due_date=$4, description=$5,
+          sl_id=$6, account_id=$7, payment_terms=$8, notes=$9, subtotal=$10,
+          vat=$11, grand_total=$12, actual_date=$13, actual_from_time=$14, created_at=$15,
+          selected_vendors_by_item=$17, updated_by=$16, updated_at=NOW()
+        WHERE id=$18
+        RETURNING id`,
       [
         body.wo_id,
         body.assignee,
@@ -566,7 +549,7 @@ router.put("/:id", async (req, res) => {
       });
     }
     console.log("quotations", allQuotations);
-    // Track whether a vendor had a change to unit_price or lead_time in this request
+    // Track vendor changes (unit_price/lead_time) within this update request
     const vendorChanged = new Map(); // key: vendor_id, value: boolean
     if (allQuotations.length > 0) {
       const existingRes = await db.query(
@@ -598,18 +581,32 @@ router.put("/:id", async (req, res) => {
         const unitPrice = q.unit_price === "" ? null : q.unit_price;
         const isSelected = q.is_selected === "" ? null : q.is_selected;
         if (existingIds.has(`${q.vendor_id}-${q.item_id}-${q.rfq_id}`)) {
+<<<<<<< HEAD
           // Detect change vs previous values
+=======
+          // detect change versus previous
+>>>>>>> 90ec9e3 (Added updated routes for dashboards and summaries)
           try {
             const prev = existing.find(
               (e) => e.vendor_id === q.vendor_id && e.item_id === q.item_id && e.rfq_id === q.rfq_id,
             );
             if (prev) {
+<<<<<<< HEAD
               if (prev.unit_price !== unitPrice || prev.lead_time !== leadTime) {
+=======
+              const prevUnit = prev.unit_price;
+              const prevLead = prev.lead_time;
+              if (prevUnit !== unitPrice || prevLead !== leadTime) {
+>>>>>>> 90ec9e3 (Added updated routes for dashboards and summaries)
                 vendorChanged.set(q.vendor_id, true);
               }
             }
           } catch {
+<<<<<<< HEAD
             // ignore change detection errors
+=======
+            // ignore comparison failure
+>>>>>>> 90ec9e3 (Added updated routes for dashboards and summaries)
           }
           await db.query(
             `UPDATE rfq_quotations SET item_id=$1, vendor_id=$2, quantity=$3, lead_time=$4, is_selected=$5, unit_price=$6 WHERE item_id=$7 AND vendor_id=$8 AND rfq_id=$9`,
@@ -626,7 +623,10 @@ router.put("/:id", async (req, res) => {
             ],
           );
         } else {
+<<<<<<< HEAD
           // Treat insertion with meaningful values as a change
+=======
+>>>>>>> 90ec9e3 (Added updated routes for dashboards and summaries)
           if (q.vendor_id && (unitPrice != null || leadTime != null)) {
             vendorChanged.set(q.vendor_id, true);
           }
@@ -646,6 +646,7 @@ router.put("/:id", async (req, res) => {
       }
     }
 
+<<<<<<< HEAD
     // After upserts, compute and set/update vendor quote_date
     try {
       // Vendors on this RFQ (need id, vendor_id, quote_date)
@@ -656,6 +657,18 @@ router.put("/:id", async (req, res) => {
       const rfqVendors = vendorsRes2.rows || [];
 
       // Get all item_ids for this RFQ to define completeness set
+=======
+    // Compute and set/update quoted_date for vendors
+    try {
+      // Get vendors on this RFQ (id, vendor_id, quoted_date)
+      const vendorsRes = await db.query(
+        "SELECT id, vendor_id, quoted_date FROM rfq_vendors WHERE rfq_id = $1",
+        [id],
+      );
+      const rfqVendors = vendorsRes.rows || [];
+
+      // Get all item_ids for this RFQ
+>>>>>>> 90ec9e3 (Added updated routes for dashboards and summaries)
       const itemsRes2 = await db.query(
         "SELECT item_id FROM rfq_items WHERE rfq_id = $1",
         [id],
@@ -663,6 +676,7 @@ router.put("/:id", async (req, res) => {
       const itemIds = itemsRes2.rows.map((r) => r.item_id);
 
       for (const v of rfqVendors) {
+<<<<<<< HEAD
         if (!itemIds || itemIds.length === 0) continue;
         // Count of items for which this vendor has both price and lead time
         const cntRes = await db.query(
@@ -673,30 +687,56 @@ router.put("/:id", async (req, res) => {
               AND item_id = ANY($3)
               AND unit_price IS NOT NULL
               AND lead_time IS NOT NULL`,
+=======
+        if (itemIds.length === 0) continue;
+        // Count how many items have both price and lead time for this vendor
+        const cntRes = await db.query(
+          `SELECT COUNT(DISTINCT item_id) AS cnt
+             FROM rfq_quotations
+            WHERE rfq_id = $1 AND vendor_id = $2 AND unit_price IS NOT NULL AND lead_time IS NOT NULL
+              AND item_id = ANY($3)`,
+>>>>>>> 90ec9e3 (Added updated routes for dashboards and summaries)
           [id, v.vendor_id, itemIds],
         );
         const completeCount = Number(cntRes.rows?.[0]?.cnt || 0);
         const allComplete = completeCount === itemIds.length;
 
+<<<<<<< HEAD
         if (v.quote_date == null && allComplete) {
           // First time vendor completed all items
           await db.query(
             `UPDATE rfq_vendors SET quote_date = NOW() WHERE id = $1`,
+=======
+        if (v.quoted_date == null && allComplete) {
+          await db.query(
+            `UPDATE rfq_vendors SET quoted_date = NOW() WHERE id = $1`,
+>>>>>>> 90ec9e3 (Added updated routes for dashboards and summaries)
             [v.id],
           );
           continue;
         }
 
+<<<<<<< HEAD
         if (v.quote_date != null && vendorChanged.get(v.vendor_id)) {
           // Vendor edited quotes after initial completion
           await db.query(
             `UPDATE rfq_vendors SET quote_date = NOW() WHERE id = $1`,
+=======
+        if (v.quoted_date != null && vendorChanged.get(v.vendor_id)) {
+          await db.query(
+            `UPDATE rfq_vendors SET quoted_date = NOW() WHERE id = $1`,
+>>>>>>> 90ec9e3 (Added updated routes for dashboards and summaries)
             [v.id],
           );
         }
       }
+<<<<<<< HEAD
     } catch (qdErr) {
       console.warn("Failed to compute/update quote_date:", qdErr.message);
+=======
+    } catch (e) {
+      console.warn("Failed to update vendor quoted_date on RFQ PUT:", e.message);
+>>>>>>> 90ec9e3 (Added updated routes for dashboards and summaries)
     }
 
     const result = await db.query(
@@ -774,7 +814,7 @@ router.post("/:id/items", async (req, res) => {
       }
     }
 
-    const upserted = [];
+  const upserted = [];
     for (const item of items) {
       if (item.id && existingIds.has(item.id)) {
         // Update
@@ -847,14 +887,22 @@ router.post("/:id/vendors", async (req, res) => {
       if (vendor.id && existingIds.has(vendor.id)) {
         // Update
         const result = await db.query(
+<<<<<<< HEAD
           `UPDATE rfq_vendors SET vendor_id=$1, contact_person=$2, status=$3, quote_date=$4, subtotal=$5, vat=$6, grand_total=$7, notes=$8 WHERE id=$9 RETURNING *`,
+=======
+          `UPDATE rfq_vendors SET vendor_id=$1, contact_person=$2, status=$3, quoted_date=$4, grand_total=$5, notes=$6 WHERE id=$7 RETURNING *`,
+>>>>>>> 90ec9e3 (Added updated routes for dashboards and summaries)
           [
             vendor.vendor_id,
             vendor.contact_person,
             vendor.status,
+<<<<<<< HEAD
             vendor.quote_date,
             vendor.subtotal,
             vendor.vat,
+=======
+            vendor.quoted_date,
+>>>>>>> 90ec9e3 (Added updated routes for dashboards and summaries)
             vendor.grand_total,
             vendor.notes,
             vendor.id,
@@ -864,16 +912,25 @@ router.post("/:id/vendors", async (req, res) => {
       } else {
         // Insert
         const result = await db.query(
+<<<<<<< HEAD
           `INSERT INTO rfq_vendors (rfq_id, vendor_id, contact_person, status, quote_date, subtotal, vat, grand_total, notes)
             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`,
+=======
+          `INSERT INTO rfq_vendors (rfq_id, vendor_id, contact_person, status, quoted_date, grand_total, notes)
+                     VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *`,
+>>>>>>> 90ec9e3 (Added updated routes for dashboards and summaries)
           [
             id,
             vendor.vendor_id,
             vendor.contact_person,
             vendor.status,
+<<<<<<< HEAD
             vendor.quote_date,
             vendor.subtotal,
             vendor.vat,
+=======
+            vendor.quoted_date,
+>>>>>>> 90ec9e3 (Added updated routes for dashboards and summaries)
             vendor.grand_total,
             vendor.notes,
           ],
@@ -894,6 +951,8 @@ router.post("/:id/item-quotes", async (req, res) => {
     const { id } = req.params;
     const quotesRaw = Array.isArray(req.body) ? req.body : [req.body];
     const quotes = quotesRaw.map(toSnake);
+    // Track vendor changes within this request (unit_price or lead_time changes)
+    const vendorChanged = new Map(); // key: vendor_id, value: boolean
     // Fetch existing quotes for items in this RFQ
     // Get all item ids for this RFQ
     const itemsRes = await db.query(
@@ -922,6 +981,19 @@ router.post("/:id/item-quotes", async (req, res) => {
     for (const quote of quotes) {
       if (quote.id && existingIds.has(quote.id)) {
         // Update
+        // Check pre-update values to detect changes
+        try {
+          const prev = existing.find((q) => q.id === quote.id);
+          const prevUnit = prev ? prev.unit_price : null;
+          const prevLead = prev ? prev.lead_time : null;
+          const newUnit = quote.unit_price === "" ? null : quote.unit_price;
+          const newLead = quote.lead_time === "" ? null : quote.lead_time;
+          if (prevUnit !== newUnit || prevLead !== newLead) {
+            vendorChanged.set(quote.vendor_id, true);
+          }
+        } catch {
+          // ignore read of previous values
+        }
         const result = await db.query(
           `UPDATE rfq_item_vendor_quotes SET vendor_id=$1, unit_price=$2, total=$3, lead_time=$4, lead_time_color=$5, quote_date=$6, status=$7, notes=$8 WHERE id=$9 RETURNING *`,
           [
@@ -939,6 +1011,10 @@ router.post("/:id/item-quotes", async (req, res) => {
         upserted.push(result.rows[0]);
       } else {
         // Insert
+        // Treat insertion of either unit_price or lead_time as a change
+        if (quote.vendor_id && (quote.unit_price != null || quote.lead_time != null)) {
+          vendorChanged.set(quote.vendor_id, true);
+        }
         const result = await db.query(
           `INSERT INTO rfq_item_vendor_quotes (rfq_item_id, vendor_id, unit_price, total, lead_time, lead_time_color, quote_date, status, notes)
                      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`,
@@ -956,6 +1032,58 @@ router.post("/:id/item-quotes", async (req, res) => {
         );
         upserted.push(result.rows[0]);
       }
+    }
+
+    // After upserting quotes, compute quoted_date per vendor according to rules
+    try {
+      // Get all vendors on this RFQ
+      const vendorsRes2 = await db.query(
+        "SELECT id, vendor_id, quoted_date FROM rfq_vendors WHERE rfq_id = $1",
+        [id],
+      );
+      const rfqVendors = vendorsRes2.rows || [];
+
+      for (const v of rfqVendors) {
+        // Get all items for this RFQ
+        const itemsRes2 = await db.query(
+          "SELECT id FROM rfq_items WHERE rfq_id = $1",
+          [id],
+        );
+        const itemIds2 = itemsRes2.rows.map((r) => r.id);
+
+        if (itemIds2.length === 0) continue;
+
+        // Load all quotes for this vendor across the RFQ items
+        const qRes2 = await db.query(
+          `SELECT rfq_item_id, unit_price, lead_time FROM rfq_item_vendor_quotes WHERE vendor_id = $1 AND rfq_item_id = ANY($2)`,
+          [v.vendor_id, itemIds2],
+        );
+        const qRows = qRes2.rows || [];
+
+        // Rule A: If quoted_date is null and ALL items for this RFQ have both lead_time and unit_price for this vendor -> set quoted_date = now()
+        const itemsQuotedCount = qRows.filter(
+          (r) => r.lead_time != null && r.unit_price != null,
+        ).length;
+        const allItemsHaveQuotes = itemsQuotedCount === itemIds2.length;
+
+        if (v.quoted_date == null && allItemsHaveQuotes) {
+          await db.query(
+            `UPDATE rfq_vendors SET quoted_date = NOW() WHERE id = $1`,
+            [v.id],
+          );
+          continue;
+        }
+
+        // Rule B: If quoted_date already set, and we detected a change for this vendor during upsert -> update quoted_date = now()
+        if (v.quoted_date != null && vendorChanged.get(v.vendor_id)) {
+          await db.query(
+            `UPDATE rfq_vendors SET quoted_date = NOW() WHERE id = $1`,
+            [v.id],
+          );
+        }
+      }
+    } catch (qdErr) {
+      console.warn("Failed to compute/update quoted_date:", qdErr.message);
     }
     return res.status(201).json(upserted);
   } catch (err) {

@@ -122,10 +122,10 @@ export default function QuotationsTable({ quotations, onView, onSend }) {
                 {quotation.tr?.title || quotation.rfq?.description || "-"}
               </td>
               <td className="px-4 py-2 text-black text-sm">
-                {quotation.stageStatus || "-"}
+                {quotation.account?.kristem?.Name || "-"}
               </td>
               <td className="px-4 py-2 text-black text-sm">
-                {quotation.priority || "-"}
+                {quotation.stageStatus || "-"}
               </td>
               <td className="px-4 py-2 text-black text-sm">
                 {util.formatDate(quotation.createdAt, "DD/MM/YYYY") || "-"}

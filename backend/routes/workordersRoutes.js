@@ -582,7 +582,21 @@ router.get("/summary/status", async (req, res) => {
         COUNT(*) AS total,
         SUM(CASE WHEN stage_status IN ('Draft', 'Pending') THEN 1 ELSE 0 END) AS in_pending_fix,
         SUM(CASE WHEN stage_status = 'In Progress' THEN 1 ELSE 0 END) AS in_progress,
-        SUM(CASE WHEN stage_status = 'Completed' THEN 1 ELSE 0 END) AS completed
+        SUM(CASE WHEN stage_status = 'Completed' THEN 1 ELSE 0 END) AS completed,
+        SUM(
+          CASE
+            WHEN stage_status IN ('Draft', 'Pending', 'In Progress')
+              AND due_date < CURRENT_DATE
+            THEN 1 ELSE 0
+          END
+        ) AS overdue,
+        SUM(
+          CASE
+            WHEN stage_status IN ('Draft', 'Pending', 'In Progress')
+              AND due_date BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '3 days'
+            THEN 1 ELSE 0
+          END
+        ) AS due_soon
       FROM workorders;
     `);
 
@@ -595,6 +609,36 @@ router.get("/summary/status", async (req, res) => {
   } catch (err) {
     console.error(err);
     return res.status(500).json({ error: "Failed to fetch status summary" });
+  }
+});
+
+router.get("/summary/counts", async (req, res) => {
+  try {
+    const result = await db.query(`
+      SELECT
+        COUNT(*) AS total,
+        SUM(CASE WHEN (due_date::date < CURRENT_DATE AND done_date IS NULL) THEN 1 ELSE 0 END) AS overdue,
+        SUM(CASE WHEN (due_date::date BETWEEN CURRENT_DATE AND (CURRENT_DATE + INTERVAL '3 days') AND done_date IS NULL) THEN 1 ELSE 0 END) AS due_soon,
+        SUM(CASE WHEN done_date IS NOT NULL AND done_date::date <= due_date::date THEN 1 ELSE 0 END) AS on_time_count
+      FROM workorders;
+    `);
+
+    const row = result.rows[0] || {};
+    const total = Number(row.total) || 0;
+    const onTimeCount = Number(row.on_time_count) || 0;
+    const onTimeRate = total > 0 ? (onTimeCount / total) * 100 : 0;
+
+    return res.json({
+      total,
+      overdue: Number(row.overdue) || 0,
+      dueSoon: Number(row.due_soon) || 0,
+      onTimeRate,
+    });
+  } catch (err) {
+    console.error(err);
+    return res
+      .status(500)
+      .json({ error: "Failed to fetch due performance summary" });
   }
 });
 

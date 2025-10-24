@@ -177,7 +177,7 @@ export default function WorkOrdersPage() {
           body: JSON.stringify({
             wo_id: savedWorkOrder?.wo_id ?? savedWorkOrder?.woId ?? savedWorkOrder?.id,
             stage_name: "Work Order",
-            status: "Pending",
+            status: "In Progress",
             assigned_to: savedWorkOrder?.assignee ?? null,
           }),
         });
