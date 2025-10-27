@@ -271,7 +271,7 @@ const WorkOrderDetails = ({
                 WO Date
               </label>
               <div className="col-span-5 w-full rounded-md bg-yellow-50 text-md border border-gray-200 px-3 py-3">
-                {utils.formatDate(workOrder.woDate, "DD/MM/YYYY") || ""}
+                {utils.formatDate(workOrder.woDate, "MM/DD/YYYY") || ""}
               </div>
             </div>
 
@@ -283,7 +283,7 @@ const WorkOrderDetails = ({
                 Due Date
               </label>
               <div className="col-span-5 w-full rounded-md bg-yellow-50 text-md border border-gray-200 px-3 py-3">
-                {utils.formatDate(workOrder.dueDate, "DD/MM/YYYY") || ""}
+                {utils.formatDate(workOrder.dueDate, "MM/DD/YYYY") || ""}
               </div>
             </div>
 
@@ -319,7 +319,7 @@ const WorkOrderDetails = ({
                 Actual Date
               </label>
               <div className="col-span-5 w-full rounded-md bg-yellow-50 text-md border border-gray-200 px-3 py-3">
-                {utils.formatDate(workOrder.actualDate, "DD/MM/YYYY") || "-"}
+                {utils.formatDate(workOrder.actualDate, "MM/DD/YYYY") || "-"}
               </div>
             </div>
 

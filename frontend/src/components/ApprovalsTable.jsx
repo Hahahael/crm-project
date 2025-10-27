@@ -150,7 +150,7 @@ export default function ApprovalsTable({
                 )}
               </td>
               <td className="px-4 py-2 text-black text-sm">
-                {utils.formatDate(row.submittedDate, "DD/MM/YYYY")}
+                {utils.formatDate(row.submittedDate, "MM/DD/YYYY")}
               </td>
               <td className="px-4 py-2 text-black text-sm">
                 {renderSubstatusBadge(row.stageName)}

@@ -1,7 +1,9 @@
 import { LuArrowLeft, LuFileCheck, LuPencil, LuPrinter } from "react-icons/lu";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { apiBackendFetch } from "../services/api.js";
 import utils from "../helper/utils";
+import SalesLeadDetails from "./SalesLeadDetails.jsx";
+import WorkOrderDetails from "./WorkOrderDetails.jsx";
 
 const TechnicalDetails = ({
   technicalReco,
@@ -16,7 +18,14 @@ const TechnicalDetails = ({
   console.log("TechnicalDetails - technicalReco:", technicalReco);
   const isAssignedToMe =
     currentUser && technicalReco.assignee === currentUser.id;
-  const isCreator = currentUser && technicalReco.createdBy === currentUser.id;
+  // const isCreator = currentUser && technicalReco.createdBy === currentUser.id;
+
+  // Tabs: TR (Technical), SL (Sales Lead), WO (Work Order)
+  const [activeTab, setActiveTab] = useState("TR");
+  const [slDetails, setSlDetails] = useState(null);
+  const [woDetails, setWoDetails] = useState(null);
+  const [slLoading, setSlLoading] = useState(false);
+  const [woLoading, setWoLoading] = useState(false);
 
   const renderStatusBadge = (status) => {
     if (!status) return "bg-gray-100 text-gray-800";
@@ -103,6 +112,56 @@ const TechnicalDetails = ({
     // eslint-disable-next-line
   }, [technicalReco?.id, isAssignedToMe]);
 
+  // Lazy-load related Sales Lead when tab is selected
+  useEffect(() => {
+    async function fetchSL() {
+      try {
+        setSlLoading(true);
+        const slId = technicalReco?.slId ?? technicalReco?.sl_id ?? null;
+        if (!slId) {
+          setSlDetails(null);
+          return;
+        }
+        const res = await apiBackendFetch(`/api/salesleads/${slId}`);
+        if (!res?.ok) throw new Error("Failed to fetch sales lead");
+        const sl = await res.json();
+        setSlDetails(sl);
+      } catch (e) {
+        console.error("Failed to load related Sales Lead:", e);
+        setSlDetails(null);
+      } finally {
+        setSlLoading(false);
+      }
+    }
+    if (activeTab === "SL" && !slDetails) fetchSL();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab, technicalReco?.slId, technicalReco?.sl_id]);
+
+  // Lazy-load related Work Order when tab is selected
+  useEffect(() => {
+    async function fetchWO() {
+      try {
+        setWoLoading(true);
+        const woId = technicalReco?.woId ?? technicalReco?.wo_id ?? null;
+        if (!woId) {
+          setWoDetails(null);
+          return;
+        }
+        const res = await apiBackendFetch(`/api/workorders/${woId}`);
+        if (!res?.ok) throw new Error("Failed to fetch work order");
+        const wo = await res.json();
+        setWoDetails(wo);
+      } catch (e) {
+        console.error("Failed to load related Work Order:", e);
+        setWoDetails(null);
+      } finally {
+        setWoLoading(false);
+      }
+    }
+    if (activeTab === "WO" && !woDetails) fetchWO();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab, technicalReco?.woId, technicalReco?.wo_id]);
+
   return (
     <div className="container mx-auto p-6 overflow-auto">
       {/* Header */}
@@ -167,7 +226,68 @@ const TechnicalDetails = ({
         </div>
       </div>
 
-      <div className="space-y-6 pb-6">
+      {/* Tabs */}
+      <div className="mb-4 border-b border-gray-200">
+        <nav className="-mb-px flex gap-2" aria-label="Tabs">
+          <button
+            type="button"
+            onClick={() => setActiveTab("TR")}
+            className={`whitespace-nowrap border-b-2 px-3 py-2 text-sm font-medium ${activeTab === "TR" ? "border-blue-500 text-blue-600" : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"}`}
+          >
+            Technical
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab("SL")}
+            className={`whitespace-nowrap border-b-2 px-3 py-2 text-sm font-medium ${activeTab === "SL" ? "border-blue-500 text-blue-600" : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"}`}
+          >
+            Sales Lead
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab("WO")}
+            className={`whitespace-nowrap border-b-2 px-3 py-2 text-sm font-medium ${activeTab === "WO" ? "border-blue-500 text-blue-600" : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"}`}
+          >
+            Work Order
+          </button>
+        </nav>
+      </div>
+
+      {activeTab === "SL" ? (
+        <div className="space-y-6 pb-6">
+          {slLoading ? (
+            <div className="p-6 text-sm text-gray-600">Loading sales lead…</div>
+          ) : slDetails ? (
+            <SalesLeadDetails
+              salesLead={slDetails}
+              currentUser={currentUser}
+              onBack={() => setActiveTab("TR")}
+              onEdit={() => alert("Please edit this Sales Lead from the Sales Leads page.")}
+              onSubmit={() => {}}
+            />
+          ) : (
+            <div className="p-6 text-sm text-gray-600">No related sales lead found.</div>
+          )}
+        </div>
+      ) : activeTab === "WO" ? (
+        <div className="space-y-6 pb-6">
+          {woLoading ? (
+            <div className="p-6 text-sm text-gray-600">Loading work order…</div>
+          ) : woDetails ? (
+            <WorkOrderDetails
+              workOrder={woDetails}
+              currentUser={currentUser}
+              onBack={() => setActiveTab("TR")}
+              onEdit={() => alert("Please edit this Work Order from the Work Orders page.")}
+              onWorkOrderUpdated={(updated) => setWoDetails(updated)}
+              toSalesLead={() => {}}
+            />
+          ) : (
+            <div className="p-6 text-sm text-gray-600">No related work order found.</div>
+          )}
+        </div>
+      ) : (
+        <div className="space-y-6 pb-6">
         {/* Basic Info */}
         <div className="rounded-xl border border-gray-200 p-6 shadow-sm">
           <div className="flex flex-col space-y-1.5 p-6">
@@ -185,7 +305,7 @@ const TechnicalDetails = ({
               />
               <Detail
                 label="Created Date"
-                value={utils.formatDate(technicalReco.createdAt, "DD/MM/YYYY")}
+                value={utils.formatDate(technicalReco.createdAt, "MM/DD/YYYY")}
               />
             </div>
           </div>
@@ -434,6 +554,7 @@ const TechnicalDetails = ({
           </div>
         </div>
       </div>
+      )}
     </div>
   );
 };

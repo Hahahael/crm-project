@@ -471,17 +471,16 @@ const WorkOrderForm = ({ workOrder, mode = "create", onSave, onBack }) => {
     if (!isValidDate(data.due_date)) {
       errors.due_date = "Due Date is required and must be valid.";
     } else {
-      // due_date must be strictly after today
+      // due_date must be today or later (disallow yesterday and earlier)
       const today = dayjs().startOf("day");
       const due = dayjs(data.due_date).startOf("day");
-      if (!due.isAfter(today)) {
-        errors.due_date = "Due Date must be later than today.";
+      if (due.isBefore(today)) {
+        errors.due_date = "Due Date cannot be earlier than today.";
       }
     }
     if (isValidDate(data.wo_date) && isValidDate(data.due_date)) {
       if (dayjs(data.due_date).isBefore(dayjs(data.wo_date), "day"))
         errors.due_date = "Due Date cannot be before WO Date.";
-      // if due_date equals wo_date, it's also invalid per rule (due must be after today and wo_date is today)
     }
 
     // times
@@ -899,19 +898,19 @@ const WorkOrderForm = ({ workOrder, mode = "create", onSave, onBack }) => {
                                   account_id: account.id,
                                   department:
                                     departments.find(
-                                      (d) => d.Id === account.department_id,
+                                      (d) => d.Id === account.department.Id,
                                     )?.Department || "",
-                                  department_id: account.department_id || "",
+                                  department_id: account.department.Id || "",
                                   industry:
                                     industries.find(
-                                      (i) => i.Id === account.industry_id,
+                                      (i) => i.Id === account.industry.Id,
                                     )?.Code || "",
-                                  industry_id: account.industry_id || "",
+                                  industry_id: account.industry.Id || "",
                                   product_brand:
                                     product_brands.find(
-                                      (p) => p.ID === account.product_id,
+                                      (p) => p.ID === account.brand.ID,
                                     )?.Description || "",
-                                  product_id: account.product_id || "",
+                                  product_id: account.brand.ID || "",
                                 }));
                                 setAccountDropdownOpen(false);
                                 setAccountQuery("");
@@ -1360,6 +1359,7 @@ const WorkOrderForm = ({ workOrder, mode = "create", onSave, onBack }) => {
                   autoComplete="off"
                   value={formData.due_date || ""}
                   onChange={handleDueDateChange}
+                  min={dayjs().format("YYYY-MM-DD")}
                   max="2099-12-31"
                   className="hide-native-date-icon w-full h-10 rounded-md border border-gray-200 px-3 pr-10 py-2"
                 />

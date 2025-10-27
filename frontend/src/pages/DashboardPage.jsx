@@ -25,6 +25,7 @@ import {
   YAxis,
   CartesianGrid,
 } from "recharts";
+import LoadingModal from "../components/LoadingModal";
 import { workflowStages } from "../../../backend/mocks/workflowstagesMocks";
 
 export default function DashboardPage() {
@@ -114,6 +115,8 @@ export default function DashboardPage() {
         if (assigneesData.ok) {
           assigneesJson = await assigneesData.json();
         }
+
+        console.log("Fetched dashboard data:", dueData);
         setSummary(summaryData);
         setDuePerf(dueData);
         setStageDist(Array.isArray(stageData) ? stageData : []);
@@ -143,8 +146,8 @@ export default function DashboardPage() {
     ? [
         { name: "Early", value: duePerf.early || 0, color: "#10b981" },
         { name: "On Time", value: duePerf.onTime || 0, color: "#3b82f6" },
-        { name: "Due Soon", value: duePerf.dueSoon || 0, color: "#f59e0b" },
-        { name: "Overdue", value: duePerf.overdue || 0, color: "#ef4444" },
+        { name: "Due Soon", value: summary.dueSoon || duePerf.dueSoon ||  0, color: "#f59e0b" },
+        { name: "Overdue", value: summary.overdue || duePerf.overdue || 0, color: "#ef4444" },
         {
           name: "Not Completed",
           value: duePerf.notCompleted || 0,
@@ -165,8 +168,14 @@ export default function DashboardPage() {
   const wfTotal = Number(workflowStagesSummary.total || 0);
   const wfPct = (n) => (wfTotal > 0 ? (Number(n || 0) / wfTotal) * 100 : 0);
 
-  if (loading) return <div className="p-6">Loading dashboard…</div>;
-  if (error) return <div className="p-6 text-red-600">{error}</div>;
+  if (loading)
+    return (
+      <LoadingModal
+        message="Loading Dashboard"
+        subtext="Please wait while we fetch your data."
+      />
+    );
+  if (error) return <p className="p-4 text-red-600">{error}</p>;
 
   return (
     <div className="p-6">

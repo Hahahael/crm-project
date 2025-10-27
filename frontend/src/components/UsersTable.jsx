@@ -168,7 +168,7 @@ export default function UsersTable({ users, onView, onEdit, onDelete }) {
                 </span>
               </td>
               <td className="px-4 py-2 text-black text-sm">
-                {util.formatDate(user.lastLogin, "DD/MM/YYYY hh:mm A")}
+                {util.formatDate(user.lastLogin, "MM/DD/YYYY hh:mm A")}
               </td>
               <td className="px-4 py-2 text-black text-sm text-right">
                 <button

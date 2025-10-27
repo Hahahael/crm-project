@@ -328,7 +328,7 @@ export default function SalesLeadsPage() {
 
       setSuccessMessage("Sales Lead saved successfully!");
       await fetchAllData();
-      fetchSelectedSL(savedSalesLead);
+      setSelectedSL(null);
       setEditingSL(null);
     } catch (err) {
       console.error("Error saving saleslead:", err);

@@ -10,6 +10,9 @@ import {
 import { useEffect, useState } from "react";
 import { apiBackendFetch } from "../services/api";
 import utils from "../helper/utils";
+import SalesLeadDetails from "./SalesLeadDetails.jsx";
+import WorkOrderDetails from "./WorkOrderDetails.jsx";
+import TechnicalDetails from "./TechnicalDetails.jsx";
 
 const RFQDetails = ({
   rfq,
@@ -21,6 +24,14 @@ const RFQDetails = ({
 }) => {
   const [items, setItems] = useState([]);
   const [vendors, setVendors] = useState([]);
+  const [activeTab, setActiveTab] = useState("RFQ"); // RFQ | SL | WO | TR
+  const [slDetails, setSlDetails] = useState(null);
+  const [woDetails, setWoDetails] = useState(null);
+  const [trDetails, setTrDetails] = useState(null);
+  const [slLoading, setSlLoading] = useState(false);
+  const [woLoading, setWoLoading] = useState(false);
+  const [trLoading, setTrLoading] = useState(false);
+  const [hasTechnical, setHasTechnical] = useState(false);
   const isAssignedToMe = currentUser && rfq.assignee === currentUser.id;
 
   function Detail({ label, value }) {
@@ -57,6 +68,33 @@ const RFQDetails = ({
     fetchLatestRFQ();
   }, [rfq?.id]);
 
+  // Probe if a Technical Recommendation exists via sl_id or wo_id
+  useEffect(() => {
+    let cancelled = false;
+    async function probeTR() {
+      // Try to find a TR by sl_id or wo_id
+      const res = await apiBackendFetch(`/api/technicals`).catch(() => null);
+      if (!res || !res.ok) {
+        if (!cancelled) setHasTechnical(false);
+        return;
+      }
+      const rows = await res.json().catch(() => []);
+      const slId = rfq?.slId ?? rfq?.sl_id;
+      const woId = rfq?.woId ?? rfq?.wo_id;
+      const match = (rows || []).find(
+        (r) => r.slId === slId || r.sl_id === slId || r.woId === woId || r.wo_id === woId,
+      );
+      if (!cancelled) {
+        setHasTechnical(!!match);
+        setTrDetails(match || null);
+      }
+    }
+    probeTR();
+    return () => {
+      cancelled = true;
+    };
+  }, [rfq?.slId, rfq?.sl_id, rfq?.woId, rfq?.wo_id]);
+
   useEffect(() => {
     // if (isAssignedToMe && !rfq.actualDate && !rfq.actualFromTime) {
     //     const now = new Date();
@@ -76,7 +114,6 @@ const RFQDetails = ({
     //                 // updated
     //             });
     // }
-    // eslint-disable-next-line
   }, [rfq?.id, isAssignedToMe]);
 
   // Vendor summary stats (derive status from quotes)
@@ -179,7 +216,7 @@ const RFQDetails = ({
             </h1>
             <h2 className="text-md text-gray-500">
               {rfq.description} • Created on{" "}
-              {utils.formatDate(rfq.createdAt, "DD/MM/YYYY")} by{" "}
+              {utils.formatDate(rfq.createdAt, "MM/DD/YYYY")} by{" "}
               {rfq.assigneeUsername}
             </h2>
           </div>
@@ -208,7 +245,142 @@ const RFQDetails = ({
         </div>
       </div>
 
-      <div className="space-y-6 pb-6">
+      {/* Tabs */}
+      <div className="mb-4 border-b border-gray-200">
+        <nav className="-mb-px flex gap-2" aria-label="Tabs">
+          <button
+            type="button"
+            onClick={() => setActiveTab("RFQ")}
+            className={`whitespace-nowrap border-b-2 px-3 py-2 text-sm font-medium ${activeTab === "RFQ" ? "border-blue-500 text-blue-600" : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"}`}
+          >
+            RFQ
+          </button>
+          <button
+            type="button"
+            onClick={async () => {
+              setActiveTab("SL");
+              if (slDetails || slLoading) return;
+              try {
+                setSlLoading(true);
+                const slId = rfq?.slId ?? rfq?.sl_id;
+                if (!slId) return;
+                const res = await apiBackendFetch(`/api/salesleads/${slId}`);
+                if (!res?.ok) throw new Error("Failed to fetch sales lead");
+                const sl = await res.json();
+                setSlDetails(sl);
+              } finally {
+                setSlLoading(false);
+              }
+            }}
+            className={`whitespace-nowrap border-b-2 px-3 py-2 text-sm font-medium ${activeTab === "SL" ? "border-blue-500 text-blue-600" : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"}`}
+          >
+            Sales Lead
+          </button>
+          <button
+            type="button"
+            onClick={async () => {
+              setActiveTab("WO");
+              if (woDetails || woLoading) return;
+              try {
+                setWoLoading(true);
+                const woId = rfq?.woId ?? rfq?.wo_id;
+                if (!woId) return;
+                const res = await apiBackendFetch(`/api/workorders/${woId}`);
+                if (!res?.ok) throw new Error("Failed to fetch work order");
+                const wo = await res.json();
+                setWoDetails(wo);
+              } finally {
+                setWoLoading(false);
+              }
+            }}
+            className={`whitespace-nowrap border-b-2 px-3 py-2 text-sm font-medium ${activeTab === "WO" ? "border-blue-500 text-blue-600" : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"}`}
+          >
+            Work Order
+          </button>
+          {hasTechnical && (
+            <button
+              type="button"
+              onClick={async () => {
+                setActiveTab("TR");
+                // trDetails may already be set from probe; if not, try to load via list or a direct id
+                if (trDetails || trLoading) return;
+                try {
+                  setTrLoading(true);
+                  const res = await apiBackendFetch(`/api/technicals`);
+                  if (!res?.ok) throw new Error("Failed to fetch technicals");
+                  const rows = await res.json();
+                  const slId = rfq?.slId ?? rfq?.sl_id;
+                  const woId = rfq?.woId ?? rfq?.wo_id;
+                  const match = (rows || []).find(
+                    (r) => r.slId === slId || r.sl_id === slId || r.woId === woId || r.wo_id === woId,
+                  );
+                  setTrDetails(match || null);
+                } finally {
+                  setTrLoading(false);
+                }
+              }}
+              className={`whitespace-nowrap border-b-2 px-3 py-2 text-sm font-medium ${activeTab === "TR" ? "border-blue-500 text-blue-600" : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"}`}
+            >
+              Technical
+            </button>
+          )}
+        </nav>
+      </div>
+
+      {activeTab === "SL" ? (
+        <div className="space-y-6 pb-6">
+          {slLoading ? (
+            <div className="p-6 text-sm text-gray-600">Loading sales lead…</div>
+          ) : slDetails ? (
+            <SalesLeadDetails
+              salesLead={slDetails}
+              currentUser={currentUser}
+              onBack={() => setActiveTab("RFQ")}
+              onEdit={() => alert("Please edit this Sales Lead from the Sales Leads page.")}
+              onSubmit={() => {}}
+            />
+          ) : (
+            <div className="p-6 text-sm text-gray-600">No related sales lead found.</div>
+          )}
+        </div>
+      ) : activeTab === "WO" ? (
+        <div className="space-y-6 pb-6">
+          {woLoading ? (
+            <div className="p-6 text-sm text-gray-600">Loading work order…</div>
+          ) : woDetails ? (
+            <WorkOrderDetails
+              workOrder={woDetails}
+              currentUser={currentUser}
+              onBack={() => setActiveTab("RFQ")}
+              onEdit={() => alert("Please edit this Work Order from the Work Orders page.")}
+              onWorkOrderUpdated={(updated) => setWoDetails(updated)}
+              toSalesLead={() => {}}
+            />
+          ) : (
+            <div className="p-6 text-sm text-gray-600">No related work order found.</div>
+          )}
+        </div>
+      ) : activeTab === "TR" ? (
+        <div className="space-y-6 pb-6">
+          {trLoading ? (
+            <div className="p-6 text-sm text-gray-600">Loading technical recommendation…</div>
+          ) : trDetails ? (
+            <TechnicalDetails
+              technicalReco={trDetails}
+              currentUser={currentUser}
+              onBack={() => setActiveTab("RFQ")}
+              onEdit={() => alert("Please edit this Technical Recommendation from the Technicals page.")}
+              onSave={() => {}}
+              onPrint={() => {}}
+              onSubmit={() => {}}
+              source="rfqDetails"
+            />
+          ) : (
+            <div className="p-6 text-sm text-gray-600">No related technical recommendation found.</div>
+          )}
+        </div>
+      ) : (
+        <div className="space-y-6 pb-6">
         <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
           {/* RFQ Information */}
           <div className="rounded-xl border border-gray-200 p-6 shadow-sm">
@@ -223,19 +395,19 @@ const RFQDetails = ({
                 <Detail label="Account:" value={rfq.accountName} />
                 <Detail
                   label="RFQ Date:"
-                  value={utils.formatDate(rfq.createdAt, "DD/MM/YYYY")}
+                  value={utils.formatDate(rfq.createdAt, "MM/DD/YYYY")}
                 />
                 <Detail
                   label="Due Date:"
-                  value={utils.formatDate(rfq.dueDate, "DD/MM/YYYY")}
+                  value={utils.formatDate(rfq.dueDate, "MM/DD/YYYY")}
                 />
                 <Detail
                   label="Done Date:"
-                  value={utils.formatDate(rfq.doneDate, "DD/MM/YYYY")}
+                  value={utils.formatDate(rfq.doneDate, "MM/DD/YYYY")}
                 />
                 <Detail
                   label="Terms:"
-                  value={utils.formatDate(rfq.terms, "DD/MM/YYYY")}
+                  value={utils.formatDate(rfq.terms, "MM/DD/YYYY")}
                 />
               </div>
             </div>
@@ -271,7 +443,7 @@ const RFQDetails = ({
                 <VendorDetail label="Amount:" value={rfq.slNumber} />
                 <VendorDetail
                   label="Savings:"
-                  value={utils.formatDate(rfq.createdAt, "DD/MM/YYYY")}
+                  value={utils.formatDate(rfq.createdAt, "MM/DD/YYYY")}
                 />
               </div>
             </div>
@@ -453,7 +625,7 @@ const RFQDetails = ({
                       <div>
                         <p className="text-xs text-gray-500">
                           Quote Date:{" "}
-                          {utils.formatDate(vendor.quoteDate, "DD/MM/YYYY") ||
+                          {utils.formatDate(vendor.quoteDate, "MM/DD/YYYY") ||
                             "N/A"}
                         </p>
                       </div>
@@ -478,6 +650,7 @@ const RFQDetails = ({
           </div>
         </div>
       </div>
+      )}
     </div>
   );
 };

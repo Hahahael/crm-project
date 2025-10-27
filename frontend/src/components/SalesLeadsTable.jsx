@@ -234,13 +234,13 @@ export default function SalesLeadsTable({ salesLeads, onView, onEdit }) {
                 })()}
               </td>
               <td className="px-4 py-2 text-black text-sm">
-                {util.formatDate(sl.fslDate, "DD/MM/YYYY")}
+                {util.formatDate(sl.fslDate, "MM/DD/YYYY")}
               </td>
               <td className="px-4 py-2 text-black text-sm">
-                {util.formatDate(sl.dueDate, "DD/MM/YYYY")}
+                {util.formatDate(sl.dueDate, "MM/DD/YYYY")}
               </td>
               <td className="px-4 py-2 text-black text-sm">
-                {util.formatDate(sl.doneDate, "DD/MM/YYYY") || "-"}
+                {util.formatDate(sl.doneDate, "MM/DD/YYYY") || "-"}
               </td>
               <td className="px-4 py-2 text-black text-sm">
                 {(() => {
@@ -309,7 +309,7 @@ export default function SalesLeadsTable({ salesLeads, onView, onEdit }) {
                   </button>
                   <button
                     onClick={() => onEdit(sl)}
-                    className={`rounded px-2 py-1 text-black border border-gray-200 bg-white transition-all duration-200 ${sl.stageStatus === "Approved" ? "opacity-50 cursor-not-allowed hover:bg-white pointer-events-none" : "cursor-pointer hover:bg-gray-100"}`}
+                    className={`rounded px-2 py-1 text-black border border-gray-200 bg-white transition-all duration-200 ${sl.stageStatus === "Approved" || sl.stageStatus === "Submitted" ? "opacity-50 cursor-not-allowed hover:bg-white pointer-events-none" : "cursor-pointer hover:bg-gray-100"}`}
                   >
                     <LuPencil className="my-auto" />
                   </button>

@@ -51,7 +51,7 @@ export default function AccountsTable({ accounts, onView, onEdit }) {
                 {account.kristem?.Code}
               </td>
               <td className="px-4 py-2 text-black text-sm">
-                {util.formatDate(account.created_at, "DD/MM/YYYY")}
+                {util.formatDate(account.created_at, "MM/DD/YYYY")}
               </td>
               <td className="px-4 py-2 text-black text-sm">
                 {account.kristem?.Name}
@@ -64,10 +64,10 @@ export default function AccountsTable({ accounts, onView, onEdit }) {
               </td>
               <td className="px-4 py-2 text-black text-sm">{account.stage_status}</td>
               <td className="px-4 py-2 text-black text-sm">
-                {util.formatDate(account.due_date, "DD/MM/YYYY")}
+                {util.formatDate(account.due_date, "MM/DD/YYYY")}
               </td>
               <td className="px-4 py-2 text-black text-sm">
-                {util.formatDate(account.done_date, "DD/MM/YYYY")}
+                {util.formatDate(account.done_date, "MM/DD/YYYY")}
               </td>
               <td className="px-4 py-2 text-black text-sm">
                 {account.delayStatus}

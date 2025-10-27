@@ -261,7 +261,7 @@ const AccountForm = ({
                   id="created_at"
                   type="text"
                   name="created_at"
-                  value={utils.formatDate(formData.created_at, "DD/MM/YYYY")}
+                  value={utils.formatDate(formData.created_at, "MM/DD/YYYY")}
                   onChange={handleChange}
                   readOnly
                 />
@@ -344,7 +344,7 @@ const AccountForm = ({
                   type="text"
                   name="due_date"
                   value={
-                    utils.formatDate(formData.due_date, "DD/MM/YYYY") || "-"
+                    utils.formatDate(formData.due_date, "MM/DD/YYYY") || "-"
                   }
                   onChange={handleChange}
                   readOnly
@@ -360,7 +360,7 @@ const AccountForm = ({
                   type="text"
                   name="doneDate"
                   value={
-                    utils.formatDate(formData.doneDate, "DD/MM/YYYY") || "-"
+                    utils.formatDate(formData.doneDate, "MM/DD/YYYY") || "-"
                   }
                   onChange={handleChange}
                   readOnly

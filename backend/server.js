@@ -23,6 +23,7 @@ import quotationsRouter from "./routes/quotationsRoutes.js";
 import mssqlInventoryRoutes from "./routes/mssqlInventoryRoutes.js";
 import mssqlAccountsRoutes from "./routes/mssqlAccountsRoutes.js";
 import dashboardRoutes from "./routes/dashboardRoutes.js";
+import adminRoutes from "./routes/adminRoutes.js";
 
 const PORT = process.env.PORT || 5500;
 const FRONTEND_URL = process.env.FRONTEND_URL || "http://localhost:5173";
@@ -89,6 +90,7 @@ app.use("/api/mssql", mssqlRoutes);
 app.use("/api/mssql/inventory", mssqlInventoryRoutes);
 app.use("/api/mssql/accounts", mssqlAccountsRoutes);
 app.use("/api/dashboard", dashboardRoutes);
+app.use("/api/admin", adminRoutes);
 
 app.use("/dashboard", usersRouter);
 app.use("/api/users", usersRouter);

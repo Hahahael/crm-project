@@ -38,6 +38,7 @@ export default function WorkOrdersPage() {
     inProgress: 0,
     completed: 0,
   });
+  const [statusFilter, setStatusFilter] = useState(null); // 'Pending' | 'In Progress' | 'Completed' | null
 
   const fetchAllData = async () => {
     try {
@@ -144,11 +145,21 @@ export default function WorkOrdersPage() {
     );
   if (error) return <p className="p-4 text-red-600">{error}</p>;
 
-  const filtered = workOrders.filter(
-    (wo) =>
-      wo.woNumber?.toLowerCase().includes(search.toLowerCase()) ||
-      (wo.accountName || "").toLowerCase().includes(search.toLowerCase()),
-  );
+  const filtered = workOrders
+    .filter((wo) => {
+      const q = search.toLowerCase();
+      return (
+        (wo.woNumber || "").toLowerCase().includes(q) ||
+        (wo.accountName || "").toLowerCase().includes(q)
+      );
+    })
+    .filter((wo) => {
+      if (!statusFilter) return true;
+      const s = String(wo.stageStatus || wo.stage_status || "").toLowerCase();
+      const t = statusFilter.toLowerCase();
+      if (t === "in progress") return s === "in progress" || s === "in-progress";
+      return s === t;
+    });
 
   const handleSave = async (formData, mode) => {
     console.log("Handle Save called with data:", formData, "Mode:", mode);
@@ -189,7 +200,7 @@ export default function WorkOrdersPage() {
           body: JSON.stringify({
             wo_id: savedWorkOrder?.wo_id ?? savedWorkOrder?.woId ?? savedWorkOrder?.id,
             stage_name: "Work Order",
-            status: "In Progress",
+            status: "Pending",
             assigned_to: savedWorkOrder?.assignee ?? null,
           }),
         });
@@ -204,7 +215,9 @@ export default function WorkOrdersPage() {
 
       setSuccessMessage("Work order saved successfully!");
       await fetchAllData();
-      await fetchSelectedWO(savedWorkOrder.id);
+      await fetchNewAssignedWorkOrders();
+      setEditingWO(null);
+      setSelectedWO(null);
     } catch (err) {
       console.error("Error saving workorder:", err);
       setError("Failed to save work order");
@@ -305,7 +318,7 @@ export default function WorkOrdersPage() {
     }
   };
 
-  const addWorkFlowStage = async (
+  const addWorkflowStage = async (
     woId,
     stageName,
     assignedTo,
@@ -320,7 +333,7 @@ export default function WorkOrdersPage() {
         body: JSON.stringify({
           wo_id: woId,
           stage_name: stageName,
-          status: mode === "create" ? "Pending" : "In Progress",
+          status: "In Progress",
           assigned_to: assignedTo,
         }),
       });
@@ -399,7 +412,7 @@ export default function WorkOrdersPage() {
                             (wo) => wo.id === newAssignedWorkOrders[0].woId,
                           ),
                         );
-                        addWorkFlowStage(
+                        addWorkflowStage(
                           newAssignedWorkOrders[0].id,
                           "Work Order",
                           currentUser.id,
@@ -433,10 +446,10 @@ export default function WorkOrdersPage() {
                   <div className="flex items-center space-x-2 mb-2">
                     <LuCircleAlert className="h-4 w-4 text-orange-600" />
                     <p className="text-sm font-semibold text-orange-800">
-                      New XSL Work Order Received
+                      New {newAssignedWorkOrders[0].isFsl ? "FSL" : "ESL"} Work Order Received
                     </p>
                     <span className="inline-flex items-center rounded-md border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 hover:bg-secondary/80 bg-orange-100 text-orange-800 border-orange-200">
-                      XSL
+                      {newAssignedWorkOrders[0].isFsl ? "FSL" : "ESL"}
                     </span>
                   </div>
                   <div className="space-y-1">
@@ -459,7 +472,7 @@ export default function WorkOrdersPage() {
                             (wo) => wo.id === newAssignedWorkOrders[0].woId,
                           ),
                         );
-                        addWorkFlowStage(
+                        addWorkflowStage(
                           newAssignedWorkOrders[0].woId,
                           "Work Order",
                           currentUser.id,
@@ -486,7 +499,12 @@ export default function WorkOrdersPage() {
 
           {/* Status center */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-            <div className="relative flex flex-col rounded-xl shadow-sm border border-gray-200 p-6">
+            <div
+              className={`relative flex flex-col rounded-xl shadow-sm border border-gray-200 p-6 cursor-pointer hover:shadow-md transition ${!statusFilter ? "ring-2 ring-blue-500" : ""}`}
+              onClick={() => setStatusFilter(null)}
+              role="button"
+              tabIndex={0}
+            >
               <LuClipboardList className="absolute top-6 right-6 text-gray-600" />
               <p className="text-sm mb-1 mr-4">Total Workorders</p>
               <h2 className="text-2xl font-bold">{statusSummary.total}</h2>
@@ -494,7 +512,12 @@ export default function WorkOrdersPage() {
                 All workorders in the system
               </p>
             </div>
-            <div className="relative flex flex-col rounded-xl shadow-sm border border-gray-200 p-6">
+            <div
+              className={`relative flex flex-col rounded-xl shadow-sm border border-gray-200 p-6 cursor-pointer hover:shadow-md transition ${statusFilter === "Pending" ? "ring-2 ring-blue-500" : ""}`}
+              onClick={() => setStatusFilter("Pending")}
+              role="button"
+              tabIndex={0}
+            >
               <LuClock className="absolute top-6 right-6 text-yellow-600" />
               <p className="text-sm mb-1 mr-4">Pending</p>
               <h2 className="text-2xl font-bold">{statusSummary.pending}</h2>
@@ -502,7 +525,12 @@ export default function WorkOrdersPage() {
                 Workorders waiting to be started
               </p>
             </div>
-            <div className="relative flex flex-col rounded-xl shadow-sm border border-gray-200 p-6">
+            <div
+              className={`relative flex flex-col rounded-xl shadow-sm border border-gray-200 p-6 cursor-pointer hover:shadow-md transition ${statusFilter === "In Progress" ? "ring-2 ring-blue-500" : ""}`}
+              onClick={() => setStatusFilter("In Progress")}
+              role="button"
+              tabIndex={0}
+            >
               <LuClock className="absolute top-6 right-6 text-blue-600" />
               <p className="text-sm mb-1 mr-4">In Progress</p>
               <h2 className="text-2xl font-bold">{statusSummary.inProgress}</h2>
@@ -510,7 +538,12 @@ export default function WorkOrdersPage() {
                 Workorders currently active
               </p>
             </div>
-            <div className="relative flex flex-col rounded-xl shadow-sm border border-gray-200 p-6">
+            <div
+              className={`relative flex flex-col rounded-xl shadow-sm border border-gray-200 p-6 cursor-pointer hover:shadow-md transition ${statusFilter === "Completed" ? "ring-2 ring-blue-500" : ""}`}
+              onClick={() => setStatusFilter("Completed")}
+              role="button"
+              tabIndex={0}
+            >
               <LuCheck className="absolute top-6 right-6 text-green-600" />
               <p className="text-sm mb-1 mr-4">Completed</p>
               <h2 className="text-2xl font-bold">{statusSummary.completed}</h2>
@@ -533,6 +566,20 @@ export default function WorkOrdersPage() {
                   placeholder="Search workorders..."
                 />
               </div>
+              {statusFilter && (
+                <div className="ml-4 inline-flex items-center gap-2 rounded-full bg-blue-50 text-blue-700 px-3 py-1 text-xs border border-blue-200">
+                  <span>Filter:</span>
+                  <span className="font-semibold">{statusFilter}</span>
+                  <button
+                    type="button"
+                    className="ml-1 rounded-full hover:bg-blue-100 px-1.5 cursor-pointer"
+                    onClick={() => setStatusFilter(null)}
+                    aria-label="Clear status filter"
+                  >
+                    ×
+                  </button>
+                </div>
+              )}
               <div className="ml-auto">
                 <button
                   onClick={() => {
