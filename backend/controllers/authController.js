@@ -35,8 +35,8 @@ export async function login(req, res) {
 
     res.cookie("token", token, {
       httpOnly: true,
-      secure: true,
-      sameSite: "None", // <-- important!
+      secure: false,
+      sameSite: "Lax", // <-- important!
       maxAge: 60 * 60 * 1000,
     });
 

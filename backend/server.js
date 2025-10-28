@@ -24,7 +24,7 @@ import mssqlInventoryRoutes from "./routes/mssqlInventoryRoutes.js";
 import mssqlAccountsRoutes from "./routes/mssqlAccountsRoutes.js";
 import dashboardRoutes from "./routes/dashboardRoutes.js";
 
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 5500;
 const FRONTEND_URL = process.env.FRONTEND_URL || "http://localhost:5173";
 
 const app = express();
@@ -55,8 +55,11 @@ const allowedOrigins = [
   "https://crm-project-ieqy6ib68-raphaels-projects-763450c5.vercel.app",
   "https://crm-project-git-new-dev-raphaels-projects-763450c5.vercel.app",
   "https://crm-project-4ugu.onrender.com",
-  "http://localhost:5173",
+  "http://localhost:5174",
+  "http://139.135.131.164:5174",
   FRONTEND_URL,
+  "http://139.135.131.164:5174",
+  "http://139.135.131.164:5500",
 ];
 app.use(
   cors({
@@ -103,8 +106,8 @@ app.get("/", (req, res) => {
   res.send("🚀 Server is alive!");
 });
 
-const server = app.listen(PORT, () => {
-  console.log(`✅ Server running on port ${PORT}`);
+const server = app.listen(PORT||5500,'0.0.0.0', () => {
+  console.log(`✅ Server running on port ${PORT||5500}`);
 });
 
 server.on("error", (err) => {

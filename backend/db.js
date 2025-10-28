@@ -5,9 +5,14 @@ import { toCamel } from "./helper/utils.js";
 
 import mockPool from "./mocks/dbMock.js";
 
+import dotenv from "dotenv";
+dotenv.config();
+
+
 let pool;
 
-console.log("Loading database...");
+console.log(`Loading`, (process.env.USE_MOCK?' mock':'') ,` database...`,process.env.USE_MOCK);
+
 
 if (process.env.USE_MOCK === "true") {
   pool = mockPool;
