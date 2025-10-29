@@ -22,6 +22,7 @@ const RFQDetails = ({
   onPrint,
   onSubmit,
   hideTabs = false,
+  source = "rfq"
 }) => {
   const [items, setItems] = useState([]);
   const [vendors, setVendors] = useState([]);
@@ -222,28 +223,30 @@ const RFQDetails = ({
             </h2>
           </div>
         </div>
-        <div className="flex gap-2">
-          <button
-            className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-light shadow h-9 px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white"
-            onClick={() => onEdit(rfq, "canvass")}
-          >
-            <LuChartBar className="mr-2" /> View Canvass Sheet
-          </button>
-          <button
-            onClick={() => onEdit(rfq, "details")}
-            className={`items-center justify-center whitespace-nowrap rounded-md text-sm font-light shadow h-9 px-4 py-2 bg-purple-500 hover:bg-purple-600 text-white ${rfq.stageStatus === "Submitted" || rfq.stageStatus === "Approved" ? "hidden" : "inline-flex"}`}
-          >
-            <LuPencil className="mr-2" />
-            Manage RFQ
-          </button>
-          <button
-            onClick={() => onSubmit(rfq)}
-            className={`items-center justify-center whitespace-nowrap rounded-md text-sm font-light shadow h-9 px-4 py-2 bg-green-500 hover:bg-green-600 text-white ${rfq.stageStatus === "Submitted" || rfq.stageStatus === "Approved" ? "hidden" : "inline-flex"}`}
-          >
-            <LuFileCheck className="mr-2" />
-            Submit for Approval
-          </button>
-        </div>
+        {source === "rfq" && 
+          <div className="flex gap-2">
+            <button
+              className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-light shadow h-9 px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white"
+              onClick={() => onEdit(rfq, "canvass")}
+            >
+              <LuChartBar className="mr-2" /> View Canvass Sheet
+            </button>
+            <button
+              onClick={() => onEdit(rfq, "details")}
+              className={`items-center justify-center whitespace-nowrap rounded-md text-sm font-light shadow h-9 px-4 py-2 bg-purple-500 hover:bg-purple-600 text-white ${rfq.stageStatus === "Submitted" || rfq.stageStatus === "Approved" ? "hidden" : "inline-flex"}`}
+            >
+              <LuPencil className="mr-2" />
+              Manage RFQ
+            </button>
+            <button
+              onClick={() => onSubmit(rfq)}
+              className={`items-center justify-center whitespace-nowrap rounded-md text-sm font-light shadow h-9 px-4 py-2 bg-green-500 hover:bg-green-600 text-white ${rfq.stageStatus === "Submitted" || rfq.stageStatus === "Approved" ? "hidden" : "inline-flex"}`}
+            >
+              <LuFileCheck className="mr-2" />
+              Submit for Approval
+            </button>
+          </div>
+        }
       </div>
 
       {/* Tabs */}
@@ -454,42 +457,44 @@ const RFQDetails = ({
           </div>
 
           {/* Actions */}
-          <div className="rounded-xl border border-gray-200 p-6 shadow-sm">
-            <div className="flex flex-col space-y-1.5 pb-6">
-              <h3 className="font-bold leading-none tracking-tight">Actions</h3>
-            </div>
-            <div className="pt-0">
-              <div className="grid grid-cols-1 gap-4">
-                <button
-                  onClick={() => onEdit(rfq, "vendors")}
-                  className={`flex items-center justify-center whitespace-nowrap rounded-md text-xs font-light shadow h-9 px-4 py-2 bg-purple-500 hover:bg-purple-600 text-white ${rfq.stageStatus === "Submitted" || rfq.stageStatus === "Approved" ? "hidden" : "inline-flex"}`}
-                >
-                  <LuPencil className="h-4 w-4 mr-2" />
-                  Manage Vendors
-                </button>
-                <button
-                  onClick={() => onEdit(rfq, "canvass")}
-                  className="flex items-center justify-center whitespace-nowrap rounded-md text-xs font-light shadow h-9 px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white"
-                >
-                  <LuChartBar className="h-4 w-4 mr-2" /> View Canvass
-                </button>
-                <button
-                  onClick={onPrint}
-                  className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-light shadow h-9 px-4 py-2 bg-gray-500 hover:bg-gray-600 text-white"
-                >
-                  <LuPrinter className="mr-2" />
-                  Print
-                </button>
-                <button
-                  onClick={onPrint}
-                  className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-light shadow h-9 px-4 py-2 bg-gray-500 hover:bg-gray-600 text-white"
-                >
-                  <LuMail className="mr-2" />
-                  Email
-                </button>
+          { source === "rfq" &&
+            <div className="rounded-xl border border-gray-200 p-6 shadow-sm">
+              <div className="flex flex-col space-y-1.5 pb-6">
+                <h3 className="font-bold leading-none tracking-tight">Actions</h3>
+              </div>
+              <div className="pt-0">
+                <div className="grid grid-cols-1 gap-4">
+                  <button
+                    onClick={() => onEdit(rfq, "vendors")}
+                    className={`flex items-center justify-center whitespace-nowrap rounded-md text-xs font-light shadow h-9 px-4 py-2 bg-purple-500 hover:bg-purple-600 text-white ${rfq.stageStatus === "Submitted" || rfq.stageStatus === "Approved" ? "hidden" : "inline-flex"}`}
+                  >
+                    <LuPencil className="h-4 w-4 mr-2" />
+                    Manage Vendors
+                  </button>
+                  <button
+                    onClick={() => onEdit(rfq, "canvass")}
+                    className="flex items-center justify-center whitespace-nowrap rounded-md text-xs font-light shadow h-9 px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white"
+                  >
+                    <LuChartBar className="h-4 w-4 mr-2" /> View Canvass
+                  </button>
+                  <button
+                    onClick={onPrint}
+                    className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-light shadow h-9 px-4 py-2 bg-gray-500 hover:bg-gray-600 text-white"
+                  >
+                    <LuPrinter className="mr-2" />
+                    Print
+                  </button>
+                  <button
+                    onClick={onPrint}
+                    className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-light shadow h-9 px-4 py-2 bg-gray-500 hover:bg-gray-600 text-white"
+                  >
+                    <LuMail className="mr-2" />
+                    Email
+                  </button>
+                </div>
               </div>
             </div>
-          </div>
+          }
         </div>
 
         {/* Items */}

@@ -344,10 +344,19 @@ const ApprovalsPage = () => {
       case "RFQ":
       case "rfq":
         return (
+        <div>
           <RFQDetails
             rfq={detailsData}
             onBack={() => setSelectedApproval(null)}
           />
+          <RFQCanvassSheet
+            rfq={detailsData}
+            formItems={detailsData?.items}
+            formVendors={detailsData?.vendors}
+            mode="view"
+            source="quotations"
+          />
+        </div>
         );
       case "Work Order":
       case "workorder":
