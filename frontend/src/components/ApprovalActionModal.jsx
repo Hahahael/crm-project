@@ -141,6 +141,7 @@ const ApprovalActionModal = ({ isOpen, type, approval, onClose, onSubmit, submit
                 <input
                   name="assigneeUsername"
                   type="text"
+                  autoComplete="off"
                   value={form.assigneeUsername || ""}
                   onChange={(e) => {
                     const q = e.target.value;

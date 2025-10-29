@@ -155,7 +155,7 @@ export default function RFQDetailsForm({
               <label htmlFor="accountName">Account Name</label>
               <input
                 id="accountName"
-                value={rfq.accountName}
+                value={rfq.account?.kristem?.Name}
                 readOnly
                 className={`border-gray-200 col-span-5 w-full rounded-md border p-1 text-sm py-2 px-3 bg-gray-50 focus:outline-0`}
               />

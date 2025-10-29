@@ -267,19 +267,6 @@ const ApprovalsPage = () => {
             endpoint = null;
         }
         if (endpoint) {
-          // Create workflow stage for current stage (Approved)
-          await apiBackendFetch("/api/workflow-stages", {
-            method: "POST",
-            body: JSON.stringify({
-              wo_id: actionApproval?.wo_id ?? actionApproval?.woId ?? null,
-              stage_name: currentType,
-              status: "Approved",
-              assigned_to: assignee,
-              notified: false,
-              remarks,
-              next_stage: nextModuleType,
-            }),
-          });
 
           console.log(
             "Creating next module at",
@@ -297,7 +284,25 @@ const ApprovalsPage = () => {
           let nextModuleData = null;
           if (nextModuleRes.ok) {
             nextModuleData = await nextModuleRes.json();
+          } else {
+            console.error("Failed to create next module:", nextModuleRes);
+            throw new Error("Failed to create next module");
           }
+
+          // Create workflow stage for current stage (Approved)
+          await apiBackendFetch("/api/workflow-stages", {
+            method: "POST",
+            body: JSON.stringify({
+              wo_id: actionApproval?.wo_id ?? actionApproval?.woId ?? null,
+              stage_name: currentType,
+              status: "Approved",
+              assigned_to: assignee,
+              notified: false,
+              remarks,
+              next_stage: nextModuleType,
+            }),
+          });
+
           console.log("Next module created with details", nextModuleData);
           // Create workflow stage for next module (Draft)
         }
@@ -478,7 +483,7 @@ const ApprovalsPage = () => {
         </div>
       </div>
 
-      {/* Users Table */}
+      {/* Approvals Table */}
       {!selectedApproval && (
         <div className="transition-all duration-300 h-full w-full p-6 overflow-y-auto">
           {/* Header */}
@@ -548,7 +553,7 @@ const ApprovalsPage = () => {
       {/* Details Drawer */}
       <div
         className={`h-full w-full bg-white shadow-xl z-50 p-6 overflow-y-auto transition-all duration-300
-                    ${selectedApproval ? "translate-x-0 opacity-100" : "translate-x-full opacity-0"}`}
+                    ${selectedApproval ? "translate-x-0 opacity-100" : "translate-x-full opacity-0 hidden"}`}
         style={{ pointerEvents: selectedApproval ? "auto" : "none" }}
       >
         <button

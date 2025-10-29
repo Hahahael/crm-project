@@ -417,7 +417,7 @@ const RFQDetails = ({
             <div className="pt-0">
               <div className="grid grid-cols-1 gap-2">
                 <Detail label="Status:" value={rfq.stageStatus} />
-                <Detail label="Account:" value={rfq.accountName} />
+                <Detail label="Account:" value={rfq.account?.kristem?.Name} />
                 <Detail
                   label="RFQ Date:"
                   value={utils.formatDate(rfq.createdAt, "MM/DD/YYYY")}
