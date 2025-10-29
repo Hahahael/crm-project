@@ -25,13 +25,13 @@ const configSPI = {
   options: baseOptions,
 };
 
-const configCRM = {
-  user: MSSQL_USER,
-  password: MSSQL_PASSWORD,
-  server: MSSQL_SERVER,
-  database: process.env.MSSQL_DB_CRM || "CRMDB_DEV",
-  options: baseOptions,
-};
+// const configCRM = {
+//   user: MSSQL_USER,
+//   password: MSSQL_PASSWORD,
+//   server: MSSQL_SERVER,
+//   database: process.env.MSSQL_DB_CRM || "CRMDB_DEV",
+//   options: baseOptions,
+// };
 
 // Create two pools: SPI (default) and CRM
 const poolSpiPromise = new sql.ConnectionPool(configSPI)
@@ -45,18 +45,19 @@ const poolSpiPromise = new sql.ConnectionPool(configSPI)
     throw err;
   });
 
-const poolCrmPromise = new sql.ConnectionPool(configCRM)
-  .connect()
-  .then((pool) => {
-    console.log(`Connected to MSSQL (DB=${configCRM.database})`);
-    return pool;
-  })
-  .catch((err) => {
-    console.error("MSSQL CRM Connection Error:", err);
-    throw err;
-  });
+// const poolCrmPromise = new sql.ConnectionPool(configCRM)
+//   .connect()
+//   .then((pool) => {
+//     console.log(`Connected to MSSQL (DB=${configCRM.database})`);
+//     return pool;
+//   })
+//   .catch((err) => {
+//     console.error("MSSQL CRM Connection Error:", err);
+//     throw err;
+//   });
 
 // Backward-compat: poolPromise refers to SPI database
 const poolPromise = poolSpiPromise;
+const poolCrmPromise = null; // Placeholder if CRM pool is not used
 
 export { sql, poolPromise, poolSpiPromise, poolCrmPromise };

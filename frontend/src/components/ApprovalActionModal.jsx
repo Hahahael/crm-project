@@ -135,93 +135,97 @@ const ApprovalActionModal = ({ isOpen, type, approval, onClose, onSubmit }) => {
           {type === "approve" ? "Approve" : "Reject"} Stage
         </h2>
         <div className="space-y-3">
-          <div className="relative" ref={assigneeRef}>
-            <input
-              name="assigneeUsername"
-              type="text"
-              value={form.assigneeUsername || ""}
-              onChange={(e) => {
-                const q = e.target.value;
-                setForm((prev) => ({ ...prev, assigneeUsername: q }));
-                setSearchQuery(q);
-                setAssigneeDropdownOpen(true);
-              }}
-              onFocus={() => setAssigneeDropdownOpen(true)}
-              placeholder="Search user..."
-              className="w-full rounded-md border border-gray-200 px-3 py-2"
-            />
-            {assigneeDropdownOpen && (
-              <ul className="absolute left-0 right-0 z-10 mt-1 bg-white border border-gray-200 rounded-md shadow-lg max-h-40 overflow-y-auto">
-                {filteredUsers.length > 0 ? (
-                  filteredUsers.map((user) => (
-                    <li
-                      key={user.id}
-                      onClick={() => {
-                        setForm((prev) => ({
-                          ...prev,
-                          assignee: user.id, // store FK
-                          assigneeUsername: user.username, // display username
-                        }));
-                        setAssigneeDropdownOpen(false);
-                      }}
-                      className="px-3 py-2 cursor-pointer hover:bg-gray-100 text-sm"
-                    >
-                      {user.username}
-                    </li>
-                  ))
-                ) : (
-                  <li className="px-3 py-2 text-gray-500 text-sm">
-                    No results found
-                  </li>
+          {type === "approve" && (
+            <div>
+              <div className="relative" ref={assigneeRef}>
+                <input
+                  name="assigneeUsername"
+                  type="text"
+                  value={form.assigneeUsername || ""}
+                  onChange={(e) => {
+                    const q = e.target.value;
+                    setForm((prev) => ({ ...prev, assigneeUsername: q }));
+                    setSearchQuery(q);
+                    setAssigneeDropdownOpen(true);
+                  }}
+                  onFocus={() => setAssigneeDropdownOpen(true)}
+                  placeholder="Search user..."
+                  className="w-full rounded-md border border-gray-200 px-3 py-2"
+                />
+                {assigneeDropdownOpen && (
+                  <ul className="absolute left-0 right-0 z-10 mt-1 bg-white border border-gray-200 rounded-md shadow-lg max-h-40 overflow-y-auto">
+                    {filteredUsers.length > 0 ? (
+                      filteredUsers.map((user) => (
+                        <li
+                          key={user.id}
+                          onClick={() => {
+                            setForm((prev) => ({
+                              ...prev,
+                              assignee: user.id, // store FK
+                              assigneeUsername: user.username, // display username
+                            }));
+                            setAssigneeDropdownOpen(false);
+                          }}
+                          className="px-3 py-2 cursor-pointer hover:bg-gray-100 text-sm"
+                        >
+                          {user.username}
+                        </li>
+                      ))
+                    ) : (
+                      <li className="px-3 py-2 text-gray-500 text-sm">
+                        No results found
+                      </li>
+                    )}
+                  </ul>
                 )}
-              </ul>
-            )}
-          </div>
-          <input
-            name="dueDate"
-            type="date"
-            placeholder="Due Date"
-            value={form.dueDate}
-            onChange={handleChange}
-            className="w-full border border-gray-200 rounded p-2"
-            required
-          />
-          <input
-            name="fromTime"
-            type="time"
-            placeholder="From Time"
-            value={form.fromTime}
-            onChange={handleChange}
-            className="w-full border border-gray-200 rounded p-2"
-            required
-          />
-          <input
-            name="toTime"
-            type="time"
-            placeholder="To Time"
-            value={form.toTime}
-            onChange={handleChange}
-            className="w-full border border-gray-200 rounded p-2"
-            required
-          />
-          {/* Conditional dropdown for next stage */}
-          {nextStageOptions.length > 0 && (
-            <select
-              name="nextStage"
-              value={form.nextStage}
-              onChange={handleChange}
-              className="w-full border border-gray-200 rounded p-2"
-              required
-            >
-              <option value="" disabled>
-                Select Next Stage
-              </option>
-              {nextStageOptions.map((opt) => (
-                <option key={opt.value} value={opt.value}>
-                  {opt.label}
-                </option>
-              ))}
-            </select>
+              </div>
+              <input
+                name="dueDate"
+                type="date"
+                placeholder="Due Date"
+                value={form.dueDate}
+                onChange={handleChange}
+                className="w-full border border-gray-200 rounded p-2"
+                required
+              />
+              <input
+                name="fromTime"
+                type="time"
+                placeholder="From Time"
+                value={form.fromTime}
+                onChange={handleChange}
+                className="w-full border border-gray-200 rounded p-2"
+                required
+              />
+              <input
+                name="toTime"
+                type="time"
+                placeholder="To Time"
+                value={form.toTime}
+                onChange={handleChange}
+                className="w-full border border-gray-200 rounded p-2"
+                required
+              />
+              {/* Conditional dropdown for next stage */}
+              {nextStageOptions.length > 0 && (
+                <select
+                  name="nextStage"
+                  value={form.nextStage}
+                  onChange={handleChange}
+                  className="w-full border border-gray-200 rounded p-2"
+                  required
+                >
+                  <option value="" disabled>
+                    Select Next Stage
+                  </option>
+                  {nextStageOptions.map((opt) => (
+                    <option key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </option>
+                  ))}
+                </select>
+              )}
+            </div>
           )}
           <textarea
             name="remarks"
