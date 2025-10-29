@@ -1,5 +1,5 @@
 //src/pages/ApprovalsPage
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { LuSearch } from "react-icons/lu";
 import ApprovalsTable from "../components/ApprovalsTable";
 import SalesLeadDetails from "../components/SalesLeadDetails";
@@ -28,7 +28,10 @@ const ApprovalsPage = () => {
     remarks: "",
   });
   const [moduleFilter, setModuleFilter] = useState("all"); // all | account | naef | others
-  const [_submitting, setSubmitting] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [successMessage, setSuccessMessage] = useState("");
+  const [refreshing, setRefreshing] = useState(false);
+  const timeoutRef = useRef();
 
   const fetchApprovals = async () => {
     try {
@@ -40,6 +43,7 @@ const ApprovalsPage = () => {
       console.log("Fetched approvals:", approvalsData);
       setApprovals(approvalsData);
     } catch (err) {
+      console.error("Failed to fetch approvals:", err);
       setError("Failed to fetch approvals");
     } finally {
       setLoading(false);
@@ -53,7 +57,7 @@ const ApprovalsPage = () => {
       const approvalsData = await approvalsRes.json();
       console.log("Fetched all approvals:", approvalsData);
     } catch (err) {
-      console.error("Failed to fetch all approvals");
+      console.error("Failed to fetch all approvals:", err);
     }
   };
 
@@ -132,6 +136,18 @@ const ApprovalsPage = () => {
     }
     fetchDetails();
   }, [actionApproval, fetchDetails]);
+
+  // Success message timeout
+  useEffect(() => {
+    if (successMessage) {
+      // clear any existing timeout first
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+
+      timeoutRef.current = setTimeout(() => {
+        setSuccessMessage("");
+      }, 5000);
+    }
+  }, [successMessage]);
 
   // Modal open handler
   const handleAction = (row, type) => {
@@ -311,16 +327,48 @@ const ApprovalsPage = () => {
         toTime: "",
         remarks: "",
       });
+      
+      // Show success message
+      const actionText = modalType === "approve" ? "approval" : "rejection";
+      setSuccessMessage(`${actionText.charAt(0).toUpperCase() + actionText.slice(1)} sent successfully!`);
+      
+      // Refresh approvals list
+      setRefreshing(true);
       await fetchApprovals();
-    } catch {
+      setRefreshing(false);
+    } catch (err) {
+      console.error("Failed to submit approval/rejection:", err);
       setError("Failed to submit approval/rejection");
     } finally {
       setSubmitting(false);
     }
   };
 
-  if (loading) return <div className="p-4">Loading Approvals...</div>;
-  if (error) return <div className="p-4 text-red-600">{error}</div>;
+  if (loading) {
+    return (
+      <div className="p-6 flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading Approvals...</p>
+        </div>
+      </div>
+    );
+  }
+  
+  if (error) {
+    return (
+      <div className="p-6 flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <div className="text-red-500 mb-4">
+            <svg className="w-12 h-12 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </div>
+          <p className="text-red-600 font-medium">{error}</p>
+        </div>
+      </div>
+    );
+  }
 
   // Render details component based on stage/module
   const renderDetails = () => {
@@ -401,13 +449,38 @@ const ApprovalsPage = () => {
 
   return (
     <div className="p-6 relative">
+      {/* Toast Notification */}
+      <div
+        className={`z-50 absolute top-4 right-4 bg-green-500 text-white px-4 py-2 rounded-md shadow-md transition-all duration-500
+      ${successMessage ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"}`}
+      >
+        <div className="flex items-center">
+          <span className="flex-1">{successMessage || "\u00A0"}</span>
+          {successMessage && (
+            <button
+              className="ml-4 text-white hover:text-gray-300 font-bold text-lg focus:outline-none cursor-pointer transition-all duration-150"
+              onClick={() => setSuccessMessage("")}
+              aria-label="Close notification"
+              type="button"
+            >
+              ×
+            </button>
+          )}
+        </div>
+      </div>
+
       {/* Users Table */}
       {!selectedApproval && (
         <div className="transition-all duration-300 h-full w-full p-6 overflow-y-auto">
           {/* Header */}
           <div className="flex items-center mb-6">
             <div className="flex flex-col">
-              <h1 className="text-2xl font-bold">Approvals</h1>
+              <div className="flex items-center gap-3">
+                <h1 className="text-2xl font-bold">Approvals</h1>
+                {refreshing && (
+                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
+                )}
+              </div>
               <h2 className="text-md text-gray-700">
                 Review and approve transactions across all modules
               </h2>
@@ -489,6 +562,7 @@ const ApprovalsPage = () => {
             setActionApproval(null);
           }}
           onSubmit={handleModalSubmit}
+          submitting={submitting}
         />
       )}
     </div>

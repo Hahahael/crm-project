@@ -400,11 +400,10 @@ export default function TechnicalsPage() {
                   </div>
                   <div className="space-y-1">
                     <p className="text-sm font-medium text-gray-900">
-                      {newAssignedTechnicalRecos[0].trNumber} -{" "}
-                      {newAssignedTechnicalRecos[0].title}
+                      {newAssignedTechnicalRecos[0].trNumber}
                     </p>
                     <p className="text-sm text-gray-600">
-                      Account: {newAssignedTechnicalRecos[0].accountName}
+                      Account: {newAssignedTechnicalRecos[0].account?.kristem?.Name}
                     </p>
                     <p className="text-sm text-gray-600">
                       Contact: {newAssignedTechnicalRecos[0].contactPerson}

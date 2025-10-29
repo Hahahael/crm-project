@@ -401,8 +401,8 @@ const SalesLeadForm = ({
     else {
       const today = dayjs().startOf("day");
       const due = dayjs(data.dueDate).startOf("day");
-      if (!due.isAfter(today))
-        errors.dueDate = "Due date must be later than today.";
+      if (due.isBefore(today))
+        errors.dueDate = "Due date must not be earlier than today.";
     }
 
     // sales engineer: either seId (>0) or salesPlanRep present

@@ -105,7 +105,7 @@ router.get("/", async (req, res) => {
           dIds.size
             ? spiPool
                 .request()
-                .query(`SELECT * FROM spidb.Department WHERE Id IN (${Array.from(dIds).join(",")})`)
+                .query(`SELECT * FROM spidb.CusDepartment WHERE Id IN (${Array.from(dIds).join(",")})`)
             : Promise.resolve({ recordset: [] }),
         ]);
 
@@ -409,7 +409,7 @@ router.get("/:id", async (req, res) => {
           spiPool
             .request()
             .input("did", dId)
-            .query("SELECT TOP (1) * FROM spidb.Department WHERE Id = @did"),
+            .query("SELECT TOP (1) * FROM spidb.CusDepartment WHERE Id = @did"),
         ]);
         rfq.account = {
           kristem: customer,
@@ -856,10 +856,10 @@ router.put("/:id", async (req, res) => {
 
     const result = await db.query(
       `SELECT r.*, u.username AS assignee_username, a.account_name AS account_name
-                        FROM rfqs r
-                        LEFT JOIN users u ON r.assignee = u.id
-                        LEFT JOIN accounts a ON r.account_id = a.id
-                        WHERE r.id = $1`,
+        FROM rfqs r
+        LEFT JOIN users u ON r.assignee = u.id
+        LEFT JOIN accounts a ON r.account_id = a.id
+        WHERE r.id = $1`,
       [updatedId],
     );
     if (result.rows.length === 0)

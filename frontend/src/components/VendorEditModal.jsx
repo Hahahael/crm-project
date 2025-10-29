@@ -11,9 +11,9 @@ export default function VendorEditModal({ open, onClose, vendor, onSave }) {
   const [validUntil, setValidUntil] = useState(vendor?.validUntil || "");
   const [notes, setNotes] = useState(vendor?.notes || "");
   const [quotes, setQuotes] = useState(vendor?.quotes || []);
-  const [subtotal, setSubtotal] = useState(vendor?.subtotal || 0);
-  const [vat, setVat] = useState(vendor?.vat || 0);
-  const [grandTotal, setGrandTotal] = useState(vendor?.grandTotal || 0);
+  const [subtotal, setSubtotal] = useState(Number(vendor?.subtotal) || 0);
+  const [vat, setVat] = useState(Number(vendor?.vat) || 0);
+  const [grandTotal, setGrandTotal] = useState(Number(vendor?.grandTotal) || 0);
   console.log("VendorEditModal - initial quotes:", quotes);
   const hasInitialized = useRef(false);
 
@@ -40,7 +40,11 @@ export default function VendorEditModal({ open, onClose, vendor, onSave }) {
 
   useEffect(() => {
     const sub = quotes.reduce(
-      (sum, item) => sum + item.quantity * item.unitPrice,
+      (sum, item) => {
+        const quantity = Number(item.quantity) || 0;
+        const unitPrice = Number(item.unitPrice) || 0;
+        return sum + (quantity * unitPrice);
+      },
       0,
     );
     setSubtotal(sub);
@@ -248,7 +252,7 @@ export default function VendorEditModal({ open, onClose, vendor, onSave }) {
                           />
                         </td>
                         <td className="p-3 font-medium">
-                          ₱ {(q.quantity * q.unitPrice).toFixed(2)}
+                          ₱ {((Number(q.quantity) || 0) * (Number(q.unitPrice) || 0)).toFixed(2)}
                         </td>
                       </tr>
                     ))}
@@ -262,16 +266,16 @@ export default function VendorEditModal({ open, onClose, vendor, onSave }) {
                     <div className="flex justify-between w-48">
                       <span>Subtotal:</span>
                       <span className="font-medium">
-                        ${subtotal.toFixed(2)}
+                        ${(Number(subtotal) || 0).toFixed(2)}
                       </span>
                     </div>
                     <div className="flex justify-between w-48">
                       <span>VAT (5%):</span>
-                      <span className="font-medium">${vat.toFixed(2)}</span>
+                      <span className="font-medium">${(Number(vat) || 0).toFixed(2)}</span>
                     </div>
                     <div className="flex justify-between w-48 text-lg font-bold border-t pt-1">
                       <span>Grand Total:</span>
-                      <span>${grandTotal.toFixed(2)}</span>
+                      <span>${(Number(grandTotal) || 0).toFixed(2)}</span>
                     </div>
                   </div>
                 </div>

@@ -48,7 +48,7 @@ const RFQDetails = ({
     return (
       <div className="flex justify-between space-x-3">
         <p className="text-sm text-gray-500">{label}</p>
-        <p className="whitespace-pre-wrap">{value || "-"}</p>
+        <p className="whitespace-pre-wrap text-right">{value || "-"}</p>
       </div>
     );
   }

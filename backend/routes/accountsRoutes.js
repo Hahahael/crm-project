@@ -1,9 +1,7 @@
 import express from "express";
 import db from "../db.js";
-// utils not needed in MSSQL-only routes
-import { poolPromise, poolCrmPromise } from "../mssql.js";
-import { generateNextNaefCode } from "../helper/spiCodeGen.js";
 import { toSnake } from "../helper/utils.js";
+import { poolPromise } from "../mssql.js";
 
 const router = express.Router();
 
@@ -25,13 +23,13 @@ router.delete("/purge", async (req, res) => {
       return res.status(400).json({ error: "Invalid minId" });
     }
 
-    const [crmPool] = await Promise.all([poolCrmPromise]);
+    const [crmPool] = await Promise.all([poolPromise]);
 
     if (dryRun) {
       const r = await crmPool
         .request()
         .input("minId", minId)
-        .query("SELECT COUNT(*) AS cnt FROM crmdb.accounts WHERE id >= @minId");
+        .query("SELECT COUNT(*) AS cnt FROM spidb.customer WHERE id >= @minId");
       const count = r?.recordset?.[0]?.cnt ?? 0;
       return res.json({ dryRun: true, minId, toDelete: count });
     }
@@ -39,7 +37,7 @@ router.delete("/purge", async (req, res) => {
     const del = await crmPool
       .request()
       .input("minId", minId)
-      .query("DELETE FROM crmdb.accounts WHERE id >= @minId");
+      .query("DELETE FROM spidb.customer WHERE id >= @minId");
 
     const affected = Array.isArray(del?.rowsAffected) ? del.rowsAffected[0] ?? 0 : 0;
     return res.json({ minId, deleted: affected });
@@ -49,69 +47,79 @@ router.delete("/purge", async (req, res) => {
   }
 });
 
-// GET all accounts (enriched with SPI lookups)
+// GET all accounts (MSSQL customers + Approved PostgreSQL accounts, filtered)
 router.get("/", async (req, res) => {
   try {
-    // Source of truth: SPI customers
+    // Get existing customers from MSSQL
     const spiPool = await poolPromise;
     const custRes = await spiPool
       .request()
       .query("SELECT * FROM spidb.customer ORDER BY Name");
     const customers = custRes.recordset || [];
-    if (customers.length === 0) return res.json([]);
 
-    // Infer foreign keys from SPI customer rows
-    const normId = (v) => {
-      const n = Number(v);
-      return Number.isFinite(n) ? n : null;
-    };
+    // Get approved PostgreSQL accounts only
+    const pgResult = await db.query(`
+      SELECT 
+        a.*,
+        u.username as prepared_by_username
+      FROM accounts a
+      LEFT JOIN users u ON a.prepared_by = u.id
+      WHERE a.stage_status = 'Approved'
+      ORDER BY a.created_at DESC
+    `);
+
+    // Get kristem_account_ids of unapproved PostgreSQL accounts (to exclude from MSSQL list)
+    const unapprovedLinksResult = await db.query(`
+      SELECT DISTINCT kristem_account_id 
+      FROM accounts 
+      WHERE kristem_account_id IS NOT NULL 
+      AND stage_status != 'Approved'
+    `);
+    
+    const excludeIds = new Set(
+      unapprovedLinksResult.rows
+        .map(row => Number(row.kristemAccountId))
+        .filter(id => Number.isFinite(id))
+    );
+    const approvedAccounts = pgResult.rows;
+
+    // Filter out MSSQL customers that are linked to unapproved PostgreSQL accounts
+    const visibleCustomers = customers.filter(c => !excludeIds.has(Number(c.Id)));
+    console.log(`🔍 Filtered ${customers.length - visibleCustomers.length} linked unapproved accounts from MSSQL customers`);
+
+    // Get unique IDs for SPI lookups for enrichment
     const brandIds = new Set();
     const industryIds = new Set();
     const deptIds = new Set();
-    for (const c of customers) {
-      const bId =
-        normId(c.Product_Brand_Id) ??
-        normId(c.ProductBrandId) ??
-        normId(c.Brand_ID) ??
-        normId(c.BrandId) ??
-        null;
-      const iId =
-        normId(c.Customer_Industry_Group_Id) ??
-        normId(c.Industry_Group_Id) ??
-        normId(c.IndustryGroupId) ??
-        null;
-      const dId =
-        normId(c.Department_Id) ??
-        normId(c.DepartmentID) ??
-        normId(c.DepartmentId) ??
-        null;
+
+    for (const c of visibleCustomers) {
+      const normId = (v) => {
+        const n = Number(v);
+        return Number.isFinite(n) ? n : null;
+      };
+      const bId = normId(c.Product_Brand_Id) ?? normId(c.ProductBrandId) ?? normId(c.Brand_ID) ?? normId(c.BrandId) ?? null;
+      const iId = normId(c.Customer_Industry_Group_Id) ?? normId(c.Industry_Group_Id) ?? normId(c.IndustryGroupId) ?? null;
+      const dId = normId(c.Department_Id) ?? normId(c.DepartmentID) ?? normId(c.DepartmentId) ?? null;
+      
       if (bId != null) brandIds.add(bId);
       if (iId != null) industryIds.add(iId);
       if (dId != null) deptIds.add(dId);
     }
 
-    // Ensure default fallback IDs are fetched as well (brand=2, department=2)
+    // Ensure default fallback IDs
     brandIds.add(2);
     deptIds.add(2);
 
     // Fetch SPI lookups in batch
     const [brandRes, indRes, deptRes] = await Promise.all([
       brandIds.size
-        ? spiPool
-            .request()
-            .query(`SELECT * FROM spidb.brand WHERE ID IN (${Array.from(brandIds).join(",")})`)
+        ? spiPool.request().query(`SELECT * FROM spidb.brand WHERE ID IN (${Array.from(brandIds).join(",")})`)
         : Promise.resolve({ recordset: [] }),
       industryIds.size
-        ? spiPool
-            .request()
-            .query(
-              `SELECT * FROM spidb.Customer_Industry_Group WHERE Id IN (${Array.from(industryIds).join(",")})`,
-            )
+        ? spiPool.request().query(`SELECT * FROM spidb.Customer_Industry_Group WHERE Id IN (${Array.from(industryIds).join(",")})`)
         : Promise.resolve({ recordset: [] }),
       deptIds.size
-        ? spiPool
-            .request()
-            .query(`SELECT * FROM spidb.Department WHERE Id IN (${Array.from(deptIds).join(",")})`)
+        ? spiPool.request().query(`SELECT * FROM spidb.CusDepartment WHERE Id IN (${Array.from(deptIds).join(",")})`)
         : Promise.resolve({ recordset: [] }),
     ]);
 
@@ -119,737 +127,377 @@ router.get("/", async (req, res) => {
     const industryMap = new Map((indRes.recordset || []).map((i) => [Number(i.Id), i]));
     const departmentMap = new Map((deptRes.recordset || []).map((d) => [Number(d.Id), d]));
 
-    // Enrich SPI customers with lookups and present in a consistent shape
-    const enriched = customers.map((c) => {
-      const bId =
-        (normId(c.Product_Brand_Id) ?? normId(c.ProductBrandId) ?? normId(c.Brand_ID) ?? normId(c.BrandId) ?? 2);
-      const iId =
-        normId(c.Customer_Industry_Group_Id) ?? normId(c.Industry_Group_Id) ?? normId(c.IndustryGroupId);
-      const dId =
-        (normId(c.Department_Id) ?? normId(c.DepartmentID) ?? normId(c.DepartmentId) ?? 2);
+    // Enrich visible MSSQL customers with lookups
+    const enrichedCustomers = visibleCustomers.map((c) => {
+      const normId = (v) => {
+        const n = Number(v);
+        return Number.isFinite(n) ? n : null;
+      };
+      const bId = normId(c.Product_Brand_Id) ?? normId(c.ProductBrandId) ?? normId(c.Brand_ID) ?? normId(c.BrandId) ?? 2;
+      const iId = normId(c.Customer_Industry_Group_Id) ?? normId(c.Industry_Group_Id) ?? normId(c.IndustryGroupId) ?? null;
+      const dId = normId(c.Department_Id) ?? normId(c.DepartmentID) ?? normId(c.DepartmentId) ?? 2;
+
       return {
-        // Preserve SPI row under kristem for front-end compatibility
+        id: c.Id,
         kristem: c,
-        brand: bId != null ? brandMap.get(bId) || null : null,
+        brand: brandMap.get(bId) || null,
         industry: iId != null ? industryMap.get(iId) || null : null,
-        department: dId != null ? departmentMap.get(dId) || null : null,
-        // Minimal compatibility aliases
-        id: c.Id, // expose SPI Id at top-level for list keys
+        department: departmentMap.get(dId) || null,
         account_name: c.Name,
+        stage_status: 'Approved', // MSSQL customers are approved
+        created_at: c.DateCreated || null,
+        source: 'mssql'
       };
     });
 
-    return res.json(enriched);
+    // Enrich completed PostgreSQL accounts with MSSQL data
+    try {
+      // Get accounts that have kristem_account_id for customer enrichment
+      const kristemIds = approvedAccounts
+        .map(a => a.kristemAccountId)
+        .filter(id => id != null)
+        .map(id => Number(id))
+        .filter(id => Number.isFinite(id));
+      
+      // Get unique department, industry, and product IDs from PostgreSQL accounts
+      const pgDeptIds = new Set();
+      const pgIndustryIds = new Set();
+      const pgProductIds = new Set();
+      
+      for (const account of approvedAccounts) {
+        if (account.departmentId) pgDeptIds.add(Number(account.departmentId));
+        if (account.industryId) pgIndustryIds.add(Number(account.industryId));
+        if (account.productId) pgProductIds.add(Number(account.productId));
+      }
+      
+      // Fetch PostgreSQL account enrichments in parallel
+      const [pgCustomerRes, pgDeptRes, pgIndustryRes, pgBrandRes] = await Promise.all([
+        kristemIds.length > 0
+          ? spiPool.request().query(`SELECT * FROM spidb.customer WHERE Id IN (${kristemIds.join(",")})`)
+          : Promise.resolve({ recordset: [] }),
+        pgDeptIds.size
+          ? spiPool.request().query(`SELECT * FROM spidb.CusDepartment WHERE Id IN (${Array.from(pgDeptIds).join(",")})`)
+          : Promise.resolve({ recordset: [] }),
+        pgIndustryIds.size
+          ? spiPool.request().query(`SELECT * FROM spidb.Customer_Industry_Group WHERE Id IN (${Array.from(pgIndustryIds).join(",")})`)
+          : Promise.resolve({ recordset: [] }),
+        pgProductIds.size
+          ? spiPool.request().query(`SELECT * FROM spidb.brand WHERE ID IN (${Array.from(pgProductIds).join(",")})`)
+          : Promise.resolve({ recordset: [] }),
+      ]);
+      
+      // Create lookup maps for PostgreSQL accounts
+      const pgCustomerMap = new Map((pgCustomerRes.recordset || []).map(c => [Number(c.Id), c]));
+      const pgDepartmentMap = new Map((pgDeptRes.recordset || []).map(d => [Number(d.Id), d]));
+      const pgIndustryMap = new Map((pgIndustryRes.recordset || []).map(i => [Number(i.Id), i]));
+      const pgBrandMap = new Map((pgBrandRes.recordset || []).map(b => [Number(b.ID ?? b.Id), b]));
+      
+      // Enrich each PostgreSQL account
+      for (const account of approvedAccounts) {
+        // Add kristem customer data if available
+        if (account.kristemAccountId) {
+          const kristemId = Number(account.kristemAccountId);
+          if (Number.isFinite(kristemId)) {
+            account.kristem = pgCustomerMap.get(kristemId) || null;
+          }
+        }
+        
+        // Add department lookup
+        if (account.departmentId) {
+          const deptId = Number(account.departmentId);
+          if (Number.isFinite(deptId)) {
+            account.department = pgDepartmentMap.get(deptId) || null;
+          }
+        }
+        
+        // Add industry lookup
+        if (account.industryId) {
+          const industryId = Number(account.industryId);
+          if (Number.isFinite(industryId)) {
+            account.industry = pgIndustryMap.get(industryId) || null;
+          }
+        }
+        
+        // Add brand/product lookup
+        if (account.productId) {
+          const productId = Number(account.productId);
+          if (Number.isFinite(productId)) {
+            account.brand = pgBrandMap.get(productId) || null;
+          }
+        }
+      }
+      
+    } catch (pgEnrichErr) {
+      console.warn("Failed to enrich PostgreSQL accounts with MSSQL data:", pgEnrichErr.message);
+    }
+
+    // Combine visible MSSQL customers + approved PostgreSQL accounts
+    const allAccounts = [...enrichedCustomers, ...approvedAccounts.map(a => ({ ...a, source: 'postgresql' }))];
+
+    console.log(`📊 Returning ${enrichedCustomers.length} MSSQL customers + ${approvedAccounts.length} approved PostgreSQL accounts`);
+    return res.json(allAccounts);
   } catch (err) {
     console.error("/api/accounts error:", err);
     return res.status(500).json({ error: err.message });
   }
 });
 
-// GET all NAEF accounts (MSSQL only)
+// GET all NAEF accounts (PostgreSQL only - for workflow management)
 router.get("/naefs", async (req, res) => {
   try {
-    console.log("Fetching NAEF records...");
-
-    // 1️⃣ Connect to CRM + SPI databases
-    const [crmPool, spiPool] = await Promise.all([poolCrmPromise, poolPromise]);
-
-    // 2️⃣ Fetch CRM accounts with is_naef = 1
-    const accSql = `SELECT * FROM crmdb.accounts WHERE is_naef = 1 ORDER BY created_at DESC`;
-    const accRes = await crmPool.request().query(accSql);
-    let crmAccounts = accRes.recordset || [];
-    console.log("Fetched CRM accounts for NAEFs:", crmAccounts.length);
-
-    if (crmAccounts.length === 0) {
-      return res.json([]); // No NAEFs found
-    }
-
-    // 2.5️⃣ Filter by existing workflow stage 'NAEF' with same wo_id (Postgres)
+    console.log("Fetching NAEF accounts from PostgreSQL");
+    
+    // Get all NAEF accounts from PostgreSQL (including drafts, pending, etc.)
+    const result = await db.query(`
+      SELECT 
+        a.*,
+        u.username as prepared_by_username
+      FROM accounts a
+      LEFT JOIN users u ON a.prepared_by = u.id
+      WHERE a.is_naef = true
+      ORDER BY a.created_at DESC
+    `);
+    
+    const naefAccounts = result.rows;
+    
+    // Enrich accounts with MSSQL data
     try {
-      const woIds = [...new Set(crmAccounts.map((a) => a.wo_id).filter((v) => v != null))];
-      console.log("Filtering NAEF accounts by workflow stages, woIds:", woIds);
-      console.log("Number of woIds to filter:", woIds.length);
-      console.log("CRM Accounts before filtering:", crmAccounts);
-      if (woIds.length > 0) {
-        const placeholders = woIds.map((_, i) => `$${i + 1}`).join(", ");
-        console.log("Placeholders for workflow stage query:",placeholders);
-        const stageSql = `SELECT DISTINCT wo_id FROM workflow_stages WHERE stage_name = 'NAEF' AND wo_id IN (${placeholders})`;
-        const stageRes = await db.query(stageSql, woIds);
-        console.log(stageRes.rows);
-        const allowedWo = new Set((stageRes.rows || []).map((r) => r.wo_id ?? r.woId));
-        console.log("Allowed workflow IDs for NAEF accounts:", allowedWo);
-        crmAccounts = crmAccounts.filter((a) => a.wo_id != null && allowedWo.has(a.wo_id));
-        console.log("Filtered NAEF accounts by workflow presence:", crmAccounts.length);
-      } else {
-        // No wo_id to match, return empty
-        return res.json([]);
+      const spiPool = await poolPromise;
+      
+      // Get accounts that have kristem_account_id for customer enrichment
+      const kristemIds = naefAccounts
+        .map(a => a.kristemAccountId)
+        .filter(id => id != null)
+        .map(id => Number(id))
+        .filter(id => Number.isFinite(id));
+      
+      // Get unique department, industry, and product IDs from PostgreSQL accounts
+      const deptIds = new Set();
+      const industryIds = new Set();
+      const productIds = new Set();
+      
+      for (const account of naefAccounts) {
+        if (account.departmentId) deptIds.add(Number(account.departmentId));
+        if (account.industryId) industryIds.add(Number(account.industryId));
+        if (account.productId) productIds.add(Number(account.productId));
       }
-    } catch (filterErr) {
-      console.warn("Failed filtering NAEFs by workflow stages:", filterErr.message);
-      // If filtering fails, conservatively return empty to avoid wrong data
-      return res.json([]);
+      
+      // Add default fallback IDs
+      deptIds.add(2);
+      productIds.add(2);
+      
+      // Fetch all lookups in parallel
+      const [customerRes, deptRes, industryRes, brandRes] = await Promise.all([
+        kristemIds.length > 0
+          ? spiPool.request().query(`SELECT * FROM spidb.customer WHERE Id IN (${kristemIds.join(",")})`)
+          : Promise.resolve({ recordset: [] }),
+        deptIds.size
+          ? spiPool.request().query(`SELECT * FROM spidb.CusDepartment WHERE Id IN (${Array.from(deptIds).join(",")})`)
+          : Promise.resolve({ recordset: [] }),
+        industryIds.size
+          ? spiPool.request().query(`SELECT * FROM spidb.Customer_Industry_Group WHERE Id IN (${Array.from(industryIds).join(",")})`)
+          : Promise.resolve({ recordset: [] }),
+        productIds.size
+          ? spiPool.request().query(`SELECT * FROM spidb.brand WHERE ID IN (${Array.from(productIds).join(",")})`)
+          : Promise.resolve({ recordset: [] }),
+      ]);
+      
+      // Create lookup maps
+      const customerMap = new Map((customerRes.recordset || []).map(c => [Number(c.Id), c]));
+      const departmentMap = new Map((deptRes.recordset || []).map(d => [Number(d.Id), d]));
+      const industryMap = new Map((industryRes.recordset || []).map(i => [Number(i.Id), i]));
+      const brandMap = new Map((brandRes.recordset || []).map(b => [Number(b.ID ?? b.Id), b]));
+      
+      // Enrich each account
+      for (const account of naefAccounts) {
+        // Add kristem customer data if available
+        if (account.kristemAccountId) {
+          const kristemId = Number(account.kristemAccountId);
+          if (Number.isFinite(kristemId)) {
+            account.kristem = customerMap.get(kristemId) || null;
+          }
+        }
+        
+        // Add department lookup
+        if (account.departmentId) {
+          const deptId = Number(account.departmentId);
+          if (Number.isFinite(deptId)) {
+            account.department = departmentMap.get(deptId) || null;
+          }
+        }
+        
+        // Add industry lookup
+        if (account.industryId) {
+          const industryId = Number(account.industryId);
+          if (Number.isFinite(industryId)) {
+            account.industry = industryMap.get(industryId) || null;
+          }
+        }
+        
+        // Add brand/product lookup
+        if (account.productId) {
+          const productId = Number(account.productId);
+          if (Number.isFinite(productId)) {
+            account.brand = brandMap.get(productId) || null;
+          }
+        }
+        
+        // Mark as postgresql source
+        account.source = 'postgresql';
+      }
+      
+    } catch (enrichErr) {
+      console.warn("Failed to enrich NAEF accounts with MSSQL data:", enrichErr.message);
     }
-
-    // 3️⃣ Collect distinct SPI lookup IDs
-    const kIds = [...new Set(crmAccounts.map(a => a.kristem_customer_id).filter(Boolean))];
-    const bIds = [...new Set(crmAccounts.map(a => a.product_id).filter(Boolean))];
-    const iIds = [...new Set(crmAccounts.map(a => a.industry_id).filter(Boolean))];
-    const dIds = [...new Set(crmAccounts.map(a => a.department_id).filter(Boolean))];
-
-    // 4️⃣ Fetch SPI lookups in batch
-    const [custRes, brandRes, indRes, deptRes] = await Promise.all([
-      kIds.length
-        ? spiPool.request().query(`SELECT * FROM spidb.customer WHERE Id IN (${kIds.join(",")})`)
-        : Promise.resolve({ recordset: [] }),
-      bIds.length
-        ? spiPool.request().query(`SELECT * FROM spidb.brand WHERE ID IN (${bIds.join(",")})`)
-        : Promise.resolve({ recordset: [] }),
-      iIds.length
-        ? spiPool
-            .request()
-            .query(
-              `SELECT * FROM spidb.Customer_Industry_Group WHERE Id IN (${iIds.join(",")})`,
-            )
-        : Promise.resolve({ recordset: [] }),
-      dIds.length
-        ? spiPool.request().query(`SELECT * FROM spidb.Department WHERE Id IN (${dIds.join(",")})`)
-        : Promise.resolve({ recordset: [] }),
-    ]);
-
-    console.log("Fetched SPI lookups for NAEF accounts");
-
-    // 5️⃣ Build lookup maps
-    const customerMap = new Map((custRes.recordset || []).map(c => [String(c.Id), c]));
-    const brandMap = new Map((brandRes.recordset || []).map(b => [String(b.ID), b]));
-    const industryMap = new Map((indRes.recordset || []).map(i => [String(i.Id), i]));
-    const departmentMap = new Map((deptRes.recordset || []).map(d => [String(d.Id), d]));
-
-    // 6️⃣ Enrich accounts
-    const enrichedAccounts = crmAccounts.map(acc => ({
-      ...acc,
-      kristem: acc.kristem_customer_id
-        ? customerMap.get(String(acc.kristem_customer_id)) || null
-        : null,
-      brand: acc.product_id ? brandMap.get(String(acc.product_id)) || null : null,
-      industry: acc.industry_id ? industryMap.get(String(acc.industry_id)) || null : null,
-      department: acc.department_id
-        ? departmentMap.get(String(acc.department_id)) || null
-        : null,
-    }));
-
-    console.log("Returning NAEF accounts:", enrichedAccounts.length);
-    return res.json(enrichedAccounts);
+    
+    console.log(`Found ${naefAccounts.length} NAEF accounts`);
+    return res.json(naefAccounts);
   } catch (err) {
     console.error("/api/accounts/naefs error:", err);
     return res.status(500).json({ error: err.message });
   }
 });
 
-// GET all account industries
-router.get("/industries", async (req, res) => {
-  try {
-    // Prefer MSSQL Customer_Industry_Group as the source of truth
-    try {
-      const pool = await poolPromise;
-      const r = await pool
-        .request()
-        .query(
-          "SELECT Id, Code, Description, Industry_Group_Id, isActive FROM spidb.Customer_Industry_Group ORDER BY Description",
-        );
-      const rows = r.recordset || [];
-      console.log("Fetched MSSQL industries:", rows.length);
-      return res.json(rows);
-    } catch (merr) {
-      console.warn("MSSQL industries fetch failed, falling back to PSQL:", merr.message);
-      const result = await db.query("SELECT * FROM account_industries");
-      return res.json(result.rows);
-    }
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// GET all accounts product brands
-router.get("/product-brands", async (req, res) => {
-  try {
-    try {
-      const pool = await poolPromise;
-      const r = await pool
-        .request()
-        .query(
-          "SELECT ID, Code, [Description], ModifiedBy, DateModified, commrate FROM spidb.brand ORDER BY [Description]",
-        );
-      const rows = r.recordset || [];
-      console.log("Fetched MSSQL brands:", rows.length);
-      return res.json(rows);
-    } catch (merr) {
-      console.warn("MSSQL brands fetch failed, falling back to PSQL:", merr.message);
-      const result = await db.query("SELECT * FROM account_product_brands");
-      return res.json(result.rows);
-    }
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// GET all accounts departments
-router.get("/departments", async (req, res) => {
-  try {
-    try {
-      const pool = await poolPromise;
-      const r = await pool
-        .request()
-        .query(
-          "SELECT Id, Department, Code FROM spidb.Department ORDER BY Department",
-        );
-      const rows = r.recordset || [];
-      console.log("Fetched MSSQL departments:", rows.length);
-      return res.json(rows);
-    } catch (merr) {
-      console.warn("MSSQL departments fetch failed, falling back to PSQL:", merr.message);
-      const result = await db.query("SELECT * FROM account_departments");
-      return res.json(result.rows);
-    }
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// GET single account by id
-router.get("/:id", async (req, res) => {
-  try {
-    const { id } = req.params;
-    console.log("Fetching SPI customer by id:", id);
-    const spiPool = await poolPromise;
-    const custRes = await spiPool
-      .request()
-      .input("id", Number(id))
-      .query("SELECT TOP (1) * FROM spidb.customer WHERE Id = @id");
-    const customer = custRes.recordset && custRes.recordset[0];
-    if (!customer) return res.status(404).json({ error: "Account not found" });
-
-    const normId = (v) => {
-      const n = Number(v);
-      return Number.isFinite(n) ? n : null;
-    };
-    const bId =
-      (normId(customer.Product_Brand_Id) ??
-      normId(customer.ProductBrandId) ??
-      normId(customer.Brand_ID) ??
-      normId(customer.BrandId) ??
-      2);
-    const iId =
-      normId(customer.Customer_Industry_Group_Id) ??
-      normId(customer.Industry_Group_Id) ??
-      normId(customer.IndustryGroupId) ??
-      null;
-    const dId =
-      (normId(customer.Department_Id) ??
-      normId(customer.DepartmentID) ??
-      normId(customer.DepartmentId) ??
-      2);
-
-    const [bRes, iRes, dRes] = await Promise.all([
-      spiPool
-        .request()
-        .input("bid", bId)
-        .query("SELECT TOP (1) * FROM spidb.brand WHERE ID = @bid"),
-      iId != null
-        ? spiPool
-            .request()
-            .input("iid", iId)
-            .query(
-              "SELECT TOP (1) * FROM spidb.Customer_Industry_Group WHERE Id = @iid",
-            )
-        : Promise.resolve({ recordset: [] }),
-      spiPool
-        .request()
-        .input("did", dId)
-        .query("SELECT TOP (1) * FROM spidb.Department WHERE Id = @did"),
-    ]);
-
-    const out = {
-      kristem: customer,
-      brand: bRes.recordset && bRes.recordset[0] ? bRes.recordset[0] : null,
-      industry: iRes.recordset && iRes.recordset[0] ? iRes.recordset[0] : null,
-      department: dRes.recordset && dRes.recordset[0] ? dRes.recordset[0] : null,
-      id: customer.Id,
-      account_name: customer.Name,
-    };
-    return res.json(out);
-  } catch (err) {
-    console.error("/api/accounts/:id error:", err);
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// ADD new account
+// ADD new account (Dual creation: MSSQL + PostgreSQL)
 router.post("/", async (req, res) => {
-  console.log("POST /api/accounts called");
+  console.log("POST /api/accounts called - Dual creation mode");
   console.log("Request body:", req.body);
-  // Expected body shape:
-  // { spi: { ...spidb.customer columns... }, crm: { ...crmdb.accounts columns... } }
-  // We'll insert SPI first, then CRM (adding kristem_customer_id if missing), using separate transactions.
+  
   try {
-    const spiInput = {
-      Name: req.body?.accountName ?? "NOT_SET",
-      Address: "NOT_SET",
-      PhoneNumber: "NOT_SET",
-      EmailAddress: "NOT_SET",
-      VAT_Type_Id: -1,
-      Price_Basis_Id: -1,
-      PaymentTerms: -1,
-      Currency_Id: -1,
-    };
-    const crmInput = {
-      stage_status: "New",
-      date_created: new Date(),
-      requested_by: req.body?.contact_person || "system",
-      department_id: req.body?.department_id || null,
-      account_name: req.body?.accountName || "NOT_SET",
-      industry_id: req.body?.industry_id || null,
-      product_id: req.body?.product_id || null,
-    };
-
-    if (!spiInput || Object.keys(spiInput).length === 0) {
-      return res.status(400).json({ error: "spi payload is required" });
-    }
-
-    // Allowed columns for spidb.customer
-    const SPI_ALLOWED = new Set([
-      "Code",
-      "Name",
-      "Address",
-      "PhoneNumber",
-      "EmailAddress",
-      "VAT_Type_Id",
-      "Price_Basis_Id",
-      "Customer_Location_Id",
-      "PaymentTerms",
-      "Currency_Id",
-      "Customer_Industry_Group_Id",
-      "Sales_Agent_Id",
-      "ChargeTo",
-      "TinNo",
-      "Customer_Market_Segment_Group_Id",
-      "Category",
-    ]);
-
-    // Filter SPI input
-    const spiData = Object.fromEntries(
-      Object.entries(spiInput).filter(([k]) => SPI_ALLOWED.has(k)),
+    const body = toSnake(req.body);
+    
+    // Generate NAEF number
+    const currentYear = new Date().getFullYear();
+    const naefResult = await db.query(
+      `SELECT naef_number FROM accounts 
+       WHERE naef_number LIKE $1 
+       ORDER BY naef_number DESC LIMIT 1`,
+      [`NAEF-${currentYear}-%`]
     );
-    if (!spiData.Name && !spiData.Code) {
-      return res
-        .status(400)
-        .json({ error: "SPI customer requires at least Name or Code" });
+    
+    let newCounter = 1;
+    if (naefResult.rows.length > 0) {
+      const lastNaef = naefResult.rows[0].naefNumber;
+      const lastCounter = parseInt(lastNaef.split("-")[2], 10);
+      newCounter = lastCounter + 1;
     }
-
-    console.log("Preparing to create new account with SPI data:", spiData);
-
-    const [crmPool, spiPool] = await Promise.all([poolCrmPromise, poolPromise]);
-
-    const spiTx = spiPool.transaction();
-
-    console.log("Preparing to create new account with CRM data:", crmInput);
-
-    const crmTx = crmPool.transaction();
-
-    console.log("Starting transactions...");
-
-    let insertedSpi = null;
-    let insertedCrm = null;
-
-    console.log("Beginning transactions for account creation...");
-
-    try {
-      // Begin both transactions
-      await spiTx.begin();
-      await crmTx.begin();
-
-      // SPI insert (ensure Code)
-      const spiReq = spiTx.request();
-      const spiCols = Object.keys(spiData);
-      const spiParams = spiCols.map((_, i) => `@s${i}`);
-      spiCols.forEach((k, i) => spiReq.input(`s${i}`, spiData[k]));
-      // Auto-generate Code if missing or not matching expected pattern
-      if (!spiData.Code || !/^NAEF-\d{4}-\d{4}$/.test(String(spiData.Code))) {
-        const { code } = await generateNextNaefCode(spiTx, new Date().getFullYear());
-        spiCols.push("Code");
-        spiParams.push("@s_code");
-        spiReq.input("s_code", code);
-      }
-      const spiSql = `INSERT INTO spidb.customer (${spiCols
-        .map((c) => `[${c}]`)
-        .join(", ")}) OUTPUT INSERTED.* VALUES (${spiParams.join(", ")})`;
-      const spiRes = await spiReq.query(spiSql);
-      insertedSpi = spiRes.recordset?.[0] || null;
-      if (!insertedSpi) throw new Error("Failed to insert SPI customer");
-
-      // CRM insert (ensure kristem_customer_id present)
-      const crmData = { ...crmInput };
-      if (insertedSpi?.Id != null && crmData.kristem_customer_id == null) {
-        crmData.kristem_customer_id = insertedSpi.Id;
-      }
-      const crmReq = crmTx.request();
-      const crmCols = Object.keys(crmData);
-      if (crmCols.length === 0) {
-        throw new Error("CRM payload is required to create CRM account");
-      }
-      const crmParams = crmCols.map((_, i) => `@c${i}`);
-      crmCols.forEach((k, i) => crmReq.input(`c${i}`, crmData[k]));
-      const crmSql = `INSERT INTO crmdb.accounts (${crmCols
-        .map((c) => `[${c}]`)
-        .join(", ")}) OUTPUT INSERTED.* VALUES (${crmParams.join(", ")})`;
-      const crmRes = await crmReq.query(crmSql);
-      insertedCrm = crmRes.recordset?.[0] || null;
-      if (!insertedCrm) throw new Error("Failed to insert CRM account");
-
-      // Commit both (commit CRM first)
-      await crmTx.commit();
-      await spiTx.commit();
-    } catch (innerErr) {
-      // Rollback both transactions on failure
-      try {
-        if (crmTx._aborted !== true) await crmTx.rollback();
-      } catch (r1) {
-        console.warn("CRM transaction rollback error:", r1?.message || r1);
-      }
-      try {
-        if (spiTx._aborted !== true) await spiTx.rollback();
-      } catch (r2) {
-        console.warn("SPI transaction rollback error:", r2?.message || r2);
-      }
-      throw innerErr;
-    }
-
-    return res.status(201).json({ ...insertedCrm, kristem: insertedSpi });
+    const naef_number = `NAEF-${currentYear}-${String(newCounter).padStart(4, "0")}`;
+    
+    // Step 1: Create MSSQL customer (for immediate referencing)
+    console.log("🔍 Creating MSSQL customer for immediate referencing...");
+    const spiPool = await poolPromise;
+    const mssqlResult = await spiPool.request()
+      .input('code', naef_number)
+      .input('name', body.account_name || 'NAEF Account')
+      .input('address', body.address || '')
+      .input('phone', body.contact_number || '')
+      .input('email', body.email_address || '')
+      .input('industryId', body.industry_id || null)
+      .input('locationId', body.customer_location_id || '')
+      .input('chargeTo', body.charge_to || '')
+      .input('tinNo', body.tin_no || '')
+      .input('segmentId', body.customer_market_segment_group_id || null)
+      .input('category', body.category || '')
+      .query(`
+        INSERT INTO spidb.customer (
+          Code, Name, Address, PhoneNumber, EmailAddress,
+          Customer_Industry_Group_Id, VAT_Type_Id, Price_Basis_Id, 
+          Customer_Location_Id, PaymentTerms, Currency_Id, Sales_Agent_Id,
+          ChargeTo, TinNo, Customer_Market_Segment_Group_Id, Category
+        ) OUTPUT INSERTED.Id VALUES (
+          @code, @name, @address, @phone, @email,
+          @industryId, -1, -1, 
+          @locationId, -1, -1, -1,
+          @chargeTo, @tinNo, @segmentId, @category
+        )
+      `);
+    
+    const kristemId = mssqlResult.recordset[0].Id;
+    console.log("✅ Created MSSQL customer with ID:", kristemId);
+    
+    // Step 2: Create PostgreSQL account with kristem_account_id link
+    console.log("🔍 Creating PostgreSQL account with kristem link...");
+    const insertResult = await db.query(`
+      INSERT INTO accounts (
+        naef_number, kristem_account_id, stage_status, ref_number, date_created, requested_by,
+        designation, department_id, validity_period, due_date, account_name,
+        contract_period, industry_id, account_designation, product_id,
+        contact_number, location, email_address, address, buyer_incharge,
+        trunkline, contract_number, process, secondary_email_address,
+        machines, reason_to_apply, automotive_section, source_of_inquiry,
+        commodity, business_activity, model, annual_target_sales,
+        population, source_of_target, existing_bellows, products_to_order,
+        model_under, target_areas, analysis, from_date, to_date,
+        activity_period, prepared_by, noted_by, approved_by, received_by,
+        acknowledged_by, is_naef, wo_source_id, created_at, updated_at
+      ) VALUES (
+        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11,
+        $12, $13, $14, $15, $16, $17, $18, $19, $20, $21,
+        $22, $23, $24, $25, $26, $27, $28, $29, $30, $31,
+        $32, $33, $34, $35, $36, $37, $38, $39, $40, $41,
+        $42, $43, $44, $45, $46, $47, $48, $49, NOW(), NOW()
+      ) RETURNING *
+    `, [
+      naef_number,
+      kristemId, // Link to MSSQL customer
+      body.stage_status || 'Draft',
+      body.ref_number,
+      body.date_created || new Date(),
+      body.requested_by,
+      body.designation,
+      body.department_id,
+      body.validity_period,
+      body.due_date,
+      body.account_name,
+      body.contract_period,
+      body.industry_id,
+      body.account_designation,
+      body.product_id,
+      body.contact_number,
+      body.location,
+      body.email_address,
+      body.address,
+      body.buyer_incharge,
+      body.trunkline,
+      body.contract_number,
+      body.process,
+      body.secondary_email_address,
+      body.machines,
+      body.reason_to_apply,
+      body.automotive_section,
+      body.source_of_inquiry,
+      body.commodity,
+      body.business_activity,
+      body.model,
+      body.annual_target_sales,
+      body.population,
+      body.source_of_target,
+      body.existing_bellows,
+      body.products_to_order,
+      body.model_under,
+      body.target_areas,
+      body.analysis,
+      body.from_date,
+      body.to_date,
+      body.activity_period,
+      body.prepared_by,
+      body.noted_by,
+      body.approved_by,
+      body.received_by,
+      body.acknowledged_by,
+      body.is_naef || true,
+      body.wo_source_id
+    ]);
+    
+    const newAccount = insertResult.rows[0];
+    console.log("✅ Created PostgreSQL account with kristem_account_id:", newAccount.kristemAccountId);
+    
+    // Add kristem data to response for immediate use
+    newAccount.kristem_id = kristemId; // For other modules to reference
+    
+    return res.status(201).json(newAccount);
   } catch (err) {
     console.error("POST /api/accounts error:", err);
-    return res.status(500).json({ error: err.message });
-  }
-});
-
-// UPDATE CRM account and linked NAEF
-router.put("/naef/:id", async (req, res) => {
-  try {
-    const { id } = req.params; // CRM account Id
-    console.log("PUT /api/accounts/naef/:id called for CRM id:", id);
-    console.log("Request body:", req.body);
-  let body = toSnake(req.body);
-    // Expected body shape (selected fields):
-    // CRM updates: requested_by, departmentId, industryId, productBrandId, stageStatus, dueDate, prepared_by
-    // NAEF updates: naefId or woId, stageStatus, assignee, contactPerson, contactNumber, contactEmail, title, dueDate
-    const crmInput = {
-      requested_by: body?.requested_by || "system",
-      stage_status: body?.stage_status ?? undefined,
-      due_date: body?.due_date ?? undefined,
-      prepared_by: body?.prepared_by ?? undefined,
-      validity_period: body?.validity_period ?? undefined,
-      designation: body?.designation ?? undefined,
-      contract_period: body?.contract_period ?? undefined,
-      account_designation: body?.account_designation ?? undefined,
-      contact_number: body?.contact_number ?? undefined,
-      location: body?.location ?? undefined,
-      email_address: body?.email_address ?? undefined,
-      address: body?.address ?? undefined,
-      buyer_incharge: body?.buyer_incharge ?? undefined,
-      trunkline: body?.trunkline ?? undefined,
-      contract_number: body?.contract_number ?? undefined,
-      process: body?.process ?? undefined,
-      secondary_email_address: body?.secondary_email_address ?? undefined,
-      machines: body?.machines ?? undefined,
-      reason_to_apply: body?.reason_to_apply ?? undefined,
-      automotive_section: body?.automotive_section ?? undefined,
-      source_of_inquiry: body?.source_of_inquiry ?? undefined,
-      commodity: body?.commodity ?? undefined,
-      business_activity: body?.business_activity ?? undefined,
-      model: body?.model ?? undefined,
-      annual_target_sales: body?.annual_target_sales ?? undefined,
-      population: body?.population ?? undefined,
-      source_of_target: body?.source_of_target ?? undefined,
-      existing_bellows: body?.existing_bellows ?? undefined,
-      products_to_order: body?.products_to_order ?? undefined,
-      model_under: body?.model_under ?? undefined,
-      target_areas: body?.target_areas ?? undefined,
-      analysis: body?.analysis ?? undefined,
-      from_date: body?.from_date ?? undefined,
-      to_date: body?.to_date ?? undefined,
-      activity_period: body?.activity_period ?? undefined,
-      noted_by: body?.noted_by ?? undefined,
-      approved_by: body?.approved_by ?? undefined,
-      received_by: body?.received_by ?? undefined,
-      acknowledged_by: body?.acknowledged_by ?? undefined,
-      updated_at: new Date(),
-    };
-
-    const [crmPool] = await Promise.all([poolCrmPromise]);
-
-    const crmTx = crmPool.transaction();
-
-    let updatedCrm = null;
-    let kristemId = null;
-
-    try {
-      await crmTx.begin();
-
-      // 1) Update CRM account (if fields provided). Always fetch current to know kristem id
-      const currentCrmRes = await crmTx
-        .request()
-        .input("id", id)
-        .query("SELECT TOP (1) * FROM crmdb.accounts WHERE id = @id");
-      const currentCrm = currentCrmRes.recordset?.[0] || null;
-      if (!currentCrm) throw new Error("Account not found");
-
-      kristemId = currentCrm.kristem_customer_id ?? null;
-
-      // Filter undefined values out of crmInput
-      const filteredCrm = Object.fromEntries(
-        Object.entries(crmInput).filter(([, v]) => v !== undefined),
-      );
-      if (filteredCrm && Object.keys(filteredCrm).length > 0) {
-        const cols = Object.keys(filteredCrm);
-        const reqC = crmTx.request();
-        const set = cols.map((k, i) => `[${k}] = @c${i}`);
-        cols.forEach((k, i) => reqC.input(`c${i}`, filteredCrm[k]));
-        reqC.input("id", id);
-        const sqlC = `UPDATE crmdb.accounts SET ${set.join(", ")} OUTPUT INSERTED.* WHERE id = @id`;
-        const uRes = await reqC.query(sqlC);
-        updatedCrm = uRes.recordset?.[0] || currentCrm;
-        kristemId = updatedCrm.kristem_customer_id ?? kristemId;
-      } else {
-        updatedCrm = currentCrm;
-      }
-      await crmTx.commit();
-    } catch (innerErr) {
-      try {
-        if (crmTx._aborted !== true) await crmTx.rollback();
-      } catch (r1) {
-        console.warn("CRM rollback error:", r1?.message || r1);
-      }
-      throw innerErr;
-    }
-
-    // 2) Enrich like GET /:id
-    const spiReq = (await poolPromise).request();
-    const pid = updatedCrm.product_id ?? null;
-    const iid = updatedCrm.industry_id ?? null;
-    const did = updatedCrm.department_id ?? null;
-
-    const lookups = await Promise.all([
-      kristemId
-        ? spiReq.input("kid2", kristemId).query("SELECT TOP (1) * FROM spidb.customer WHERE Id = @kid2")
-        : Promise.resolve(null),
-      pid
-        ? (await poolPromise)
-            .request()
-            .input("bid2", pid)
-            .query("SELECT TOP (1) * FROM spidb.brand WHERE ID = @bid2")
-        : Promise.resolve(null),
-      iid
-        ? (await poolPromise)
-            .request()
-            .input("iid2", iid)
-            .query("SELECT TOP (1) * FROM spidb.Customer_Industry_Group WHERE Id = @iid2")
-        : Promise.resolve(null),
-      did
-        ? (await poolPromise)
-            .request()
-            .input("did2", did)
-            .query("SELECT TOP (1) * FROM spidb.Department WHERE Id = @did2")
-        : Promise.resolve(null),
-    ]);
-
-    const kristem = lookups[0]?.recordset?.[0] || null;
-    const brand = lookups[1]?.recordset?.[0] || null;
-    const industry = lookups[2]?.recordset?.[0] || null;
-    const department = lookups[3]?.recordset?.[0] || null;
-
-    // 3) Update NAEF row if naefId or woId provided
-    const naefId = body.naefId || null;
-    const woId = body.woId || null;
-    const naefStageStatus = body.stageStatus;
-    const naefAssignee = body.assignee;
-    const contactPerson = body.contactPerson;
-    const contactNumber = body.contactNumber;
-    const contactEmail = body.contactEmail;
-    const title = body.title;
-    const projectEndDate = body.dueDate;
-
-    let updatedNaef = null;
-    try {
-      if (naefId || woId) {
-        const sets = [];
-        const vals = [];
-        if (naefStageStatus !== undefined) {
-          sets.push(`stage_status = $${sets.length + 1}`);
-          vals.push(naefStageStatus);
-        }
-        if (naefAssignee !== undefined) {
-          sets.push(`assignee = $${sets.length + 1}`);
-          vals.push(naefAssignee);
-        }
-        if (contactPerson !== undefined) {
-          sets.push(`contact_person = $${sets.length + 1}`);
-          vals.push(contactPerson);
-        }
-        if (contactNumber !== undefined) {
-          sets.push(`contact_number = $${sets.length + 1}`);
-          vals.push(contactNumber);
-        }
-        if (contactEmail !== undefined) {
-          sets.push(`contact_email = $${sets.length + 1}`);
-          vals.push(contactEmail);
-        }
-        if (title !== undefined) {
-          sets.push(`title = $${sets.length + 1}`);
-          vals.push(title);
-        }
-        if (projectEndDate !== undefined) {
-          sets.push(`project_end_date = $${sets.length + 1}`);
-          vals.push(projectEndDate);
-        }
-
-        if (sets.length > 0) {
-          let whereClause = "";
-          if (naefId) {
-            whereClause = `id = $${sets.length + 1}`;
-            vals.push(naefId);
-          } else {
-            whereClause = `wo_id = $${sets.length + 1}`;
-            vals.push(woId);
-          }
-          const sql = `UPDATE naef SET ${sets.join(", ")} WHERE ${whereClause} RETURNING *`;
-          const u = await db.query(sql, vals);
-          updatedNaef = u.rows?.[0] || null;
-        }
-      }
-    } catch (nErr) {
-      console.warn("Failed to update NAEF row:", nErr.message);
-    }
-
-    // Create workflow stage for new technical recommendation (Draft)
-    await db.query(
-      `
-        INSERT INTO workflow_stages (wo_id, stage_name, status, assigned_to, created_at, updated_at)
-        VALUES ($1, $2, $3, $4, NOW(), NOW())`,
-      [req.body?.wo_id, "NAEF", "Draft", req.body?.assignee ?? req.body?.prepared_by],
-    );
-
-    return res.json({ ...updatedCrm, kristem, brand, industry, department, naef: updatedNaef });
-  } catch (err) {
-    console.error("PUT /api/accounts/:id error:", err);
-    return res.status(500).json({ error: err.message });
-  }
-});
-
-// UPDATE account from approval module
-router.put("/approval/:id", async (req, res) => {
-  try {
-    console.log("PUT /api/accounts/approval/:id called");
-    const { id } = req.params; // CRM account Id
-    console.log("Request body:", req.body);
-    // Expected body shape:
-    // { spi: { ...spidb.customer columns... }, crm: { ...crmdb.accounts columns... } }
-    // We'll update CRM first, then SPI (using kristem_customer_id), using separate transactions.
-    const crmInput = {
-      is_naef: req.body?.isNaef || true,
-      stage_status: req.body?.stageStatus || "Draft",
-      due_date: req.body?.dueDate || null,
-      wo_id: req.body?.woId || null,
-      prepared_by: req.body?.assignee || null,
-    };
-
-    const [crmPool] = await Promise.all([poolCrmPromise]);
-
-    const crmTx = crmPool.transaction();
-
-  let updatedCrm = null;
-    let kristemId = null;
-
-    try {
-      await crmTx.begin();
-
-      // 1) Update CRM account (if fields provided). Always fetch current to know kristem id
-      const currentCrmRes = await crmTx
-        .request()
-        .input("id", id)
-        .query("SELECT TOP (1) * FROM crmdb.accounts WHERE id = @id");
-      const currentCrm = currentCrmRes.recordset?.[0] || null;
-      if (!currentCrm) throw new Error("Account not found");
-
-      kristemId = currentCrm.kristem_customer_id ?? null;
-
-      if (crmInput && Object.keys(crmInput).length > 0) {
-        const cols = Object.keys(crmInput);
-        const reqC = crmTx.request();
-        const set = cols.map((k, i) => `[${k}] = @c${i}`);
-        cols.forEach((k, i) => reqC.input(`c${i}`, crmInput[k]));
-        reqC.input("id", id);
-        const sqlC = `UPDATE crmdb.accounts SET ${set.join(", ")} OUTPUT INSERTED.* WHERE id = @id`;
-        const uRes = await reqC.query(sqlC);
-        updatedCrm = uRes.recordset?.[0] || currentCrm;
-        kristemId = updatedCrm.kristem_customer_id ?? kristemId;
-      } else {
-        updatedCrm = currentCrm;
-      }
-
-      await crmTx.commit();
-    } catch (innerErr) {
-      try {
-        if (crmTx._aborted !== true) await crmTx.rollback();
-      } catch (r1) {
-        console.warn("CRM rollback error:", r1?.message || r1);
-      }
-      throw innerErr;
-    }
-
-  // 3) Enrich like GET /:id
-    const spiReq = (await poolPromise).request();
-    const pid = updatedCrm.product_id ?? null;
-    const iid = updatedCrm.industry_id ?? null;
-    const did = updatedCrm.department_id ?? null;
-
-    const lookups = await Promise.all([
-      kristemId
-        ? spiReq.input("kid2", kristemId).query("SELECT TOP (1) * FROM spidb.customer WHERE Id = @kid2")
-        : Promise.resolve(null),
-      pid
-        ? (await poolPromise)
-            .request()
-            .input("bid2", pid)
-            .query("SELECT TOP (1) * FROM spidb.brand WHERE ID = @bid2")
-        : Promise.resolve(null),
-      iid
-        ? (await poolPromise)
-            .request()
-            .input("iid2", iid)
-            .query("SELECT TOP (1) * FROM spidb.Customer_Industry_Group WHERE Id = @iid2")
-        : Promise.resolve(null),
-      did
-        ? (await poolPromise)
-            .request()
-            .input("did2", did)
-            .query("SELECT TOP (1) * FROM spidb.Department WHERE Id = @did2")
-        : Promise.resolve(null),
-    ]);
-
-    const kristem = lookups[0]?.recordset?.[0] || null;
-    const brand = lookups[1]?.recordset?.[0] || null;
-    const industry = lookups[2]?.recordset?.[0] || null;
-    const department = lookups[3]?.recordset?.[0] || null;
-
-    // Create workflow stage for new technical recommendation (Draft)
-    await db.query(
-      `
-        INSERT INTO workflow_stages (wo_id, stage_name, status, assigned_to, created_at, updated_at)
-        VALUES ($1, $2, $3, $4, NOW(), NOW())`,
-      [req.body?.woId, "NAEF", "Draft", req.body?.assignee],
-    );
-
-    return res.json({ ...updatedCrm, kristem, brand, industry, department });
-  } catch (err) {
-    console.error("PUT /api/accounts/:id error:", err);
     return res.status(500).json({ error: err.message });
   }
 });
@@ -857,151 +505,348 @@ router.put("/approval/:id", async (req, res) => {
 // UPDATE account
 router.put("/:id", async (req, res) => {
   try {
-    const { id } = req.params; // CRM account Id
-    console.log("PUT /api/accounts/:id called for id:", id);
-    console.log("Request body:", req.body);
-    // Expected body shape:
-    // { spi: { ...spidb.customer columns... }, crm: { ...crmdb.accounts columns... } }
-    // We'll update CRM first, then SPI (using kristem_customer_id), using separate transactions.
-    const spiInput = {
-      Name: req.body?.account_name ?? "NOT_SET"
-    };
-    const crmInput = {
-      requested_by: req.body?.contact_person || "system",
-      department_id: req.body?.department_id || null,
-      industry_id: req.body?.industry_id || null,
-      product_id: req.body?.product_id || null,
-    };
-
-    const [crmPool, spiPool] = await Promise.all([poolCrmPromise, poolPromise]);
-
-    const crmTx = crmPool.transaction();
-    const spiTx = spiPool.transaction();
-
-  let updatedCrm = null;
-    let kristemId = null;
-
-    try {
-      await crmTx.begin();
-      await spiTx.begin();
-
-      // 1) Update CRM account (if fields provided). Always fetch current to know kristem id
-      const currentCrmRes = await crmTx
-        .request()
-        .input("id", id)
-        .query("SELECT TOP (1) * FROM crmdb.accounts WHERE id = @id");
-      const currentCrm = currentCrmRes.recordset?.[0] || null;
-      if (!currentCrm) throw new Error("Account not found");
-
-      kristemId = currentCrm.kristem_customer_id ?? null;
-
-      if (crmInput && Object.keys(crmInput).length > 0) {
-        const cols = Object.keys(crmInput);
-        const reqC = crmTx.request();
-        const set = cols.map((k, i) => `[${k}] = @c${i}`);
-        cols.forEach((k, i) => reqC.input(`c${i}`, crmInput[k]));
-        reqC.input("id", id);
-        const sqlC = `UPDATE crmdb.accounts SET ${set.join(", ")} OUTPUT INSERTED.* WHERE id = @id`;
-        const uRes = await reqC.query(sqlC);
-        updatedCrm = uRes.recordset?.[0] || currentCrm;
-        kristemId = updatedCrm.kristem_customer_id ?? kristemId;
-      } else {
-        updatedCrm = currentCrm;
-      }
-
-      // 2) Update SPI customer if spi payload provided
-      if (spiInput && Object.keys(spiInput).length > 0) {
-        const SPI_ALLOWED = new Set([
-          "Code",
-          "Name",
-          "Address",
-          "PhoneNumber",
-          "EmailAddress",
-          "VAT_Type_Id",
-          "Price_Basis_Id",
-          "Customer_Location_Id",
-          "PaymentTerms",
-          "Currency_Id",
-          "Customer_Industry_Group_Id",
-          "Sales_Agent_Id",
-          "ChargeTo",
-          "TinNo",
-          "Customer_Market_Segment_Group_Id",
-          "Category",
-        ]);
-        const spiFiltered = Object.fromEntries(
-          Object.entries(spiInput).filter(([k]) => SPI_ALLOWED.has(k)),
-        );
-        // Resolve SPI target Id
-        const spiId = spiInput.Id ?? kristemId;
-        if (!spiId) throw new Error("SPI target Id not found for update");
-
-        const colsS = Object.keys(spiFiltered);
-        if (colsS.length > 0) {
-          const reqS = spiTx.request();
-          const setS = colsS.map((k, i) => `[${k}] = @s${i}`);
-          colsS.forEach((k, i) => reqS.input(`s${i}`, spiFiltered[k]));
-          reqS.input("id", spiId);
-          const sqlS = `UPDATE spidb.customer SET ${setS.join(", ")} OUTPUT INSERTED.* WHERE Id = @id`;
-          await reqS.query(sqlS);
-        }
-      }
-
-      await crmTx.commit();
-      await spiTx.commit();
-    } catch (innerErr) {
-      try {
-        if (crmTx._aborted !== true) await crmTx.rollback();
-      } catch (r1) {
-        console.warn("CRM rollback error:", r1?.message || r1);
-      }
-      try {
-        if (spiTx._aborted !== true) await spiTx.rollback();
-      } catch (r2) {
-        console.warn("SPI rollback error:", r2?.message || r2);
-      }
-      throw innerErr;
-    }
-
-    // 3) Enrich like GET /:id
-    const spiReq = (await poolPromise).request();
-    const pid = updatedCrm.product_id ?? null;
-    const iid = updatedCrm.industry_id ?? null;
-    const did = updatedCrm.department_id ?? null;
-
-    const lookups = await Promise.all([
-      kristemId
-        ? spiReq.input("kid2", kristemId).query("SELECT TOP (1) * FROM spidb.customer WHERE Id = @kid2")
-        : Promise.resolve(null),
-      pid
-        ? (await poolPromise)
-            .request()
-            .input("bid2", pid)
-            .query("SELECT TOP (1) * FROM spidb.brand WHERE ID = @bid2")
-        : Promise.resolve(null),
-      iid
-        ? (await poolPromise)
-            .request()
-            .input("iid2", iid)
-            .query("SELECT TOP (1) * FROM spidb.Customer_Industry_Group WHERE Id = @iid2")
-        : Promise.resolve(null),
-      did
-        ? (await poolPromise)
-            .request()
-            .input("did2", did)
-            .query("SELECT TOP (1) * FROM spidb.Department WHERE Id = @did2")
-        : Promise.resolve(null),
+    const { id } = req.params;
+    const body = toSnake(req.body);
+    console.log("Updating account id", id, "with data:", body);
+    
+    // Update PostgreSQL account
+    const updateResult = await db.query(`
+      UPDATE accounts SET
+        stage_status = $1,
+        ref_number = $2,
+        requested_by = $3,
+        designation = $4,
+        department_id = $5,
+        validity_period = $6,
+        due_date = $7,
+        account_name = $8,
+        contract_period = $9,
+        industry_id = $10,
+        account_designation = $11,
+        product_id = $12,
+        contact_number = $13,
+        location = $14,
+        email_address = $15,
+        address = $16,
+        buyer_incharge = $17,
+        trunkline = $18,
+        contract_number = $19,
+        process = $20,
+        secondary_email_address = $21,
+        machines = $22,
+        reason_to_apply = $23,
+        automotive_section = $24,
+        source_of_inquiry = $25,
+        commodity = $26,
+        business_activity = $27,
+        model = $28,
+        annual_target_sales = $29,
+        population = $30,
+        source_of_target = $31,
+        existing_bellows = $32,
+        products_to_order = $33,
+        model_under = $34,
+        target_areas = $35,
+        analysis = $36,
+        from_date = $37,
+        to_date = $38,
+        activity_period = $39,
+        prepared_by = $40,
+        noted_by = $41,
+        approved_by = $42,
+        received_by = $43,
+        acknowledged_by = $44,
+        updated_at = NOW()
+      WHERE id = $45
+      RETURNING *
+    `, [
+      body.stage_status,
+      body.ref_number,
+      body.requested_by,
+      body.designation,
+      body.department_id,
+      body.validity_period,
+      body.due_date,
+      body.account_name,
+      body.contract_period,
+      body.industry_id,
+      body.account_designation,
+      body.product_id,
+      body.contact_number,
+      body.location,
+      body.email_address,
+      body.address,
+      body.buyer_incharge,
+      body.trunkline,
+      body.contract_number,
+      body.process,
+      body.secondary_email_address,
+      body.machines,
+      body.reason_to_apply,
+      body.automotive_section,
+      body.source_of_inquiry,
+      body.commodity,
+      body.business_activity,
+      body.model,
+      body.annual_target_sales,
+      body.population,
+      body.source_of_target,
+      body.existing_bellows,
+      body.products_to_order,
+      body.model_under,
+      body.target_areas,
+      body.analysis,
+      body.from_date,
+      body.to_date,
+      body.activity_period,
+      body.prepared_by,
+      body.noted_by,
+      body.approved_by,
+      body.received_by,
+      body.acknowledged_by,
+      id
     ]);
-
-    const kristem = lookups[0]?.recordset?.[0] || null;
-    const brand = lookups[1]?.recordset?.[0] || null;
-    const industry = lookups[2]?.recordset?.[0] || null;
-    const department = lookups[3]?.recordset?.[0] || null;
-
-    return res.json({ ...updatedCrm, kristem, brand, industry, department });
+    
+    if (updateResult.rows.length === 0) {
+      return res.status(404).json({ error: "Account not found" });
+    }
+    
+    const updatedAccount = updateResult.rows[0];
+    
+    // If account was approved, sync to MSSQL
+    if (body.stage_status === 'Approved' && !updatedAccount.kristemAccountId) {
+      try {
+        await syncAccountToMSSQL(updatedAccount);
+      } catch (syncErr) {
+        console.warn("Failed to sync approved account to MSSQL:", syncErr.message);
+      }
+    }
+    
+    return res.json(updatedAccount);
   } catch (err) {
     console.error("PUT /api/accounts/:id error:", err);
     return res.status(500).json({ error: err.message });
+  }
+});
+
+// Update approved account in MSSQL spidb.customer (dual creation mode)
+async function syncAccountToMSSQL(account) {
+  console.log("🚀 Updating approved account in MSSQL:", account.id);
+  
+  try {
+    if (!account.kristemAccountId) {
+      console.warn("⚠️ Account has no kristem_account_id - skipping MSSQL update");
+      return;
+    }
+    
+    const spiPool = await poolPromise;
+    
+    // UPDATE existing MSSQL customer with final data
+    await spiPool.request()
+      .input('id', Number(account.kristemAccountId))
+      .input('code', account.naefNumber || account.kristemAccountId)
+      .input('name', account.accountName || 'Unknown')
+      .input('address', account.address || '')
+      .input('phone', account.contactNumber || '')
+      .input('email', account.emailAddress || '')
+      .input('industryId', account.industryId || null)
+      .input('locationId', account.customerLocationId || '')
+      .input('chargeTo', account.chargeTo || '')
+      .input('tinNo', account.tinNo || '')
+      .input('segmentId', account.customerMarketSegmentGroupId || null)
+      .input('category', account.category || '')
+      .query(`
+        UPDATE spidb.customer SET
+          Code = @code,
+          Name = @name,
+          Address = @address,
+          PhoneNumber = @phone,
+          EmailAddress = @email,
+          Customer_Industry_Group_Id = @industryId,
+          Customer_Location_Id = @locationId,
+          ChargeTo = @chargeTo,
+          TinNo = @tinNo,
+          Customer_Market_Segment_Group_Id = @segmentId,
+          Category = @category
+        WHERE Id = @id
+      `);
+    
+    console.log("✅ Updated MSSQL customer ID:", account.kristemAccountId, "with final approved data");
+    
+  } catch (err) {
+    console.error("❌ Failed to update account in MSSQL:", err);
+    throw err;
+  }
+}
+
+// Get account lookup data
+router.get("/industries", async (req, res) => {
+  try {
+    const spiPool = await poolPromise;
+    const result = await spiPool.request().query("SELECT * FROM spidb.Customer_Industry_Group ORDER BY Code");
+    return res.json(result.recordset || []);
+  } catch (err) {
+    console.error("/api/accounts/industries error:", err);
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+router.get("/departments", async (req, res) => {
+  try {
+    const spiPool = await poolPromise;
+    const result = await spiPool.request().query("SELECT * FROM spidb.CusDepartment ORDER BY Code");
+    return res.json(result.recordset || []);
+  } catch (err) {
+    console.error("/api/accounts/departments error:", err);
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+router.get("/product-brands", async (req, res) => {
+  try {
+    const spiPool = await poolPromise;
+    const result = await spiPool.request().query("SELECT * FROM spidb.brand ORDER BY Code");
+    return res.json(result.recordset || []);
+  } catch (err) {
+    console.error("/api/accounts/product-brands error:", err);
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+// GET single account by id
+router.get("/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    console.log("Fetching account by id:", id);
+    
+    // First try PostgreSQL (for draft/pending accounts)
+    const pgResult = await db.query(`
+      SELECT 
+        a.*,
+        u.username as prepared_by_username
+      FROM accounts a
+      LEFT JOIN users u ON a.prepared_by = u.id
+      WHERE a.id = $1
+    `, [id]);
+    
+    if (pgResult.rows.length > 0) {
+      const account = pgResult.rows[0];
+      account.source = 'postgresql';
+      
+      // Enrich with MSSQL data
+      try {
+        const spiPool = await poolPromise;
+        
+        const enrichmentPromises = [];
+        
+        // Add kristem customer data if available
+        if (account.kristemAccountId) {
+          enrichmentPromises.push(
+            spiPool.request()
+              .input("custId", Number(account.kristemAccountId))
+              .query("SELECT TOP (1) * FROM spidb.customer WHERE Id = @custId")
+              .then(res => ({ type: 'customer', data: res.recordset[0] || null }))
+          );
+        }
+        
+        // Add department lookup
+        if (account.departmentId) {
+          enrichmentPromises.push(
+            spiPool.request()
+              .input("deptId", Number(account.departmentId))
+              .query("SELECT TOP (1) * FROM spidb.CusDepartment WHERE Id = @deptId")
+              .then(res => ({ type: 'department', data: res.recordset[0] || null }))
+          );
+        }
+        
+        // Add industry lookup
+        if (account.industryId) {
+          enrichmentPromises.push(
+            spiPool.request()
+              .input("indId", Number(account.industryId))
+              .query("SELECT TOP (1) * FROM spidb.Customer_Industry_Group WHERE Id = @indId")
+              .then(res => ({ type: 'industry', data: res.recordset[0] || null }))
+          );
+        }
+        
+        // Add brand/product lookup
+        if (account.productId) {
+          enrichmentPromises.push(
+            spiPool.request()
+              .input("prodId", Number(account.productId))
+              .query("SELECT TOP (1) * FROM spidb.brand WHERE ID = @prodId")
+              .then(res => ({ type: 'brand', data: res.recordset[0] || null }))
+          );
+        }
+        
+        // Execute all lookups in parallel
+        const enrichments = await Promise.all(enrichmentPromises);
+        
+        // Apply enrichments to account
+        for (const enrichment of enrichments) {
+          if (enrichment.data) {
+            account[enrichment.type] = enrichment.data;
+            if (enrichment.type === 'customer') {
+              account.kristem = enrichment.data;
+            }
+          }
+        }
+        
+      } catch (spiErr) {
+        console.warn("Failed to enrich with SPI data:", spiErr.message);
+      }
+      
+      return res.json(account);
+    }
+    
+    // If not found in PostgreSQL, try MSSQL (for existing customers)
+    try {
+      const spiPool = await poolPromise;
+      const custRes = await spiPool
+        .request()
+        .input("id", Number(id))
+        .query("SELECT TOP (1) * FROM spidb.customer WHERE Id = @id");
+      
+      const customer = custRes.recordset && custRes.recordset[0];
+      if (!customer) {
+        return res.status(404).json({ error: "Account not found" });
+      }
+
+      // Enrich with brand/industry/department data
+      const normId = (v) => {
+        const n = Number(v);
+        return Number.isFinite(n) ? n : null;
+      };
+      const bId = normId(customer.Product_Brand_Id) ?? normId(customer.ProductBrandId) ?? normId(customer.Brand_ID) ?? normId(customer.BrandId) ?? 2;
+      const iId = normId(customer.Customer_Industry_Group_Id) ?? normId(customer.Industry_Group_Id) ?? normId(customer.IndustryGroupId) ?? null;
+      const dId = normId(customer.Department_Id) ?? normId(customer.DepartmentID) ?? normId(customer.DepartmentId) ?? 2;
+
+      const [bRes, iRes, dRes] = await Promise.all([
+        spiPool.request().input("bid", bId).query("SELECT TOP (1) * FROM spidb.brand WHERE ID = @bid"),
+        iId != null ? spiPool.request().input("iid", iId).query("SELECT TOP (1) * FROM spidb.Customer_Industry_Group WHERE Id = @iid") : Promise.resolve({ recordset: [] }),
+        spiPool.request().input("did", dId).query("SELECT TOP (1) * FROM spidb.CusDepartment WHERE Id = @did"),
+      ]);
+
+      const account = {
+        id: customer.Id,
+        kristem: customer,
+        brand: bRes.recordset && bRes.recordset[0] ? bRes.recordset[0] : null,
+        industry: iRes.recordset && iRes.recordset[0] ? iRes.recordset[0] : null,
+        department: dRes.recordset && dRes.recordset[0] ? dRes.recordset[0] : null,
+        account_name: customer.Name,
+        stage_status: 'Approved',
+        created_at: customer.DateCreated || null,
+        source: 'mssql'
+      };
+      
+      return res.json(account);
+    } catch (spiErr) {
+      console.error("Failed to fetch from MSSQL:", spiErr.message);
+      return res.status(404).json({ error: "Account not found" });
+    }
+  } catch (err) {
+    console.error("/api/accounts/:id error:", err);
+    res.status(500).json({ error: err.message });
   }
 });
 

@@ -469,7 +469,7 @@ const WorkOrderDetails = ({
               className="col-span-5 min-h-[100px] rounded-md border border-gray-200 bg-yellow-50 px-3 py-3 cursor-default"
               readOnly=""
             >
-              {workOrder.objective || "No objectives provided"}
+              {workOrder.objective || "-"}
             </div>
           </div>
           <div className="grid grid-cols-6 gap-4">
@@ -483,7 +483,7 @@ const WorkOrderDetails = ({
               className="col-span-5 min-h-[100px] rounded-md border border-gray-200 bg-yellow-50 px-3 py-3 cursor-default"
               readOnly=""
             >
-              {workOrder.instruction || "No Instructions provided"}
+              {workOrder.instruction || "-"}
             </div>
           </div>
           <div className="grid grid-cols-6 gap-4">
@@ -497,7 +497,7 @@ const WorkOrderDetails = ({
               className="col-span-5 min-h-[100px] rounded-md border border-gray-200 bg-yellow-50 px-3 py-3 cursor-default"
               readOnly=""
             >
-              {workOrder.targetOutput || "No Target Output provided"}
+              {workOrder.targetOutput || "-"}
             </div>
           </div>
         </div>
