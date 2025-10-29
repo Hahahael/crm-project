@@ -168,7 +168,7 @@ export default function TechnicalsTable({ technicals, onView, onEdit }) {
               className="hover:bg-gray-50 transition-all duration-200"
             >
               <td className="px-4 py-2 text-black text-sm">{tr.trNumber}</td>
-              <td className="px-4 py-2 text-black text-sm">{tr.account.kristem.Name}</td>
+              <td className="px-4 py-2 text-black text-sm">{tr.account?.kristem?.Name || "-"}</td>
               <td className="px-4 py-2 text-black text-sm">
                 {tr.title || "-"}
               </td>
