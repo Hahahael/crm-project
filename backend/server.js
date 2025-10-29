@@ -57,11 +57,11 @@ const allowedOrigins = [
   "https://crm-project-git-new-dev-raphaels-projects-763450c5.vercel.app",
   "https://crm-project-4ugu.onrender.com",
   "http://localhost:5174",
-  "http://139.135.131.164:5174",
   FRONTEND_URL,
   "http://139.135.131.164:5174",
   "http://139.135.131.164:5500",
-];
+  "http://localhost:5174",
+].filter(Boolean);
 app.use(
   cors({
     origin: function (origin, callback) {
