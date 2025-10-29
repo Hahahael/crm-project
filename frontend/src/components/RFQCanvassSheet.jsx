@@ -34,39 +34,51 @@ export default function RFQCanvassSheet({
   const canonItemId = (obj) => (obj ? (obj.itemId ?? obj.item_id ?? obj.id) : undefined);
   const canonVendorId = (obj) => (obj ? (obj.vendorId ?? obj.vendor_id ?? obj.id) : undefined);
   const idEq = (a, b) => String(a ?? "") === String(b ?? "");
-  // Handler to select best vendor per item
-  const handleSelectRecommendedVendors = () => {
+  // Global selected vendor for ALL items
+  const [selectedVendorAll, setSelectedVendorAll] = useState(() => rfq?.selectedVendorId ?? null);
+
+  // Apply a single vendor selection across all items
+  const handleSelectVendorAll = (vendorId) => {
     if (readOnly) return;
-    const newSelection = {};
     const itemsSource = formItems || [];
     const updatedItems = itemsSource.map((item) => {
       const iid = canonItemId(item);
-      const itemQuotes = generateQuotations(selectedVendorsByItem).filter(
-        (q) => idEq(q.itemId, iid),
+      const selectedQuote = (quotations || []).find(
+        (q) => idEq(q.itemId, iid) && idEq(q.vendorId, vendorId),
       );
-      const minTotal = Math.min(...itemQuotes.map((q) => q.total));
-      const bestQuote = itemQuotes.find((q) => q.total === minTotal);
-      if (bestQuote) {
-        newSelection[iid] = bestQuote.vendorId;
-        return {
-          ...item,
-          unitPrice: bestQuote.unitPrice,
-          leadTime: bestQuote.leadTime,
-          quantity: bestQuote.quantity,
-          total: bestQuote.unitPrice * bestQuote.quantity,
-        };
-      }
-      return item;
+      if (!selectedQuote) return item;
+      return {
+        ...item,
+        unitPrice: selectedQuote.unitPrice ?? item.unitPrice,
+        leadTime: selectedQuote.leadTime ?? item.leadTime,
+        quantity: selectedQuote.quantity ?? item.quantity,
+        total: (selectedQuote.unitPrice ?? 0) * (selectedQuote.quantity ?? 0),
+      };
     });
+
+    const newSelection = (formItems || []).reduce((acc, item) => {
+      acc[canonItemId(item)] = vendorId;
+      return acc;
+    }, {});
+
+    setSelectedVendorAll(vendorId);
     setSelectedVendorsByItem(newSelection);
-    // persist updated items back to wrapper state and parent formData
     setFormItems(updatedItems);
     if (!readOnly && setFormData)
       setFormData((prev) => ({
         ...prev,
         items: updatedItems,
         selectedVendorsByItem: newSelection,
+        selectedVendorId: vendorId,
       }));
+  };
+
+  // Handler to select best (lowest total) vendor for all items
+  const handleSelectRecommendedVendors = () => {
+    if (readOnly) return;
+    if (!vendorTotals || vendorTotals.length === 0) return;
+    const best = vendorTotals.reduce((min, v) => (v.total < min.total ? v : min), vendorTotals[0]);
+    if (best?.id) handleSelectVendorAll(best.id);
   };
 
   const [selectedVendorsByItem, setSelectedVendorsByItem] = useState(() => {
@@ -168,39 +180,17 @@ export default function RFQCanvassSheet({
     readOnly,
   ]);
 
-  // Handler for selecting a vendor for an item
-  const handleSelectVendor = (itemId, vendorId) => {
-    if (readOnly) return;
-    // Find the selected quotation
-    const selectedQuote = quotations.find(
-      (q) => idEq(q.itemId, itemId) && idEq(q.vendorId, vendorId),
-    );
-    // Update all relevant fields in the item
-    const updatedItems = (formItems || []).map((item) =>
-      idEq(canonItemId(item), itemId)
-        ? {
-            ...item,
-            unitPrice: selectedQuote?.unitPrice ?? item.unitPrice,
-            leadTime: selectedQuote?.leadTime ?? item.leadTime,
-            quantity: selectedQuote?.quantity ?? item.quantity,
-            total: selectedQuote
-              ? selectedQuote.unitPrice * selectedQuote.quantity
-              : item.total,
-          }
-        : item,
-    );
-    // Update selected vendors
-    const newSelection = { ...selectedVendorsByItem, [itemId]: vendorId };
-    setSelectedVendorsByItem(newSelection);
-    // Persist selected vendors for each item in formData and update wrapper items
-    setFormItems(updatedItems);
-    if (!readOnly && setFormData)
-      setFormData((prev) => ({
-        ...prev,
-        items: updatedItems,
-        selectedVendorsByItem: newSelection,
-      }));
-  };
+  // If all items share the same selected vendor, reflect it in selectedVendorAll (for header highlighting)
+  useEffect(() => {
+    const vids = (formItems || [])
+      .map((i) => selectedVendorsByItem[canonItemId(i)])
+      .filter(Boolean);
+    if (vids.length === 0) return;
+    const unique = Array.from(new Set(vids.map(String)));
+    if (unique.length === 1) setSelectedVendorAll(vids[0]);
+  }, [selectedVendorsByItem, formItems]);
+
+  // For backward-compatibility: redirect per-item clicks to global selection (no separate handler needed)
 
   console.log("RFQCanvassSheet props:", { formData, mode });
   // Calculate summary, vendorTotals, and recommendedVendor from props
@@ -285,13 +275,13 @@ export default function RFQCanvassSheet({
             Export Excel
           </button>
           <button
+            type="button"
             className={`bg-primary text-white rounded-md px-4 py-2 flex items-center cursor-pointer ${readOnly ? "hidden cursor-not-allowed" : ""}`}
             onClick={readOnly ? undefined : onExportPDF}
             disabled={readOnly}
             aria-disabled={readOnly}
             title={readOnly ? "View only" : "Export to PDF"}
           >
-            type="button"
             <LuPrinter className="h-5 w-5 mr-1" />
             Export PDF
           </button>
@@ -371,6 +361,7 @@ export default function RFQCanvassSheet({
             })}
 
         </div>
+        {/* Selection is now done via header vendor buttons */}
       </div>
 
       {/* Item-by-Item Comparison */}
@@ -389,16 +380,23 @@ export default function RFQCanvassSheet({
               <tr>
                 <th></th>
                 <th className="text-left font-light">Item Details</th>
-                {formData.vendors.map((v) => (
-                  <th key={v.name} className="text-center min-w-[150px]">
-                    <div>
-                      <p className="font-medium">{v.name}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {v.contactPerson}
-                      </p>
-                    </div>
-                  </th>
-                ))}
+                {formData.vendors.map((v) => {
+
+                  const vid = canonVendorId(v);
+                  const isSelected = selectedVendorAll && idEq(selectedVendorAll, vid);
+                  return (
+                    <th key={vid} className="text-center min-w-[150px]">
+                      <button
+                        type="button"
+                        onClick={() => handleSelectVendorAll(vid)}
+                        className={`px-3 py-1 rounded-md border text-sm transition duration-100 ${isSelected ? "bg-blue-600 text-white border-blue-600" : "bg-white border-gray-200 hover:bg-gray-50"}`}
+                        disabled={readOnly}
+                      >
+                        {v.Name}
+                      </button>
+                    </th>
+                  );
+                })}
                 <th>Best Option</th>
               </tr>
             </thead>
@@ -434,15 +432,10 @@ export default function RFQCanvassSheet({
                     return (
                       <td
                         key={v.vendorId}
-                        className={`text-center ${readOnly ? "cursor-default" : "cursor-pointer"} align-middle relative hover:bg-gray-100 transition-all duration-150 hover:bg-gray-50 ${
+                        className={`text-center cursor-default align-middle relative transition-all duration-150 ${
                           quote?.isSelected ? "bg-blue-50" : ""
                         }`}
-                        onClick={() => {
-                          !readOnly &&
-                            handleSelectVendor(canonItemId(item), canonVendorId(v));
-                        }}
-                        aria-disabled={readOnly}
-                        role={readOnly ? "button" : "button"}
+                        aria-disabled={true}
                       >
                         <div
                           className={`p-2 rounded transition-all duration-150 align-stretch relative`}

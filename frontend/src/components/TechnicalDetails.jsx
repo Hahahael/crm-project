@@ -4,6 +4,7 @@ import { apiBackendFetch } from "../services/api.js";
 import utils from "../helper/utils";
 import SalesLeadDetails from "./SalesLeadDetails.jsx";
 import WorkOrderDetails from "./WorkOrderDetails.jsx";
+import RFQDetails from "./RFQDetails.jsx";
 
 const TechnicalDetails = ({
   technicalReco,
@@ -13,7 +14,8 @@ const TechnicalDetails = ({
   onSave,
   onPrint,
   onSubmit,
-  source = "technicalDetails"
+  source = "technicalDetails",
+  hideTabs = false,
 }) => {
   console.log("TechnicalDetails - technicalReco:", technicalReco);
   const isAssignedToMe =
@@ -26,6 +28,8 @@ const TechnicalDetails = ({
   const [woDetails, setWoDetails] = useState(null);
   const [slLoading, setSlLoading] = useState(false);
   const [woLoading, setWoLoading] = useState(false);
+  const [rfqDetails, setRfqDetails] = useState(null);
+  const [rfqLoading, setRfqLoading] = useState(false);
 
   const renderStatusBadge = (status) => {
     if (!status) return "bg-gray-100 text-gray-800";
@@ -112,7 +116,7 @@ const TechnicalDetails = ({
     // eslint-disable-next-line
   }, [technicalReco?.id, isAssignedToMe]);
 
-  // Lazy-load related Sales Lead when tab is selected
+  // Lazy-load related Sales Lead when SL tab is selected
   useEffect(() => {
     async function fetchSL() {
       try {
@@ -133,11 +137,11 @@ const TechnicalDetails = ({
         setSlLoading(false);
       }
     }
-    if (activeTab === "SL" && !slDetails) fetchSL();
+    if (!hideTabs && activeTab === "SL" && !slDetails) fetchSL();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeTab, technicalReco?.slId, technicalReco?.sl_id]);
+  }, [activeTab, technicalReco?.slId, technicalReco?.sl_id, hideTabs]);
 
-  // Lazy-load related Work Order when tab is selected
+  // Lazy-load related Work Order when WO tab is selected
   useEffect(() => {
     async function fetchWO() {
       try {
@@ -158,9 +162,9 @@ const TechnicalDetails = ({
         setWoLoading(false);
       }
     }
-    if (activeTab === "WO" && !woDetails) fetchWO();
+    if (!hideTabs && activeTab === "WO" && !woDetails) fetchWO();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeTab, technicalReco?.woId, technicalReco?.wo_id]);
+  }, [activeTab, technicalReco?.woId, technicalReco?.wo_id, hideTabs]);
 
   return (
     <div className="container mx-auto p-6 overflow-auto">
@@ -169,7 +173,7 @@ const TechnicalDetails = ({
         <div>
           <button
             onClick={onBack}
-            className={`flex items-center mb-2 text-gray-500 hover:text-gray-700 cursor-pointer ${source === 'technicalDetails' ? '' : 'hidden'}`}
+            className={`flex items-center mb-2 text-gray-500 hover:text-gray-700 cursor-pointer ${(source === 'technicalDetails' && !hideTabs) ? '' : 'hidden'}`}
           >
             <LuArrowLeft className="h-4 w-4 mr-1" />
             Back to Technical Recommendations
@@ -227,66 +231,60 @@ const TechnicalDetails = ({
       </div>
 
       {/* Tabs */}
-      <div className="mb-4 border-b border-gray-200">
-        <nav className="-mb-px flex gap-2" aria-label="Tabs">
-          <button
-            type="button"
-            onClick={() => setActiveTab("TR")}
-            className={`whitespace-nowrap border-b-2 px-3 py-2 text-sm font-medium ${activeTab === "TR" ? "border-blue-500 text-blue-600" : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"}`}
-          >
-            Technical
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveTab("SL")}
-            className={`whitespace-nowrap border-b-2 px-3 py-2 text-sm font-medium ${activeTab === "SL" ? "border-blue-500 text-blue-600" : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"}`}
-          >
-            Sales Lead
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveTab("WO")}
-            className={`whitespace-nowrap border-b-2 px-3 py-2 text-sm font-medium ${activeTab === "WO" ? "border-blue-500 text-blue-600" : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"}`}
-          >
-            Work Order
-          </button>
-        </nav>
-      </div>
+      {!hideTabs && (
+        <div className="mb-4 border-b border-gray-200">
+          <nav className="-mb-px flex gap-2" aria-label="Tabs">
+            <button
+              type="button"
+              onClick={() => setActiveTab("TR")}
+              className={`whitespace-nowrap border-b-2 px-3 py-2 text-sm font-medium ${activeTab === "TR" ? "border-blue-500 text-blue-600" : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"}`}
+            >
+              Technical
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab("SL")}
+              className={`whitespace-nowrap border-b-2 px-3 py-2 text-sm font-medium ${activeTab === "SL" ? "border-blue-500 text-blue-600" : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"}`}
+            >
+              Sales Lead
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab("WO")}
+              className={`whitespace-nowrap border-b-2 px-3 py-2 text-sm font-medium ${activeTab === "WO" ? "border-blue-500 text-blue-600" : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"}`}
+            >
+              Work Order
+            </button>
+            <button
+              type="button"
+              onClick={async () => {
+                setActiveTab("RFQ");
+                if (rfqDetails || rfqLoading) return;
+                try {
+                  setRfqLoading(true);
+                  // find RFQ by sl_id or wo_id
+                  const res = await apiBackendFetch(`/api/rfqs`);
+                  if (!res?.ok) throw new Error("Failed to fetch RFQs");
+                  const rows = await res.json();
+                  const slId = technicalReco?.slId ?? technicalReco?.sl_id;
+                  const woId = technicalReco?.woId ?? technicalReco?.wo_id;
+                  const match = (rows || []).find(
+                    (r) => (r.slId ?? r.sl_id) === slId || (r.woId ?? r.wo_id) === woId,
+                  );
+                  setRfqDetails(match || null);
+                } finally {
+                  setRfqLoading(false);
+                }
+              }}
+              className={`whitespace-nowrap border-b-2 px-3 py-2 text-sm font-medium ${activeTab === "RFQ" ? "border-blue-500 text-blue-600" : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"}`}
+            >
+              RFQ
+            </button>
+          </nav>
+        </div>
+      )}
 
-      {activeTab === "SL" ? (
-        <div className="space-y-6 pb-6">
-          {slLoading ? (
-            <div className="p-6 text-sm text-gray-600">Loading sales lead…</div>
-          ) : slDetails ? (
-            <SalesLeadDetails
-              salesLead={slDetails}
-              currentUser={currentUser}
-              onBack={() => setActiveTab("TR")}
-              onEdit={() => alert("Please edit this Sales Lead from the Sales Leads page.")}
-              onSubmit={() => {}}
-            />
-          ) : (
-            <div className="p-6 text-sm text-gray-600">No related sales lead found.</div>
-          )}
-        </div>
-      ) : activeTab === "WO" ? (
-        <div className="space-y-6 pb-6">
-          {woLoading ? (
-            <div className="p-6 text-sm text-gray-600">Loading work order…</div>
-          ) : woDetails ? (
-            <WorkOrderDetails
-              workOrder={woDetails}
-              currentUser={currentUser}
-              onBack={() => setActiveTab("TR")}
-              onEdit={() => alert("Please edit this Work Order from the Work Orders page.")}
-              onWorkOrderUpdated={(updated) => setWoDetails(updated)}
-              toSalesLead={() => {}}
-            />
-          ) : (
-            <div className="p-6 text-sm text-gray-600">No related work order found.</div>
-          )}
-        </div>
-      ) : (
+      {hideTabs || activeTab === "TR" ? (
         <div className="space-y-6 pb-6">
         {/* Basic Info */}
         <div className="rounded-xl border border-gray-200 p-6 shadow-sm">
@@ -554,6 +552,59 @@ const TechnicalDetails = ({
           </div>
         </div>
       </div>
+      ) : activeTab === "SL" ? (
+        <div className="space-y-6 pb-6">
+          {slLoading ? (
+            <div className="p-6 text-sm text-gray-600">Loading sales lead…</div>
+          ) : slDetails ? (
+            <SalesLeadDetails
+              salesLead={slDetails}
+              currentUser={currentUser}
+              onBack={() => setActiveTab("TR")}
+              onEdit={() => alert("Please edit this Sales Lead from the Sales Leads page.")}
+              onSubmit={() => {}}
+              hideRelatedTabs={true}
+            />
+          ) : (
+            <div className="p-6 text-sm text-gray-600">No related sales lead found.</div>
+          )}
+        </div>
+      ) : activeTab === "RFQ" ? (
+        <div className="space-y-6 pb-6">
+          {rfqLoading ? (
+            <div className="p-6 text-sm text-gray-600">Loading RFQ…</div>
+          ) : rfqDetails ? (
+            <RFQDetails
+              rfq={rfqDetails}
+              currentUser={currentUser}
+              onBack={() => setActiveTab("TR")}
+              onEdit={() => {}}
+              onPrint={() => {}}
+              onSubmit={() => {}}
+              hideTabs={true}
+            />
+          ) : (
+            <div className="p-6 text-sm text-gray-600">No related RFQ found.</div>
+          )}
+        </div>
+      ) : (
+        <div className="space-y-6 pb-6">
+          {woLoading ? (
+            <div className="p-6 text-sm text-gray-600">Loading work order…</div>
+          ) : woDetails ? (
+            <WorkOrderDetails
+              workOrder={woDetails}
+              currentUser={currentUser}
+              onBack={() => setActiveTab("TR")}
+              onEdit={() => alert("Please edit this Work Order from the Work Orders page.")}
+              onWorkOrderUpdated={(updated) => setWoDetails(updated)}
+              toSalesLead={() => {}}
+              hideTabs={true}
+            />
+          ) : (
+            <div className="p-6 text-sm text-gray-600">No related work order found.</div>
+          )}
+        </div>
       )}
     </div>
   );

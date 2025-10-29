@@ -1,8 +1,10 @@
 //src/components/WorkOrderDetails
-import { useParams } from "react-router-dom";
 import { useEffect, useState } from "react";
-import { LuPrinter, LuArrowLeft, LuPencil, LuTrash } from "react-icons/lu";
+import { LuArrowLeft, LuPencil } from "react-icons/lu";
 import { apiBackendFetch } from "../services/api";
+import SalesLeadDetails from "./SalesLeadDetails.jsx";
+import TechnicalDetails from "./TechnicalDetails.jsx";
+import RFQDetails from "./RFQDetails.jsx";
 import config from "../config.js";
 import utils from "../helper/utils.js";
 
@@ -13,6 +15,7 @@ const WorkOrderDetails = ({
   onEdit,
   onWorkOrderUpdated,
   toSalesLead,
+  hideTabs = false,
 }) => {
   console.log(
     "WorkOrderDetails - workOrder:",
@@ -23,6 +26,14 @@ const WorkOrderDetails = ({
   const isAssignedToMe = currentUser && workOrder.assignee === currentUser.id;
   const isCreator = currentUser && workOrder.createdBy === currentUser.id;
   const [hasSalesLead, setHasSalesLead] = useState(false);
+  // Tabs: WO (Work Order), SL (Sales Lead), TR (Technical)
+  const [activeTab, setActiveTab] = useState("WO");
+  const [slDetails, setSlDetails] = useState(null);
+  const [slLoading, setSlLoading] = useState(false);
+  const [trDetails, setTrDetails] = useState(null);
+  const [trLoading, setTrLoading] = useState(false);
+  const [rfqDetails, setRfqDetails] = useState(null);
+  const [rfqLoading, setRfqLoading] = useState(false);
 
   useEffect(() => {
     if (workOrder?.id) {
@@ -56,13 +67,58 @@ const WorkOrderDetails = ({
     // eslint-disable-next-line
   }, [workOrder?.id, isAssignedToMe]);
 
+  // Lazy-load related Sales Lead when SL tab is selected
+  useEffect(() => {
+    async function fetchSL() {
+      try {
+        setSlLoading(true);
+        // No endpoint by wo_id: fetch list and find first match
+        const res = await apiBackendFetch(`/api/salesleads`);
+        if (!res?.ok) throw new Error("Failed to fetch sales leads");
+        const rows = await res.json();
+        const match = (rows || []).find(
+          (r) => (r.woId ?? r.wo_id) === workOrder?.id,
+        );
+        setSlDetails(match || null);
+      } catch (e) {
+        console.error("Failed to load related Sales Lead for WO:", e);
+        setSlDetails(null);
+      } finally {
+        setSlLoading(false);
+      }
+    }
+    if (!hideTabs && activeTab === "SL" && !slDetails) fetchSL();
+  }, [activeTab, workOrder?.id, slDetails, hideTabs]);
+
+  // Lazy-load related Technical when TR tab is selected
+  useEffect(() => {
+    async function fetchTR() {
+      try {
+        setTrLoading(true);
+        const res = await apiBackendFetch(`/api/technicals`);
+        if (!res?.ok) throw new Error("Failed to fetch technicals");
+        const rows = await res.json();
+        const match = (rows || []).find(
+          (r) => (r.woId ?? r.wo_id) === workOrder?.id,
+        );
+        setTrDetails(match || null);
+      } catch (e) {
+        console.error("Failed to load related Technical Recommendation for WO:", e);
+        setTrDetails(null);
+      } finally {
+        setTrLoading(false);
+      }
+    }
+    if (!hideTabs && activeTab === "TR" && !trDetails) fetchTR();
+  }, [activeTab, workOrder?.id, trDetails, hideTabs]);
+
   return (
     <div className="h-full w-full p-6 overflow-y-auto">
       {/* Header with back button */}
       <div className="flex items-center mb-6">
         <button
           onClick={onBack}
-          className="mr-4 rounded px-2 py-2 font-medium hover:bg-gray-100 transition-all duration-150 flex align-middle border border-gray-200"
+          className={`mr-4 rounded px-2 py-2 font-medium hover:bg-gray-100 transition-all duration-150 flex align-middle border border-gray-200 ${hideTabs ? "hidden" : ""}`}
         >
           <LuArrowLeft className="my-auto text-lg" />
         </button>
@@ -104,6 +160,58 @@ const WorkOrderDetails = ({
         </div>
       </div>
 
+      {/* Tabs */}
+      {!hideTabs && (
+        <div className="mb-4 border-b border-gray-200">
+          <nav className="-mb-px flex gap-2" aria-label="Tabs">
+            <button
+              type="button"
+              onClick={() => setActiveTab("WO")}
+              className={`whitespace-nowrap border-b-2 px-3 py-2 text-sm font-medium ${activeTab === "WO" ? "border-blue-500 text-blue-600" : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"}`}
+            >
+              Work Order
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab("SL")}
+              className={`whitespace-nowrap border-b-2 px-3 py-2 text-sm font-medium ${activeTab === "SL" ? "border-blue-500 text-blue-600" : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"}`}
+            >
+              Sales Lead
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab("TR")}
+              className={`whitespace-nowrap border-b-2 px-3 py-2 text-sm font-medium ${activeTab === "TR" ? "border-blue-500 text-blue-600" : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"}`}
+            >
+              Technical
+            </button>
+            <button
+              type="button"
+              onClick={async () => {
+                setActiveTab("RFQ");
+                if (rfqDetails || rfqLoading) return;
+                try {
+                  setRfqLoading(true);
+                  const res = await apiBackendFetch(`/api/rfqs`);
+                  if (!res?.ok) throw new Error("Failed to fetch RFQs");
+                  const rows = await res.json();
+                  const match = (rows || []).find(
+                    (r) => (r.woId ?? r.wo_id) === workOrder?.id,
+                  );
+                  setRfqDetails(match || null);
+                } finally {
+                  setRfqLoading(false);
+                }
+              }}
+              className={`whitespace-nowrap border-b-2 px-3 py-2 text-sm font-medium ${activeTab === "RFQ" ? "border-blue-500 text-blue-600" : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"}`}
+            >
+              RFQ
+            </button>
+          </nav>
+        </div>
+      )}
+
+  {hideTabs || activeTab === "WO" ? (
       <div className="rounded-xl border border-gray-200 p-6 shadow-sm">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4">
           <div className="flex flex-col gap-y-5">
@@ -394,6 +502,103 @@ const WorkOrderDetails = ({
           </div>
         </div>
       </div>
+      ) : activeTab === "SL" ? (
+        <div className="space-y-6 pb-6">
+          {slLoading ? (
+            <div className="p-6 text-sm text-gray-600">Loading sales lead…</div>
+          ) : slDetails ? (
+            <SalesLeadDetails
+              salesLead={slDetails}
+              currentUser={currentUser}
+              onBack={() => setActiveTab("WO")}
+              onEdit={() => {
+                alert("To edit, open the Sales Leads page and select this Sales Lead.");
+              }}
+              onSubmit={() => {}}
+              hideRelatedTabs={true}
+            />
+          ) : (
+            <div className="p-6 text-sm text-gray-600">No related sales lead found.</div>
+          )}
+        </div>
+      ) : (activeTab === "SL") ? (
+        <div className="space-y-6 pb-6">
+          {slLoading ? (
+            <div className="p-6 text-sm text-gray-600">Loading sales lead…</div>
+          ) : slDetails ? (
+            <SalesLeadDetails
+              salesLead={slDetails}
+              currentUser={currentUser}
+              onBack={() => setActiveTab("WO")}
+              onEdit={() => {
+                alert("To edit, open the Sales Leads page and select this Sales Lead.");
+              }}
+              onSubmit={() => {}}
+              hideRelatedTabs={true}
+            />
+          ) : (
+            <div className="p-6 text-sm text-gray-600">No related sales lead found.</div>
+          )}
+        </div>
+      ) : (activeTab === "TR") ? (
+        <div className="space-y-6 pb-6">
+          {trLoading ? (
+            <div className="p-6 text-sm text-gray-600">Loading technical recommendation…</div>
+          ) : trDetails ? (
+            <TechnicalDetails
+              technicalReco={trDetails}
+              currentUser={currentUser}
+              onBack={() => setActiveTab("WO")}
+              onEdit={() => alert("Please edit this Technical Recommendation from the Technicals page.")}
+              onSave={() => {}}
+              onPrint={() => {}}
+              onSubmit={() => {}}
+              source="workOrderDetails"
+              hideTabs={true}
+            />
+          ) : (
+            <div className="p-6 text-sm text-gray-600">No related technical recommendation found.</div>
+          )}
+        </div>
+      ) : (activeTab === "RFQ") ? (
+        <div className="space-y-6 pb-6">
+          {rfqLoading ? (
+            <div className="p-6 text-sm text-gray-600">Loading RFQ…</div>
+          ) : rfqDetails ? (
+            <RFQDetails
+              rfq={rfqDetails}
+              currentUser={currentUser}
+              onBack={() => setActiveTab("WO")}
+              onEdit={() => {}}
+              onPrint={() => {}}
+              onSubmit={() => {}}
+              hideTabs={true}
+            />
+          ) : (
+            <div className="p-6 text-sm text-gray-600">No related RFQ found.</div>
+          )}
+        </div>
+      ) : (
+        <div className="space-y-6 pb-6">
+          {trLoading ? (
+            <div className="p-6 text-sm text-gray-600">Loading technical recommendation…</div>
+          ) : trDetails ? (
+            <TechnicalDetails
+              technicalReco={trDetails}
+              currentUser={currentUser}
+              onBack={() => setActiveTab("WO")}
+              onEdit={() => alert("Please edit this Technical Recommendation from the Technicals page.")}
+              onSave={() => {}}
+              onPrint={() => {}}
+              onSubmit={() => {}}
+              source="workOrderDetails"
+              hideTabs={true}
+            />
+          ) : (
+            <div className="p-6 text-sm text-gray-600">No related technical recommendation found.</div>
+          )}
+        </div>
+      )}
     </div>
   );
 };

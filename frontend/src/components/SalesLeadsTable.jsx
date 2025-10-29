@@ -57,6 +57,7 @@ export default function SalesLeadsTable({ salesLeads, onView, onEdit }) {
         );
       case "cancelled":
       case "canceled":
+      case "rejected":
         return (
           <span className={`${baseBadge} rounded-full bg-red-50 text-red-700`}>
             {status}

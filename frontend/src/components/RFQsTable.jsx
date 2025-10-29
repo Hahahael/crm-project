@@ -57,6 +57,7 @@ export default function RFQsTable({ rfqs, onView, onEdit }) {
         );
       case "cancelled":
       case "canceled":
+      case "rejected":
         return (
           <span className={`${baseBadge} rounded-full bg-red-50 text-red-700`}>
             {status}
@@ -127,7 +128,7 @@ export default function RFQsTable({ rfqs, onView, onEdit }) {
               <td className="px-4 py-2 text-black text-sm">
                 {util.formatDate(rfq.createdAt, "MM/DD/YYYY")}
               </td>
-              <td className="px-4 py-2 text-black text-sm">{rfq.accountId}</td>
+              <td className="px-4 py-2 text-black text-sm">{rfq.account.kristem.Name}</td>
               <td className="px-4 py-2 text-black text-sm">
                 {rfq.vendor || "-"}
               </td>

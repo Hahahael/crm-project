@@ -12,6 +12,7 @@ import util from "../helper/utils.js";
 import config from "../config.js";
 
 export default function TechnicalsTable({ technicals, onView, onEdit }) {
+  console.log("Rendering TechnicalsTable with technicals:", technicals);
   const baseBadge = "inline-flex items-center px-2.5 py-0.5 text-xs";
 
   const renderStatusBadge = (status) => {
@@ -57,6 +58,7 @@ export default function TechnicalsTable({ technicals, onView, onEdit }) {
         );
       case "cancelled":
       case "canceled":
+      case "rejected":
         return (
           <span className={`${baseBadge} rounded-full bg-red-50 text-red-700`}>
             {status}
@@ -166,7 +168,7 @@ export default function TechnicalsTable({ technicals, onView, onEdit }) {
               className="hover:bg-gray-50 transition-all duration-200"
             >
               <td className="px-4 py-2 text-black text-sm">{tr.trNumber}</td>
-              <td className="px-4 py-2 text-black text-sm">{tr.accountName}</td>
+              <td className="px-4 py-2 text-black text-sm">{tr.account.kristem.Name}</td>
               <td className="px-4 py-2 text-black text-sm">
                 {tr.title || "-"}
               </td>

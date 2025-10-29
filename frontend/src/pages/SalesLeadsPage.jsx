@@ -107,6 +107,8 @@ export default function SalesLeadsPage() {
     completed: 0,
     highUrgency: 0,
   });
+  const [latestStages, setLatestStages] = useState([]); // latest stage per workorder
+  const [activeCardFilter, setActiveCardFilter] = useState("all"); // all | salesLeadStage | technicalStage | rfqStage | highUrgency
 
   const fetchAllData = async () => {
     try {
@@ -133,6 +135,7 @@ export default function SalesLeadsPage() {
         );
         if (latestRes.ok) {
           const latest = await latestRes.json();
+          setLatestStages(Array.isArray(latest) ? latest : []);
           const pick = (row) =>
             String(row?.stage_name || row?.stageName || "").toLowerCase();
           const total = Array.isArray(latest) ? latest.length : 0;
@@ -276,12 +279,44 @@ export default function SalesLeadsPage() {
   if (error) return <p className="p-4 text-red-600">{error}</p>;
 
   const term = (search || "").toLowerCase();
+
+  const latestStageByWoId = (woId) => {
+    const row = (latestStages || []).find(
+      (r) => (r.wo_id ?? r.woId) === (woId ?? null),
+    );
+    if (!row) return null;
+    const s = String(row?.stage_name || row?.stageName || "").toLowerCase();
+    return s;
+  };
+
+  const stageMatchesActiveFilter = (sl) => {
+    if (activeCardFilter === "all") return true;
+    if (activeCardFilter === "highUrgency") {
+      return String(sl?.urgency || "").toLowerCase().includes("high");
+    }
+    const woId = sl?.woId ?? sl?.wo_id ?? sl?.id ?? null;
+    const s = latestStageByWoId(woId);
+    if (!s) return false;
+    switch (activeCardFilter) {
+      case "salesLeadStage":
+        return s === "sales lead";
+      case "technicalStage":
+        return s === "technical recommendation";
+      case "rfqStage": {
+        return s === "rfq" || s === "naef" || s === "quotations" || s === "quotation";
+      }
+      default:
+        return true;
+    }
+  };
+
   const filtered = salesLeads.filter((sl) => {
     const slNum = (sl.slNumber || sl.sl_number || "").toLowerCase();
     const accName = (
       sl.account?.account_name || sl.accountName || sl.account_name || ""
     ).toLowerCase();
-    return slNum.includes(term) || accName.includes(term);
+    const matchesText = slNum.includes(term) || accName.includes(term);
+    return matchesText && stageMatchesActiveFilter(sl);
   });
 
   const handleSave = async (formData, mode) => {
@@ -495,46 +530,66 @@ export default function SalesLeadsPage() {
 
           {/* Status center */}
           <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
-            <div className="relative flex flex-col rounded-xl shadow-sm border border-gray-200 p-6">
+            <button
+              type="button"
+              onClick={() => setActiveCardFilter("all")}
+              className={`text-left relative flex flex-col rounded-xl shadow-sm border p-6 transition ${activeCardFilter === "all" ? "border-blue-400 ring-1 ring-blue-300" : "border-gray-200 hover:bg-gray-50 cursor-pointer"}`}
+            >
               <LuChartColumn className="absolute top-6 right-6 text-gray-600" />
               <p className="text-sm mb-1 mr-4">Total Leads</p>
               <h2 className="text-2xl font-bold">{statusSummary.total}</h2>
               <p className="text-xs text-gray-500">
-                All salesleads in the system
+                Active sales leads in system
               </p>
-            </div>
-            <div className="relative flex flex-col rounded-xl shadow-sm border border-gray-200 p-6">
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveCardFilter("salesLeadStage")}
+              className={`text-left relative flex flex-col rounded-xl shadow-sm border p-6 transition ${activeCardFilter === "salesLeadStage" ? "border-blue-400 ring-1 ring-blue-300" : "border-gray-200 hover:bg-gray-50 cursor-pointer"}`}
+            >
               <LuFileText className="absolute top-6 right-6 text-gray-600" />
               <p className="text-sm mb-1 mr-4">Sales Lead Stage</p>
               <h2 className="text-2xl font-bold">{statusSummary.pending}</h2>
               <p className="text-xs text-gray-500">
-                Workorders waiting to be started
+                Leads in initial stage
               </p>
-            </div>
-            <div className="relative flex flex-col rounded-xl shadow-sm border border-gray-200 p-6">
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveCardFilter("technicalStage")}
+              className={`text-left relative flex flex-col rounded-xl shadow-sm border p-6 transition ${activeCardFilter === "technicalStage" ? "border-blue-400 ring-1 ring-blue-300" : "border-gray-200 hover:bg-gray-50 cursor-pointer"}`}
+            >
               <LuClipboardCheck className="absolute top-6 right-6 text-gray-600" />
               <p className="text-sm mb-1 mr-4">Technical Stage</p>
               <h2 className="text-2xl font-bold">{statusSummary.inProgress}</h2>
               <p className="text-xs text-gray-500">
-                Workorders currently active
+                Leads in technical review
               </p>
-            </div>
-            <div className="relative flex flex-col rounded-xl shadow-sm border border-gray-200 p-6">
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveCardFilter("rfqStage")}
+              className={`text-left relative flex flex-col rounded-xl shadow-sm border p-6 transition ${activeCardFilter === "rfqStage" ? "border-blue-400 ring-1 ring-blue-300" : "border-gray-200 hover:bg-gray-50 cursor-pointer"}`}
+            >
               <LuChartLine className="absolute top-6 right-6 text-gray-600" />
               <p className="text-sm mb-1 mr-4">RFQ / NAEF / Quotation</p>
               <h2 className="text-2xl font-bold">{statusSummary.highUrgency}</h2>
               <p className="text-xs text-gray-500">
-                Successfully completed salesleads
+                Leads in advanced stages
               </p>
-            </div>
-            <div className="relative flex flex-col rounded-xl shadow-sm border border-gray-200 p-6">
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveCardFilter("highUrgency")}
+              className={`text-left relative flex flex-col rounded-xl shadow-sm border p-6 transition ${activeCardFilter === "highUrgency" ? "border-blue-400 ring-1 ring-blue-300" : "border-gray-200 hover:bg-gray-50 cursor-pointer"}`}
+            >
               <LuClock className="absolute top-6 right-6 text-gray-600" />
               <p className="text-sm mb-1 mr-5">High Urgency</p>
               <h2 className="text-2xl font-bold">{statusSummary.completed}</h2>
               <p className="text-xs text-gray-500">
-                Successfully completed salesleads
+                Leads requiring immediate attention
               </p>
-            </div>
+            </button>
           </div>
 
           {/* Search + Table */}

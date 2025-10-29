@@ -21,6 +21,7 @@ const RFQDetails = ({
   onEdit,
   onPrint,
   onSubmit,
+  hideTabs = false,
 }) => {
   const [items, setItems] = useState([]);
   const [vendors, setVendors] = useState([]);
@@ -206,7 +207,7 @@ const RFQDetails = ({
         <div className="flex items-center mb-6">
           <button
             onClick={onBack}
-            className="mr-4 rounded p-2 font-medium border border-gray-200 hover:bg-gray-100 transition-all duration-150 flex align-middle"
+            className={`mr-4 rounded p-2 font-medium border border-gray-200 hover:bg-gray-100 transition-all duration-150 flex align-middle ${hideTabs ? "hidden" : ""}`}
           >
             <LuArrowLeft className="my-auto text-lg" />
           </button>
@@ -246,6 +247,7 @@ const RFQDetails = ({
       </div>
 
       {/* Tabs */}
+      {!hideTabs && (
       <div className="mb-4 border-b border-gray-200">
         <nav className="-mb-px flex gap-2" aria-label="Tabs">
           <button
@@ -302,7 +304,6 @@ const RFQDetails = ({
               type="button"
               onClick={async () => {
                 setActiveTab("TR");
-                // trDetails may already be set from probe; if not, try to load via list or a direct id
                 if (trDetails || trLoading) return;
                 try {
                   setTrLoading(true);
@@ -326,6 +327,7 @@ const RFQDetails = ({
           )}
         </nav>
       </div>
+      )}
 
       {activeTab === "SL" ? (
         <div className="space-y-6 pb-6">
@@ -338,6 +340,7 @@ const RFQDetails = ({
               onBack={() => setActiveTab("RFQ")}
               onEdit={() => alert("Please edit this Sales Lead from the Sales Leads page.")}
               onSubmit={() => {}}
+              hideRelatedTabs={true}
             />
           ) : (
             <div className="p-6 text-sm text-gray-600">No related sales lead found.</div>
@@ -374,6 +377,7 @@ const RFQDetails = ({
               onPrint={() => {}}
               onSubmit={() => {}}
               source="rfqDetails"
+              hideTabs={true}
             />
           ) : (
             <div className="p-6 text-sm text-gray-600">No related technical recommendation found.</div>
