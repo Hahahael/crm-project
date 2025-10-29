@@ -3,7 +3,7 @@ import express from "express";
 import db from "../db.js";
 // toSnake/toCamel removed: read camelCase from req.body directly
 import { toSnake } from "../helper/utils.js";
-import { poolPromise, poolCrmPromise } from "../mssql.js";
+import { poolPromise } from "../mssql.js";
 
 const router = express.Router();
 
@@ -52,7 +52,7 @@ router.get("/", async (req, res) => {
       console.warn("Failed to attach latest stage to workorders:", stageErr.message);
     }
 
-    // Enrich with CRM + SPI account data in batch
+    // Enrich with SPI account data in batch (crmdb.accounts deprecated)
     try {
       const ids = Array.from(
         new Set(
@@ -61,135 +61,110 @@ router.get("/", async (req, res) => {
             .filter((v) => v !== null && v !== undefined),
         ),
       );
-      if (ids.length > 0) {
-        const [crmPool, spiPool] = await Promise.all([
-          poolCrmPromise,
-          poolPromise,
+      const numericIds = ids
+        .map((x) => Number(x))
+        .filter((n) => Number.isFinite(n));
+      if (numericIds.length > 0) {
+        const spiPool = await poolPromise;
+        const custSql = `SELECT * FROM spidb.customer WHERE Id IN (${numericIds.join(",")})`;
+        const custRes = await spiPool.request().query(custSql);
+        const customers = custRes.recordset || [];
+        const custMap = new Map(customers.map((c) => [Number(c.Id), c]));
+
+        console.log(custRes);
+
+        // Derive potential foreign keys from SPI customer rows using flexible field names
+        const normId = (v) => {
+          const n = Number(v);
+          return Number.isFinite(n) ? n : null;
+        };
+        const brandIds = new Set();
+        const industryIds = new Set();
+        const deptIds = new Set();
+        for (const c of customers) {
+          const bId =
+            normId(c.Product_Brand_Id) ??
+            normId(c.ProductBrandId) ??
+            normId(c.Brand_ID) ??
+            normId(c.BrandId) ??
+            null;
+          const iId =
+            normId(c.Customer_Industry_Group_Id) ??
+            normId(c.Industry_Group_Id) ??
+            normId(c.IndustryGroupId) ??
+            null;
+          const dId =
+            normId(c.Department_Id) ??
+            normId(c.DepartmentID) ??
+            normId(c.DepartmentId) ??
+            null;
+          if (bId != null) brandIds.add(bId);
+          if (iId != null) industryIds.add(iId);
+          if (dId != null) deptIds.add(dId);
+        }
+
+        // Ensure fallback IDs are also fetched (brand=2, department=2)
+        brandIds.add(2);
+        deptIds.add(2);
+
+        // Fetch lookups in bulk where possible
+        const [brandRes, indRes, deptRes] = await Promise.all([
+          brandIds.size
+            ? spiPool
+                .request()
+                .query(
+                  `SELECT * FROM spidb.brand WHERE ID IN (${Array.from(brandIds).join(",")})`,
+                )
+            : Promise.resolve({ recordset: [] }),
+          industryIds.size
+            ? spiPool
+                .request()
+                .query(
+                  `SELECT * FROM spidb.Customer_Industry_Group WHERE Id IN (${Array.from(industryIds).join(",")})`,
+                )
+            : Promise.resolve({ recordset: [] }),
+          deptIds.size
+            ? spiPool
+                .request()
+                .query(
+                  `SELECT * FROM spidb.Department WHERE Id IN (${Array.from(deptIds).join(",")})`,
+                )
+            : Promise.resolve({ recordset: [] }),
         ]);
 
-        // Fetch CRM accounts in one query
-        const numericIds = ids
-          .map((x) => Number(x))
-          .filter((n) => Number.isFinite(n));
-        let accountMap = new Map();
-        if (numericIds.length > 0) {
-          const accSql = `SELECT * FROM crmdb.accounts WHERE id IN (${numericIds.join(",")})`;
-          const accRes = await crmPool.request().query(accSql);
-          const accounts = accRes.recordset || [];
-          accountMap = new Map(accounts.map((a) => [a.id, a]));
+        const brandMap = new Map((brandRes.recordset || []).map((b) => [Number(b.ID ?? b.Id), b]));
+        const indMap = new Map((indRes.recordset || []).map((i) => [Number(i.Id), i]));
+        const deptMap = new Map((deptRes.recordset || []).map((d) => [Number(d.Id), d]));
 
-          // Build unique lookup id sets
-          const kIds = Array.from(
-            new Set(
-              accounts
-                .map((a) => a.kristem_customer_id)
-                .filter((v) => v !== null && v !== undefined),
-            ),
-          );
-          const bIds = Array.from(
-            new Set(
-              accounts
-                .map((a) => a.product_id)
-                .filter((v) => v !== null && v !== undefined),
-            ),
-          );
-          const iIds = Array.from(
-            new Set(
-              accounts
-                .map((a) => a.industry_id)
-                .filter((v) => v !== null && v !== undefined),
-            ),
-          );
-          const dIds = Array.from(
-            new Set(
-              accounts
-                .map((a) => a.department_id)
-                .filter((v) => v !== null && v !== undefined),
-            ),
-          );
-
-          // Fetch lookups with IN clauses when possible
-          const [custRes, brandRes, indRes, deptRes] = await Promise.all([
-            kIds.length
-              ? spiPool
-                  .request()
-                  .query(`SELECT * FROM spidb.customer WHERE Id IN (${kIds
-                    .map((x) => Number(x))
-                    .filter((n) => Number.isFinite(n))
-                    .join(",")})`)
-              : Promise.resolve({ recordset: [] }),
-            bIds.length
-              ? spiPool
-                  .request()
-                  .query(`SELECT * FROM spidb.brand WHERE ID IN (${bIds
-                    .map((x) => Number(x))
-                    .filter((n) => Number.isFinite(n))
-                    .join(",")})`)
-              : Promise.resolve({ recordset: [] }),
-            iIds.length
-              ? spiPool
-                  .request()
-                  .query(
-                    `SELECT * FROM spidb.Customer_Industry_Group WHERE Id IN (${iIds
-                      .map((x) => Number(x))
-                      .filter((n) => Number.isFinite(n))
-                      .join(",")})`,
-                  )
-              : Promise.resolve({ recordset: [] }),
-            dIds.length
-              ? spiPool
-                  .request()
-                  .query(`SELECT * FROM spidb.Department WHERE Id IN (${dIds
-                    .map((x) => Number(x))
-                    .filter((n) => Number.isFinite(n))
-                    .join(",")})`)
-              : Promise.resolve({ recordset: [] }),
-          ]);
-
-          const custMap = new Map(
-            (custRes.recordset || []).map((c) => [String(c.Id), c]),
-          );
-          const brandMap = new Map(
-            (brandRes.recordset || []).map((b) => [String(b.ID), b]),
-          );
-          const indMap = new Map(
-            (indRes.recordset || []).map((i) => [String(i.Id), i]),
-          );
-          const deptMap = new Map(
-            (deptRes.recordset || []).map((d) => [String(d.Id), d]),
-          );
-
-          console.log("Customer Map:", custMap);
-          console.log("Brand Map:", brandMap);
-          console.log("Industry Map:", indMap);
-          console.log("Department Map:", deptMap);
-
-          // Attach enriched account to each workorder
-          for (const w of workorders) {
-            const aid = w.accountId ?? w.account_id;
-            if (aid != null && accountMap.has(Number(aid))) {
-              const acc = accountMap.get(Number(aid));
-              w.account = {
-                ...acc,
-                kristem: acc.kristem_customer_id
-                  ? custMap.get(String(acc.kristem_customer_id)) || null
-                  : null,
-                brand: acc.product_id
-                  ? brandMap.get(String(acc.product_id)) || null
-                  : null,
-                industry: acc.industry_id
-                  ? indMap.get(String(acc.industry_id)) || null
-                  : null,
-                department: acc.department_id
-                  ? deptMap.get(String(acc.department_id)) || null
-                  : null,
-              };
-            } else {
-              w.account = null;
-            }
-
-            console.log(`Enriched workorder ${w.id}:`, w);
+        for (const w of workorders) {
+          const cid = Number(w.accountId ?? w.account_id);
+          const cust = Number.isFinite(cid) ? custMap.get(cid) || null : null;
+          if (!cust) {
+            w.account = null;
+            continue;
           }
+          const bId =
+            (normId(cust.Product_Brand_Id) ??
+            normId(cust.ProductBrandId) ??
+            normId(cust.Brand_ID) ??
+            normId(cust.BrandId) ??
+            2);
+          const iId =
+            normId(cust.Customer_Industry_Group_Id) ??
+            normId(cust.Industry_Group_Id) ??
+            normId(cust.IndustryGroupId) ??
+            null;
+          const dId =
+            (normId(cust.Department_Id) ??
+            normId(cust.DepartmentID) ??
+            normId(cust.DepartmentId) ??
+            2);
+          w.account = {
+            kristem: cust,
+            brand: brandMap.get(bId) || null,
+            industry: iId != null ? indMap.get(iId) || null : null,
+            department: deptMap.get(dId) || null,
+          };
         }
       }
     } catch (enrichErr) {
@@ -198,6 +173,8 @@ router.get("/", async (req, res) => {
         enrichErr.message,
       );
     }
+
+    console.log("Fetched workorders:", workorders);
 
     return res.json(workorders);
   } catch (err) {
@@ -295,67 +272,70 @@ router.get("/:id", async (req, res) => {
       console.warn("Failed to fetch latest stage for workorder", id, wserr.message);
     }
 
-    // Enrich account details via MSSQL like accountsRoutes
+    // Enrich account details via MSSQL SPI only (crmdb.accounts deprecated)
     try {
-      const [crmPool, spiPool] = await Promise.all([poolCrmPromise, poolPromise]);
-      const accId = wo.accountId ?? wo.account_id;
-      let account = null;
-      if (accId != null) {
-        const accRes = await crmPool
+      const spiPool = await poolPromise;
+      const accId = Number(wo.accountId ?? wo.account_id);
+      let customer = null;
+      if (Number.isFinite(accId)) {
+        const custRes = await spiPool
           .request()
           .input("id", accId)
-          .query("SELECT TOP (1) * FROM crmdb.accounts WHERE id = @id");
-        account = accRes.recordset && accRes.recordset[0] ? accRes.recordset[0] : null;
+          .query("SELECT TOP (1) * FROM spidb.customer WHERE Id = @id");
+        customer = custRes.recordset && custRes.recordset[0] ? custRes.recordset[0] : null;
       }
 
-      if (account) {
-        const kristemId = account.kristem_customer_id ?? null;
-        const productId = account.product_id ?? null;
-        const industryId = account.industry_id ?? null;
-        const departmentId = account.department_id ?? null;
+      if (customer) {
+        const normId = (v) => {
+          const n = Number(v);
+          return Number.isFinite(n) ? n : null;
+        };
+        const bId =
+          (normId(customer.Product_Brand_Id) ??
+          normId(customer.ProductBrandId) ??
+          normId(customer.Brand_ID) ??
+          normId(customer.BrandId) ??
+          2);
+        const iId =
+          normId(customer.Customer_Industry_Group_Id) ??
+          normId(customer.Industry_Group_Id) ??
+          normId(customer.IndustryGroupId) ??
+          null;
+        const dId =
+          (normId(customer.Department_Id) ??
+          normId(customer.DepartmentID) ??
+          normId(customer.DepartmentId) ??
+          2);
 
-        const tasks = [
-          kristemId != null
+        const [bRes, iRes, dRes] = await Promise.all([
+          spiPool
+            .request()
+            .input("bid", bId)
+            .query("SELECT TOP (1) * FROM spidb.brand WHERE ID = @bid"),
+          iId != null
             ? spiPool
                 .request()
-                .input("kid", kristemId)
-                .query("SELECT TOP (1) * FROM spidb.customer WHERE Id = @kid")
-            : Promise.resolve(null),
-          productId != null
-            ? spiPool
-                .request()
-                .input("bid", productId)
-                .query("SELECT TOP (1) * FROM spidb.brand WHERE ID = @bid")
-            : Promise.resolve(null),
-          industryId != null
-            ? spiPool
-                .request()
-                .input("iid", industryId)
+                .input("iid", iId)
                 .query(
                   "SELECT TOP (1) * FROM spidb.Customer_Industry_Group WHERE Id = @iid",
                 )
-            : Promise.resolve(null),
-          departmentId != null
-            ? spiPool
-                .request()
-                .input("did", departmentId)
-                .query("SELECT TOP (1) * FROM spidb.Department WHERE Id = @did")
-            : Promise.resolve(null),
-        ];
+            : Promise.resolve({ recordset: [] }),
+          spiPool
+            .request()
+            .input("did", dId)
+            .query("SELECT TOP (1) * FROM spidb.Department WHERE Id = @did"),
+        ]);
 
-        const [kRes, bRes, iRes, dRes] = await Promise.all(tasks);
         const enrichedAccount = {
-          ...account,
-          kristem: kRes?.recordset?.[0] || null,
-          brand: bRes?.recordset?.[0] || null,
-          industry: iRes?.recordset?.[0] || null,
-          department: dRes?.recordset?.[0] || null,
+          kristem: customer,
+          brand: bRes.recordset && bRes.recordset[0] ? bRes.recordset[0] : null,
+          industry: iRes.recordset && iRes.recordset[0] ? iRes.recordset[0] : null,
+          department: dRes.recordset && dRes.recordset[0] ? dRes.recordset[0] : null,
         };
-
         return res.json({ ...wo, account: enrichedAccount });
       }
     } catch (enrichErr) {
-      console.warn("Failed to enrich workorder account via MSSQL:", enrichErr.message);
+      console.warn("Failed to enrich workorder account via MSSQL SPI:", enrichErr.message);
     }
 
     // Fallback: return workorder without MSSQL enrichment
@@ -426,7 +406,17 @@ router.post("/", async (req, res) => {
       `
         INSERT INTO workorders 
           (wo_number, work_description, assignee, account_id, is_new_account, mode, contact_person, contact_number, wo_date, due_date, from_time, to_time, actual_date, actual_from_time, actual_to_time, objective, instruction, target_output, is_fsl, is_esl, stage_status, created_at, created_by, updated_at)
-        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,NOW(),$22,NOW())
+        VALUES (
+          $1,$2,$3,$4,$5,$6,$7,$8,
+          $9::date,
+          $10::date,
+          $11::time,
+          $12::time,
+          $13::date,
+          $14::time,
+          $15::time,
+          $16,$17,$18,$19,$20,$21,NOW(),$22,NOW()
+        )
         RETURNING id
       `,
       [
@@ -516,8 +506,8 @@ router.put("/:id", async (req, res) => {
         UPDATE workorders 
         SET 
           wo_number=$1, work_description=$2, assignee=$3, account_id=$4, is_new_account=$5,
-          mode=$6, contact_person=$7, contact_number=$8, wo_date=$9, due_date=$10,
-          from_time=$11, to_time=$12, actual_date=$13, actual_from_time=$14, actual_to_time=$15, objective=$16,
+          mode=$6, contact_person=$7, contact_number=$8, wo_date=$9::date, due_date=$10::date,
+          from_time=$11::time, to_time=$12::time, actual_date=$13::date, actual_from_time=$14::time, actual_to_time=$15::time, objective=$16,
           instruction=$17, target_output=$18, is_fsl=$19, is_esl=$20, updated_at=NOW()
         WHERE id=$21
         RETURNING id

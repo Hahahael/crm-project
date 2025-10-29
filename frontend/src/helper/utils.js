@@ -50,8 +50,8 @@ export function formatDateOnly(dateStr) {
 export function formatTimeOnly(timeStr) {
   if (!timeStr) return "-";
   // Tell dayjs the format you expect
-  const parsed = dayjs(timeStr, "HH:mm:ss");
-  return parsed.isValid() ? parsed.format("HH:mm A") : "-";
+  const parsed = dayjs(timeStr, "h:mm:ss");
+  return parsed.isValid() ? parsed.format("h:mm A") : "-";
 }
 
 export function toArray(val) {

@@ -57,6 +57,7 @@ export default function RFQsTable({ rfqs, onView, onEdit }) {
         );
       case "cancelled":
       case "canceled":
+      case "rejected":
         return (
           <span className={`${baseBadge} rounded-full bg-red-50 text-red-700`}>
             {status}
@@ -125,9 +126,9 @@ export default function RFQsTable({ rfqs, onView, onEdit }) {
             >
               <td className="px-4 py-2 text-black text-sm">{rfq.rfqNumber}</td>
               <td className="px-4 py-2 text-black text-sm">
-                {util.formatDate(rfq.createdAt, "DD/MM/YYYY")}
+                {util.formatDate(rfq.createdAt, "MM/DD/YYYY")}
               </td>
-              <td className="px-4 py-2 text-black text-sm">{rfq.accountId}</td>
+              <td className="px-4 py-2 text-black text-sm">{rfq.account.kristem.Name}</td>
               <td className="px-4 py-2 text-black text-sm">
                 {rfq.vendor || "-"}
               </td>
@@ -144,10 +145,10 @@ export default function RFQsTable({ rfqs, onView, onEdit }) {
                 {rfq.grandTotal || "-"}
               </td>
               <td className="px-4 py-2 text-black text-sm">
-                {util.formatDate(rfq.dueDate, "DD/MM/YYYY")}
+                {util.formatDate(rfq.dueDate, "MM/DD/YYYY")}
               </td>
               <td className="px-4 py-2 text-black text-sm">
-                {util.formatDate(rfq.doneDate, "DD/MM/YYYY") || "-"}
+                {util.formatDate(rfq.doneDate, "MM/DD/YYYY") || "-"}
               </td>
               <td className="px-4 py-2 text-black text-sm">
                 {(() => {
@@ -218,7 +219,7 @@ export default function RFQsTable({ rfqs, onView, onEdit }) {
                   </button>
                   <button
                     onClick={() => onEdit(rfq)}
-                    className={`cursor-pointer rounded px-2 py-1 text-black  border border-gray-200 bg-white hover:bg-gray-100 transition-all duration-200 ${rfq.stageStatus === "Approved" ? "opacity-50 cursor-not-allowed hover:bg-white pointer-events-none" : ""}`}
+                    className={`cursor-pointer rounded px-2 py-1 text-black  border border-gray-200 bg-white hover:bg-gray-100 transition-all duration-200 ${rfq.stageStatus === "Approved" || rfq.stageStatus === "Submitted" ? "opacity-50 cursor-not-allowed hover:bg-white pointer-events-none" : ""}`}
                   >
                     <LuPencil className="my-auto" />
                   </button>

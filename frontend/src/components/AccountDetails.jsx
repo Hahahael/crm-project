@@ -105,7 +105,7 @@ const AccountDetails = ({
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <Detail
                 label="Date"
-                value={utils.formatDate(accountFinal.created_at, "DD/MM/YYYY")}
+                value={utils.formatDate(accountFinal.created_at, "MM/DD/YYYY")}
               />
               <Detail label="Requestor" value={accountFinal?.requested_by} />
               <Detail label="Ref #" value={accountFinal?.kristem?.Code} />
@@ -114,11 +114,11 @@ const AccountDetails = ({
               <Detail label="Validity Period" value={accountFinal.validity_period} />
               <Detail
                 label="Due Date"
-                value={utils.formatDate(accountFinal.due_date, "DD/MM/YYYY") || "-"}
+                value={utils.formatDate(accountFinal.due_date, "MM/DD/YYYY") || "-"}
               />
               <Detail
                 label="Done Date"
-                value={utils.formatDate(accountFinal.done_date, "DD/MM/YYYY") || "-"}
+                value={utils.formatDate(accountFinal.done_date, "MM/DD/YYYY") || "-"}
               />
               {/* <Detail label="Delay Status" value={accountFinal.refNumber} /> */}
             </div>

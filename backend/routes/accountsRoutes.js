@@ -1,5 +1,5 @@
 import express from "express";
-import db from "../mocks/dbMock.js";
+import db from "../db.js";
 // utils not needed in MSSQL-only routes
 import { poolPromise, poolCrmPromise } from "../mssql.js";
 import { generateNextNaefCode } from "../helper/spiCodeGen.js";
@@ -52,55 +52,92 @@ router.delete("/purge", async (req, res) => {
 // GET all accounts (enriched with SPI lookups)
 router.get("/", async (req, res) => {
   try {
-    // 1) Connect to CRM + SPI
-    const [crmPool, spiPool] = await Promise.all([poolCrmPromise, poolPromise]);
+    // Source of truth: SPI customers
+    const spiPool = await poolPromise;
+    const custRes = await spiPool
+      .request()
+      .query("SELECT * FROM spidb.customer ORDER BY Name");
+    const customers = custRes.recordset || [];
+    if (customers.length === 0) return res.json([]);
 
-    // 2) Fetch all CRM accounts
-    const accSql = `SELECT * FROM crmdb.accounts ORDER BY created_at DESC`;
-    const accRes = await crmPool.request().query(accSql);
-    const crmAccounts = accRes.recordset || [];
-    if (crmAccounts.length === 0) return res.json([]);
+    // Infer foreign keys from SPI customer rows
+    const normId = (v) => {
+      const n = Number(v);
+      return Number.isFinite(n) ? n : null;
+    };
+    const brandIds = new Set();
+    const industryIds = new Set();
+    const deptIds = new Set();
+    for (const c of customers) {
+      const bId =
+        normId(c.Product_Brand_Id) ??
+        normId(c.ProductBrandId) ??
+        normId(c.Brand_ID) ??
+        normId(c.BrandId) ??
+        null;
+      const iId =
+        normId(c.Customer_Industry_Group_Id) ??
+        normId(c.Industry_Group_Id) ??
+        normId(c.IndustryGroupId) ??
+        null;
+      const dId =
+        normId(c.Department_Id) ??
+        normId(c.DepartmentID) ??
+        normId(c.DepartmentId) ??
+        null;
+      if (bId != null) brandIds.add(bId);
+      if (iId != null) industryIds.add(iId);
+      if (dId != null) deptIds.add(dId);
+    }
 
-    // 3) Collect lookup ids
-    const kIds = [...new Set(crmAccounts.map((a) => a.kristem_customer_id).filter(Boolean))];
-    const bIds = [...new Set(crmAccounts.map((a) => a.product_id).filter(Boolean))];
-    const iIds = [...new Set(crmAccounts.map((a) => a.industry_id).filter(Boolean))];
-    const dIds = [...new Set(crmAccounts.map((a) => a.department_id).filter(Boolean))];
+    // Ensure default fallback IDs are fetched as well (brand=2, department=2)
+    brandIds.add(2);
+    deptIds.add(2);
 
-    // 4) Fetch SPI lookups in batch
-    const [custRes, brandRes, indRes, deptRes] = await Promise.all([
-      kIds.length
-        ? spiPool.request().query(`SELECT * FROM spidb.customer WHERE Id IN (${kIds.join(",")})`)
-        : Promise.resolve({ recordset: [] }),
-      bIds.length
-        ? spiPool.request().query(`SELECT * FROM spidb.brand WHERE ID IN (${bIds.join(",")})`)
-        : Promise.resolve({ recordset: [] }),
-      iIds.length
+    // Fetch SPI lookups in batch
+    const [brandRes, indRes, deptRes] = await Promise.all([
+      brandIds.size
         ? spiPool
             .request()
-            .query(`SELECT * FROM spidb.Customer_Industry_Group WHERE Id IN (${iIds.join(",")})`)
+            .query(`SELECT * FROM spidb.brand WHERE ID IN (${Array.from(brandIds).join(",")})`)
         : Promise.resolve({ recordset: [] }),
-      dIds.length
-        ? spiPool.request().query(`SELECT * FROM spidb.Department WHERE Id IN (${dIds.join(",")})`)
+      industryIds.size
+        ? spiPool
+            .request()
+            .query(
+              `SELECT * FROM spidb.Customer_Industry_Group WHERE Id IN (${Array.from(industryIds).join(",")})`,
+            )
+        : Promise.resolve({ recordset: [] }),
+      deptIds.size
+        ? spiPool
+            .request()
+            .query(`SELECT * FROM spidb.Department WHERE Id IN (${Array.from(deptIds).join(",")})`)
         : Promise.resolve({ recordset: [] }),
     ]);
 
-    // 5) Build maps
-    const customerMap = new Map((custRes.recordset || []).map((c) => [String(c.Id), c]));
-    const brandMap = new Map((brandRes.recordset || []).map((b) => [String(b.ID), b]));
-    const industryMap = new Map((indRes.recordset || []).map((i) => [String(i.Id), i]));
-    const departmentMap = new Map((deptRes.recordset || []).map((d) => [String(d.Id), d]));
+    const brandMap = new Map((brandRes.recordset || []).map((b) => [Number(b.ID ?? b.Id), b]));
+    const industryMap = new Map((indRes.recordset || []).map((i) => [Number(i.Id), i]));
+    const departmentMap = new Map((deptRes.recordset || []).map((d) => [Number(d.Id), d]));
 
-    // 6) Enrich
-    const enriched = crmAccounts.map((acc) => ({
-      ...acc,
-      kristem: acc.kristem_customer_id
-        ? customerMap.get(String(acc.kristem_customer_id)) || null
-        : null,
-      brand: acc.product_id ? brandMap.get(String(acc.product_id)) || null : null,
-      industry: acc.industry_id ? industryMap.get(String(acc.industry_id)) || null : null,
-      department: acc.department_id ? departmentMap.get(String(acc.department_id)) || null : null,
-    }));
+    // Enrich SPI customers with lookups and present in a consistent shape
+    const enriched = customers.map((c) => {
+      const bId =
+        (normId(c.Product_Brand_Id) ?? normId(c.ProductBrandId) ?? normId(c.Brand_ID) ?? normId(c.BrandId) ?? 2);
+      const iId =
+        normId(c.Customer_Industry_Group_Id) ?? normId(c.Industry_Group_Id) ?? normId(c.IndustryGroupId);
+      const dId =
+        (normId(c.Department_Id) ?? normId(c.DepartmentID) ?? normId(c.DepartmentId) ?? 2);
+      return {
+        // Preserve SPI row under kristem for front-end compatibility
+        kristem: c,
+        brand: bId != null ? brandMap.get(bId) || null : null,
+        industry: iId != null ? industryMap.get(iId) || null : null,
+        department: dId != null ? departmentMap.get(dId) || null : null,
+        // Minimal compatibility aliases
+        id: c.Id, // expose SPI Id at top-level for list keys
+        account_name: c.Name,
+      };
+    });
 
     return res.json(enriched);
   } catch (err) {
@@ -282,85 +319,64 @@ router.get("/departments", async (req, res) => {
 router.get("/:id", async (req, res) => {
   try {
     const { id } = req.params;
-    console.log("Fetching account by id:", id);
-    const [crmPool, spiPool] = await Promise.all([poolCrmPromise, poolPromise]);
-
-    // 1) Fetch the CRM account by id
-    const accRes = await crmPool
+    console.log("Fetching SPI customer by id:", id);
+    const spiPool = await poolPromise;
+    const custRes = await spiPool
       .request()
-      .input("id", id)
-      .query("SELECT TOP (1) * FROM crmdb.accounts WHERE id = @id");
-    const account = accRes.recordset && accRes.recordset[0];
-    if (!account) return res.status(404).json({ error: "Account not found" });
+      .input("id", Number(id))
+      .query("SELECT TOP (1) * FROM spidb.customer WHERE Id = @id");
+    const customer = custRes.recordset && custRes.recordset[0];
+    if (!customer) return res.status(404).json({ error: "Account not found" });
 
-    console.log("Fetched CRM account:", account);
+    const normId = (v) => {
+      const n = Number(v);
+      return Number.isFinite(n) ? n : null;
+    };
+    const bId =
+      (normId(customer.Product_Brand_Id) ??
+      normId(customer.ProductBrandId) ??
+      normId(customer.Brand_ID) ??
+      normId(customer.BrandId) ??
+      2);
+    const iId =
+      normId(customer.Customer_Industry_Group_Id) ??
+      normId(customer.Industry_Group_Id) ??
+      normId(customer.IndustryGroupId) ??
+      null;
+    const dId =
+      (normId(customer.Department_Id) ??
+      normId(customer.DepartmentID) ??
+      normId(customer.DepartmentId) ??
+      2);
 
-    // 2) Prepare lookups
-    const kristemId = account.kristem_customer_id ?? null;
-    const productId = account.product_id ?? null;
-    const industryId = account.industry_id ?? null;
-    const departmentId = account.department_id ?? null;
-
-    let kristem = null;
-    let brand = null;
-    let industry = null;
-    let department = null;
-
-    try {
-      const tasks = [];
-      if (kristemId != null) {
-        tasks.push(
-          spiPool
+    const [bRes, iRes, dRes] = await Promise.all([
+      spiPool
+        .request()
+        .input("bid", bId)
+        .query("SELECT TOP (1) * FROM spidb.brand WHERE ID = @bid"),
+      iId != null
+        ? spiPool
             .request()
-            .input("kid", kristemId)
-            .query("SELECT TOP (1) * FROM spidb.customer WHERE Id = @kid"),
-        );
-      } else tasks.push(Promise.resolve(null));
-
-      if (productId != null) {
-        tasks.push(
-          spiPool
-            .request()
-            .input("bid", productId)
-            .query("SELECT TOP (1) * FROM spidb.brand WHERE ID = @bid"),
-        );
-      } else tasks.push(Promise.resolve(null));
-
-      if (industryId != null) {
-        tasks.push(
-          spiPool
-            .request()
-            .input("iid", industryId)
+            .input("iid", iId)
             .query(
               "SELECT TOP (1) * FROM spidb.Customer_Industry_Group WHERE Id = @iid",
-            ),
-        );
-      } else tasks.push(Promise.resolve(null));
+            )
+        : Promise.resolve({ recordset: [] }),
+      spiPool
+        .request()
+        .input("did", dId)
+        .query("SELECT TOP (1) * FROM spidb.Department WHERE Id = @did"),
+    ]);
 
-      if (departmentId != null) {
-        tasks.push(
-          spiPool
-            .request()
-            .input("did", departmentId)
-            .query(
-              "SELECT TOP (1) * FROM spidb.Department WHERE Id = @did",
-            ),
-        );
-      } else tasks.push(Promise.resolve(null));
-
-      const [kRes, bRes, iRes, dRes] = await Promise.all(tasks);
-      kristem = kRes && kRes.recordset && kRes.recordset[0] ? kRes.recordset[0] : null;
-      brand = bRes && bRes.recordset && bRes.recordset[0] ? bRes.recordset[0] : null;
-      industry = iRes && iRes.recordset && iRes.recordset[0] ? iRes.recordset[0] : null;
-      department = dRes && dRes.recordset && dRes.recordset[0] ? dRes.recordset[0] : null;
-    } catch (lkErr) {
-      console.warn("Lookup fetch failed for single account:", lkErr.message);
-    }
-
-    console.log("Returning account with lookups:", id);
-    console.log("Account with lookups:", { ...account, kristem, brand, industry, department });
-
-    return res.json({ ...account, kristem, brand, industry, department });
+    const out = {
+      kristem: customer,
+      brand: bRes.recordset && bRes.recordset[0] ? bRes.recordset[0] : null,
+      industry: iRes.recordset && iRes.recordset[0] ? iRes.recordset[0] : null,
+      department: dRes.recordset && dRes.recordset[0] ? dRes.recordset[0] : null,
+      id: customer.Id,
+      account_name: customer.Name,
+    };
+    return res.json(out);
   } catch (err) {
     console.error("/api/accounts/:id error:", err);
     res.status(500).json({ error: err.message });

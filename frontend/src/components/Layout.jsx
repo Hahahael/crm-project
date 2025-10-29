@@ -141,6 +141,45 @@ export default function Layout() {
             >
               Purge CRM Accounts
             </button>
+
+            <button
+              onClick={async () => {
+                try {
+                  const first = window.confirm(
+                    "DANGER: This will wipe MOST data (all public tables) except roles, departments, statuses, and users. Continue?",
+                  );
+                  if (!first) return;
+                  const confirmText = window.prompt(
+                    "Type WIPE to confirm database wipe (irreversible)",
+                  );
+                  if (confirmText !== "WIPE") return;
+
+                  const res = await fetch(`${apiUrl}/api/admin/wipe`, {
+                    method: "POST",
+                    credentials: "include",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ confirm: "WIPE" }),
+                  });
+                  if (!res.ok) {
+                    const e = await res.json().catch(() => ({}));
+                    throw new Error(e?.error || `Wipe failed (${res.status})`);
+                  }
+                  const data = await res.json();
+                  const count = data?.truncated ?? 0;
+                  const tables = Array.isArray(data?.tables) ? data.tables.join(", ") : "";
+                  alert(`Wipe completed. Truncated ${count} table(s).\n${tables}`);
+                  // Refresh the app state after destructive wipe
+                  window.location.reload();
+                } catch (err) {
+                  console.error("Wipe error:", err);
+                  alert(`Wipe failed: ${err?.message || err}`);
+                }
+              }}
+              className="w-full px-3 py-2 bg-red-700 rounded-md hover:bg-red-600 text-white text-sm"
+              title="Wipe database tables except roles, departments, statuses, users"
+            >
+              Wipe Database (Keep Core Tables)
+            </button>
           </div>
           <button
             onClick={async () => {

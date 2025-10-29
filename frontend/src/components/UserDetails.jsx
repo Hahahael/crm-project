@@ -190,7 +190,7 @@ const UserDetails = ({ user, onBack, onEdit, onDelete }) => {
                 Join Date
               </label>
               <p className="font-medium">
-                {util.formatDate(user.joinedDate, "DD/MM/YYYY") || "N/A"}
+                {util.formatDate(user.joinedDate, "MM/DD/YYYY") || "N/A"}
               </p>
             </div>
             <div>
@@ -198,7 +198,7 @@ const UserDetails = ({ user, onBack, onEdit, onDelete }) => {
                 Last Login
               </label>
               <p className="font-medium">
-                {util.formatDate(user.lastLogin, "DD/MM/YYYY hh:mm A") || "N/A"}
+                {util.formatDate(user.lastLogin, "MM/DD/YYYY hh:mm A") || "N/A"}
               </p>
             </div>
             <div>
@@ -212,7 +212,7 @@ const UserDetails = ({ user, onBack, onEdit, onDelete }) => {
                 Last Modified
               </label>
               <p className="font-medium">
-                {util.formatDate(user.updatedAt, "DD/MM/YYYY") || "N/A"}
+                {util.formatDate(user.updatedAt, "MM/DD/YYYY") || "N/A"}
               </p>
             </div>
           </div>

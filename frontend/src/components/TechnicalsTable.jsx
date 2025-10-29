@@ -12,6 +12,7 @@ import util from "../helper/utils.js";
 import config from "../config.js";
 
 export default function TechnicalsTable({ technicals, onView, onEdit }) {
+  console.log("Rendering TechnicalsTable with technicals:", technicals);
   const baseBadge = "inline-flex items-center px-2.5 py-0.5 text-xs";
 
   const renderStatusBadge = (status) => {
@@ -57,6 +58,7 @@ export default function TechnicalsTable({ technicals, onView, onEdit }) {
         );
       case "cancelled":
       case "canceled":
+      case "rejected":
         return (
           <span className={`${baseBadge} rounded-full bg-red-50 text-red-700`}>
             {status}
@@ -166,7 +168,7 @@ export default function TechnicalsTable({ technicals, onView, onEdit }) {
               className="hover:bg-gray-50 transition-all duration-200"
             >
               <td className="px-4 py-2 text-black text-sm">{tr.trNumber}</td>
-              <td className="px-4 py-2 text-black text-sm">{tr.accountName}</td>
+              <td className="px-4 py-2 text-black text-sm">{tr.account.kristem.Name}</td>
               <td className="px-4 py-2 text-black text-sm">
                 {tr.title || "-"}
               </td>
@@ -180,16 +182,16 @@ export default function TechnicalsTable({ technicals, onView, onEdit }) {
                 })()}
               </td>
               <td className="px-4 py-2 text-black text-sm">
-                {util.formatDate(tr.createdAt, "DD/MM/YYYY")}
+                {util.formatDate(tr.createdAt, "MM/DD/YYYY")}
               </td>
               <td className="px-4 py-2 text-black text-sm">
-                {util.formatDate(tr.updatedAt, "DD/MM/YYYY")}
+                {util.formatDate(tr.updatedAt, "MM/DD/YYYY")}
               </td>
               <td className="px-4 py-2 text-black text-sm">
-                {util.formatDate(tr.dueDate, "DD/MM/YYYY")}
+                {util.formatDate(tr.dueDate, "MM/DD/YYYY")}
               </td>
               <td className="px-4 py-2 text-black text-sm">
-                {util.formatDate(tr.doneDate, "DD/MM/YYYY") || "-"}
+                {util.formatDate(tr.doneDate, "MM/DD/YYYY") || "-"}
               </td>
               <td className="px-4 py-2 text-black text-sm">
                 {(() => {
@@ -258,7 +260,7 @@ export default function TechnicalsTable({ technicals, onView, onEdit }) {
                   </button>
                   <button
                     onClick={() => onEdit(tr)}
-                    className={`rounded px-2 py-1 text-black border border-gray-200 bg-white transition-all duration-200 ${tr.stageStatus === "Approved" ? "opacity-50 cursor-not-allowed hover:bg-white pointer-events-none" : "cursor-pointer hover:bg-gray-100"}`}
+                    className={`rounded px-2 py-1 text-black border border-gray-200 bg-white transition-all duration-200 ${tr.stageStatus === "Approved" || tr.stageStatus === "Submitted" ? "opacity-50 cursor-not-allowed hover:bg-white pointer-events-none" : "cursor-pointer hover:bg-gray-100"}`}
                   >
                     <LuPencil className="my-auto" />
                   </button>

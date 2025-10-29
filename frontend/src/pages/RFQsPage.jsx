@@ -142,21 +142,9 @@ export default function RFQsPage() {
       });
       if (!rfqRes.ok) throw new Error("Failed to save RFQ");
 
-      // const rfqItemsRes = await apiBackendFetch(`/api/rfqs/${formData.id}/items`, {
-      //     method: "PUT",
-      //     body: JSON.stringify(formData.items)
-      // });
-      // if (!rfqItemsRes.ok) throw new Error("Failed to save RFQ Items");
-
-      // const rfqVendorsRes = await apiBackendFetch(`/api/rfqs/${formData.id}/vendors`, {
-      //     method: "PUT",
-      //     body: JSON.stringify(formData.vendors)
-      // });
-      // if (!rfqVendorsRes.ok) throw new Error("Failed to save RFQ Vendors andQ Quotations");
-
       const rfqData = await rfqRes.json();
       console.log("Saved RFQ data:", rfqData);
-  const rfqWOId = rfqData?.wo_id ?? rfqData?.woId ?? null;
+      const rfqWOId = rfqData?.wo_id ?? rfqData?.woId ?? null;
 
       // Create a new workflow stage for this sales lead
       await apiBackendFetch("/api/workflow-stages", {
@@ -178,7 +166,7 @@ export default function RFQsPage() {
       setSuccessMessage("RFQ saved successfully!"); // ✅ trigger success message
       await fetchAllData();
       await fetchNewAssignedRFQs();
-      setSelectedRFQ(fetchRFQById(rfqData.id));
+      setSelectedRFQ(null);
       setEditingRFQ(null);
     } catch (err) {
       console.error("Error saving RFQ:", err);

@@ -128,16 +128,16 @@ export default function QuotationsTable({ quotations, onView, onSend }) {
                 {quotation.stageStatus || "-"}
               </td>
               <td className="px-4 py-2 text-black text-sm">
-                {util.formatDate(quotation.createdAt, "DD/MM/YYYY") || "-"}
+                {util.formatDate(quotation.createdAt, "MM/DD/YYYY") || "-"}
               </td>
               <td className="px-4 py-2 text-black text-sm">
-                {util.formatDate(quotation.updatedAt, "DD/MM/YYYY") || "-"}
+                {util.formatDate(quotation.updatedAt, "MM/DD/YYYY") || "-"}
               </td>
               <td className="px-4 py-2 text-black text-sm">
-                {util.formatDate(quotation.dueDate, "DD/MM/YYYY") || "-"}
+                {util.formatDate(quotation.dueDate, "MM/DD/YYYY") || "-"}
               </td>
               <td className="px-4 py-2 text-black text-sm">
-                {util.formatDate(quotation.doneDate, "DD/MM/YYYY") || "-"}
+                {util.formatDate(quotation.doneDate, "MM/DD/YYYY") || "-"}
               </td>
               <td className="px-4 py-2 text-black text-sm">
                 {(() => {

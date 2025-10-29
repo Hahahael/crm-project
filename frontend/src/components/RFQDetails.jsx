@@ -10,6 +10,9 @@ import {
 import { useEffect, useState } from "react";
 import { apiBackendFetch } from "../services/api";
 import utils from "../helper/utils";
+import SalesLeadDetails from "./SalesLeadDetails.jsx";
+import WorkOrderDetails from "./WorkOrderDetails.jsx";
+import TechnicalDetails from "./TechnicalDetails.jsx";
 
 const RFQDetails = ({
   rfq,
@@ -18,9 +21,19 @@ const RFQDetails = ({
   onEdit,
   onPrint,
   onSubmit,
+  hideTabs = false,
+  source = "rfq"
 }) => {
   const [items, setItems] = useState([]);
   const [vendors, setVendors] = useState([]);
+  const [activeTab, setActiveTab] = useState("RFQ"); // RFQ | SL | WO | TR
+  const [slDetails, setSlDetails] = useState(null);
+  const [woDetails, setWoDetails] = useState(null);
+  const [trDetails, setTrDetails] = useState(null);
+  const [slLoading, setSlLoading] = useState(false);
+  const [woLoading, setWoLoading] = useState(false);
+  const [trLoading, setTrLoading] = useState(false);
+  const [hasTechnical, setHasTechnical] = useState(false);
   const isAssignedToMe = currentUser && rfq.assignee === currentUser.id;
 
   function Detail({ label, value }) {
@@ -33,7 +46,7 @@ const RFQDetails = ({
   }
   function VendorDetail({ label, value }) {
     return (
-      <div className="flex justify-between">
+      <div className="flex justify-between space-x-3">
         <p className="text-sm text-gray-500">{label}</p>
         <p className="whitespace-pre-wrap">{value || "-"}</p>
       </div>
@@ -57,6 +70,33 @@ const RFQDetails = ({
     fetchLatestRFQ();
   }, [rfq?.id]);
 
+  // Probe if a Technical Recommendation exists via sl_id or wo_id
+  useEffect(() => {
+    let cancelled = false;
+    async function probeTR() {
+      // Try to find a TR by sl_id or wo_id
+      const res = await apiBackendFetch(`/api/technicals`).catch(() => null);
+      if (!res || !res.ok) {
+        if (!cancelled) setHasTechnical(false);
+        return;
+      }
+      const rows = await res.json().catch(() => []);
+      const slId = rfq?.slId ?? rfq?.sl_id;
+      const woId = rfq?.woId ?? rfq?.wo_id;
+      const match = (rows || []).find(
+        (r) => r.slId === slId || r.sl_id === slId || r.woId === woId || r.wo_id === woId,
+      );
+      if (!cancelled) {
+        setHasTechnical(!!match);
+        setTrDetails(match || null);
+      }
+    }
+    probeTR();
+    return () => {
+      cancelled = true;
+    };
+  }, [rfq?.slId, rfq?.sl_id, rfq?.woId, rfq?.wo_id]);
+
   useEffect(() => {
     // if (isAssignedToMe && !rfq.actualDate && !rfq.actualFromTime) {
     //     const now = new Date();
@@ -76,14 +116,13 @@ const RFQDetails = ({
     //                 // updated
     //             });
     // }
-    // eslint-disable-next-line
   }, [rfq?.id, isAssignedToMe]);
 
   // Vendor summary stats (derive status from quotes)
   const totalVendors = vendors.length;
 
   const vendorDisplayName = (v) => {
-    return v?.details?.Name || v?.name || v?.vendor?.Name || "-";
+    return v?.Name || v?.name || v?.vendor?.Name || "-";
   };
 
   const vendorContactPerson = (v) => {
@@ -162,6 +201,23 @@ const RFQDetails = ({
 
   // Phone is displayed directly via vendor.phone or via vendor.vendor.PhoneNumber when needed
 
+  // Best quote computation: compare vendor subtotals and pick lowest
+  const vendorTotalsList = (vendors || []).map((v) => ({
+    vendor: v,
+    name: vendorDisplayName(v),
+    total: getVendorTotal(v),
+  }));
+  const sortedVendorsByTotal = vendorTotalsList
+    .slice()
+    .sort((a, b) => (Number(a.total) || 0) - (Number(b.total) || 0));
+  const bestVendorEntry = sortedVendorsByTotal[0] || null;
+  const nextBestEntry = sortedVendorsByTotal[1] || null;
+  const bestVendorName = bestVendorEntry?.name || "-";
+  const bestVendorTotal = Number(bestVendorEntry?.total || 0);
+  const savingsVsNext = Math.max(0, Number((nextBestEntry?.total || bestVendorTotal) - bestVendorTotal));
+  // Per-vendor savings relative to best (positive numbers mean best saves that amount)
+  // Note: compute per-vendor savings if needed elsewhere
+
   return (
     <div className="container mx-auto p-6 overflow-auto">
       {/* Header */}
@@ -169,7 +225,7 @@ const RFQDetails = ({
         <div className="flex items-center mb-6">
           <button
             onClick={onBack}
-            className="mr-4 rounded p-2 font-medium border border-gray-200 hover:bg-gray-100 transition-all duration-150 flex align-middle"
+            className={`mr-4 rounded p-2 font-medium border border-gray-200 hover:bg-gray-100 transition-all duration-150 flex align-middle ${hideTabs ? "hidden" : ""}`}
           >
             <LuArrowLeft className="my-auto text-lg" />
           </button>
@@ -179,36 +235,176 @@ const RFQDetails = ({
             </h1>
             <h2 className="text-md text-gray-500">
               {rfq.description} • Created on{" "}
-              {utils.formatDate(rfq.createdAt, "DD/MM/YYYY")} by{" "}
+              {utils.formatDate(rfq.createdAt, "MM/DD/YYYY")} by{" "}
               {rfq.assigneeUsername}
             </h2>
           </div>
         </div>
-        <div className="flex gap-2">
-          <button
-            className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-light shadow h-9 px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white"
-            onClick={() => onEdit(rfq, "canvass")}
-          >
-            <LuChartBar className="mr-2" /> View Canvass Sheet
-          </button>
-          <button
-            onClick={() => onEdit(rfq, "details")}
-            className={`items-center justify-center whitespace-nowrap rounded-md text-sm font-light shadow h-9 px-4 py-2 bg-purple-500 hover:bg-purple-600 text-white ${rfq.stageStatus === "Submitted" || rfq.stageStatus === "Approved" ? "hidden" : "inline-flex"}`}
-          >
-            <LuPencil className="mr-2" />
-            Manage RFQ
-          </button>
-          <button
-            onClick={() => onSubmit(rfq)}
-            className={`items-center justify-center whitespace-nowrap rounded-md text-sm font-light shadow h-9 px-4 py-2 bg-green-500 hover:bg-green-600 text-white ${rfq.stageStatus === "Submitted" || rfq.stageStatus === "Approved" ? "hidden" : "inline-flex"}`}
-          >
-            <LuFileCheck className="mr-2" />
-            Submit for Approval
-          </button>
-        </div>
+        {source === "rfq" && 
+          <div className="flex gap-2">
+            <button
+              className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-light shadow h-9 px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white"
+              onClick={() => onEdit(rfq, "canvass")}
+            >
+              <LuChartBar className="mr-2" /> View Canvass Sheet
+            </button>
+            <button
+              onClick={() => onEdit(rfq, "details")}
+              className={`items-center justify-center whitespace-nowrap rounded-md text-sm font-light shadow h-9 px-4 py-2 bg-purple-500 hover:bg-purple-600 text-white ${rfq.stageStatus === "Submitted" || rfq.stageStatus === "Approved" ? "hidden" : "inline-flex"}`}
+            >
+              <LuPencil className="mr-2" />
+              Manage RFQ
+            </button>
+            <button
+              onClick={() => onSubmit(rfq)}
+              className={`items-center justify-center whitespace-nowrap rounded-md text-sm font-light shadow h-9 px-4 py-2 bg-green-500 hover:bg-green-600 text-white ${rfq.stageStatus === "Submitted" || rfq.stageStatus === "Approved" ? "hidden" : "inline-flex"}`}
+            >
+              <LuFileCheck className="mr-2" />
+              Submit for Approval
+            </button>
+          </div>
+        }
       </div>
 
-      <div className="space-y-6 pb-6">
+      {/* Tabs */}
+      {!hideTabs && (
+      <div className="mb-4 border-b border-gray-200">
+        <nav className="-mb-px flex gap-2" aria-label="Tabs">
+          <button
+            type="button"
+            onClick={() => setActiveTab("RFQ")}
+            className={`whitespace-nowrap border-b-2 px-3 py-2 text-sm font-medium ${activeTab === "RFQ" ? "border-blue-500 text-blue-600" : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"}`}
+          >
+            RFQ
+          </button>
+          <button
+            type="button"
+            onClick={async () => {
+              setActiveTab("SL");
+              if (slDetails || slLoading) return;
+              try {
+                setSlLoading(true);
+                const slId = rfq?.slId ?? rfq?.sl_id;
+                if (!slId) return;
+                const res = await apiBackendFetch(`/api/salesleads/${slId}`);
+                if (!res?.ok) throw new Error("Failed to fetch sales lead");
+                const sl = await res.json();
+                setSlDetails(sl);
+              } finally {
+                setSlLoading(false);
+              }
+            }}
+            className={`whitespace-nowrap border-b-2 px-3 py-2 text-sm font-medium ${activeTab === "SL" ? "border-blue-500 text-blue-600" : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"}`}
+          >
+            Sales Lead
+          </button>
+          <button
+            type="button"
+            onClick={async () => {
+              setActiveTab("WO");
+              if (woDetails || woLoading) return;
+              try {
+                setWoLoading(true);
+                const woId = rfq?.woId ?? rfq?.wo_id;
+                if (!woId) return;
+                const res = await apiBackendFetch(`/api/workorders/${woId}`);
+                if (!res?.ok) throw new Error("Failed to fetch work order");
+                const wo = await res.json();
+                setWoDetails(wo);
+              } finally {
+                setWoLoading(false);
+              }
+            }}
+            className={`whitespace-nowrap border-b-2 px-3 py-2 text-sm font-medium ${activeTab === "WO" ? "border-blue-500 text-blue-600" : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"}`}
+          >
+            Work Order
+          </button>
+          {hasTechnical && (
+            <button
+              type="button"
+              onClick={async () => {
+                setActiveTab("TR");
+                if (trDetails || trLoading) return;
+                try {
+                  setTrLoading(true);
+                  const res = await apiBackendFetch(`/api/technicals`);
+                  if (!res?.ok) throw new Error("Failed to fetch technicals");
+                  const rows = await res.json();
+                  const slId = rfq?.slId ?? rfq?.sl_id;
+                  const woId = rfq?.woId ?? rfq?.wo_id;
+                  const match = (rows || []).find(
+                    (r) => r.slId === slId || r.sl_id === slId || r.woId === woId || r.wo_id === woId,
+                  );
+                  setTrDetails(match || null);
+                } finally {
+                  setTrLoading(false);
+                }
+              }}
+              className={`whitespace-nowrap border-b-2 px-3 py-2 text-sm font-medium ${activeTab === "TR" ? "border-blue-500 text-blue-600" : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"}`}
+            >
+              Technical
+            </button>
+          )}
+        </nav>
+      </div>
+      )}
+
+      {activeTab === "SL" ? (
+        <div className="space-y-6 pb-6">
+          {slLoading ? (
+            <div className="p-6 text-sm text-gray-600">Loading sales lead…</div>
+          ) : slDetails ? (
+            <SalesLeadDetails
+              salesLead={slDetails}
+              currentUser={currentUser}
+              onBack={() => setActiveTab("RFQ")}
+              onEdit={() => alert("Please edit this Sales Lead from the Sales Leads page.")}
+              onSubmit={() => {}}
+              hideRelatedTabs={true}
+            />
+          ) : (
+            <div className="p-6 text-sm text-gray-600">No related sales lead found.</div>
+          )}
+        </div>
+      ) : activeTab === "WO" ? (
+        <div className="space-y-6 pb-6">
+          {woLoading ? (
+            <div className="p-6 text-sm text-gray-600">Loading work order…</div>
+          ) : woDetails ? (
+            <WorkOrderDetails
+              workOrder={woDetails}
+              currentUser={currentUser}
+              onBack={() => setActiveTab("RFQ")}
+              onEdit={() => alert("Please edit this Work Order from the Work Orders page.")}
+              onWorkOrderUpdated={(updated) => setWoDetails(updated)}
+              toSalesLead={() => {}}
+            />
+          ) : (
+            <div className="p-6 text-sm text-gray-600">No related work order found.</div>
+          )}
+        </div>
+      ) : activeTab === "TR" ? (
+        <div className="space-y-6 pb-6">
+          {trLoading ? (
+            <div className="p-6 text-sm text-gray-600">Loading technical recommendation…</div>
+          ) : trDetails ? (
+            <TechnicalDetails
+              technicalReco={trDetails}
+              currentUser={currentUser}
+              onBack={() => setActiveTab("RFQ")}
+              onEdit={() => alert("Please edit this Technical Recommendation from the Technicals page.")}
+              onSave={() => {}}
+              onPrint={() => {}}
+              onSubmit={() => {}}
+              source="rfqDetails"
+              hideTabs={true}
+            />
+          ) : (
+            <div className="p-6 text-sm text-gray-600">No related technical recommendation found.</div>
+          )}
+        </div>
+      ) : (
+        <div className="space-y-6 pb-6">
         <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
           {/* RFQ Information */}
           <div className="rounded-xl border border-gray-200 p-6 shadow-sm">
@@ -223,19 +419,19 @@ const RFQDetails = ({
                 <Detail label="Account:" value={rfq.accountName} />
                 <Detail
                   label="RFQ Date:"
-                  value={utils.formatDate(rfq.createdAt, "DD/MM/YYYY")}
+                  value={utils.formatDate(rfq.createdAt, "MM/DD/YYYY")}
                 />
                 <Detail
                   label="Due Date:"
-                  value={utils.formatDate(rfq.dueDate, "DD/MM/YYYY")}
+                  value={utils.formatDate(rfq.dueDate, "MM/DD/YYYY")}
                 />
                 <Detail
                   label="Done Date:"
-                  value={utils.formatDate(rfq.doneDate, "DD/MM/YYYY")}
+                  value={utils.formatDate(rfq.doneDate, "MM/DD/YYYY")}
                 />
                 <Detail
                   label="Terms:"
-                  value={utils.formatDate(rfq.terms, "DD/MM/YYYY")}
+                  value={utils.formatDate(rfq.terms, "MM/DD/YYYY")}
                 />
               </div>
             </div>
@@ -267,53 +463,52 @@ const RFQDetails = ({
             </div>
             <div className="pt-0">
               <div className="grid grid-cols-1 gap-4">
-                <VendorDetail label="Vendor:" value={rfq.trNumber} />
-                <VendorDetail label="Amount:" value={rfq.slNumber} />
-                <VendorDetail
-                  label="Savings:"
-                  value={utils.formatDate(rfq.createdAt, "DD/MM/YYYY")}
-                />
+                <VendorDetail label="Vendor:" value={bestVendorName} />
+                <VendorDetail label="Amount:" value={`$${utils.formatNumber(bestVendorTotal, 2)}`} />
+                <VendorDetail label="Savings:" value={`$${utils.formatNumber(savingsVsNext, 2)}`} />
               </div>
             </div>
           </div>
 
           {/* Actions */}
-          <div className="rounded-xl border border-gray-200 p-6 shadow-sm">
-            <div className="flex flex-col space-y-1.5 pb-6">
-              <h3 className="font-bold leading-none tracking-tight">Actions</h3>
-            </div>
-            <div className="pt-0">
-              <div className="grid grid-cols-1 gap-4">
-                <button
-                  onClick={() => onEdit(rfq, "vendors")}
-                  className={`flex items-center justify-center whitespace-nowrap rounded-md text-xs font-light shadow h-9 px-4 py-2 bg-purple-500 hover:bg-purple-600 text-white ${rfq.stageStatus === "Submitted" || rfq.stageStatus === "Approved" ? "hidden" : "inline-flex"}`}
-                >
-                  <LuPencil className="h-4 w-4 mr-2" />
-                  Manage Vendors
-                </button>
-                <button
-                  onClick={() => onEdit(rfq, "canvass")}
-                  className="flex items-center justify-center whitespace-nowrap rounded-md text-xs font-light shadow h-9 px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white"
-                >
-                  <LuChartBar className="h-4 w-4 mr-2" /> View Canvass
-                </button>
-                <button
-                  onClick={onPrint}
-                  className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-light shadow h-9 px-4 py-2 bg-gray-500 hover:bg-gray-600 text-white"
-                >
-                  <LuPrinter className="mr-2" />
-                  Print
-                </button>
-                <button
-                  onClick={onPrint}
-                  className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-light shadow h-9 px-4 py-2 bg-gray-500 hover:bg-gray-600 text-white"
-                >
-                  <LuMail className="mr-2" />
-                  Email
-                </button>
+          { source === "rfq" &&
+            <div className="rounded-xl border border-gray-200 p-6 shadow-sm">
+              <div className="flex flex-col space-y-1.5 pb-6">
+                <h3 className="font-bold leading-none tracking-tight">Actions</h3>
+              </div>
+              <div className="pt-0">
+                <div className="grid grid-cols-1 gap-4">
+                  <button
+                    onClick={() => onEdit(rfq, "vendors")}
+                    className={`flex items-center justify-center whitespace-nowrap rounded-md text-xs font-light shadow h-9 px-4 py-2 bg-purple-500 hover:bg-purple-600 text-white ${rfq.stageStatus === "Submitted" || rfq.stageStatus === "Approved" ? "hidden" : "inline-flex"}`}
+                  >
+                    <LuPencil className="h-4 w-4 mr-2" />
+                    Manage Vendors
+                  </button>
+                  <button
+                    onClick={() => onEdit(rfq, "canvass")}
+                    className="flex items-center justify-center whitespace-nowrap rounded-md text-xs font-light shadow h-9 px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white"
+                  >
+                    <LuChartBar className="h-4 w-4 mr-2" /> View Canvass
+                  </button>
+                  <button
+                    onClick={onPrint}
+                    className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-light shadow h-9 px-4 py-2 bg-gray-500 hover:bg-gray-600 text-white"
+                  >
+                    <LuPrinter className="mr-2" />
+                    Print
+                  </button>
+                  <button
+                    onClick={onPrint}
+                    className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-light shadow h-9 px-4 py-2 bg-gray-500 hover:bg-gray-600 text-white"
+                  >
+                    <LuMail className="mr-2" />
+                    Email
+                  </button>
+                </div>
               </div>
             </div>
-          </div>
+          }
         </div>
 
         {/* Items */}
@@ -453,7 +648,7 @@ const RFQDetails = ({
                       <div>
                         <p className="text-xs text-gray-500">
                           Quote Date:{" "}
-                          {utils.formatDate(vendor.quoteDate, "DD/MM/YYYY") ||
+                          {utils.formatDate(vendor.quoteDate, "MM/DD/YYYY") ||
                             "N/A"}
                         </p>
                       </div>
@@ -478,6 +673,7 @@ const RFQDetails = ({
           </div>
         </div>
       </div>
+      )}
     </div>
   );
 };

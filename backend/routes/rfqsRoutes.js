@@ -40,7 +40,115 @@ router.get("/", async (req, res) => {
                 LEFT JOIN accounts a ON r.account_id = a.id
                 ORDER BY r.id ASC
                 `);
-    return res.json(result.rows);
+    const rows = result.rows;
+
+    // Enrich accounts from SPI (kristem, brand, industry, department)
+    try {
+      const ids = Array.from(
+        new Set(
+          rows
+            .map((r) => r.accountId ?? r.account_id)
+            .filter((v) => v !== null && v !== undefined),
+        ),
+      );
+      const numericIds = ids.map((x) => Number(x)).filter((n) => Number.isFinite(n));
+      if (numericIds.length > 0) {
+        const spiPool = await poolPromise;
+        const custRes = await spiPool
+          .request()
+          .query(`SELECT * FROM spidb.customer WHERE Id IN (${numericIds.join(",")})`);
+        const customers = custRes.recordset || [];
+        const custMap = new Map(customers.map((c) => [Number(c.Id), c]));
+
+        const normId = (v) => {
+          const n = Number(v);
+          return Number.isFinite(n) ? n : null;
+        };
+        const bIds = new Set();
+        const iIds = new Set();
+        const dIds = new Set();
+        for (const c of customers) {
+          const bId =
+            normId(c.Product_Brand_Id) ??
+            normId(c.ProductBrandId) ??
+            normId(c.Brand_ID) ??
+            normId(c.BrandId) ??
+            null;
+          const iId =
+            normId(c.Customer_Industry_Group_Id) ??
+            normId(c.Industry_Group_Id) ??
+            normId(c.IndustryGroupId) ??
+            null;
+          const dId =
+            normId(c.Department_Id) ??
+            normId(c.DepartmentID) ??
+            normId(c.DepartmentId) ??
+            null;
+          if (bId != null) bIds.add(bId);
+          if (iId != null) iIds.add(iId);
+          if (dId != null) dIds.add(dId);
+        }
+        bIds.add(2);
+        dIds.add(2);
+
+        const [brandRes, indRes, deptRes] = await Promise.all([
+          bIds.size
+            ? spiPool
+                .request()
+                .query(`SELECT * FROM spidb.brand WHERE ID IN (${Array.from(bIds).join(",")})`)
+            : Promise.resolve({ recordset: [] }),
+          iIds.size
+            ? spiPool
+                .request()
+                .query(`SELECT * FROM spidb.Customer_Industry_Group WHERE Id IN (${Array.from(iIds).join(",")})`)
+            : Promise.resolve({ recordset: [] }),
+          dIds.size
+            ? spiPool
+                .request()
+                .query(`SELECT * FROM spidb.Department WHERE Id IN (${Array.from(dIds).join(",")})`)
+            : Promise.resolve({ recordset: [] }),
+        ]);
+
+        const brandMap = new Map((brandRes.recordset || []).map((b) => [Number(b.ID ?? b.Id), b]));
+        const indMap = new Map((indRes.recordset || []).map((i) => [Number(i.Id), i]));
+        const deptMap = new Map((deptRes.recordset || []).map((d) => [Number(d.Id), d]));
+
+        for (const r of rows) {
+          const aid = Number(r.accountId ?? r.account_id);
+          const cust = Number.isFinite(aid) ? custMap.get(aid) || null : null;
+          if (!cust) {
+            r.account = null;
+            continue;
+          }
+          const bId =
+            (normId(cust.Product_Brand_Id) ??
+              normId(cust.ProductBrandId) ??
+              normId(cust.Brand_ID) ??
+              normId(cust.BrandId) ??
+              2);
+          const iId =
+            normId(cust.Customer_Industry_Group_Id) ??
+            normId(cust.Industry_Group_Id) ??
+            normId(cust.IndustryGroupId) ??
+            null;
+          const dId =
+            (normId(cust.Department_Id) ??
+              normId(cust.DepartmentID) ??
+              normId(cust.DepartmentId) ??
+              2);
+          r.account = {
+            kristem: cust,
+            brand: brandMap.get(bId) || null,
+            industry: iId != null ? indMap.get(iId) || null : null,
+            department: deptMap.get(dId) || null,
+          };
+        }
+      }
+    } catch (enrichErr) {
+      console.warn("Failed to enrich RFQs with SPI account data:", enrichErr.message);
+    }
+
+    return res.json(rows);
   } catch (err) {
     console.error(err);
     return res.status(500).json({ error: "Failed to fetch RFQs" });
@@ -81,7 +189,7 @@ router.get("/:id", async (req, res) => {
       return res.status(404).json({ error: "Not found" });
     const rfq = result.rows[0];
 
-    // Get rfq_items rows (we'll resolve item details from MSSQL)
+  // Get rfq_items rows (we'll resolve item details from MSSQL)
     const itemsRes = await db.query(
       `SELECT * FROM rfq_items WHERE rfq_id = $1 ORDER BY id ASC`,
       [id],
@@ -251,6 +359,68 @@ router.get("/:id", async (req, res) => {
 
     rfq.items = items;
     rfq.vendors = vendors;
+
+    // Enrich RFQ account from SPI
+    try {
+      const spiPool = await poolPromise;
+      const accId = Number(rfq.accountId ?? rfq.account_id);
+      let customer = null;
+      if (Number.isFinite(accId)) {
+        const custRes = await spiPool
+          .request()
+          .input("id", accId)
+          .query("SELECT TOP (1) * FROM spidb.customer WHERE Id = @id");
+        customer = custRes.recordset && custRes.recordset[0] ? custRes.recordset[0] : null;
+      }
+      if (customer) {
+        const normId = (v) => {
+          const n = Number(v);
+          return Number.isFinite(n) ? n : null;
+        };
+        const bId =
+          (normId(customer.Product_Brand_Id) ??
+            normId(customer.ProductBrandId) ??
+            normId(customer.Brand_ID) ??
+            normId(customer.BrandId) ??
+            2);
+        const iId =
+          normId(customer.Customer_Industry_Group_Id) ??
+          normId(customer.Industry_Group_Id) ??
+          normId(customer.IndustryGroupId) ??
+          null;
+        const dId =
+          (normId(customer.Department_Id) ??
+            normId(customer.DepartmentID) ??
+            normId(customer.DepartmentId) ??
+            2);
+        const [bRes, iRes, dRes] = await Promise.all([
+          spiPool
+            .request()
+            .input("bid", bId)
+            .query("SELECT TOP (1) * FROM spidb.brand WHERE ID = @bid"),
+          iId != null
+            ? spiPool
+                .request()
+                .input("iid", iId)
+                .query(
+                  "SELECT TOP (1) * FROM spidb.Customer_Industry_Group WHERE Id = @iid",
+                )
+            : Promise.resolve({ recordset: [] }),
+          spiPool
+            .request()
+            .input("did", dId)
+            .query("SELECT TOP (1) * FROM spidb.Department WHERE Id = @did"),
+        ]);
+        rfq.account = {
+          kristem: customer,
+          brand: bRes.recordset && bRes.recordset[0] ? bRes.recordset[0] : null,
+          industry: iRes.recordset && iRes.recordset[0] ? iRes.recordset[0] : null,
+          department: dRes.recordset && dRes.recordset[0] ? dRes.recordset[0] : null,
+        };
+      }
+    } catch (enrichErr) {
+      console.warn("Failed to enrich RFQ account via SPI:", enrichErr.message);
+    }
 
     return res.json(rfq);
   } catch (err) {

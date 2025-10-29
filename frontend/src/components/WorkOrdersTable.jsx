@@ -170,7 +170,7 @@ export default function WorkOrdersTable({ workOrders, onView, onEdit }) {
             >
               <td className="px-4 py-2 text-black text-sm">{wo.woNumber}</td>
               <td className="px-4 py-2 text-black text-sm">
-                {util.formatDate(wo.woDate, "DD/MM/YYYY")}
+                {util.formatDate(wo.woDate, "MM/DD/YYYY")}
               </td>
               <td className="px-4 py-2 text-black text-sm">
                 {wo.workDescription}
@@ -209,10 +209,10 @@ export default function WorkOrdersTable({ workOrders, onView, onEdit }) {
                 {renderSubstatusBadge(wo.stageName)}
               </td>
               <td className="px-4 py-2 text-black text-sm">
-                {util.formatDate(wo.dueDate, "DD/MM/YYYY")}
+                {util.formatDate(wo.dueDate, "MM/DD/YYYY")}
               </td>
               <td className="px-4 py-2 text-black text-sm">
-                {util.formatDate(wo.doneDate, "DD/MM/YYYY") || "-"}
+                {util.formatDate(wo.doneDate, "MM/DD/YYYY") || "-"}
               </td>
               <td className="px-4 py-2 text-black text-sm">
                 {(() => {
@@ -281,7 +281,7 @@ export default function WorkOrdersTable({ workOrders, onView, onEdit }) {
                   </button>
                   <button
                     onClick={() => onEdit(wo)}
-                    className={`rounded px-2 py-1 text-black border border-gray-200 bg-white transition-all duration-200 ${wo.stageStatus === "Completed" ? "opacity-50 cursor-not-allowed hover:bg-white pointer-events-none" : "cursor-pointer hover:bg-gray-100"}`}
+                    className={`rounded px-2 py-1 text-black border border-gray-200 bg-white transition-all duration-200 ${wo.stageStatus === "Completed" || wo.stageStatus === "In Progress" ? "opacity-50 cursor-not-allowed hover:bg-white pointer-events-none" : "cursor-pointer hover:bg-gray-100"}`}
                   >
                     <LuPencil className="my-auto" />
                   </button>
