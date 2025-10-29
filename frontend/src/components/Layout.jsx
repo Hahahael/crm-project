@@ -139,6 +139,65 @@ export default function Layout() {
           {/* Admin buttons - only show when expanded */}
           {!isCollapsed && (
             <div className="p-4 space-y-2 border-t border-gray-700">
+              <button
+                onClick={async () => {
+                  try {
+                    const minIdInput = window.prompt(
+                      "Enter minimum CRM Account ID to purge (id >= minId):",
+                      "661",
+                    );
+                    if (minIdInput === null) return; // cancelled
+                    const minId = Number(minIdInput);
+                    if (!Number.isFinite(minId)) {
+                      alert("Invalid minId. Please enter a number.");
+                      return;
+                    }
+
+                    // Dry run first
+                    const dryRes = await fetch(
+                      `${apiUrl}/api/accounts/purge?minId=${encodeURIComponent(
+                        String(minId),
+                      )}&dryRun=true`,
+                      {
+                        method: "DELETE",
+                        credentials: "include",
+                      },
+                    );
+                    if (!dryRes.ok) {
+                      const e = await dryRes.json().catch(() => ({}));
+                      throw new Error(e?.error || `Dry-run failed (${dryRes.status})`);
+                    }
+                    const dryData = await dryRes.json();
+                    const toDelete = dryData?.toDelete ?? 0;
+
+                    const confirmText = window.prompt(
+                      `This will permanently delete ${toDelete} account(s) with id >= ${minId}.\nType DELETE to confirm.`,
+                    );
+                    if (confirmText !== "DELETE") return;
+
+                    const res = await fetch(`${apiUrl}/api/accounts/purge`, {
+                      method: "DELETE",
+                      credentials: "include",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ minId, dryRun: false }),
+                    });
+                    if (!res.ok) {
+                      const e = await res.json().catch(() => ({}));
+                      throw new Error(e?.error || `Purge failed (${res.status})`);
+                    }
+                    const data = await res.json();
+                    alert(`Deleted ${data?.deleted ?? 0} account(s) with id >= ${minId}.`);
+                  } catch (err) {
+                    console.error("Purge error:", err);
+                    alert(`Purge failed: ${err?.message || err}`);
+                  }
+                }}
+                className="flex items-center gap-2 w-full px-3 py-2 bg-amber-600 rounded-md hover:bg-amber-500 text-white text-sm transition-all duration-300"
+                title="Delete CRM accounts with id >= provided value"
+              >
+                <LuTrash2 size={16} className="flex-shrink-0" />
+                <span>Purge CRM Accounts</span>
+              </button>
 
               <button
                 onClick={async () => {

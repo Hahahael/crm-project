@@ -393,14 +393,14 @@ router.post("/", async (req, res) => {
     // Insert skeletal technical recommendation, all other fields default to null
     const insertResult = await db.query(
       `INSERT INTO technical_recommendations 
-                                (wo_id, account_id, assignee, tr_number, status,
-                                sl_id, contact_person, contact_number, contact_email, current_system_issues,
-                                current_system, created_at, created_by, updated_at, due_date)
-                        VALUES
-                                ($1, $2, $3, $4, $5,
-                                $6, $7, $8, $9, $10,
-                                $11, NOW(), $3, NOW(), $12)
-                        RETURNING id`,
+        (wo_id, account_id, assignee, tr_number, status,
+        sl_id, contact_person, contact_number, contact_email, current_system_issues,
+        current_system, created_at, created_by, updated_at, due_date)
+      VALUES
+        ($1, $2, $3, $4, $5,
+        $6, $7, $8, $9, $10,
+        $11, NOW(), $3, NOW(), $12)
+      RETURNING id`,
       [
         wo_id,
         account_id,

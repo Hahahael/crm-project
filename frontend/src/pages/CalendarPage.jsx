@@ -13,6 +13,10 @@ export default function CalendarPage() {
   );
   const [workOrders, setWorkOrders] = useState([]);
   const [flashToday, setFlashToday] = useState(false);
+  const [dragOverDate, setDragOverDate] = useState(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [updating, setUpdating] = useState(false);
+  const [notification, setNotification] = useState({ message: '', type: '', visible: false });
 
   const monthYear = current.toLocaleDateString(undefined, {
     month: "long",
@@ -107,8 +111,66 @@ export default function CalendarPage() {
     return `${y}-${m}-${d}`;
   };
 
+  const showNotification = (message, type = 'info') => {
+    setNotification({ message, type, visible: true });
+    setTimeout(() => {
+      setNotification(prev => ({ ...prev, visible: false }));
+    }, 4000);
+  };
+
+  const updateWorkOrderDueDate = async (woId, newDueDate, woNumber) => {
+    setUpdating(true);
+    try {
+      console.log(`Updating work order ${woNumber} (ID: ${woId}) due date to ${newDueDate}`);
+      
+      const response = await apiBackendFetch(`/api/workorders/calendar/${woId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          dueDate: newDueDate
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || `Failed to update work order: ${response.status}`);
+      }
+
+      const updatedWorkOrder = await response.json();
+      console.log('Work order updated successfully:', updatedWorkOrder);
+
+      // Update the local state to reflect the change immediately
+      setWorkOrders(prevWorkOrders => 
+        prevWorkOrders.map(wo => {
+          const currentId = wo.id ?? wo.woId ?? wo.wo_id;
+          if (String(currentId) === String(woId)) {
+            return {
+              ...wo,
+              dueDate: newDueDate,
+              due_date: newDueDate,
+              due: newDueDate
+            };
+          }
+          return wo;
+        })
+      );
+
+      // Show success feedback
+      console.log(`✅ Successfully moved ${woNumber} to ${newDueDate}`);
+      showNotification(`Successfully moved ${woNumber} to ${newDueDate}`, 'success');
+      
+    } catch (error) {
+      console.error('Failed to update work order due date:', error);
+      showNotification(`Failed to move ${woNumber}: ${error.message}`, 'error');
+    } finally {
+      setUpdating(false);
+    }
+  };
+
   return (
-    <div className="p-6">
+    <div className="p-6 relative">
       <div className="mb-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <h1 className="text-2xl font-semibold">{monthYear}</h1>
@@ -169,9 +231,43 @@ export default function CalendarPage() {
                   return (
                     <div
                       key={`${wi}-${di}`}
-                      className={`bg-white h-24 p-2 align-top rounded-md border border-gray-200 ${inMonth ? "" : "text-gray-400 bg-gray-50"} ${isToday ? `ring-2 ring-blue-500 ${flashToday ? 'bg-blue-100' : ''}` : ""} hover:bg-blue-50 cursor-pointer transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-blue-400`}
+                      className={`bg-white h-42 p-2 align-top rounded-md border border-gray-200 ${inMonth ? "" : "text-gray-400 bg-gray-50"} ${isToday ? `ring-2 ring-blue-500 ${flashToday ? 'bg-blue-100' : ''}` : ""} ${dragOverDate === dayKey ? 'ring-2 ring-green-400 bg-green-50 border-green-300' : 'hover:bg-blue-50'} cursor-pointer transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-blue-400`}
                       role="button"
                       tabIndex={0}
+                      title="Click on empty space to create new work order"
+                      onDragOver={(e) => {
+                        e.preventDefault(); // Allow drop
+                        e.dataTransfer.dropEffect = 'move';
+                        setDragOverDate(dayKey);
+                      }}
+                      onDragLeave={(e) => {
+                        // Only clear if leaving the cell completely, not moving to a child
+                        if (!e.currentTarget.contains(e.relatedTarget)) {
+                          setDragOverDate(null);
+                        }
+                      }}
+                      onDrop={(e) => {
+                        e.preventDefault();
+                        setDragOverDate(null);
+                        
+                        try {
+                          const woData = JSON.parse(e.dataTransfer.getData('application/json'));
+                          console.log('Dropped work order:', woData);
+                          console.log('Target date:', dayKey);
+                          
+                          // Check if dropping on the same date
+                          if (woData.currentDate === dayKey) {
+                            console.log('Dropped on same date, no action needed');
+                            return;
+                          }
+                          
+                          // Update work order due date
+                          updateWorkOrderDueDate(woData.id, dayKey, woData.woNumber);
+                          
+                        } catch (error) {
+                          console.error('Error parsing dropped data:', error);
+                        }
+                      }}
                       onClick={() => {
                         // Navigate to Work Orders and open creation form with WO Date preset
                         navigate("/workorders", {
@@ -196,14 +292,91 @@ export default function CalendarPage() {
                             {events.slice(0, 3).map((wo, idx) => (
                               <div
                                 key={(wo.id ?? wo.woId ?? wo.wo_id ?? idx) + "-pill"}
-                                className="truncate text-[11px] leading-4 rounded bg-gray-100 px-1.5 py-0.5 border border-gray-200 hover:bg-blue-50 hover:border-blue-300 hover:text-blue-700 transition-colors duration-150"
-                                title={`${wo.woNumber ?? wo.wo_number ?? "WO"} — ${wo.accountName ?? ""}`}
+                                className={`truncate text-[11px] leading-4 rounded px-1.5 py-0.5 border transition-colors duration-150 select-none ${
+                                  updating 
+                                    ? 'bg-gray-50 border-gray-100 text-gray-400 cursor-not-allowed'
+                                    : 'bg-gray-100 border-gray-200 hover:bg-blue-50 hover:border-blue-300 hover:text-blue-700 cursor-move'
+                                }`}
+                                title={`${wo.woNumber ?? wo.wo_number ?? "WO"} — ${wo.accountName ?? ""}\nClick to view details • Drag to reschedule`}
+                                role="button"
+                                tabIndex={0}
+                                draggable={!updating}
+                                onDragStart={(e) => {
+                                  setIsDragging(true);
+                                  const woId = wo.id ?? wo.woId ?? wo.wo_id;
+                                  const woData = {
+                                    id: woId,
+                                    woNumber: wo.woNumber ?? wo.wo_number ?? "WO",
+                                    accountName: wo.accountName ?? "",
+                                    currentDate: dayKey
+                                  };
+                                  e.dataTransfer.setData('application/json', JSON.stringify(woData));
+                                  e.dataTransfer.effectAllowed = 'move';
+                                  
+                                  // Visual feedback during drag
+                                  e.target.style.opacity = '0.6';
+                                  e.target.style.transform = 'scale(1.05)';
+                                  e.target.style.zIndex = '1000';
+                                  console.log('Dragging work order:', woData);
+                                }}
+                                onDragEnd={(e) => {
+                                  // Reset visual feedback
+                                  e.target.style.opacity = '1';
+                                  e.target.style.transform = 'scale(1)';
+                                  e.target.style.zIndex = 'auto';
+                                  
+                                  // Reset drag state after a short delay to prevent click
+                                  setTimeout(() => setIsDragging(false), 100);
+                                }}
+                                onClick={(e) => {
+                                  e.stopPropagation(); // Prevent triggering parent's create handler
+                                  
+                                  // Don't navigate if we just finished dragging
+                                  if (isDragging) {
+                                    return;
+                                  }
+                                  
+                                  // Navigate to work order details with query parameter
+                                  const woId = wo.id ?? wo.woId ?? wo.wo_id;
+                                  if (woId) {
+                                    navigate(`/workorders?select=${woId}`);
+                                  }
+                                }}
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter" || e.key === " ") {
+                                    e.stopPropagation();
+                                    e.preventDefault();
+                                    const woId = wo.id ?? wo.woId ?? wo.wo_id;
+                                    if (woId) {
+                                      navigate(`/workorders?select=${woId}`);
+                                    }
+                                  }
+                                }}
                               >
                                 {(wo.woNumber ?? wo.wo_number ?? "WO").toString()}
                               </div>
                             ))}
                             {events.length > 3 && (
-                              <div className="text-[10px] text-gray-500">+{events.length - 3} more…</div>
+                              <div 
+                                className="text-[10px] text-gray-500 cursor-pointer hover:text-blue-600 transition-colors duration-150"
+                                title="Click to view all work orders for this day"
+                                role="button"
+                                tabIndex={0}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  // Navigate to work orders with date filter
+                                  navigate(`/workorders?date=${dayKey}`);
+                                }}
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter" || e.key === " ") {
+                                    e.stopPropagation();
+                                    e.preventDefault();
+                                    navigate(`/workorders?date=${dayKey}`);
+                                  }
+                                }}
+                              >
+                                +{events.length - 3} more…
+                              </div>
                             )}
                           </div>
                         </div>
@@ -266,7 +439,9 @@ export default function CalendarPage() {
               <h3 className="font-semibold">How to Use</h3>
             </div>
             <ul className="list-disc pl-5 text-sm text-gray-700 space-y-1">
-              <li>Drag & Drop: Move workorders to resechedule</li>
+              <li>
+                <span className="font-medium text-green-700">Drag & Drop:</span> Move workorders to reschedule
+              </li>
               <li>Click Workorder: Select workorder to view details</li>
               <li>Click Date: Create a new workorder for this date</li>
               <li>Navigate: Use arrows to change months</li>
@@ -275,6 +450,37 @@ export default function CalendarPage() {
           </div>
         </div>
       </div>
+
+      {/* Loading overlay */}
+      {updating && (
+        <div className="absolute inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-4 shadow-lg flex items-center space-x-3">
+            <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
+            <span className="text-sm font-medium">Updating work order...</span>
+          </div>
+        </div>
+      )}
+
+      {/* Notification toast */}
+      {notification.visible && (
+        <div className={`fixed top-4 right-4 z-50 px-4 py-3 rounded-lg shadow-lg transition-all duration-300 ${
+          notification.type === 'success' 
+            ? 'bg-green-500 text-white' 
+            : notification.type === 'error'
+            ? 'bg-red-500 text-white'
+            : 'bg-blue-500 text-white'
+        }`}>
+          <div className="flex items-center space-x-2">
+            <span className="text-sm font-medium">{notification.message}</span>
+            <button
+              onClick={() => setNotification(prev => ({ ...prev, visible: false }))}
+              className="text-white hover:text-gray-200 ml-2"
+            >
+              ×
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
