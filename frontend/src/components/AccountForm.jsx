@@ -22,50 +22,50 @@ const AccountForm = ({
   const [itemsList, setItemsList] = useState([{}]);
   const [trItems, setTrItems] = useState([]);
   const [formData, setFormData] = useState({
-    created_at: "",
-    requestor: "Draft",
-    ref_number: "Medium",
+    createdAt: "",
+    requestor: "",
+    refNumber: "",
     designation: "",
-    department_name: "",
-    validity_period: "",
-    due_date: "",
-    account_name: "",
-    contract_period: "",
-    industry_name: "",
-    designation_account: "",
-    product_name: "",
-    contact_number: "",
+    departmentName: "",
+    validityPeriod: "",
+    dueDate: "",
+    accountName: "",
+    contractPeriod: "",
+    industryName: "",
+    designationAccount: "",
+    productName: "",
+    contactNumber: "",
     location: "",
-    email_address: "",
+    emailAddress: "",
     address: "",
-    buyer_incharge: "",
+    buyerInCharge: "",
     trunkline: "",
-    contract_number: "",
+    contractNumber: "",
     process: "",
-    email_address_buyer: "",
+    emailAddressBuyer: "",
     machines: "",
-    reason_to_apply: "",
-    automotive_section: "",
-    source_of_inquiry: "",
+    reasonToApply: "",
+    automotiveSection: "",
+    sourceOfInquiry: "",
     commodity: "",
-    business_activity: "",
+    businessActivity: "",
     model: "",
-    annual_target_sales: "",
+    annualTargetSales: "",
     population: "",
-    source_of_target: "",
-    existing_bellows: "",
-    products_to_order: "",
-    model_under: "",
-    target_areas: "",
+    sourceOfTarget: "",
+    existingBellows: "",
+    productsToOrder: "",
+    modelUnder: "",
+    targetAreas: "",
     analysis: "",
-    from_date: "",
-    to_date: "",
-    activity_period: "",
-    perpared_by: "",
-    noted_by: "",
-    approved_by: "",
-    received_by: "",
-    acknowledged_by: "",
+    fromDate: "",
+    toDate: "",
+    activityPeriod: "",
+    preparedBy: "",
+    notedBy: "",
+    approvedBy: "",
+    receivedBy: "",
+    acknowledgedBy: "",
     ...account,
   });
 
@@ -253,15 +253,15 @@ const AccountForm = ({
           <div className="p-6">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
-                <label className="text-sm font-medium" htmlFor="created_at">
-                  Date
+                <label className="text-sm font-medium" htmlFor="createdAt">
+                  Date Created
                 </label>
                 <input
-                  className="flex h-9 w-full rounded-md border border-input px-3 py-2 text-sm shadow-sm bg-yellow-50"
-                  id="created_at"
+                  className="flex h-9 w-full rounded-md border border-gray-200 px-3 py-2 text-sm shadow-sm bg-gray-50 text-gray-600"
+                  id="createdAt"
                   type="text"
-                  name="created_at"
-                  value={utils.formatDate(formData.created_at, "MM/DD/YYYY")}
+                  name="createdAt"
+                  value={utils.formatDate(formData.createdAt, "MM/DD/YYYY")}
                   onChange={handleChange}
                   readOnly
                 />
@@ -271,11 +271,11 @@ const AccountForm = ({
                   Requestor
                 </label>
                 <input
-                  className="flex h-9 w-full rounded-md border border-input px-3 py-2 text-sm shadow-sm bg-yellow-50"
+                  className="flex h-9 w-full rounded-md border border-gray-200 px-3 py-2 text-sm shadow-sm bg-gray-50 text-gray-600"
                   id="requestBy"
                   type="text"
                   name="requestBy"
-                  value={formData.requested_by}
+                  value={formData.preparedBy}
                   onChange={handleChange}
                   readOnly
                 />
@@ -285,7 +285,7 @@ const AccountForm = ({
                   Ref #
                 </label>
                 <input
-                  className="flex h-9 w-full rounded-md border border-input px-3 py-2 text-sm shadow-sm bg-yellow-50"
+                  className="flex h-9 w-full rounded-md border border-gray-200 px-3 py-2 text-sm shadow-sm bg-gray-50 text-gray-600"
                   id="ref_number"
                   type="text"
                   name="ref_number"
@@ -299,7 +299,7 @@ const AccountForm = ({
                   Designation
                 </label>
                 <input
-                  className="flex h-9 w-full rounded-md border border-input px-3 py-2 text-sm shadow-sm bg-yellow-50"
+                  className="flex h-9 w-full rounded-md border border-gray-200 px-3 py-2 text-sm shadow-sm"
                   id="designation"
                   type="text"
                   name="designation"
@@ -308,43 +308,43 @@ const AccountForm = ({
                 />
               </div>
               <div>
-                <label className="text-sm font-medium" htmlFor="department_name">
+                <label className="text-sm font-medium" htmlFor="departmentName">
                   Department
                 </label>
                 <input
-                  className="flex h-9 w-full rounded-md border border-input px-3 py-2 text-sm shadow-sm bg-yellow-50"
-                  id="department_name"
+                  className="flex h-9 w-full rounded-md border border-gray-200 px-3 py-2 text-sm shadow-sm bg-gray-50 text-gray-600"
+                  id="departmentName"
                   type="text"
-                  name="department_name"
+                  name="departmentName"
                   value={formData.department?.Department}
                   onChange={handleChange}
                   readOnly
                 />
               </div>
               <div>
-                <label className="text-sm font-medium" htmlFor="validity_period">
+                <label className="text-sm font-medium" htmlFor="validityPeriod">
                   Validity Period
                 </label>
                 <input
-                  className="flex h-9 w-full rounded-md border border-input px-3 py-2 text-sm shadow-sm bg-yellow-50"
-                  id="validity_period"
+                  className="flex h-9 w-full rounded-md border border-gray-200 px-3 py-2 text-sm shadow-sm"
+                  id="validityPeriod"
                   type="text"
-                  name="validity_period"
-                  value={formData.validity_period}
+                  name="validityPeriod"
+                  value={formData.validityPeriod}
                   onChange={handleChange}
                 />
               </div>
               <div>
-                <label className="text-sm font-medium" htmlFor="due_date">
+                <label className="text-sm font-medium" htmlFor="dueDate">
                   Due Date
                 </label>
                 <input
-                  className="flex h-9 w-full rounded-md border border-input px-3 py-2 text-sm shadow-sm bg-yellow-50"
-                  id="due_date"
+                  className="flex h-9 w-full rounded-md border border-gray-200 px-3 py-2 text-sm shadow-sm bg-gray-50 text-gray-600"
+                  id="dueDate"
                   type="text"
-                  name="due_date"
+                  name="dueDate"
                   value={
-                    utils.formatDate(formData.due_date, "MM/DD/YYYY") || "-"
+                    utils.formatDate(formData.dueDate, "MM/DD/YYYY") || "-"
                   }
                   onChange={handleChange}
                   readOnly
@@ -355,7 +355,7 @@ const AccountForm = ({
                   Done Date
                 </label>
                 <input
-                  className="flex h-9 w-full rounded-md border border-input px-3 py-2 text-sm shadow-sm bg-yellow-50"
+                  className="flex h-9 w-full rounded-md border border-gray-200 px-3 py-2 text-sm shadow-sm bg-gray-50 text-gray-600"
                   id="doneDate"
                   type="text"
                   name="doneDate"
@@ -380,41 +380,41 @@ const AccountForm = ({
           <div className="p-6">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
-                <label className="text-sm font-medium" htmlFor="account_name">
+                <label className="text-sm font-medium" htmlFor="accountName">
                   Account
                 </label>
                 <input
-                  className="flex h-9 w-full rounded-md border border-input px-3 py-2 text-sm shadow-sm bg-yellow-50"
-                  id="account_name"
+                  className="flex h-9 w-full rounded-md border border-gray-200 px-3 py-2 text-sm shadow-sm bg-gray-50 bg-gray-50 text-gray-600"
+                  id="accountName"
                   type="text"
-                  name="account_name"
-                  value={formData.account_name}
+                  name="accountName"
+                  value={formData.accountName}
                   onChange={handleChange}
                   readOnly
                 />
               </div>
               <div>
-                <label className="text-sm font-medium" htmlFor="contract_period">
+                <label className="text-sm font-medium" htmlFor="contractPeriod">
                   Contract Period
                 </label>
                 <input
-                  className="flex h-9 w-full rounded-md border border-input px-3 py-2 text-sm shadow-sm bg-yellow-50"
-                  id="contract_period"
+                  className="flex h-9 w-full rounded-md border border-gray-200 px-3 py-2 text-sm shadow-sm"
+                  id="contractPeriod"
                   type="text"
-                  name="contract_period"
-                  value={formData.contract_period}
+                  name="contractPeriod"
+                  value={formData.contractPeriod}
                   onChange={handleChange}
                 />
               </div>
               <div>
-                <label className="text-sm font-medium" htmlFor="industry_name">
+                <label className="text-sm font-medium" htmlFor="industryName">
                   Industry
                 </label>
                 <input
-                  className="flex h-9 w-full rounded-md border border-input px-3 py-2 text-sm shadow-sm bg-yellow-50"
-                  id="industry_name"
+                  className="flex h-9 w-full rounded-md border border-gray-200 px-3 py-2 text-sm shadow-sm bg-gray-50 text-gray-600"
+                  id="industryName"
                   type="text"
-                  name="industry_name"
+                  name="industryName"
                   value={formData.industry?.Code}
                   readOnly
                 />
@@ -422,45 +422,45 @@ const AccountForm = ({
               <div>
                 <label
                   className="text-sm font-medium"
-                  htmlFor="designation_account"
+                  htmlFor="designationAccount"
                 >
                   Designation
                 </label>
                 <input
-                  className="flex h-9 w-full rounded-md border border-input px-3 py-2 text-sm shadow-sm bg-yellow-50"
-                  id="designation_account"
+                  className="flex h-9 w-full rounded-md border border-gray-200 px-3 py-2 text-sm shadow-sm"
+                  id="designationAccount"
                   type="text"
-                  name="designation_account"
-                  value={formData.designation_account}
+                  name="designationAccount"
+                  value={formData.designationAccount}
                   onChange={handleChange}
                 />
               </div>
               <div>
                 <label
                   className="text-sm font-medium"
-                  htmlFor="product_name"
+                  htmlFor="productName"
                 >
                   Product
                 </label>
                 <input
-                  className="flex h-9 w-full rounded-md border border-input px-3 py-2 text-sm shadow-sm bg-yellow-50"
-                  id="product_name"
+                  className="flex h-9 w-full rounded-md border border-gray-200 px-3 py-2 text-sm shadow-sm bg-gray-50 text-gray-600"
+                  id="productName"
                   type="text"
-                  name="product_name"
+                  name="productName"
                   value={formData.brand?.Description}
                   readOnly
                 />
               </div>
               <div>
-                <label className="text-sm font-medium" htmlFor="contact_number">
+                <label className="text-sm font-medium" htmlFor="contactNumber">
                   Contact No.
                 </label>
                 <input
-                  className="flex h-9 w-full rounded-md border border-input px-3 py-2 text-sm shadow-sm bg-yellow-50"
-                  id="contact_number"
+                  className="flex h-9 w-full rounded-md border border-gray-200 px-3 py-2 text-sm shadow-sm"
+                  id="contactNumber"
                   type="text"
-                  name="contact_number"
-                  value={formData.contact_number}
+                  name="contactNumber"
+                  value={formData.contactNumber}
                   onChange={handleChange}
                 />
               </div>
@@ -469,7 +469,7 @@ const AccountForm = ({
                   Location
                 </label>
                 <input
-                  className="flex h-9 w-full rounded-md border border-input px-3 py-2 text-sm shadow-sm bg-yellow-50"
+                  className="flex h-9 w-full rounded-md border border-gray-200 px-3 py-2 text-sm shadow-sm"
                   id="location"
                   type="text"
                   name="location"
@@ -478,15 +478,15 @@ const AccountForm = ({
                 />
               </div>
               <div>
-                <label className="text-sm font-medium" htmlFor="email_address">
+                <label className="text-sm font-medium" htmlFor="emailAddress">
                   Email Address
                 </label>
                 <input
-                  className="flex h-9 w-full rounded-md border border-input px-3 py-2 text-sm shadow-sm bg-yellow-50"
-                  id="email_address"
+                  className="flex h-9 w-full rounded-md border border-gray-200 px-3 py-2 text-sm shadow-sm"
+                  id="emailAddress"
                   type="email"
-                  name="email_address"
-                  value={formData.email_address}
+                  name="emailAddress"
+                  value={formData.emailAddress}
                   onChange={handleChange}
                 />
               </div>
@@ -495,7 +495,7 @@ const AccountForm = ({
                   Address
                 </label>
                 <input
-                  className="flex h-9 w-full rounded-md border border-input px-3 py-2 text-sm shadow-sm bg-yellow-50"
+                  className="flex h-9 w-full rounded-md border border-gray-200 px-3 py-2 text-sm shadow-sm"
                   id="address"
                   type="text"
                   name="address"
@@ -504,15 +504,15 @@ const AccountForm = ({
                 />
               </div>
               <div>
-                <label className="text-sm font-medium" htmlFor="buyer_incharge">
+                <label className="text-sm font-medium" htmlFor="buyerInCharge">
                   Buyer Incharge
                 </label>
                 <input
-                  className="flex h-9 w-full rounded-md border border-input px-3 py-2 text-sm shadow-sm bg-yellow-50"
-                  id="buyer_incharge"
+                  className="flex h-9 w-full rounded-md border border-gray-200 px-3 py-2 text-sm shadow-sm"
+                  id="buyerInCharge"
                   type="text"
-                  name="buyer_incharge"
-                  value={formData.buyer_incharge}
+                  name="buyerInCharge"
+                  value={formData.buyerInCharge}
                   onChange={handleChange}
                 />
               </div>
@@ -521,7 +521,7 @@ const AccountForm = ({
                   Trunkline
                 </label>
                 <input
-                  className="flex h-9 w-full rounded-md border border-input px-3 py-2 text-sm shadow-sm bg-yellow-50"
+                  className="flex h-9 w-full rounded-md border border-gray-200 px-3 py-2 text-sm shadow-sm"
                   id="trunkline"
                   type="text"
                   name="trunkline"
@@ -530,15 +530,15 @@ const AccountForm = ({
                 />
               </div>
               <div>
-                <label className="text-sm font-medium" htmlFor="contract_number">
+                <label className="text-sm font-medium" htmlFor="contractNumber">
                   Contract No
                 </label>
                 <input
-                  className="flex h-9 w-full rounded-md border border-input px-3 py-2 text-sm shadow-sm bg-yellow-50"
-                  id="contract_number"
+                  className="flex h-9 w-full rounded-md border border-gray-200 px-3 py-2 text-sm shadow-sm"
+                  id="contractNumber"
                   type="text"
-                  name="contract_number"
-                  value={formData.contract_number}
+                  name="contractNumber"
+                  value={formData.contractNumber}
                   onChange={handleChange}
                 />
               </div>
@@ -548,7 +548,7 @@ const AccountForm = ({
                   Process
                 </label>
                 <input
-                  className="flex h-9 w-full rounded-md border border-input px-3 py-2 text-sm shadow-sm bg-yellow-50"
+                  className="flex h-9 w-full rounded-md border border-gray-200 px-3 py-2 text-sm shadow-sm"
                   id="process"
                   type="text"
                   name="process"
@@ -559,16 +559,16 @@ const AccountForm = ({
               <div>
                 <label
                   className="text-sm font-medium"
-                  htmlFor="email_address_buyer"
+                  htmlFor="emailAddressBuyer"
                 >
                   Email Address
                 </label>
                 <input
-                  className="flex h-9 w-full rounded-md border border-input px-3 py-2 text-sm shadow-sm bg-yellow-50"
-                  id="email_address_buyer"
+                  className="flex h-9 w-full rounded-md border border-gray-200 px-3 py-2 text-sm shadow-sm"
+                  id="emailAddressBuyer"
                   type="text"
-                  name="email_address_buyer"
-                  value={formData.email_address_buyer}
+                  name="emailAddressBuyer"
+                  value={formData.emailAddressBuyer}
                   onChange={handleChange}
                 />
               </div>
@@ -577,7 +577,7 @@ const AccountForm = ({
                   Machines
                 </label>
                 <input
-                  className="flex h-9 w-full rounded-md border border-input px-3 py-2 text-sm shadow-sm bg-yellow-50"
+                  className="flex h-9 w-full rounded-md border border-gray-200 px-3 py-2 text-sm shadow-sm"
                   id="machines"
                   type="text"
                   name="machines"
@@ -599,47 +599,47 @@ const AccountForm = ({
           <div className="p-6">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="flex flex-col">
-                <label className="text-sm font-medium" htmlFor="reason_to_apply">
+                <label className="text-sm font-medium" htmlFor="reasonToApply">
                   Reason to Apply
                 </label>
                 <input
-                  className="flex h-9 w-full rounded-md border border-input px-3 py-2 text-sm shadow-sm bg-yellow-50"
-                  id="reason_to_apply"
+                  className="flex h-9 w-full rounded-md border border-gray-200 px-3 py-2 text-sm shadow-sm"
+                  id="reasonToApply"
                   type="text"
-                  name="reason_to_apply"
-                  value={formData.reason_to_apply}
+                  name="reasonToApply"
+                  value={formData.reasonToApply}
                   onChange={handleChange}
                 />
               </div>
               <div>
                 <label
                   className="text-sm font-medium"
-                  htmlFor="automotive_section"
+                  htmlFor="automotiveSection"
                 >
                   Automotive Section
                 </label>
                 <input
-                  className="flex h-9 w-full rounded-md border border-input px-3 py-2 text-sm shadow-sm bg-yellow-50"
-                  id="automotive_section"
+                  className="flex h-9 w-full rounded-md border border-gray-200 px-3 py-2 text-sm shadow-sm"
+                  id="automotiveSection"
                   type="text"
-                  name="automotive_section"
-                  value={formData.automotive_section}
+                  name="automotiveSection"
+                  value={formData.automotiveSection}
                   onChange={handleChange}
                 />
               </div>
               <div>
                 <label
                   className="text-sm font-medium"
-                  htmlFor="source_of_inquiry"
+                  htmlFor="sourceOfInquiry"
                 >
                   Source of Inquiry
                 </label>
                 <input
-                  className="flex h-9 w-full rounded-md border border-input px-3 py-2 text-sm shadow-sm bg-yellow-50"
-                  id="source_of_inquiry"
+                  className="flex h-9 w-full rounded-md border border-gray-200 px-3 py-2 text-sm shadow-sm"
+                  id="sourceOfInquiry"
                   type="text"
-                  name="source_of_inquiry"
-                  value={formData.source_of_inquiry}
+                  name="sourceOfInquiry"
+                  value={formData.sourceOfInquiry}
                   onChange={handleChange}
                 />
               </div>
@@ -648,7 +648,7 @@ const AccountForm = ({
                   Commodity
                 </label>
                 <input
-                  className="flex h-9 w-full rounded-md border border-input px-3 py-2 text-sm shadow-sm bg-yellow-50"
+                  className="flex h-9 w-full rounded-md border border-gray-200 px-3 py-2 text-sm shadow-sm"
                   id="commodity"
                   type="text"
                   name="commodity"
@@ -659,16 +659,16 @@ const AccountForm = ({
               <div>
                 <label
                   className="text-sm font-medium"
-                  htmlFor="business_activity"
+                  htmlFor="businessActivity"
                 >
                   Business Activity
                 </label>
                 <input
-                  className="flex h-9 w-full rounded-md border border-input px-3 py-2 text-sm shadow-sm bg-yellow-50"
-                  id="business_activity"
+                  className="flex h-9 w-full rounded-md border border-gray-200 px-3 py-2 text-sm shadow-sm"
+                  id="businessActivity"
                   type="text"
-                  name="business_activity"
-                  value={formData.business_activity}
+                  name="businessActivity"
+                  value={formData.businessActivity}
                   onChange={handleChange}
                 />
               </div>
@@ -677,7 +677,7 @@ const AccountForm = ({
                   Model
                 </label>
                 <input
-                  className="flex h-9 w-full rounded-md border border-input px-3 py-2 text-sm shadow-sm bg-yellow-50"
+                  className="flex h-9 w-full rounded-md border border-gray-200 px-3 py-2 text-sm shadow-sm"
                   id="model"
                   type="text"
                   name="model"
@@ -688,16 +688,16 @@ const AccountForm = ({
               <div>
                 <label
                   className="text-sm font-medium"
-                  htmlFor="annual_target_sales"
+                  htmlFor="annualTargetSales"
                 >
                   Annual Target Sales
                 </label>
                 <input
-                  className="flex h-9 w-full rounded-md border border-input px-3 py-2 text-sm shadow-sm bg-yellow-50"
-                  id="annual_target_sales"
+                  className="flex h-9 w-full rounded-md border border-gray-200 px-3 py-2 text-sm shadow-sm"
+                  id="annualTargetSales"
                   type="text"
-                  name="annual_target_sales"
-                  value={formData.annual_target_sales}
+                  name="annualTargetSales"
+                  value={formData.annualTargetSales}
                   onChange={handleChange}
                 />
               </div>
@@ -706,7 +706,7 @@ const AccountForm = ({
                   Population
                 </label>
                 <input
-                  className="flex h-9 w-full rounded-md border border-input px-3 py-2 text-sm shadow-sm bg-yellow-50"
+                  className="flex h-9 w-full rounded-md border border-gray-200 px-3 py-2 text-sm shadow-sm"
                   id="population"
                   type="text"
                   name="population"
@@ -715,70 +715,70 @@ const AccountForm = ({
                 />
               </div>
               <div>
-                <label className="text-sm font-medium" htmlFor="source_of_target">
+                <label className="text-sm font-medium" htmlFor="sourceOfTarget">
                   Source of Target
                 </label>
                 <input
-                  className="flex h-9 w-full rounded-md border border-input px-3 py-2 text-sm shadow-sm bg-yellow-50"
-                  id="source_of_target"
+                  className="flex h-9 w-full rounded-md border border-gray-200 px-3 py-2 text-sm shadow-sm"
+                  id="sourceOfTarget"
                   type="text"
-                  name="source_of_target"
-                  value={formData.source_of_target}
+                  name="sourceOfTarget"
+                  value={formData.sourceOfTarget}
                   onChange={handleChange}
                 />
               </div>
               <div>
-                <label className="text-sm font-medium" htmlFor="existing_bellows">
+                <label className="text-sm font-medium" htmlFor="existingBellows">
                   Existing Bellow
                 </label>
                 <input
-                  className="flex h-9 w-full rounded-md border border-input px-3 py-2 text-sm shadow-sm bg-yellow-50"
-                  id="existing_bellows"
+                  className="flex h-9 w-full rounded-md border border-gray-200 px-3 py-2 text-sm shadow-sm"
+                  id="existingBellows"
                   type="text"
-                  name="existing_bellows"
-                  value={formData.existing_bellows}
+                  name="existingBellows"
+                  value={formData.existingBellows}
                   onChange={handleChange}
                 />
               </div>
               <div>
                 <label
                   className="text-sm font-medium"
-                  htmlFor="products_to_order"
+                  htmlFor="productsToOrder"
                 >
                   Products to Order
                 </label>
                 <input
-                  className="flex h-9 w-full rounded-md border border-input px-3 py-2 text-sm shadow-sm bg-yellow-50"
-                  id="products_to_order"
+                  className="flex h-9 w-full rounded-md border border-gray-200 px-3 py-2 text-sm shadow-sm"
+                  id="productsToOrder"
                   type="text"
-                  name="products_to_order"
-                  value={formData.products_to_order}
+                  name="productsToOrder"
+                  value={formData.productsToOrder}
                   onChange={handleChange}
                 />
               </div>
               <div>
-                <label className="text-sm font-medium" htmlFor="model_under">
+                <label className="text-sm font-medium" htmlFor="modelUnder">
                   Model Under
                 </label>
                 <input
-                  className="flex h-9 w-full rounded-md border border-input px-3 py-2 text-sm shadow-sm bg-yellow-50"
-                  id="model_under"
+                  className="flex h-9 w-full rounded-md border border-gray-200 px-3 py-2 text-sm shadow-sm"
+                  id="modelUnder"
                   type="text"
-                  name="model_under"
-                  value={formData.model_under}
+                  name="modelUnder"
+                  value={formData.modelUnder}
                   onChange={handleChange}
                 />
               </div>
               <div>
-                <label className="text-sm font-medium" htmlFor="target_areas">
+                <label className="text-sm font-medium" htmlFor="targetAreas">
                   Target Areas
                 </label>
                 <input
-                  className="flex h-9 w-full rounded-md border border-input px-3 py-2 text-sm shadow-sm bg-yellow-50"
-                  id="target_areas"
+                  className="flex h-9 w-full rounded-md border border-gray-200 px-3 py-2 text-sm shadow-sm"
+                  id="targetAreas"
                   type="text"
-                  name="target_areas"
-                  value={formData.target_areas}
+                  name="targetAreas"
+                  value={formData.targetAreas}
                   onChange={handleChange}
                 />
               </div>
@@ -787,7 +787,7 @@ const AccountForm = ({
                   Additional
                 </label>
                 <input
-                  className="flex h-9 w-full rounded-md border border-input px-3 py-2 text-sm shadow-sm bg-yellow-50"
+                  className="flex h-9 w-full rounded-md border border-gray-200 px-3 py-2 text-sm shadow-sm"
                   id="additional"
                   type="text"
                   name="additional"
@@ -801,7 +801,7 @@ const AccountForm = ({
                 Analysis
               </label>
               <textarea
-                className="flex h-24 w-full rounded-md border border-input px-3 py-2 text-sm shadow-sm bg-yellow-50"
+                className="flex h-24 w-full rounded-md border border-gray-200 px-3 py-2 text-sm shadow-sm"
                 id="analysis"
                 name="analysis"
                 value={formData.analysis}
@@ -821,41 +821,41 @@ const AccountForm = ({
           <div className="p-6 space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
-                <label className="text-sm font-medium" htmlFor="from">
+                <label className="text-sm font-medium" htmlFor="fromTime">
                   From
                 </label>
                 <input
-                  className="flex h-9 w-full rounded-md border border-input px-3 py-2 text-sm shadow-sm bg-yellow-50"
-                  id="from"
+                  className="flex h-9 w-full rounded-md border border-gray-200 px-3 py-2 text-sm shadow-sm"
+                  id="fromTime"
                   type="time"
-                  name="from"
-                  value={formData.from}
+                  name="fromTime"
+                  value={formData.fromTime}
                   onChange={handleChange}
                 />
               </div>
               <div>
-                <label className="text-sm font-medium" htmlFor="to">
+                <label className="text-sm font-medium" htmlFor="toTime">
                   To
                 </label>
                 <input
-                  className="flex h-9 w-full rounded-md border border-input px-3 py-2 text-sm shadow-sm bg-yellow-50"
-                  id="to"
+                  className="flex h-9 w-full rounded-md border border-gray-200 px-3 py-2 text-sm shadow-sm"
+                  id="toTime"
                   type="time"
-                  name="to"
-                  value={formData.to}
+                  name="toTime"
+                  value={formData.toTime}
                   onChange={handleChange}
                 />
               </div>
               <div>
-                <label className="text-sm font-medium" htmlFor="activity_period">
+                <label className="text-sm font-medium" htmlFor="activityPeriod">
                   Activity Period
                 </label>
                 <input
-                  className="flex h-9 w-full rounded-md border border-input px-3 py-2 text-sm shadow-sm bg-yellow-50"
-                  id="activity_period"
+                  className="flex h-9 w-full rounded-md border border-gray-200 px-3 py-2 text-sm shadow-sm"
+                  id="activityPeriod"
                   type="text"
-                  name="activity_period"
-                  value={formData.activity_period}
+                  name="activityPeriod"
+                  value={formData.activityPeriod}
                   onChange={handleChange}
                 />
               </div>
@@ -961,71 +961,71 @@ const AccountForm = ({
           </div>
           <div className="p-6 pt-0 grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
-              <label className="text-sm font-medium" htmlFor="approved_by">
+              <label className="text-sm font-medium" htmlFor="preparedBy">
                 Prepared by
               </label>
               <input
-                className="flex h-9 w-full rounded-md border border-input px-3 py-2 text-sm shadow-sm bg-yellow-50"
-                id="approved_by"
+                className="flex h-9 w-full rounded-md border border-gray-200 px-3 py-2 text-sm shadow-sm bg-gray-50 text-gray-600"
+                id="preparedBy"
                 type="text"
-                name="approved_by"
-                value={formData.createdBy}
+                name="preparedBy"
+                value={formData.preparedBy}
                 onChange={handleChange}
                 readOnly
               />
             </div>
             <div>
-              <label className="text-sm font-medium" htmlFor="noted_by">
+              <label className="text-sm font-medium" htmlFor="notedBy">
                 Noted by
               </label>
               <input
-                className="flex h-9 w-full rounded-md border border-input px-3 py-2 text-sm shadow-sm bg-yellow-50"
-                id="noted_by"
+                className="flex h-9 w-full rounded-md border border-gray-200 px-3 py-2 text-sm shadow-sm bg-gray-50 text-gray-600"
+                id="notedBy"
                 type="text"
-                name="noted_by"
-                value={formData.noted_by}
+                name="notedBy"
+                value={formData.notedBy}
                 onChange={handleChange}
                 readOnly
               />
             </div>
             <div>
-              <label className="text-sm font-medium" htmlFor="approved_by">
+              <label className="text-sm font-medium" htmlFor="approvedBy">
                 Approved by
               </label>
               <input
-                className="flex h-9 w-full rounded-md border border-input px-3 py-2 text-sm shadow-sm bg-yellow-50"
-                id="approved_by"
+                className="flex h-9 w-full rounded-md border border-gray-200 px-3 py-2 text-sm shadow-sm bg-gray-50 text-gray-600"
+                id="approvedBy"
                 type="text"
-                name="approved_by"
-                value={formData.approved_by}
+                name="approvedBy"
+                value={formData.approvedBy}
                 onChange={handleChange}
                 readOnly
               />
             </div>
             <div>
-              <label className="text-sm font-medium" htmlFor="received_by">
+              <label className="text-sm font-medium" htmlFor="receivedBy">
                 Received by
               </label>
               <input
-                className="flex h-9 w-full rounded-md border border-input px-3 py-2 text-sm shadow-sm bg-yellow-50"
-                id="received_by"
+                className="flex h-9 w-full rounded-md border border-gray-200 px-3 py-2 text-sm shadow-sm bg-gray-50 text-gray-600"
+                id="receivedBy"
                 type="text"
-                name="received_by"
-                value={formData.received_by}
+                name="receivedBy"
+                value={formData.receivedBy}
                 onChange={handleChange}
                 readOnly
               />
             </div>
             <div>
-              <label className="text-sm font-medium" htmlFor="acknowledged_by">
+              <label className="text-sm font-medium" htmlFor="acknowledgedBy">
                 Acknowledge Approved by
               </label>
               <input
-                className="flex h-9 w-full rounded-md border border-input px-3 py-2 text-sm shadow-sm bg-yellow-50"
-                id="acknowledged_by"
+                className="flex h-9 w-full rounded-md border border-gray-200 px-3 py-2 text-sm shadow-sm bg-gray-50 text-gray-600"
+                id="acknowledgedBy"
                 type="text"
-                name="acknowledged_by"
-                value={formData.acknowledged_by}
+                name="acknowledgedBy"
+                value={formData.acknowledgedBy}
                 onChange={handleChange}
                 readOnly
               />

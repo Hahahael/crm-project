@@ -443,7 +443,7 @@ router.post("/", async (req, res) => {
       body.stage_status || 'Draft',
       body.ref_number,
       body.date_created || new Date(),
-      body.requested_by,
+      body.contact_person,
       body.designation,
       body.department_id,
       body.validity_period,
@@ -556,13 +556,15 @@ router.put("/:id", async (req, res) => {
         approved_by = $42,
         received_by = $43,
         acknowledged_by = $44,
-        updated_at = NOW()
-      WHERE id = $45
+        updated_at = NOW(),
+        from_time = $45,
+        to_time = $46
+      WHERE id = $47
       RETURNING *
     `, [
       body.stage_status,
       body.ref_number,
-      body.requested_by,
+      body.requested_by || body.contact_person,
       body.designation,
       body.department_id,
       body.validity_period,
@@ -599,11 +601,13 @@ router.put("/:id", async (req, res) => {
       body.from_date,
       body.to_date,
       body.activity_period,
-      body.prepared_by,
+      body.prepared_by || body.assigned_to || body.assignee,
       body.noted_by,
       body.approved_by,
       body.received_by,
       body.acknowledged_by,
+      body.from_time,
+      body.to_time,
       id
     ]);
     
@@ -612,6 +616,8 @@ router.put("/:id", async (req, res) => {
     }
     
     const updatedAccount = updateResult.rows[0];
+
+    console.log("✅ Updated PostgreSQL account:", updatedAccount);
     
     // If account was approved, sync to MSSQL
     if (body.stage_status === 'Approved' && !updatedAccount.kristemAccountId) {

@@ -207,8 +207,7 @@ export default function TechnicalsPage() {
       setSuccessMessage("Technical Recommendation saved successfully!"); // ✅ trigger success message
       await fetchAllData();
       fetchNewAssignedTechnicalRecos();
-      setSelectedTR(null);
-      setEditingTR(null);
+      fetchSelectedTR(savedTechnicalReco.id);
     } catch (err) {
       console.error("Error saving technical recommendation:", err);
       setError("Failed to save technical recommendation");

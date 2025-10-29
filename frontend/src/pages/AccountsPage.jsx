@@ -223,9 +223,9 @@ export default function AccountsPage() {
         console.log("All workflow stages:", allStages);
       }
 
-  setSuccessMessage("Account saved successfully!");
+      setSuccessMessage("Account saved successfully!");
       await fetchAllData();
-      setSelectedAccount(savedAccount);
+      setSelectedAccount(null);
       setEditingAccount(null);
     } catch (err) {
       console.error("Error saving NAEF Stage:", err);

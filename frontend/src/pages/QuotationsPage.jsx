@@ -592,7 +592,7 @@ export default function QuotationsPage() {
             </div>
 
             {selectedTR && (
-              <TechnicalDetails technicalReco={selectedTR} onBack={() => {}} source="quotations" />
+              <TechnicalDetails technicalReco={selectedTR} onBack={() => {}} source="quotations" hideTabs={true} />
             )}
             {selectedRFQ && (
               <div className="container mx-auto p-6 overflow-auto">

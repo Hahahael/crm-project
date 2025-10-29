@@ -583,13 +583,13 @@ const SalesLeadForm = ({
           >
             <LuSave className="mr-2" /> Save
           </button>
-          <button
+          {/* <button
             type="button"
             onClick={handleSubmitForApproval}
             className="flex border border-green-200 bg-green-500 hover:bg-green-600 transition-all duration-150 cursor-pointer px-4 py-2 rounded-md items-center text-sm text-white"
           >
             <LuCheck className="mr-2" /> Submit
-          </button>
+          </button> */}
         </div>
       </div>
 

@@ -30,12 +30,7 @@ export default function RFQsPage() {
   const [currentUser, setCurrentUser] = useState(null);
   const [selectedTab, setSelectedTab] = useState("details");
   const [newAssignedRFQs, setNewAssignedRFQs] = useState([]);
-  const [statusSummary] = useState({
-    total: 0,
-    pending: 0,
-    inProgress: 0,
-    completed: 0,
-  });
+  const [activeCardFilter, setActiveCardFilter] = useState("all"); // all | draft | sent | responded | completed
 
   const fetchAllData = async () => {
     try {
@@ -124,13 +119,35 @@ export default function RFQsPage() {
     );
   if (error) return <p className="p-4 text-red-600">{error}</p>;
 
+  // Filter by card selection
+  const statusMatchesActiveFilter = (rfq) => {
+    if (activeCardFilter === "all") return true;
+    
+    const status = (rfq.status || "").toLowerCase();
+    switch (activeCardFilter) {
+      case "draft":
+        return status === "draft" || status === "pending";
+      case "sent":
+        return status === "sent" || status === "submitted";
+      case "responded":
+        return status === "responded" || status === "quoted";
+      case "completed":
+        return status === "completed" || status === "approved";
+      default:
+        return true;
+    }
+  };
+
   const term = (search || "").toLowerCase();
   const filtered = RFQs.filter((rfq) => {
     const rfqNum = (rfq.rfqNumber || rfq.rfq_number || "").toLowerCase();
     const accName = (
       rfq.account?.account_name || rfq.accountName || rfq.account_name || ""
     ).toLowerCase();
-    return rfqNum.includes(term) || accName.includes(term);
+    const matchesSearch = rfqNum.includes(term) || accName.includes(term);
+    const matchesFilter = statusMatchesActiveFilter(rfq);
+    
+    return matchesSearch && matchesFilter;
   });
 
   const handleSave = async (formData, mode) => {
@@ -375,40 +392,80 @@ export default function RFQsPage() {
 
           {/* Status center */}
           <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
-            <div className="relative flex flex-col rounded-xl shadow-sm border border-gray-200 p-6">
+            <button
+              type="button"
+              onClick={() => setActiveCardFilter("all")}
+              className={`text-left relative flex flex-col rounded-xl shadow-sm border p-6 transition ${activeCardFilter === "all" ? "border-blue-400 ring-1 ring-blue-300" : "border-gray-200 hover:bg-gray-50 cursor-pointer"}`}
+            >
               <LuFileText className="absolute top-6 right-6 text-gray-600" />
               <p className="text-sm mb-1 mr-4">Total RFQs</p>
-              <h2 className="text-2xl font-bold">{statusSummary.total}</h2>
+              <h2 className="text-2xl font-bold">{RFQs.length}</h2>
               <p className="text-xs text-gray-500">
                 All requests for quotation
               </p>
-            </div>
-            <div className="relative flex flex-col rounded-xl shadow-sm border border-gray-200 p-6">
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveCardFilter("draft")}
+              className={`text-left relative flex flex-col rounded-xl shadow-sm border p-6 transition ${activeCardFilter === "draft" ? "border-blue-400 ring-1 ring-blue-300" : "border-gray-200 hover:bg-gray-50 cursor-pointer"}`}
+            >
               <LuClipboard className="absolute top-6 right-6 text-gray-600" />
               <p className="text-sm mb-1 mr-4">Draft</p>
-              <h2 className="text-2xl font-bold">{statusSummary.pending}</h2>
+              <h2 className="text-2xl font-bold">
+                {RFQs.filter(rfq => {
+                  const status = (rfq.status || "").toLowerCase();
+                  return status === "draft" || status === "pending";
+                }).length}
+              </h2>
               <p className="text-xs text-gray-500">RFQs in draft status</p>
-            </div>
-            <div className="relative flex flex-col rounded-xl shadow-sm border border-gray-200 p-6">
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveCardFilter("sent")}
+              className={`text-left relative flex flex-col rounded-xl shadow-sm border p-6 transition ${activeCardFilter === "sent" ? "border-blue-400 ring-1 ring-blue-300" : "border-gray-200 hover:bg-gray-50 cursor-pointer"}`}
+            >
               <LuSend className="absolute top-6 right-6 text-gray-600" />
               <p className="text-sm mb-1 mr-4">Sent</p>
-              <h2 className="text-2xl font-bold">{statusSummary.inProgress}</h2>
+              <h2 className="text-2xl font-bold">
+                {RFQs.filter(rfq => {
+                  const status = (rfq.status || "").toLowerCase();
+                  return status === "sent" || status === "submitted";
+                }).length}
+              </h2>
               <p className="text-xs text-gray-500">RFQs sent to vendors</p>
-            </div>
-            <div className="relative flex flex-col rounded-xl shadow-sm border border-gray-200 p-6">
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveCardFilter("responded")}
+              className={`text-left relative flex flex-col rounded-xl shadow-sm border p-6 transition ${activeCardFilter === "responded" ? "border-blue-400 ring-1 ring-blue-300" : "border-gray-200 hover:bg-gray-50 cursor-pointer"}`}
+            >
               <LuMessageCircle className="absolute top-6 right-6 text-gray-600" />
               <p className="text-sm mb-1 mr-4">Responded</p>
-              <h2 className="text-2xl font-bold">{statusSummary.inProgress}</h2>
+              <h2 className="text-2xl font-bold">
+                {RFQs.filter(rfq => {
+                  const status = (rfq.status || "").toLowerCase();
+                  return status === "responded" || status === "quoted";
+                }).length}
+              </h2>
               <p className="text-xs text-gray-500">
                 RFQs with vendor responses
               </p>
-            </div>
-            <div className="relative flex flex-col rounded-xl shadow-sm border border-gray-200 p-6">
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveCardFilter("completed")}
+              className={`text-left relative flex flex-col rounded-xl shadow-sm border p-6 transition ${activeCardFilter === "completed" ? "border-blue-400 ring-1 ring-blue-300" : "border-gray-200 hover:bg-gray-50 cursor-pointer"}`}
+            >
               <LuCircleAlert className="absolute top-6 right-6 text-gray-600" />
               <p className="text-sm mb-1 mr-4">Completed</p>
-              <h2 className="text-2xl font-bold">{statusSummary.completed}</h2>
+              <h2 className="text-2xl font-bold">
+                {RFQs.filter(rfq => {
+                  const status = (rfq.status || "").toLowerCase();
+                  return status === "completed" || status === "approved";
+                }).length}
+              </h2>
               <p className="text-xs text-gray-500">Completed RFQs</p>
-            </div>
+            </button>
           </div>
 
           {/* Search + Table */}
@@ -421,7 +478,7 @@ export default function RFQsPage() {
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   className="flex h-9 w-full rounded-md border border-gray-200 bg-transparent px-3 py-1 text-sm shadow-xs transition-colors pl-10"
-                  placeholder="Search salesleads..."
+                  placeholder="Search RFQs..."
                 />
               </div>
             </div>

@@ -156,11 +156,13 @@ router.get("/by-tr/:trId", async (req, res) => {
   try {
     const { trId } = req.params;
     const result = await db.query(
-      `SELECT tr.*, sl.sl_number, sl.account_id, sl.title AS sl_title, rfq.rfq_number, rfq.status AS rfq_status
-             FROM technical_recommendations tr
-             LEFT JOIN sales_leads sl ON tr.sl_id = sl.id
-             LEFT JOIN rfqs rfq ON tr.wo_id = rfq.wo_id
-             WHERE tr.id = $1`,
+      `
+        SELECT tr.*, sl.sl_number, sl.account_id, sl.title AS sl_title, rfq.rfq_number, rfq.status AS rfq_status
+        FROM technical_recommendations tr
+        LEFT JOIN sales_leads sl ON tr.sl_id = sl.id
+        LEFT JOIN rfqs rfq ON tr.wo_id = rfq.wo_id
+        WHERE tr.id = $1
+      `,
       [trId],
     );
     if (result.rows.length === 0)
@@ -208,11 +210,13 @@ router.get("/by-rfq/:rfqId", async (req, res) => {
   try {
     const { rfqId } = req.params;
     const result = await db.query(
-      `SELECT rfq.*, tr.id AS tr_id, tr.status AS tr_status, sl.sl_number, sl.account_id, sl.title AS sl_title
-             FROM rfqs rfq
-             LEFT JOIN technical_recommendations tr ON rfq.wo_id = tr.wo_id
-             LEFT JOIN sales_leads sl ON tr.sl_id = sl.id
-             WHERE rfq.id = $1`,
+      `
+        SELECT rfq.*, tr.id AS tr_id, tr.status AS tr_status, sl.sl_number, sl.account_id, sl.title AS sl_title
+          FROM rfqs rfq
+          LEFT JOIN technical_recommendations tr ON rfq.wo_id = tr.wo_id
+          LEFT JOIN sales_leads sl ON tr.sl_id = sl.id
+          WHERE rfq.id = $1
+      `,
       [rfqId],
     );
     if (result.rows.length === 0)
@@ -432,18 +436,21 @@ router.put("/:id", async (req, res) => {
   try {
     const { id } = req.params;
     const body = toSnake(req.body);
+    console.log("Received request to update quotation with body:", body);
     // Update allowed fields; minimally status and due_date
     const result = await db.query(
       `UPDATE quotations
-         SET status = COALESCE($1, status),
-             due_date = COALESCE($2, due_date),
-             updated_at = NOW()
+        SET stage_status = $1,
+          due_date = COALESCE($2, due_date),
+          updated_at = NOW()
        WHERE id = $3
        RETURNING *`,
       [body.status, body.due_date, id],
     );
     if (result.rows.length === 0) return res.status(404).json({ error: "Not found" });
     const quotation = result.rows[0];
+
+    console.log("Updated quotation:", quotation);
 
     // Note: Work Order is marked Completed only after successful MSSQL submission
 
@@ -494,17 +501,20 @@ router.post("/", async (req, res) => {
     const currentYear = new Date().getFullYear();
     const qtNumRes = await db.query(
       `
-                SELECT quotation_number
-                FROM quotations
-                WHERE quotation_number LIKE $1
-                ORDER BY quotation_number DESC
-                LIMIT 1`,
+        SELECT quotation_number
+        FROM quotations
+        WHERE quotation_number LIKE $1
+        ORDER BY quotation_number DESC
+        LIMIT 1
+      `,
       [`QUOT-${currentYear}-%`],
     );
 
+    console.log("Last quotation number for current year:", qtNumRes.rows);
+
     let newCounter = 1;
     if (qtNumRes.rows.length > 0) {
-      const lastQuotationNumber = qtNumRes.rows[0].quotation_number;
+      const lastQuotationNumber = qtNumRes.rows[0].quotationNumber;
       const lastCounter = parseInt(lastQuotationNumber.split("-")[2], 10);
       newCounter = lastCounter + 1;
     }
@@ -512,9 +522,11 @@ router.post("/", async (req, res) => {
     const quotation_number = `QUOT-${currentYear}-${String(newCounter).padStart(4, "0")}`;
 
     const result = await db.query(
-      `INSERT INTO quotations (rfq_id, tr_id, wo_id, assignee, account_id, created_at, created_by, updated_at, updated_by, quotation_number, due_date)
-             VALUES ($1, $2, $3, $4, $5, NOW(), $6, NOW(), $7, $8, $9)
-             RETURNING *`,
+      `
+        INSERT INTO quotations (rfq_id, tr_id, wo_id, assignee, account_id, created_at, created_by, updated_at, updated_by, quotation_number, due_date)
+        VALUES ($1, $2, $3, $4, $5, NOW(), $6, NOW(), $7, $8, $9)
+        RETURNING *
+      `,
       [
         rfq_id,
         tr_id,
@@ -532,8 +544,10 @@ router.post("/", async (req, res) => {
 
     // Create workflow stage for new technical recommendation (Draft)
     await db.query(
-      `INSERT INTO workflow_stages (wo_id, stage_name, status, assigned_to, created_at, updated_at)
-                VALUES ($1, $2, $3, $4, NOW(), NOW())`,
+      `
+        INSERT INTO workflow_stages (wo_id, stage_name, status, assigned_to, created_at, updated_at)
+        VALUES ($1, $2, $3, $4, NOW(), NOW())
+      `,
       [wo_id, "Quotations", "Draft", assignee],
     );
 
