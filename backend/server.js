@@ -27,6 +27,7 @@ import adminRoutes from "./routes/adminRoutes.js";
 
 const PORT = process.env.PORT || 5500;
 const FRONTEND_URL = process.env.FRONTEND_URL || "http://localhost:5173";
+const ALLOW_ALL_CORS = String(process.env.ALLOW_ALL_CORS || "false").toLowerCase() === "true";
 
 const app = express();
 
@@ -34,6 +35,65 @@ app.use(cookieParser());
 // Allow larger request bodies for complex RFQ payloads during dev
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true, limit: "10mb" }));
+
+// Allow multiple local/preview/prod origins
+const allowedOrigins = [
+  FRONTEND_URL,
+  "http://localhost:5173",
+  "http://localhost:5174",
+  "http://139.135.131.164:5173",
+  "http://139.135.131.164:5174",
+  // Deployed previews / prod frontends
+  "https://crm-project-git-dev-raphaels-projects-763450c5.vercel.app",
+  "https://crm-project-ieqy6ib68-raphaels-projects-763450c5.vercel.app",
+  "https://crm-project-git-new-dev-raphaels-projects-763450c5.vercel.app",
+  "https://crm-project-4ugu.onrender.com",
+];
+app.use(
+  cors({
+    origin: function (origin, callback) {
+      if (ALLOW_ALL_CORS) return callback(null, true);
+      if (!origin || allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+      return callback(new Error(`Not allowed by CORS: ${origin}`));
+    },
+    credentials: true,
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
+    // Let the cors package reflect request headers automatically to avoid preflight mismatches
+    // allowedHeaders: undefined,
+    optionsSuccessStatus: 204,
+    allowedHeaders: ["Content-Type", "Authorization"],
+  }),
+);
+
+app.use((req, res, next) => {
+  console.log("🛰️  Incoming request:", req.method, req.path, "from", req.headers.origin);
+  next();
+});
+
+// Preflight for all routes
+app.options(/.*/, cors({
+  origin: function (origin, callback) {
+    if (ALLOW_ALL_CORS) return callback(null, true);
+    if (!origin || allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+    return callback(new Error(`Not allowed by CORS: ${origin}`));
+  },
+  credentials: true,
+}));
+
+// Lightweight CORS debug endpoint
+app.get("/api/debug/cors", (req, res) => {
+  res.json({
+    ok: true,
+    origin: req.headers.origin || null,
+    allowed: ALLOW_ALL_CORS || allowedOrigins.includes(req.headers.origin || ""),
+    allowedOrigins,
+    allowAll: ALLOW_ALL_CORS,
+  });
+});
 
 // Temporary debug endpoint (DEV ONLY): echo raw request body so clients can
 // verify exactly what the server receives. Remove or protect in production.
@@ -50,32 +110,6 @@ app.post("/api/debug/echo", (req, res) => {
     return res.status(500).json({ ok: false, error: err.message });
   }
 });
-// Allow multiple Vercel preview URLs and production
-const allowedOrigins = [
-  "https://crm-project-git-dev-raphaels-projects-763450c5.vercel.app",
-  "https://crm-project-ieqy6ib68-raphaels-projects-763450c5.vercel.app",
-  "https://crm-project-git-new-dev-raphaels-projects-763450c5.vercel.app",
-  "https://crm-project-4ugu.onrender.com",
-  "http://localhost:5174",
-  FRONTEND_URL,
-  "http://139.135.131.164:5174",
-  "http://139.135.131.164:5500",
-  "http://localhost:5174",
-].filter(Boolean);
-app.use(
-  cors({
-    origin: function (origin, callback) {
-      if (!origin || allowedOrigins.includes(origin)) {
-        callback(null, true);
-      } else {
-        callback(new Error("Not allowed by CORS"));
-      }
-    },
-    credentials: true,
-    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization"],
-  }),
-);
 
 // Restore /auth routes for authentication
 app.use("/auth", authRoutes);

@@ -46,15 +46,15 @@ const router = express.Router();
 router.get("/", async (req, res) => {
   try {
     const result = await db.query(`
-                SELECT 
-                        tr.*, 
-                        u.username AS assignee_username,
-                        sl.sl_number AS sl_number
-                FROM technical_recommendations tr
-                LEFT JOIN users u ON tr.assignee = u.id
-                LEFT JOIN sales_leads sl ON tr.sl_id = sl.id
-                ORDER BY tr.id ASC
-                `);
+      SELECT 
+              tr.*, 
+              u.username AS assignee_username,
+              sl.sl_number AS sl_number
+      FROM technical_recommendations tr
+      LEFT JOIN users u ON tr.assignee = u.id
+      LEFT JOIN sales_leads sl ON tr.sl_id = sl.id
+      ORDER BY tr.id ASC
+      `);
     const rows = result.rows;
 
     // Enrich with SPI account data (no crmdb)

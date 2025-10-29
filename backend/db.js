@@ -32,11 +32,13 @@ if (process.env.USE_MOCK === "true") {
     return env !== "false" && env !== "0";
   })();
 
-  const baseConfig = databaseUrl
-    ? {
-        connectionString: databaseUrl,
-      }
-    : {
+  const baseConfig = 
+    // databaseUrl
+    // ? {
+    //     connectionString: databaseUrl,
+    //   }
+    // : 
+    {
         user: process.env.DB_USER,
         host: process.env.DB_HOST,
         database: process.env.DB_NAME,

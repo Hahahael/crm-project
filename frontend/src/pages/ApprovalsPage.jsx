@@ -150,7 +150,7 @@ const ApprovalsPage = () => {
     console.log("Submitting modal with details:", detailsData);
     setSubmitting(true);
     try {
-      const { assignee, dueDate, fromTime, toTime, remarks, nextStage } = form;
+      let { assignee, dueDate, fromTime, toTime, remarks, nextStage } = form;
       let nextModuleType = null;
       let endpoint = "";
       let payload = {
@@ -286,6 +286,7 @@ const ApprovalsPage = () => {
         }
       } else {
         // Rejection: only create workflow stage for current stage
+        assignee = detailsData?.assignee;
         await apiBackendFetch("/api/workflow-stages", {
           method: "POST",
           body: JSON.stringify({
