@@ -16,6 +16,7 @@ const WorkOrderDetails = ({
   onWorkOrderUpdated,
   toSalesLead,
   hideTabs = false,
+  source = "workOrder",
 }) => {
   console.log(
     "WorkOrderDetails - workOrder:",
@@ -116,12 +117,12 @@ const WorkOrderDetails = ({
     <div className="h-full w-full p-6 overflow-y-auto">
       {/* Header with back button */}
       <div className="flex items-center mb-6">
-        <button
+        {source === "workOrder" && (<button
           onClick={onBack}
           className={`mr-4 rounded px-2 py-2 font-medium hover:bg-gray-100 transition-all duration-150 flex align-middle border border-gray-200 ${hideTabs ? "hidden" : ""}`}
         >
           <LuArrowLeft className="my-auto text-lg" />
-        </button>
+        </button>)}
         <div className="flex flex-col">
           <h1 className="text-2xl font-bold">
             {workOrder.woNumber || ""} - Field Service Lead

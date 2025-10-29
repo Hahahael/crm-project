@@ -14,6 +14,7 @@ const SalesLeadDetails = ({
   onSalesLeadUpdated: _onSalesLeadUpdated,
   onSubmit,
   hideRelatedTabs = false,
+  source="salesLead"
 }) => {
   console.log("Rendering SalesLeadDetails for salesLead:", salesLead);
   const isAssignedToMe = currentUser && salesLead.assignee === currentUser.id;
@@ -115,13 +116,13 @@ const SalesLeadDetails = ({
       {/* Header */}
       <div className="py-4 flex items-center justify-between">
         <div>
-          <button
+          {source === "salesLead" && (<button
             onClick={onBack}
             className={`flex items-center text-muted-foreground mb-2 text-gray-500 hover:text-gray-700 cursor-pointer ${hideRelatedTabs ? "hidden" : ""}`}
           >
             <LuArrowLeft className="h-4 w-4 mr-1" />
             Back to Sales Leads
-          </button>
+          </button>)}
           <div className="flex items-center gap-3">
             <h1 className="text-2xl font-bold">{salesLead.slNumber}</h1>
             <div className="inline-flex items-center rounded-md border px-2.5 py-0.5 text-xs font-semibold bg-blue-100 text-blue-800">
@@ -150,13 +151,13 @@ const SalesLeadDetails = ({
                         onClick={() => onSubmit(salesLead, "rfqs")}> 
                         Move to RFQ
                     </button> */}
-          <button
+          {source === "salesLead" && (<button
             onClick={() => onEdit(salesLead)}
             className={`items-center justify-center whitespace-nowrap rounded-md text-sm font-light shadow h-9 px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white ${salesLead.stageStatus === "Approved" ? "hidden pointer-events-none" : "inline-flex"}`}
           >
             <LuPencil className="h-4 w-4 mr-2" />
             Edit Sales Lead
-          </button>
+          </button>)}
         </div>
       </div>
 

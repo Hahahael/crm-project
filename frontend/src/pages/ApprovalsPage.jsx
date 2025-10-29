@@ -5,6 +5,7 @@ import ApprovalsTable from "../components/ApprovalsTable";
 import SalesLeadDetails from "../components/SalesLeadDetails";
 import TechnicalDetails from "../components/TechnicalDetails";
 import RFQDetails from "../components/RFQDetails";
+import RFQCanvassSheet from "../components/RFQCanvassSheet";
 import WorkOrderDetails from "../components/WorkOrderDetails";
 import AccountDetails from "../components/AccountDetails";
 import UserDetails from "../components/UserDetails";
@@ -380,14 +381,17 @@ const ApprovalsPage = () => {
           <SalesLeadDetails
             salesLead={detailsData}
             onBack={() => setSelectedApproval(null)}
+            source="approval"
           />
         );
       case "Technical Recommendation":
       case "technical_recommendation":
+      case "technical recommendation":
         return (
           <TechnicalDetails
-            technical={detailsData}
+            technicalReco={detailsData}
             onBack={() => setSelectedApproval(null)}
+            source="approval"
           />
         );
       case "RFQ":
@@ -398,6 +402,7 @@ const ApprovalsPage = () => {
             rfq={detailsData}
             hideTabs={true}
             onBack={() => setSelectedApproval(null)}
+            source="approval"
           />
           <RFQCanvassSheet
             rfq={detailsData}
@@ -410,15 +415,18 @@ const ApprovalsPage = () => {
         );
       case "Work Order":
       case "workorder":
+      case "work order":
         return (
           <WorkOrderDetails
             workOrder={detailsData}
             onBack={() => setSelectedApproval(null)}
+            source="approval"
           />
         );
       case "Account":
       case "account":
       case "NAEF":
+      case "naef":
         return (
           <AccountDetails
             account={detailsData}
@@ -429,6 +437,7 @@ const ApprovalsPage = () => {
             onAccountUpdated={() => {}}
             onPrint={() => {}}
             onSubmit={() => {}}
+            source="approval"
           />
         );
       default:

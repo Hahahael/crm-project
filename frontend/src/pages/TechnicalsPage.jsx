@@ -146,7 +146,7 @@ export default function TechnicalsPage() {
   const term = (search || "").toLowerCase();
 
   const matchesActiveFilter = (tr) => {
-    const status = String(tr?.status || "").toLowerCase();
+    const status = String(tr?.stageStatus || "").toLowerCase();
     const priority = String(tr?.priority || "").toLowerCase();
     switch (activeCardFilter) {
       case "draft":

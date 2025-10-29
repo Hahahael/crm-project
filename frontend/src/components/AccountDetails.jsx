@@ -12,6 +12,7 @@ const AccountDetails = ({
   onAccountUpdated,
   onPrint,
   onSubmit,
+  source="account"
 }) => {
   const isAssignedToMe = currentUser && account.prepared_by === currentUser.id;
   const isCreator = currentUser && account.prepared_by === currentUser.id;
@@ -56,12 +57,12 @@ const AccountDetails = ({
       <div className="py-4 flex items-center justify-between">
         <div>
           <div className="flex items-center gap-3">
-            <button
+            {source === "account" && (<button
               onClick={onBack}
               className="flex items-center p-2 text-gray-700 hover:bg-gray-50 cursor-pointer border border-gray-200 rounded shadow-xs transition-all duration-200"
             >
               <LuArrowLeft className="h-4 w-4" />
-            </button>
+            </button>)}
             <h1 className="text-2xl font-bold">NAEF Details</h1>
             <div className="inline-flex items-center rounded-md border px-2.5 py-0.5 text-xs font-semibold bg-green-100 text-green-800">
               {account.stage_status}
@@ -76,13 +77,13 @@ const AccountDetails = ({
             <LuPrinter className="h-4 w-4 mr-2" />
             Print
           </button>
-          <button
+          {source === "account" && (<button
             onClick={() => onEdit(account)}
             className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-light shadow h-9 px-4 py-2 bg-purple-500 hover:bg-purple-600 text-white"
           >
             <LuPencil className="h-4 w-4 mr-2" />
             Edit
-          </button>
+          </button>)}
           <button
             onClick={() => onSubmit(account)}
             className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-light shadow h-9 px-4 py-2 bg-green-500 hover:bg-green-600 text-white"
