@@ -127,7 +127,7 @@ router.get("/", async (req, res) => {
             ? spiPool
                 .request()
                 .query(
-                  `SELECT * FROM spidb.Department WHERE Id IN (${Array.from(deptIds).join(",")})`,
+                  `SELECT * FROM spidb.CusDepartment WHERE Id IN (${Array.from(deptIds).join(",")})`,
                 )
             : Promise.resolve({ recordset: [] }),
         ]);
@@ -323,7 +323,7 @@ router.get("/:id", async (req, res) => {
           spiPool
             .request()
             .input("did", dId)
-            .query("SELECT TOP (1) * FROM spidb.Department WHERE Id = @did"),
+            .query("SELECT TOP (1) * FROM spidb.CusDepartment WHERE Id = @did"),
         ]);
 
         const enrichedAccount = {

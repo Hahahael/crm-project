@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { apiBackendFetch } from "../services/api";
 
-const ApprovalActionModal = ({ isOpen, type, approval, onClose, onSubmit }) => {
+const ApprovalActionModal = ({ isOpen, type, approval, onClose, onSubmit, submitting = false }) => {
   console.log("ApprovalActionModal props:", { isOpen, type, approval });
   const [assigneeDropdownOpen, setAssigneeDropdownOpen] = useState(false);
   const assigneeRef = useRef(null);
@@ -136,7 +136,7 @@ const ApprovalActionModal = ({ isOpen, type, approval, onClose, onSubmit }) => {
         </h2>
         <div className="space-y-3">
           {type === "approve" && (
-            <div>
+            <div className="space-y-3">
               <div className="relative" ref={assigneeRef}>
                 <input
                   name="assigneeUsername"
@@ -246,9 +246,25 @@ const ApprovalActionModal = ({ isOpen, type, approval, onClose, onSubmit }) => {
           </button>
           <button
             type="submit"
-            className={`px-4 py-2 rounded text-white ${type === "approve" ? "bg-green-600" : "bg-red-600"}`}
+            disabled={submitting}
+            className={`px-4 py-2 rounded text-white transition-all duration-200 ${
+              type === "approve" 
+                ? submitting 
+                  ? "bg-green-400 cursor-not-allowed" 
+                  : "bg-green-600 hover:bg-green-700" 
+                : submitting 
+                  ? "bg-red-400 cursor-not-allowed" 
+                  : "bg-red-600 hover:bg-red-700"
+            }`}
           >
-            {type === "approve" ? "Approve" : "Reject"}
+            {submitting ? (
+              <div className="flex items-center">
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                {type === "approve" ? "Approving..." : "Rejecting..."}
+              </div>
+            ) : (
+              type === "approve" ? "Approve" : "Reject"
+            )}
           </button>
         </div>
       </form>

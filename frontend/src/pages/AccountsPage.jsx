@@ -43,7 +43,7 @@ export default function AccountsPage() {
     console.log("fetchAllData called");
     try {
       const accountsRes = await apiBackendFetch("/api/accounts/naefs");
-      if (!accountsRes.ok) throw new Error("Failed to fetch Accounts");
+      if (!accountsRes.ok) throw new Error("Failed to fetch NAEF Accounts");
 
       console.log("Accounts response:", accountsRes);
 
@@ -188,10 +188,19 @@ export default function AccountsPage() {
     console.log("Saving account:", formData, "Mode:", mode);
     try {
       console.log(formData.id);
-      const response = await apiBackendFetch(`/api/accounts/naef/${formData.id}`, {
-        method: "PUT",
-        body: JSON.stringify(formData),
-      });
+      
+      let response;
+      if (mode === "create") {
+        response = await apiBackendFetch("/api/accounts", {
+          method: "POST",
+          body: JSON.stringify(formData),
+        });
+      } else {
+        response = await apiBackendFetch(`/api/accounts/${formData.id}`, {
+          method: "PUT",
+          body: JSON.stringify(formData),
+        });
+      }
 
       if (!response.ok) throw new Error("Failed to save account");
       const savedAccount = await response.json();
@@ -199,10 +208,11 @@ export default function AccountsPage() {
       await apiBackendFetch("/api/workflow-stages", {
         method: "POST",
         body: JSON.stringify({
-          wo_id: savedAccount?.wo_id ?? savedAccount?.woId ?? formData?.wo_id ?? formData?.woId ?? null,
+          wo_id: savedAccount?.wo_id ?? savedAccount?.woSourceId ?? formData?.wo_id ?? formData?.woSourceId ?? null,
+          account_id: savedAccount.id,
           stage_name: "NAEF",
           status: "In Progress",
-          assigned_to: savedAccount?.assignee ?? formData?.assignee ?? null,
+          assigned_to: savedAccount?.prepared_by ?? savedAccount?.preparedBy ?? formData?.prepared_by ?? formData?.preparedBy ?? null,
         }),
       });
 
@@ -225,8 +235,8 @@ export default function AccountsPage() {
 
   const handleSubmitForApproval = async (formData) => {
     try {
-      // Set status to Submitted
-      const submitData = { ...formData, status: "Submitted" };
+      // Set stage_status to Submitted
+      const submitData = { ...formData, stage_status: "Submitted" };
       const response = await apiBackendFetch(`/api/accounts/${formData.id}`, {
         method: "PUT",
         body: JSON.stringify(submitData),
@@ -239,10 +249,11 @@ export default function AccountsPage() {
       const result = await apiBackendFetch("/api/workflow-stages", {
         method: "POST",
         body: JSON.stringify({
-          wo_id: savedAccount.wo_id,
+          wo_id: savedAccount.wo_id || savedAccount.woSourceId,
+          account_id: savedAccount.id,
           stage_name: "NAEF",
           status: "Submitted",
-          assigned_to: savedAccount.prepared_by,
+          assigned_to: savedAccount.prepared_by || savedAccount.preparedBy,
         }),
       });
 

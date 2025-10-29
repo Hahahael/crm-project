@@ -66,6 +66,8 @@ router.get("/", async (req, res) => {
             .filter((v) => v !== null && v !== undefined),
         ),
       );
+      console.log("🔍 Extracted account IDs from technical recommendations:", ids);
+      console.log("🔍 Sample TR row:", rows[0] || "No TRs found");
       if (ids.length > 0) {
         const spiPool = await poolPromise;
         const numericIds = ids
@@ -73,10 +75,14 @@ router.get("/", async (req, res) => {
           .filter((n) => Number.isFinite(n));
         if (numericIds.length > 0) {
           // Load SPI customers by account ids
+          console.log("🔍 Attempting to fetch customers for IDs:", numericIds);
+          
           const custRes = await spiPool
             .request()
             .query(`SELECT * FROM spidb.customer WHERE Id IN (${numericIds.join(",")})`);
           const customers = custRes.recordset || [];
+          console.log("✅ Successfully fetched customers:", customers.length, "records");
+          console.log("🔍 Sample customer data:", customers[0] || "No customers found");
           const customerMap = new Map(customers.map((c) => [Number(c.Id), c]));
 
           const normId = (v) => {
@@ -124,7 +130,7 @@ router.get("/", async (req, res) => {
             dIds.size
               ? spiPool
                   .request()
-                  .query(`SELECT * FROM spidb.Department WHERE Id IN (${Array.from(dIds).join(",")})`)
+                  .query(`SELECT * FROM spidb.CusDepartment WHERE Id IN (${Array.from(dIds).join(",")})`)
               : Promise.resolve({ recordset: [] }),
           ]);
 
@@ -186,15 +192,15 @@ router.get("/:id", async (req, res) => {
     const { id } = req.params;
     const result = await db.query(
       `
-                        SELECT 
-                                tr.*, 
-                                u.username AS assignee_username,
-                                sl.sl_number AS sl_number
-                        FROM technical_recommendations tr
-                        LEFT JOIN users u ON tr.assignee = u.id
-                        LEFT JOIN sales_leads sl ON tr.sl_id = sl.id
-                        WHERE tr.id = $1
-                        `,
+        SELECT 
+          tr.*, 
+          u.username AS assignee_username,
+          sl.sl_number AS sl_number
+        FROM technical_recommendations tr
+        LEFT JOIN users u ON tr.assignee = u.id
+        LEFT JOIN sales_leads sl ON tr.sl_id = sl.id
+        WHERE tr.id = $1
+      `,
       [id],
     );
     if (result.rows.length === 0)
@@ -202,10 +208,12 @@ router.get("/:id", async (req, res) => {
 
     // Fetch items assigned to this tr
     const itemsRes = await db.query(
-      `SELECT
-                                ti.*
-                        FROM tr_items ti
-                        WHERE ti.tr_id = $1 ORDER BY ti.id ASC`,
+      `
+        SELECT
+          ti.*
+        FROM tr_items ti
+        WHERE ti.tr_id = $1 ORDER BY ti.id ASC
+      `,
       [id],
     );
 
@@ -257,8 +265,10 @@ router.get("/:id", async (req, res) => {
     try {
       const spiPool = await poolPromise;
       const accId = Number(base.accountId ?? base.account_id);
+      console.log("🔍 Single TR - Account ID:", accId, "from base:", base.accountId, base.account_id);
       let customer = null;
       if (Number.isFinite(accId)) {
+        console.log("🔍 Fetching single customer for ID:", accId);
         const custRes = await spiPool
           .request()
           .input("id", accId)
@@ -304,7 +314,7 @@ router.get("/:id", async (req, res) => {
           spiPool
             .request()
             .input("did", dId)
-            .query("SELECT TOP (1) * FROM spidb.Department WHERE Id = @did"),
+            .query("SELECT TOP (1) * FROM spidb.CusDepartment WHERE Id = @did"),
         ]);
 
         const account = {
@@ -557,8 +567,10 @@ router.put("/:id", async (req, res) => {
     try {
       const spiPool = await poolPromise;
       const accId = base.accountId ?? base.account_id;
+      console.log("🔍 PUT TR - Account ID:", accId, "from base:", base.accountId, base.account_id);
       let customer = null;
       if (accId != null) {
+        console.log("🔍 PUT - Fetching single customer for ID:", Number(accId));
         const custRes = await spiPool
           .request()
           .input("id", Number(accId))
@@ -604,7 +616,7 @@ router.put("/:id", async (req, res) => {
           spiPool
             .request()
             .input("did", dId)
-            .query("SELECT TOP (1) * FROM spidb.Department WHERE Id = @did"),
+            .query("SELECT TOP (1) * FROM spidb.CusDepartment WHERE Id = @did"),
         ]);
 
         const account = {

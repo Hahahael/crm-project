@@ -48,19 +48,31 @@ export default function AccountsTable({ accounts, onView, onEdit }) {
               className="hover:bg-gray-50 transition-all duration-200"
             >
               <td className="px-4 py-2 text-black text-sm">
-                {account.kristem?.Code}
+                {account.kristem?.Code || account.naef_number || account.naefNumber || account.id}
               </td>
               <td className="px-4 py-2 text-black text-sm">
-                {util.formatDate(account.created_at, "MM/DD/YYYY")}
+                {util.formatDate(account.created_at || account.date_created || account.dateCreated, "MM/DD/YYYY")}
               </td>
               <td className="px-4 py-2 text-black text-sm">
-                {account.kristem?.Name}
+                <div className="flex items-center gap-2">
+                  <span>{account.kristem?.Name || account.account_name || account.accountName}</span>
+                  {account.source === 'mssql' && (
+                    <span className="inline-flex items-center rounded-md border px-2 py-0.5 text-xs font-semibold transition-colors bg-green-100 text-green-800 border-green-200">
+                      Approved
+                    </span>
+                  )}
+                  {account.source === 'postgresql' && (
+                    <span className="inline-flex items-center rounded-md border px-2 py-0.5 text-xs font-semibold transition-colors bg-blue-100 text-blue-800 border-blue-200">
+                      Draft
+                    </span>
+                  )}
+                </div>
               </td>
               <td className="px-4 py-2 text-black text-sm">
-                {account.industry?.Code}
+                {account.industry?.Code || account.industry_code || account.industryCode}
               </td>
               <td className="px-4 py-2 text-black text-sm">
-                {account.requested_by}
+                {account.requested_by || account.requestedBy || account.prepared_by_username || account.preparedByUsername}
               </td>
               <td className="px-4 py-2 text-black text-sm">{account.stage_status}</td>
               <td className="px-4 py-2 text-black text-sm">

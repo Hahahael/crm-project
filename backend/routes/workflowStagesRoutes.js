@@ -164,6 +164,7 @@ router.get("/latest-submitted", async (req, res) => {
     `;
     const accStageRes = await db.query(accountLatestQuery);
     const accStageRows = accStageRes.rows || [];
+    console.log("Account/NAEF latest submitted stages:", accStageRows);
 
     // Enrich each row with CRM + SPI account details
     try {
@@ -175,128 +176,113 @@ router.get("/latest-submitted", async (req, res) => {
         ),
       );
 
+      console.log("Unique account IDs to fetch from CRM:", accountIds);
+      console.log(typeof accountIds);
+      console.log(Array.isArray(accountIds));
+
       if (accountIds.length > 0) {
-        const [crmPool, spiPool] = await Promise.all([
-          poolCrmPromise,
-          poolPromise,
-        ]);
+        const spiPool = await Promise.all(poolPromise);
+
 
         // Load CRM accounts in batch
         const numericIds = accountIds
           .map((x) => Number(x))
           .filter((n) => Number.isFinite(n));
+        console.log("Numeric account IDs for CRM query:", numericIds);
         let accountMap = new Map();
         if (numericIds.length > 0) {
-          const accSql = `SELECT * FROM crmdb.accounts WHERE id IN (${numericIds.join(",")})`;
-          const accRes = await crmPool.request().query(accSql);
-          const crmAccounts = accRes.recordset || [];
-          accountMap = new Map(crmAccounts.map((a) => [Number(a.id), a]));
+          const accSql = `SELECT * FROM spidb.customer WHERE id IN (${numericIds.join(",")})`;
+          const accRes = await spiPool.request().query(accSql);
+          const spidbAccounts = accRes.recordset || [];
+          console.log("Fetched CRM accounts for enrichment:", spidbAccounts.length);
+          accountMap = new Map(spidbAccounts.map((a) => [Number(a.id), a]));
 
-          // Collect SPI lookup ids
-          const kIds = Array.from(
-            new Set(
-              crmAccounts
-                .map((a) => a.kristem_customer_id)
-                .filter((v) => v !== null && v !== undefined),
-            ),
-          );
-          const bIds = Array.from(
-            new Set(
-              crmAccounts
-                .map((a) => a.product_id)
-                .filter((v) => v !== null && v !== undefined),
-            ),
-          );
-          const iIds = Array.from(
-            new Set(
-              crmAccounts
-                .map((a) => a.industry_id)
-                .filter((v) => v !== null && v !== undefined),
-            ),
-          );
-          const dIds = Array.from(
-            new Set(
-              crmAccounts
-                .map((a) => a.department_id)
-                .filter((v) => v !== null && v !== undefined),
-            ),
-          );
+          console.log("Fetched CRM accounts for enrichment:", spidbAccounts.length);
 
-          // Fetch SPI lookups in batch
-          const [custRes, brandRes, indRes, deptRes] = await Promise.all([
-            kIds.length
-              ? spiPool
-                  .request()
-                  .query(`SELECT * FROM spidb.customer WHERE Id IN (${kIds
-                    .map((x) => Number(x))
-                    .filter((n) => Number.isFinite(n))
-                    .join(",")})`)
-              : Promise.resolve({ recordset: [] }),
-            bIds.length
-              ? spiPool
-                  .request()
-                  .query(`SELECT * FROM spidb.brand WHERE ID IN (${bIds
-                    .map((x) => Number(x))
-                    .filter((n) => Number.isFinite(n))
-                    .join(",")})`)
-              : Promise.resolve({ recordset: [] }),
-            iIds.length
-              ? spiPool
-                  .request()
-                  .query(
-                    `SELECT * FROM spidb.Customer_Industry_Group WHERE Id IN (${iIds
-                      .map((x) => Number(x))
-                      .filter((n) => Number.isFinite(n))
-                      .join(",")})`,
-                  )
-              : Promise.resolve({ recordset: [] }),
-            dIds.length
-              ? spiPool
-                  .request()
-                  .query(`SELECT * FROM spidb.Department WHERE Id IN (${dIds
-                    .map((x) => Number(x))
-                    .filter((n) => Number.isFinite(n))
-                    .join(",")})`)
-              : Promise.resolve({ recordset: [] }),
-          ]);
+          // // Collect SPI lookup ids
+          // const bIds = Array.from(
+          //   new Set(
+          //     crmAccounts
+          //       .map((a) => a.product_id)
+          //       .filter((v) => v !== null && v !== undefined),
+          //   ),
+          // );
+          // const iIds = Array.from(
+          //   new Set(
+          //     crmAccounts
+          //       .map((a) => a.industry_id)
+          //       .filter((v) => v !== null && v !== undefined),
+          //   ),
+          // );
+          // const dIds = Array.from(
+          //   new Set(
+          //     crmAccounts
+          //       .map((a) => a.department_id)
+          //       .filter((v) => v !== null && v !== undefined),
+          //   ),
+          // );
 
-          const custMap = new Map(
-            (custRes.recordset || []).map((c) => [String(c.Id), c]),
-          );
-          const brandMap = new Map(
-            (brandRes.recordset || []).map((b) => [String(b.ID), b]),
-          );
-          const indMap = new Map(
-            (indRes.recordset || []).map((i) => [String(i.Id), i]),
-          );
-          const deptMap = new Map(
-            (deptRes.recordset || []).map((d) => [String(d.Id), d]),
-          );
+          // // Fetch SPI lookups in batch
+          // const [brandRes, indRes, deptRes] = await Promise.all([
+          //   bIds.length
+          //     ? spiPool
+          //         .request()
+          //         .query(`SELECT * FROM spidb.brand WHERE ID IN (${bIds
+          //           .map((x) => Number(x))
+          //           .filter((n) => Number.isFinite(n))
+          //           .join(",")})`)
+          //     : Promise.resolve({ recordset: [] }),
+          //   iIds.length
+          //     ? spiPool
+          //         .request()
+          //         .query(
+          //           `SELECT * FROM spidb.Customer_Industry_Group WHERE Id IN (${iIds
+          //             .map((x) => Number(x))
+          //             .filter((n) => Number.isFinite(n))
+          //             .join(",")})`,
+          //         )
+          //     : Promise.resolve({ recordset: [] }),
+          //   dIds.length
+          //     ? spiPool
+          //         .request()
+          //         .query(`SELECT * FROM spidb.CusDepartment WHERE Id IN (${dIds
+          //           .map((x) => Number(x))
+          //           .filter((n) => Number.isFinite(n))
+          //           .join(",")})`)
+          //     : Promise.resolve({ recordset: [] }),
+          // ]);
+
+          // const brandMap = new Map(
+          //   (brandRes.recordset || []).map((b) => [String(b.ID), b]),
+          // );
+          // const indMap = new Map(
+          //   (indRes.recordset || []).map((i) => [String(i.Id), i]),
+          // );
+          // const deptMap = new Map(
+          //   (deptRes.recordset || []).map((d) => [String(d.Id), d]),
+          // );
 
           // Attach account object to each row uniformly
-          for (const row of rows) {
-            const aid = row.accountId ?? row.account_id;
-            if (aid != null && accountMap.has(Number(aid))) {
-              const acc = accountMap.get(Number(aid));
-              row.account = {
-                ...acc,
-                kristem: acc.kristem_customer_id
-                  ? custMap.get(String(acc.kristem_customer_id)) || null
-                  : null,
-                mssqlBrand: acc.product_id
-                  ? brandMap.get(String(acc.product_id)) || null
-                  : null,
-                mssqlIndustry: acc.industry_id
-                  ? indMap.get(String(acc.industry_id)) || null
-                  : null,
-                mssqlDepartment: acc.department_id
-                  ? deptMap.get(String(acc.department_id)) || null
-                  : null,
-              };
-            } else {
-              row.account = null;
-            }
-          }
+          // for (const row of rows) {
+          //   const aid = row.accountId ?? row.account_id;
+          //   if (aid != null && accountMap.has(Number(aid))) {
+          //     const acc = accountMap.get(Number(aid));
+          //     row.account = {
+          //       ...acc,
+          //       mssqlBrand: acc.product_id
+          //         ? brandMap.get(String(acc.product_id)) || null
+          //         : null,
+          //       mssqlIndustry: acc.industry_id
+          //         ? indMap.get(String(acc.industry_id)) || null
+          //         : null,
+          //       mssqlDepartment: acc.department_id
+          //         ? deptMap.get(String(acc.department_id)) || null
+          //         : null,
+          //     };
+          //   } else {
+          //     row.account = null;
+          //   }
+          // }
 
           // Build Account/NAEF rows from CRM and attach same account object
           const accRowsBuilt = accStageRows.map((r) => {
@@ -306,18 +292,15 @@ router.get("/latest-submitted", async (req, res) => {
               const acc = accountMap.get(Number(aid));
               account = {
                 ...acc,
-                kristem: acc.kristem_customer_id
-                  ? custMap.get(String(acc.kristem_customer_id)) || null
-                  : null,
-                mssqlBrand: acc.product_id
-                  ? brandMap.get(String(acc.product_id)) || null
-                  : null,
-                mssqlIndustry: acc.industry_id
-                  ? indMap.get(String(acc.industry_id)) || null
-                  : null,
-                mssqlDepartment: acc.department_id
-                  ? deptMap.get(String(acc.department_id)) || null
-                  : null,
+                // mssqlBrand: acc.product_id
+                //   ? brandMap.get(String(acc.product_id)) || null
+                //   : null,
+                // mssqlIndustry: acc.industry_id
+                //   ? indMap.get(String(acc.industry_id)) || null
+                //   : null,
+                // mssqlDepartment: acc.department_id
+                //   ? deptMap.get(String(acc.department_id)) || null
+                //   : null,
               };
             }
             return {
@@ -413,10 +396,10 @@ router.get("/:id", async (req, res) => {
 
 // Create a new workflow stage
 router.post("/", async (req, res) => {
-  console.log(req.body);
+  console.log("🔍 WORKFLOW STAGE CREATE REQUEST:", req.body);
   try {
     const body = toSnake(req.body);
-    console.log("Creating workflow stage with data:", body);
+    console.log("🔍 WORKFLOW: Creating workflow stage with data:", body);
     const {
       wo_id,
       stage_name,
@@ -475,10 +458,68 @@ router.post("/", async (req, res) => {
         case "Account":
         case "NAEF":
           if (body.account_id) {
-            await db.query(
-              "UPDATE accounts SET stage_status = $1 WHERE id = $2",
-              [status, body.account_id],
-            );
+            const updateQuery = status === "Approved"
+              ? "UPDATE accounts SET stage_status = $1, done_date = NOW() WHERE id = $2"
+              : "UPDATE accounts SET stage_status = $1 WHERE id = $2";
+            
+            await db.query(updateQuery, [status, body.account_id]);
+            
+            // If approved, sync to MSSQL (ONLY for manually approved accounts)
+            if (status === "Approved") {
+              console.log("🔍 WORKFLOW: Account approval detected for account ID:", body.account_id);
+              try {
+                const accountResult = await db.query("SELECT * FROM accounts WHERE id = $1", [body.account_id]);
+                if (accountResult.rows.length > 0) {
+                  const account = accountResult.rows[0];
+                  console.log("🔍 WORKFLOW: Account details:", { 
+                    id: account.id, 
+                    stage_status: account.stageStatus,
+                    kristem_account_id: account.kristemAccountId,
+                    account_name: account.accountName 
+                  });
+                  
+                  if (account.kristemAccountId) {
+                    console.log("🚀 WORKFLOW: Updating existing MSSQL customer with final data...");
+                    // UPDATE existing MSSQL customer with final approved data
+                    const spiPool = await poolPromise;
+                    await spiPool.request()
+                      .input('id', Number(account.kristemAccountId))
+                      .input('code', account.naefNumber || account.kristemAccountId)
+                      .input('name', account.accountName || 'Unknown')
+                      .input('address', account.address || '')
+                      .input('phone', account.contactNumber || '')
+                      .input('email', account.emailAddress || '')
+                      .input('industryId', account.industryId || null)
+                      .input('locationId', account.customerLocationId || '')
+                      .input('chargeTo', account.chargeTo || '')
+                      .input('tinNo', account.tinNo || '')
+                      .input('segmentId', account.customerMarketSegmentGroupId || null)
+                      .input('category', account.category || '')
+                      .query(`
+                        UPDATE spidb.customer SET
+                          Code = @code,
+                          Name = @name,
+                          Address = @address,
+                          PhoneNumber = @phone,
+                          EmailAddress = @email,
+                          Customer_Industry_Group_Id = @industryId,
+                          Customer_Location_Id = @locationId,
+                          ChargeTo = @chargeTo,
+                          TinNo = @tinNo,
+                          Customer_Market_Segment_Group_Id = @segmentId,
+                          Category = @category
+                        WHERE Id = @id
+                      `);
+                    
+                    console.log("✅ Updated MSSQL customer ID:", account.kristemAccountId, "with final approved data");
+                  } else {
+                    console.warn("⚠️ WORKFLOW: Account has no kristem_account_id - this shouldn't happen in dual creation mode");
+                  }
+                }
+              } catch (syncErr) {
+                console.warn("Failed to sync approved account to MSSQL:", syncErr.message);
+              }
+            }
           }
           break;
         case "Work Order":
@@ -569,40 +610,40 @@ router.get("/assigned/latest/:id/:stageName", async (req, res) => {
     if (stage.includes("sales lead") || stage.includes("sl")) {
       // For sales_leads: join users for username/department, include slNumber
       query = `
-                                SELECT
-                                        ws.*,
-                                        sl.*,
-                                        sl.sl_number AS slNumber,
-                                        u.username AS se_username,
-                                        a.account_name AS account_name
-                                FROM workflow_stages ws
-                                INNER JOIN (
-                                        SELECT wo_id, MAX(created_at) AS max_created
-                                        FROM workflow_stages
-                                        WHERE assigned_to = $1
-                                        GROUP BY wo_id
-                                ) latest ON ws.wo_id = latest.wo_id AND ws.created_at = latest.max_created
-                                INNER JOIN sales_leads sl ON ws.wo_id = sl.id
-                                LEFT JOIN users u ON sl.se_id = u.id
-                                LEFT JOIN accounts a ON sl.account_id = a.id
-                                WHERE ws.status = 'Pending' AND ws.stage_name = $2
-                        `;
+        SELECT
+          ws.*,
+          sl.*,
+          sl.sl_number AS slNumber,
+          u.username AS se_username,
+          a.account_name AS account_name
+        FROM workflow_stages ws
+        INNER JOIN (
+          SELECT wo_id, MAX(created_at) AS max_created
+          FROM workflow_stages
+          WHERE assigned_to = $1
+          GROUP BY wo_id
+        ) latest ON ws.wo_id = latest.wo_id AND ws.created_at = latest.max_created
+        INNER JOIN sales_leads sl ON ws.wo_id = sl.id
+        LEFT JOIN users u ON sl.se_id = u.id
+        LEFT JOIN accounts a ON sl.account_id = a.id
+        WHERE ws.status = 'Pending' AND ws.stage_name = $2
+      `;
     } else if (stage.includes("workorder") || stage.includes("wo")) {
       // For workorders: join users for username/department, include woNumber
       query = `
-                                SELECT ws.*, wo.*, wo.wo_number AS woNumber, u.username AS assigned_to_username, a.account_name AS account_name
-                                FROM workflow_stages ws
-                                INNER JOIN (
-                                        SELECT wo_id, MAX(created_at) AS max_created
-                                        FROM workflow_stages
-                                        WHERE assigned_to = $1
-                                        GROUP BY wo_id
-                                ) latest ON ws.wo_id = latest.wo_id AND ws.created_at = latest.max_created
-                                INNER JOIN workorders wo ON ws.wo_id = wo.id
-                                LEFT JOIN accounts a ON wo.account_id = a.id
-                                LEFT JOIN users u ON wo.assignee = u.id
-                                WHERE ws.status = 'Pending' AND ws.stage_name = $2 AND wo.assignee = $1
-                        `;
+        SELECT ws.*, wo.*, wo.wo_number AS woNumber, u.username AS assigned_to_username, a.account_name AS account_name
+        FROM workflow_stages ws
+        INNER JOIN (
+          SELECT wo_id, MAX(created_at) AS max_created
+          FROM workflow_stages
+          WHERE assigned_to = $1
+          GROUP BY wo_id
+        ) latest ON ws.wo_id = latest.wo_id AND ws.created_at = latest.max_created
+        INNER JOIN workorders wo ON ws.wo_id = wo.id
+        LEFT JOIN accounts a ON wo.account_id = a.id
+        LEFT JOIN users u ON wo.assignee = u.id
+        WHERE ws.status = 'Pending' AND ws.stage_name = $2 AND wo.assignee = $1
+      `;
     } else {
       // For other tables: join sales_leads for sl_number, join users for username/department
       // Table name and alias
@@ -613,67 +654,100 @@ router.get("/assigned/latest/:id/:stageName", async (req, res) => {
       if (stage.includes("technical reco") || stage.includes("tr")) {
         console.log("Using technical_recommendations join");
         query = `
-                                        SELECT tr.*, sl.sl_number, a.account_name AS account_name
-                                        FROM workflow_stages ws
-                                        INNER JOIN (
-                                                SELECT wo_id, MAX(created_at) AS max_created
-                                                FROM workflow_stages
-                                                WHERE assigned_to = $1
-                                                GROUP BY wo_id
-                                        ) latest ON ws.wo_id = latest.wo_id AND ws.created_at = latest.max_created
-                                        INNER JOIN technical_recommendations tr ON ws.wo_id = tr.wo_id
-                                        LEFT JOIN sales_leads sl ON tr.sl_id = sl.id
-                                        LEFT JOIN accounts a ON tr.account_id = a.id
-                                        WHERE ws.status = 'Draft' AND ws.stage_name = $2
-                                `;
+          SELECT tr.*, sl.sl_number, a.account_name AS account_name
+          FROM workflow_stages ws
+          INNER JOIN (
+            SELECT wo_id, MAX(created_at) AS max_created
+            FROM workflow_stages
+            WHERE assigned_to = $1
+            GROUP BY wo_id
+          ) latest ON ws.wo_id = latest.wo_id AND ws.created_at = latest.max_created
+          INNER JOIN technical_recommendations tr ON ws.wo_id = tr.wo_id
+          LEFT JOIN sales_leads sl ON tr.sl_id = sl.id
+          LEFT JOIN accounts a ON tr.account_id = a.id
+          WHERE ws.status = 'Draft' AND ws.stage_name = $2
+        `;
       } else if (stage.includes("rfq")) {
         query = `
-                                        SELECT rfq.*, sl.sl_number, a.account_name AS account_name
-                                        FROM workflow_stages ws
-                                        INNER JOIN (
-                                                SELECT wo_id, MAX(created_at) AS max_created
-                                                FROM workflow_stages
-                                                WHERE assigned_to = $1
-                                                GROUP BY wo_id
-                                        ) latest ON ws.wo_id = latest.wo_id AND ws.created_at = latest.max_created
-                                        INNER JOIN rfqs rfq ON ws.wo_id = rfq.wo_id
-                                        LEFT JOIN sales_leads sl ON rfq.sl_id = sl.id
-                                        LEFT JOIN accounts a ON rfq.account_id = a.id
-                                        WHERE ws.status = 'Draft' AND ws.stage_name = $2
-                                `;
+          SELECT rfq.*, sl.sl_number, a.account_name AS account_name
+          FROM workflow_stages ws
+          INNER JOIN (
+            SELECT wo_id, MAX(created_at) AS max_created
+            FROM workflow_stages
+            WHERE assigned_to = $1
+            GROUP BY wo_id
+          ) latest ON ws.wo_id = latest.wo_id AND ws.created_at = latest.max_created
+          INNER JOIN rfqs rfq ON ws.wo_id = rfq.wo_id
+          LEFT JOIN sales_leads sl ON rfq.sl_id = sl.id
+          LEFT JOIN accounts a ON rfq.account_id = a.id
+          WHERE ws.status = 'Draft' AND ws.stage_name = $2
+        `;
       } else if (stage.includes("quotation") || stage.includes("quote")) {
         query = `
-                                        SELECT ws.*, qt.*, a.account_name AS account_name
-                                        FROM workflow_stages ws
-                                        INNER JOIN (
-                                                SELECT wo_id, MAX(created_at) AS max_created
-                                                FROM workflow_stages
-                                                WHERE assigned_to = $1
-                                                GROUP BY wo_id
-                                        ) latest ON ws.wo_id = latest.wo_id AND ws.created_at = latest.max_created
-                                        INNER JOIN quotations qt ON ws.wo_id = qt.wo_id
-                                        LEFT JOIN accounts a ON qt.account_id = a.id
-                                        WHERE ws.status = 'Draft' AND ws.stage_name = $2
-                                `;
+          SELECT ws.*, qt.*, a.account_name AS account_name
+          FROM workflow_stages ws
+          INNER JOIN (
+            SELECT wo_id, MAX(created_at) AS max_created
+            FROM workflow_stages
+            WHERE assigned_to = $1
+            GROUP BY wo_id
+          ) latest ON ws.wo_id = latest.wo_id AND ws.created_at = latest.max_created
+          INNER JOIN quotations qt ON ws.wo_id = qt.wo_id
+          LEFT JOIN accounts a ON qt.account_id = a.id
+          WHERE ws.status = 'Draft' AND ws.stage_name = $2
+        `;
       } else {
         query = `
-                                        SELECT ws.*, wo.*, a.account_name AS account_name
-                                        FROM workflow_stages ws
-                                        INNER JOIN (
-                                                SELECT wo_id, MAX(created_at) AS max_created
-                                                FROM workflow_stages
-                                                WHERE assigned_to = $1
-                                                GROUP BY wo_id
-                                        ) latest ON ws.wo_id = latest.wo_id AND ws.created_at = latest.max_created
-                                        INNER JOIN workorders wo ON ws.wo_id = wo.id
-                                        LEFT JOIN accounts a ON wo.account_id = a.id
-                                        WHERE ws.status = 'Pending' AND ws.stage_name = $2
-                                `;
+          SELECT ws.*, wo.*, a.account_name AS account_name
+          FROM workflow_stages ws
+          INNER JOIN (
+            SELECT wo_id, MAX(created_at) AS max_created
+            FROM workflow_stages
+            WHERE assigned_to = $1
+            GROUP BY wo_id
+          ) latest ON ws.wo_id = latest.wo_id AND ws.created_at = latest.max_created
+          INNER JOIN workorders wo ON ws.wo_id = wo.id
+          LEFT JOIN accounts a ON wo.account_id = a.id
+          WHERE ws.status = 'Pending' AND ws.stage_name = $2
+        `;
       }
     }
 
     const result = await db.query(query, [id, stageName]);
     console.log("Latest assigned workflow stages result:", result.rows);
+    
+    try {
+      for (const row of result.rows) {
+        const base = row;
+        const spiPool = await poolPromise;
+        const accId = Number(base.accountId ?? base.account_id);
+        console.log("🔍 Single TR - Account ID:", accId, "from base:", base.accountId, base.account_id);
+        let customer = null;
+        if (Number.isFinite(accId)) {
+          console.log("🔍 Fetching single customer for ID:", accId);
+          const custRes = await spiPool
+            .request()
+            .input("id", accId)
+            .query("SELECT TOP (1) * FROM spidb.customer WHERE Id = @id");
+          customer = custRes.recordset && custRes.recordset[0] ? custRes.recordset[0] : null;
+        }
+
+        if (customer) {
+          const account = {
+            kristem: customer
+          };
+
+          row.account = account;
+          console.log("Fetched technical recommendation:", row);
+        }
+      }
+    } catch (enrichErr) {
+      console.warn(
+        "Failed to enrich technical recommendation account:",
+        enrichErr.message,
+      );
+    }
+
     return res.json(result.rows);
   } catch (err) {
     console.error(err);

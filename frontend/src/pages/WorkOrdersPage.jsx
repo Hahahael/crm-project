@@ -176,7 +176,7 @@ export default function WorkOrdersPage() {
         if (!accountResponse.ok) throw new Error("Failed to create/update account");
         const newAccount = await accountResponse.json();
         console.log("Created/Updated new account:", newAccount);
-        formData.accountId = newAccount.id;
+        formData.accountId = newAccount.kristemAccountId;
       }
 
       console.log("Final formData to be saved:", formData);
