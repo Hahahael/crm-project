@@ -1,6 +1,6 @@
 //src/pages/TechnicalsPage
 import { useState, useEffect, useRef } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useLocation } from "react-router-dom";
 import {
   LuBell,
   LuCircleAlert,
@@ -21,7 +21,7 @@ export default function TechnicalsPage() {
   const timeoutRef = useRef();
   const location = useLocation();
   const salesLead = location.state?.salesLead;
-  const navigate = useNavigate();
+  // const navigate = useNavigate();
 
   const [technicalRecos, setTechnicalRecos] = useState([]);
   const [search, setSearch] = useState("");
@@ -40,6 +40,7 @@ export default function TechnicalsPage() {
     inProgress: 0,
     completed: 0,
   });
+  const [activeCardFilter, setActiveCardFilter] = useState("all"); // all | draft | submitted | approved | highPriority
 
   console.log("editingTR:", editingTR);
 
@@ -53,13 +54,7 @@ export default function TechnicalsPage() {
       setTechnicalRecos(technicalRecosData);
       console.log("Fetched technical recommendations:", technicalRecosData);
       
-      // Compute High Urgency locally from salesLeads
-      const highUrgencyCount = (Array.isArray(technicalRecosData)
-        ? technicalRecosData
-        : [technicalRecosData]
-      ).filter((sl) =>
-        String(sl?.priority || "").toLowerCase().includes("high"),
-      ).length;
+      // (optional) compute high priority locally if needed in future
 
       // Fetch status summary
       const summaryRes = await apiBackendFetch("/api/technicals/summary/status");
@@ -125,6 +120,7 @@ export default function TechnicalsPage() {
     if (currentUser) {
       fetchNewAssignedTechnicalRecos();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentUser]);
 
   useEffect(() => {
@@ -148,12 +144,32 @@ export default function TechnicalsPage() {
   if (error) return <p className="p-4 text-red-600">{error}</p>;
 
   const term = (search || "").toLowerCase();
+
+  const matchesActiveFilter = (tr) => {
+    const status = String(tr?.status || "").toLowerCase();
+    const priority = String(tr?.priority || "").toLowerCase();
+    switch (activeCardFilter) {
+      case "draft":
+        return status === "pending" || status === "draft";
+      case "submitted":
+        return status === "submitted";
+      case "approved":
+        return status === "approved";
+      case "highPriority":
+        return priority.includes("high");
+      case "all":
+      default:
+        return true;
+    }
+  };
+
   const filtered = technicalRecos.filter((tr) => {
     const trNum = (tr.trNumber || tr.tr_number || "").toLowerCase();
     const accName = (
       tr.account?.account_name || tr.accountName || tr.account_name || ""
     ).toLowerCase();
-    return trNum.includes(term) || accName.includes(term);
+    const textMatch = trNum.includes(term) || accName.includes(term);
+    return textMatch && matchesActiveFilter(tr);
   });
 
   const handleSave = async (formData, mode) => {
@@ -419,42 +435,62 @@ export default function TechnicalsPage() {
 
           {/* Status center */}
           <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
-            <div className="relative flex flex-col rounded-xl shadow-sm border border-gray-200 p-6">
+            <button
+              type="button"
+              onClick={() => setActiveCardFilter("all")}
+              className={`text-left relative flex flex-col rounded-xl shadow-sm border p-6 transition ${activeCardFilter === "all" ? "border-purple-400 ring-1 ring-purple-300" : "border-gray-200 hover:bg-gray-50"}`}
+            >
               <LuFileText className="absolute top-6 right-6 text-gray-600" />
               <p className="text-sm mb-1 mr-4">Total Recommendations</p>
               <h2 className="text-2xl font-bold">{statusSummary.total}</h2>
               <p className="text-xs text-gray-500">
                 All technical recommendations
               </p>
-            </div>
-            <div className="relative flex flex-col rounded-xl shadow-sm border border-gray-200 p-6">
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveCardFilter("draft")}
+              className={`text-left relative flex flex-col rounded-xl shadow-sm border p-6 transition ${activeCardFilter === "draft" ? "border-purple-400 ring-1 ring-purple-300" : "border-gray-200 hover:bg-gray-50"}`}
+            >
               <LuClipboard className="absolute top-6 right-6 text-gray-600" />
               <p className="text-sm mb-1 mr-4">Draft</p>
               <h2 className="text-2xl font-bold">{statusSummary.pending}</h2>
               <p className="text-xs text-gray-500">
                 Recommendations in draft status
               </p>
-            </div>
-            <div className="relative flex flex-col rounded-xl shadow-sm border border-gray-200 p-6">
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveCardFilter("submitted")}
+              className={`text-left relative flex flex-col rounded-xl shadow-sm border p-6 transition ${activeCardFilter === "submitted" ? "border-purple-400 ring-1 ring-purple-300" : "border-gray-200 hover:bg-gray-50"}`}
+            >
               <LuForward className="absolute top-6 right-6 text-gray-600" />
               <p className="text-sm mb-1 mr-4">Submitted</p>
               <h2 className="text-2xl font-bold">{statusSummary.submitted}</h2>
               <p className="text-xs text-gray-500">Recommendations submitted for approval</p>
-            </div>
-            <div className="relative flex flex-col rounded-xl shadow-sm border border-gray-200 p-6">
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveCardFilter("approved")}
+              className={`text-left relative flex flex-col rounded-xl shadow-sm border p-6 transition ${activeCardFilter === "approved" ? "border-purple-400 ring-1 ring-purple-300" : "border-gray-200 hover:bg-gray-50"}`}
+            >
               <LuCircleCheck className="absolute top-6 right-6 text-gray-600" />
               <p className="text-sm mb-1 mr-4">Approved</p>
               <h2 className="text-2xl font-bold">{statusSummary.approved}</h2>
               <p className="text-xs text-gray-500">Approved recommendations</p>
-            </div>
-            <div className="relative flex flex-col rounded-xl shadow-sm border border-gray-200 p-6">
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveCardFilter("highPriority")}
+              className={`text-left relative flex flex-col rounded-xl shadow-sm border p-6 transition ${activeCardFilter === "highPriority" ? "border-purple-400 ring-1 ring-purple-300" : "border-gray-200 hover:bg-gray-50"}`}
+            >
               <LuCircleAlert className="absolute top-6 right-6 text-gray-600" />
               <p className="text-sm mb-1 mr-4">High Priority</p>
               <h2 className="text-2xl font-bold">{statusSummary.completed}</h2>
               <p className="text-xs text-gray-500">
                 High and critical priority items
               </p>
-            </div>
+            </button>
           </div>
 
           {/* Search + Table */}
@@ -467,7 +503,7 @@ export default function TechnicalsPage() {
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   className="flex h-9 w-full rounded-md border border-gray-200 bg-transparent px-3 py-1 text-sm shadow-xs transition-colors pl-10"
-                  placeholder="Search salesleads..."
+                  placeholder="Search technicals..."
                 />
               </div>
             </div>

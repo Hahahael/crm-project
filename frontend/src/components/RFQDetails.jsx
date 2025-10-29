@@ -46,7 +46,7 @@ const RFQDetails = ({
   }
   function VendorDetail({ label, value }) {
     return (
-      <div className="flex justify-between">
+      <div className="flex justify-between space-x-3">
         <p className="text-sm text-gray-500">{label}</p>
         <p className="whitespace-pre-wrap">{value || "-"}</p>
       </div>
@@ -122,7 +122,7 @@ const RFQDetails = ({
   const totalVendors = vendors.length;
 
   const vendorDisplayName = (v) => {
-    return v?.details?.Name || v?.name || v?.vendor?.Name || "-";
+    return v?.Name || v?.name || v?.vendor?.Name || "-";
   };
 
   const vendorContactPerson = (v) => {
@@ -200,6 +200,23 @@ const RFQDetails = ({
   ).length;
 
   // Phone is displayed directly via vendor.phone or via vendor.vendor.PhoneNumber when needed
+
+  // Best quote computation: compare vendor subtotals and pick lowest
+  const vendorTotalsList = (vendors || []).map((v) => ({
+    vendor: v,
+    name: vendorDisplayName(v),
+    total: getVendorTotal(v),
+  }));
+  const sortedVendorsByTotal = vendorTotalsList
+    .slice()
+    .sort((a, b) => (Number(a.total) || 0) - (Number(b.total) || 0));
+  const bestVendorEntry = sortedVendorsByTotal[0] || null;
+  const nextBestEntry = sortedVendorsByTotal[1] || null;
+  const bestVendorName = bestVendorEntry?.name || "-";
+  const bestVendorTotal = Number(bestVendorEntry?.total || 0);
+  const savingsVsNext = Math.max(0, Number((nextBestEntry?.total || bestVendorTotal) - bestVendorTotal));
+  // Per-vendor savings relative to best (positive numbers mean best saves that amount)
+  // Note: compute per-vendor savings if needed elsewhere
 
   return (
     <div className="container mx-auto p-6 overflow-auto">
@@ -446,12 +463,9 @@ const RFQDetails = ({
             </div>
             <div className="pt-0">
               <div className="grid grid-cols-1 gap-4">
-                <VendorDetail label="Vendor:" value={rfq.trNumber} />
-                <VendorDetail label="Amount:" value={rfq.slNumber} />
-                <VendorDetail
-                  label="Savings:"
-                  value={utils.formatDate(rfq.createdAt, "MM/DD/YYYY")}
-                />
+                <VendorDetail label="Vendor:" value={bestVendorName} />
+                <VendorDetail label="Amount:" value={`$${utils.formatNumber(bestVendorTotal, 2)}`} />
+                <VendorDetail label="Savings:" value={`$${utils.formatNumber(savingsVsNext, 2)}`} />
               </div>
             </div>
           </div>
