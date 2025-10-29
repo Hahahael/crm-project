@@ -3,6 +3,68 @@ import { LuEllipsis, LuEye, LuPencil, LuTrash } from "react-icons/lu";
 import util from "../helper/utils.js";
 
 export default function AccountsTable({ accounts, onView, onEdit }) {
+  const baseBadge = "inline-flex items-center px-2.5 py-0.5 text-xs";
+
+  const renderStatusBadge = (status) => {
+    if (!status)
+      return (
+        <span className={`${baseBadge} rounded-full bg-gray-50 text-gray-600`}>
+          -
+        </span>
+      );
+    const s = String(status).toLowerCase();
+    switch (s) {
+      case "pending":
+      case "draft":
+        return (
+          <span
+            className={`${baseBadge} rounded-full bg-yellow-100 text-yellow-800`}
+          >
+            {status}
+          </span>
+        );
+      case "open":
+      case "in progress":
+      case "in-progress":
+      case "active":
+      case "started":
+        return (
+          <span
+            className={`${baseBadge} rounded-full bg-blue-50 text-blue-700`}
+          >
+            {status}
+          </span>
+        );
+      case "completed":
+      case "done":
+      case "submitted":
+      case "approved":
+        return (
+          <span
+            className={`${baseBadge} rounded-full bg-green-50 text-green-700`}
+          >
+            {status}
+          </span>
+        );
+      case "cancelled":
+      case "canceled":
+      case "rejected":
+        return (
+          <span className={`${baseBadge} rounded-full bg-red-50 text-red-700`}>
+            {status}
+          </span>
+        );
+      default:
+        return (
+          <span
+            className={`${baseBadge} rounded-full bg-gray-50 text-gray-600`}
+          >
+            {status}
+          </span>
+        );
+    }
+  };
+
   console.log("Accounts in Table:", accounts);
   return (
     <div className="relative overflow-x-auto rounded-lg border border-gray-200 bg-white">
@@ -56,16 +118,6 @@ export default function AccountsTable({ accounts, onView, onEdit }) {
               <td className="px-4 py-2 text-black text-sm">
                 <div className="flex items-center gap-2">
                   <span>{account.kristem?.Name || account.account_name || account.accountName}</span>
-                  {account.source === 'mssql' && (
-                    <span className="inline-flex items-center rounded-md border px-2 py-0.5 text-xs font-semibold transition-colors bg-green-100 text-green-800 border-green-200">
-                      Approved
-                    </span>
-                  )}
-                  {account.source === 'postgresql' && (
-                    <span className="inline-flex items-center rounded-md border px-2 py-0.5 text-xs font-semibold transition-colors bg-blue-100 text-blue-800 border-blue-200">
-                      Draft
-                    </span>
-                  )}
                 </div>
               </td>
               <td className="px-4 py-2 text-black text-sm">
@@ -74,12 +126,12 @@ export default function AccountsTable({ accounts, onView, onEdit }) {
               <td className="px-4 py-2 text-black text-sm">
                 {account.requested_by || account.requestedBy || account.prepared_by_username || account.preparedByUsername}
               </td>
-              <td className="px-4 py-2 text-black text-sm">{account.stage_status}</td>
+              <td className="px-4 py-2 text-black text-sm">{renderStatusBadge(account.stageStatus)}</td>
               <td className="px-4 py-2 text-black text-sm">
-                {util.formatDate(account.due_date, "MM/DD/YYYY")}
+                {util.formatDate(account.dueDate, "MM/DD/YYYY")}
               </td>
               <td className="px-4 py-2 text-black text-sm">
-                {util.formatDate(account.done_date, "MM/DD/YYYY")}
+                {util.formatDate(account.doneDate, "MM/DD/YYYY")}
               </td>
               <td className="px-4 py-2 text-black text-sm">
                 {account.delayStatus}

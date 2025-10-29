@@ -2,6 +2,7 @@ import { useEffect, useState, useRef } from "react";
 import { createPortal } from "react-dom";
 import VendorSelectionModal from "./VendorSelectionModal";
 import VendorEditModal from "./VendorEditModal";
+import EmailModal from "./EmailModal";
 import {
   LuActivity,
   LuCalendar,
@@ -54,6 +55,8 @@ export default function RFQVendorsForm({
   const [isVisible, setIsVisible] = useState(false);
   const [editingVendor, setEditingVendor] = useState(null);
   const [showVendorModal, setShowVendorModal] = useState(false);
+  const [emailModalOpen, setEmailModalOpen] = useState(false);
+  const [emailVendor, setEmailVendor] = useState(null);
   const buttonRefs = useRef({});
   const menuRef = useRef(null);
   const closeTimeoutRef = useRef(null);
@@ -255,6 +258,41 @@ export default function RFQVendorsForm({
     setShowVendorModal(false);
   };
 
+  const handleSendEmail = async (emailData) => {
+    try {
+      console.log("Sending RFQ email:", emailData);
+      
+      const response = await apiBackendFetch("/api/email/send-rfq", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(emailData),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to send email");
+      }
+
+      const result = await response.json();
+      console.log("Email sent successfully:", result);
+      
+      // Show success message (you could add a toast notification here)
+      alert("RFQ email sent successfully!");
+      
+      // Optionally update vendor status or call onSendRFQ callback
+      if (onSendRFQ) {
+        onSendRFQ(getId(emailData.vendor));
+      }
+      
+    } catch (error) {
+      console.error("Failed to send email:", error);
+      alert(`Failed to send email: ${error.message}`);
+      throw error; // Re-throw to let EmailModal handle the error state
+    }
+  };
+
   // In RFQVendorsForm, add a handler to update vendor items after editing
   // Outside click handler
   useEffect(() => {
@@ -405,7 +443,10 @@ export default function RFQVendorsForm({
                   <button
                     type="button"
                     className="rounded-md px-3 py-2 text-xs flex items-center hover:bg-gray-100 transition-all text-black cursor-pointer shadow-sm bg-white border border-gray-200"
-                    onClick={() => onSendRFQ(getId(vendor))}
+                    onClick={() => {
+                      setEmailVendor(vendor);
+                      setEmailModalOpen(true);
+                    }}
                   >
                     <LuSend className="h-4 w-4 text-black mr-1" />
                     Send RFQ
@@ -441,7 +482,14 @@ export default function RFQVendorsForm({
                 }}
               >
                 <ul className="flex flex-col text-sm text-gray-700 py-1">
-                  <li className="cursor-pointer px-2 mx-1 py-1.5 hover:bg-gray-100 flex transition-all duration-200 rounded-sm">
+                  <li 
+                    className="cursor-pointer px-2 mx-1 py-1.5 hover:bg-gray-100 flex transition-all duration-200 rounded-sm"
+                    onClick={() => {
+                      setEmailVendor(vendor);
+                      setEmailModalOpen(true);
+                      setOpenMenuId(null);
+                    }}
+                  >
                     <LuSend className="my-auto mr-2" /> {sendLabel}
                   </li>
                   <li
@@ -462,6 +510,19 @@ export default function RFQVendorsForm({
           })(),
           document.body,
         )}
+
+      {/* Email Modal */}
+      <EmailModal
+        open={emailModalOpen}
+        onClose={() => {
+          setEmailModalOpen(false);
+          setEmailVendor(null);
+        }}
+        vendor={emailVendor}
+        rfqItems={formItems}
+        rfqData={formData}
+        onSend={handleSendEmail}
+      />
     </div>
   );
 }

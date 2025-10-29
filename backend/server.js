@@ -24,6 +24,7 @@ import mssqlInventoryRoutes from "./routes/mssqlInventoryRoutes.js";
 import mssqlAccountsRoutes from "./routes/mssqlAccountsRoutes.js";
 import dashboardRoutes from "./routes/dashboardRoutes.js";
 import adminRoutes from "./routes/adminRoutes.js";
+import emailRoutes from "./routes/emailRoutes.js";
 
 const PORT = process.env.PORT || 5500;
 const FRONTEND_URL = process.env.FRONTEND_URL || "http://localhost:5173";
@@ -137,6 +138,7 @@ app.use("/api/technicals", technicalsRouter);
 app.use("/api/rfqs", rfqsRouter);
 app.use("/api/inventory", inventoryRouter);
 app.use("/api/quotations", quotationsRouter);
+app.use("/api/email", emailRoutes);
 
 app.get("/", (req, res) => {
   res.send("🚀 Server is alive!");

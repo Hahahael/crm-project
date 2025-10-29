@@ -171,13 +171,13 @@ const TechnicalDetails = ({
       {/* Header */}
       <div className="py-4 flex items-center justify-between">
         <div>
-          <button
+          {source === "technicalDetails" && (<button
             onClick={onBack}
             className={`flex items-center mb-2 text-gray-500 hover:text-gray-700 cursor-pointer ${(source === 'technicalDetails' && !hideTabs) ? '' : 'hidden'}`}
           >
             <LuArrowLeft className="h-4 w-4 mr-1" />
             Back to Technical Recommendations
-          </button>
+          </button>)}
           <div className="flex items-center gap-3">
             <h1 className={`font-bold ${source === 'technicalDetails' ? 'text-2xl ' : 'text-lg'}`}>{technicalReco.trNumber}</h1>
             <div

@@ -258,7 +258,7 @@ router.get("/naefs", async (req, res) => {
       ORDER BY a.created_at DESC
     `);
     
-    const naefAccounts = result.rows;
+    const naefAccounts = result.rows || [];
     
     // Enrich accounts with MSSQL data
     try {

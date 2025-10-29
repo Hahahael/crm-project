@@ -156,7 +156,7 @@ export default function ApprovalsTable({
                 {renderSubstatusBadge(row.stageName)}
               </td>
               <td className="px-4 py-2 text-black text-sm">
-                {row.account?.kristem?.Name}
+                {row.account?.kristem?.Name || row.account?.Name}
               </td>
               <td className="p-2 align-middle max-w-[200px] truncate">
                 {row.title || "-"}
@@ -167,7 +167,7 @@ export default function ApprovalsTable({
                   return renderPriorityBadge(prio);
                 })()}
               </td>
-              <td className="px-4 py-2 text-black text-sm">{row.amount}</td>
+              <td className="px-4 py-2 text-black text-sm">{row.amount || "-"}</td>
               <td className="px-4 py-2 text-black text-sm">
                 {row.submittedBy}
               </td>
@@ -180,13 +180,13 @@ export default function ApprovalsTable({
                   >
                     <LuEye className="h-4 w-4" />
                   </button>
-                  <button
+                  {/* <button
                     className="inline-flex items-center justify-center h-8 rounded-md px-3 text-xs hover:bg-gray-100"
                     onClick={() => onEdit(row)}
                     title="Edit"
                   >
                     <LuPencil className="h-4 w-4" />
-                  </button>
+                  </button> */}
                   <button
                     className="inline-flex items-center justify-center h-8 rounded-md px-3 text-xs text-green-600 hover:text-green-700 hover:bg-green-50"
                     onClick={() => onApprove(row)}

@@ -222,13 +222,13 @@ const RFQDetails = ({
     <div className="container mx-auto p-6 overflow-auto">
       {/* Header */}
       <div className="py-4 flex items-center justify-between">
-        <div className="flex items-center mb-6">
-          <button
+        <div className="flex items-center mb-6 mr-6">
+          {source === "rfq" && (<button
             onClick={onBack}
             className={`mr-4 rounded p-2 font-medium border border-gray-200 hover:bg-gray-100 transition-all duration-150 flex align-middle ${hideTabs ? "hidden" : ""}`}
           >
             <LuArrowLeft className="my-auto text-lg" />
-          </button>
+          </button>)}
           <div className="flex flex-col gap-1">
             <h1 className="text-2xl font-bold">
               Multi-Vendor RFQ {rfq.trNumber}
@@ -378,6 +378,7 @@ const RFQDetails = ({
               onEdit={() => alert("Please edit this Work Order from the Work Orders page.")}
               onWorkOrderUpdated={(updated) => setWoDetails(updated)}
               toSalesLead={() => {}}
+              source="rfqDetails"
             />
           ) : (
             <div className="p-6 text-sm text-gray-600">No related work order found.</div>
@@ -405,7 +406,7 @@ const RFQDetails = ({
         </div>
       ) : (
         <div className="space-y-6 pb-6">
-        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className={`grid ${source === "rfq" ? "sm:grid-cols-2 lg:grid-cols-4" : "grid-cols-3"} gap-6`}>
           {/* RFQ Information */}
           <div className="rounded-xl border border-gray-200 p-6 shadow-sm">
             <div className="flex flex-col space-y-1.5 pb-6">

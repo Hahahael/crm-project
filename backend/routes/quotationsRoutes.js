@@ -1,6 +1,7 @@
 import express from "express";
 import db from "../db.js";
 import { toSnake } from "../helper/utils.js";
+import { poolPromise } from "../mssql.js";
 
 const router = express.Router();
 
@@ -15,15 +16,15 @@ function buildInQuery(table, ids) {
 router.get("/", async (req, res) => {
   try {
     const qRes = await db.query(`
-            SELECT 
-                q.*, 
-                u.username AS username,
-                a.account_name AS account_name
-            FROM quotations q
-            LEFT JOIN users u ON q.assignee = u.id
-            LEFT JOIN accounts a ON q.account_id = a.id
-            ORDER BY q.id ASC
-        `);
+      SELECT 
+        q.*, 
+        u.username AS username,
+        a.account_name AS account_name
+      FROM quotations q
+      LEFT JOIN users u ON q.assignee = u.id
+      LEFT JOIN accounts a ON q.account_id = a.id
+      ORDER BY q.id ASC
+    `);
     const quotations = qRes.rows;
 
     console.log(`Fetched ${quotations.length} quotations`);
@@ -72,7 +73,7 @@ router.get("/", async (req, res) => {
     const trMap = Object.fromEntries(trsRes.rows.map((r) => [r.id, r]));
     const woMap = Object.fromEntries(wosRes.rows.map((r) => [r.id, r]));
 
-    // Enrich quotations
+    // Enrich quotations with related data
     const enriched = quotations.map((q) => ({
       ...q,
       rfq: rfqMap[q.rfq_id || q.rfqId] || null,
@@ -80,53 +81,73 @@ router.get("/", async (req, res) => {
       workorder: woMap[q.wo_id || q.woId] || null,
     }));
 
+    // Enrich with MSSQL customer data
+    try {
+      // Collect account IDs that need customer enrichment
+      const accountIds = [
+        ...new Set(
+          enriched
+            .map((q) => Number(q.account_id || q.accountId))
+            .filter(Boolean)
+        ),
+      ];
+
+      if (accountIds.length > 0) {
+        console.log("Enriching quotations with customer data for account IDs:", accountIds);
+        
+        // Get PostgreSQL accounts to find kristem_account_ids
+        const accountsQuery = `SELECT id, kristem_account_id FROM accounts WHERE kristem_account_id IN (${accountIds.map((_, i) => `$${i + 1}`).join(",")})`;
+        const accountsRes = await db.query(accountsQuery, accountIds);
+        const accountsMap = accountsRes.rows;
+
+        console.log("Fetched kristem_account_ids for accounts:", accountsMap);
+
+        // Get kristem customer IDs
+        const kristemIds = [
+          ...new Set(
+            Object.values(accountsMap)
+              .map(id => Number(id))
+              .filter(id => Number.isFinite(id))
+          ),
+        ];
+
+        console.log("Collected kristem customer IDs for MSSQL query:", kristemIds);
+
+        if (kristemIds.length > 0) {
+          console.log("Fetching customer data from MSSQL for kristem IDs:", kristemIds);
+          const spiPool = await poolPromise;
+          const customerQuery = `SELECT * FROM spidb.customer WHERE Id IN (${kristemIds.join(",")})`;
+          const customerRes = await spiPool.request().query(customerQuery);
+          const customerMap = Object.fromEntries(
+            customerRes.recordset.map((c) => [Number(c.Id), c])
+          );
+
+          console.log("Fetched customers from MSSQL:", customerRes.recordset);
+
+          // Attach customer data to quotations
+          enriched.forEach((q) => {
+            console.log("Enriching quotation ID:", q);
+            const accountId = q.account_id || q.accountId;
+            if (accountId) {
+              const kristemId = accountsMap[accountId];
+              if (kristemId) {
+                q.customer = customerMap[Number(kristemId)] || null;
+              }
+            }
+          });
+
+          console.log(`✅ Enriched ${enriched.length} quotations with customer data`);
+        }
+      }
+    } catch (customerErr) {
+      console.warn("Failed to enrich quotations with customer data:", customerErr.message);
+    }
+
     console.log("✅ Enriched quotations:", enriched);
     return res.json(enriched);
   } catch (err) {
     console.error(err);
     return res.status(500).json({ error: "Failed to fetch quotations" });
-  }
-});
-
-router.get("/:id", async (req, res) => {
-  try {
-    const { id } = req.params;
-    const result = await db.query("SELECT * FROM quotations WHERE id = $1", [
-      id,
-    ]);
-    if (result.rows.length === 0)
-      return res.status(404).json({ error: "Not found" });
-
-    const quotation = result.rows[0];
-
-    // Fetch associated RFQ, TR, and Workorder in parallel (if ids present)
-    const [rfqRes, trRes, woRes] = await Promise.all([
-      quotation.rfq_id
-        ? db.query("SELECT * FROM rfqs WHERE id = $1", [quotation.rfq_id])
-        : Promise.resolve({ rows: [] }),
-      quotation.tr_id
-        ? db.query("SELECT * FROM technical_recommendations WHERE id = $1", [
-            quotation.tr_id,
-          ])
-        : Promise.resolve({ rows: [] }),
-      quotation.wo_id
-        ? db.query("SELECT * FROM workorders WHERE id = $1", [quotation.wo_id])
-        : Promise.resolve({ rows: [] }),
-    ]);
-
-    const rfq = rfqRes.rows[0] || null;
-    const tr = trRes.rows[0] || null;
-    const workorder = woRes.rows[0] || null;
-
-    // Attach related records directly onto the quotation object
-    quotation.rfq = rfq;
-    quotation.tr = tr;
-    quotation.workorder = workorder;
-
-    return res.json(quotation);
-  } catch (err) {
-    console.error(err);
-    return res.status(500).json({ error: "Failed to fetch quotation" });
   }
 });
 
@@ -144,7 +165,38 @@ router.get("/by-tr/:trId", async (req, res) => {
     );
     if (result.rows.length === 0)
       return res.status(404).json({ error: "Quotation not found for this TR" });
-    return res.json(result.rows[0]);
+    
+    const quotation = result.rows[0];
+
+    // Enrich with customer data from MSSQL
+    try {
+      if (quotation.account_id) {
+        const accountRes = await db.query(
+          "SELECT kristem_account_id FROM accounts WHERE id = $1",
+          [quotation.account_id]
+        );
+        
+        if (accountRes.rows.length > 0 && accountRes.rows[0].kristemAccountId) {
+          const kristemId = Number(accountRes.rows[0].kristemAccountId);
+          
+          if (Number.isFinite(kristemId)) {
+            const spiPool = await poolPromise;
+            const customerRes = await spiPool
+              .request()
+              .input("customerId", kristemId)
+              .query("SELECT * FROM spidb.customer WHERE Id = @customerId");
+            
+            if (customerRes.recordset.length > 0) {
+              quotation.customer = customerRes.recordset[0];
+            }
+          }
+        }
+      }
+    } catch (customerErr) {
+      console.warn("Failed to enrich quotation by TR with customer data:", customerErr.message);
+    }
+
+    return res.json(quotation);
   } catch (err) {
     console.error(err);
     return res.status(500).json({ error: "Failed to fetch quotation by TR" });
@@ -167,7 +219,38 @@ router.get("/by-rfq/:rfqId", async (req, res) => {
       return res
         .status(404)
         .json({ error: "Quotation not found for this RFQ" });
-    return res.json(result.rows[0]);
+    
+    const quotation = result.rows[0];
+
+    // Enrich with customer data from MSSQL
+    try {
+      if (quotation.account_id) {
+        const accountRes = await db.query(
+          "SELECT kristem_account_id FROM accounts WHERE id = $1",
+          [quotation.account_id]
+        );
+        
+        if (accountRes.rows.length > 0 && accountRes.rows[0].kristemAccountId) {
+          const kristemId = Number(accountRes.rows[0].kristemAccountId);
+          
+          if (Number.isFinite(kristemId)) {
+            const spiPool = await poolPromise;
+            const customerRes = await spiPool
+              .request()
+              .input("customerId", kristemId)
+              .query("SELECT * FROM spidb.customer WHERE Id = @customerId");
+            
+            if (customerRes.recordset.length > 0) {
+              quotation.customer = customerRes.recordset[0];
+            }
+          }
+        }
+      }
+    } catch (customerErr) {
+      console.warn("Failed to enrich quotation by RFQ with customer data:", customerErr.message);
+    }
+
+    return res.json(quotation);
   } catch (err) {
     console.error(err);
     return res.status(500).json({ error: "Failed to fetch quotation by RFQ" });
@@ -234,12 +317,113 @@ router.get("/merged/:id", async (req, res) => {
     } else {
       merged = trData || rfqData;
     }
+
+    // Enrich with customer data from MSSQL
+    try {
+      if (merged.account_id) {
+        const accountRes = await db.query(
+          "SELECT kristem_account_id FROM accounts WHERE id = $1",
+          [merged.account_id]
+        );
+        
+        if (accountRes.rows.length > 0 && accountRes.rows[0].kristemAccountId) {
+          const kristemId = Number(accountRes.rows[0].kristemAccountId);
+          
+          if (Number.isFinite(kristemId)) {
+            const spiPool = await poolPromise;
+            const customerRes = await spiPool
+              .request()
+              .input("customerId", kristemId)
+              .query("SELECT * FROM spidb.customer WHERE Id = @customerId");
+            
+            if (customerRes.recordset.length > 0) {
+              merged.customer = customerRes.recordset[0];
+            }
+          }
+        }
+      }
+    } catch (customerErr) {
+      console.warn("Failed to enrich merged quotation with customer data:", customerErr.message);
+    }
+
     return res.json(merged);
   } catch (err) {
     console.error(err);
     return res
       .status(500)
       .json({ error: "Failed to fetch merged quotation data" });
+  }
+});
+
+router.get("/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const result = await db.query("SELECT * FROM quotations WHERE id = $1", [
+      id,
+    ]);
+    if (result.rows.length === 0)
+      return res.status(404).json({ error: "Not found" });
+
+    const quotation = result.rows[0];
+
+    // Fetch associated RFQ, TR, and Workorder in parallel (if ids present)
+    const [rfqRes, trRes, woRes] = await Promise.all([
+      quotation.rfq_id
+        ? db.query("SELECT * FROM rfqs WHERE id = $1", [quotation.rfq_id])
+        : Promise.resolve({ rows: [] }),
+      quotation.tr_id
+        ? db.query("SELECT * FROM technical_recommendations WHERE id = $1", [
+            quotation.tr_id,
+          ])
+        : Promise.resolve({ rows: [] }),
+      quotation.wo_id
+        ? db.query("SELECT * FROM workorders WHERE id = $1", [quotation.wo_id])
+        : Promise.resolve({ rows: [] }),
+    ]);
+
+    const rfq = rfqRes.rows[0] || null;
+    const tr = trRes.rows[0] || null;
+    const workorder = woRes.rows[0] || null;
+
+    // Attach related records directly onto the quotation object
+    quotation.rfq = rfq;
+    quotation.tr = tr;
+    quotation.workorder = workorder;
+
+    // Enrich with customer data from MSSQL
+    try {
+      if (quotation.account_id) {
+        // Get PostgreSQL account to find kristem_account_id
+        const accountRes = await db.query(
+          "SELECT kristem_account_id FROM accounts WHERE id = $1",
+          [quotation.account_id]
+        );
+        
+        if (accountRes.rows.length > 0 && accountRes.rows[0].kristemAccountId) {
+          const kristemId = Number(accountRes.rows[0].kristemAccountId);
+          
+          if (Number.isFinite(kristemId)) {
+            const spiPool = await poolPromise;
+            const customerRes = await spiPool
+              .request()
+              .input("customerId", kristemId)
+              .query("SELECT * FROM spidb.customer WHERE Id = @customerId");
+            
+            if (customerRes.recordset.length > 0) {
+              quotation.customer = customerRes.recordset[0];
+              console.log("✅ Enriched quotation with customer data:", quotation.customer.Name);
+            }
+          }
+        }
+      }
+    } catch (customerErr) {
+      console.warn("Failed to enrich quotation with customer data:", customerErr.message);
+    }
+
+    return res.json(quotation);
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: "Failed to fetch quotation" });
   }
 });
 

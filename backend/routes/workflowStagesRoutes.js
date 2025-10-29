@@ -153,14 +153,15 @@ router.get("/latest-submitted", async (req, res) => {
         la.remarks,
         u.username AS submitted_by,
         'account' AS module,
-        NULL::text AS transaction_number,
-        NULL::int AS module_id,
+        a.naef_number AS transaction_number,
+        a.kristem_account_id AS module_id,
         wo.account_id AS account_id,
         NULL::text AS urgency,
         NULL::text AS priority
       FROM latest_acc la
       LEFT JOIN users u ON la.assigned_to = u.id
       LEFT JOIN workorders wo ON la.wo_id = wo.id
+      LEFT JOIN accounts a ON wo.account_id = a.kristem_account_id
     `;
     const accStageRes = await db.query(accountLatestQuery);
     const accStageRows = accStageRes.rows || [];
@@ -176,113 +177,24 @@ router.get("/latest-submitted", async (req, res) => {
         ),
       );
 
-      console.log("Unique account IDs to fetch from CRM:", accountIds);
-      console.log(typeof accountIds);
-      console.log(Array.isArray(accountIds));
-
       if (accountIds.length > 0) {
-        const spiPool = await Promise.all(poolPromise);
-
-
+        const spiPool = await poolPromise;
         // Load CRM accounts in batch
         const numericIds = accountIds
           .map((x) => Number(x))
           .filter((n) => Number.isFinite(n));
-        console.log("Numeric account IDs for CRM query:", numericIds);
         let accountMap = new Map();
         if (numericIds.length > 0) {
           const accSql = `SELECT * FROM spidb.customer WHERE id IN (${numericIds.join(",")})`;
           const accRes = await spiPool.request().query(accSql);
           const spidbAccounts = accRes.recordset || [];
           console.log("Fetched CRM accounts for enrichment:", spidbAccounts.length);
-          accountMap = new Map(spidbAccounts.map((a) => [Number(a.id), a]));
+          accountMap = new Map(spidbAccounts.map((a) => [Number(a.Id), a]));
 
           console.log("Fetched CRM accounts for enrichment:", spidbAccounts.length);
 
-          // // Collect SPI lookup ids
-          // const bIds = Array.from(
-          //   new Set(
-          //     crmAccounts
-          //       .map((a) => a.product_id)
-          //       .filter((v) => v !== null && v !== undefined),
-          //   ),
-          // );
-          // const iIds = Array.from(
-          //   new Set(
-          //     crmAccounts
-          //       .map((a) => a.industry_id)
-          //       .filter((v) => v !== null && v !== undefined),
-          //   ),
-          // );
-          // const dIds = Array.from(
-          //   new Set(
-          //     crmAccounts
-          //       .map((a) => a.department_id)
-          //       .filter((v) => v !== null && v !== undefined),
-          //   ),
-          // );
-
-          // // Fetch SPI lookups in batch
-          // const [brandRes, indRes, deptRes] = await Promise.all([
-          //   bIds.length
-          //     ? spiPool
-          //         .request()
-          //         .query(`SELECT * FROM spidb.brand WHERE ID IN (${bIds
-          //           .map((x) => Number(x))
-          //           .filter((n) => Number.isFinite(n))
-          //           .join(",")})`)
-          //     : Promise.resolve({ recordset: [] }),
-          //   iIds.length
-          //     ? spiPool
-          //         .request()
-          //         .query(
-          //           `SELECT * FROM spidb.Customer_Industry_Group WHERE Id IN (${iIds
-          //             .map((x) => Number(x))
-          //             .filter((n) => Number.isFinite(n))
-          //             .join(",")})`,
-          //         )
-          //     : Promise.resolve({ recordset: [] }),
-          //   dIds.length
-          //     ? spiPool
-          //         .request()
-          //         .query(`SELECT * FROM spidb.CusDepartment WHERE Id IN (${dIds
-          //           .map((x) => Number(x))
-          //           .filter((n) => Number.isFinite(n))
-          //           .join(",")})`)
-          //     : Promise.resolve({ recordset: [] }),
-          // ]);
-
-          // const brandMap = new Map(
-          //   (brandRes.recordset || []).map((b) => [String(b.ID), b]),
-          // );
-          // const indMap = new Map(
-          //   (indRes.recordset || []).map((i) => [String(i.Id), i]),
-          // );
-          // const deptMap = new Map(
-          //   (deptRes.recordset || []).map((d) => [String(d.Id), d]),
-          // );
-
-          // Attach account object to each row uniformly
-          // for (const row of rows) {
-          //   const aid = row.accountId ?? row.account_id;
-          //   if (aid != null && accountMap.has(Number(aid))) {
-          //     const acc = accountMap.get(Number(aid));
-          //     row.account = {
-          //       ...acc,
-          //       mssqlBrand: acc.product_id
-          //         ? brandMap.get(String(acc.product_id)) || null
-          //         : null,
-          //       mssqlIndustry: acc.industry_id
-          //         ? indMap.get(String(acc.industry_id)) || null
-          //         : null,
-          //       mssqlDepartment: acc.department_id
-          //         ? deptMap.get(String(acc.department_id)) || null
-          //         : null,
-          //     };
-          //   } else {
-          //     row.account = null;
-          //   }
-          // }
+          console.log("Account Map keys:", accStageRows);
+          console.log ("Account Map size:", accountMap);
 
           // Build Account/NAEF rows from CRM and attach same account object
           const accRowsBuilt = accStageRows.map((r) => {
@@ -291,23 +203,12 @@ router.get("/latest-submitted", async (req, res) => {
             if (aid != null && accountMap.has(Number(aid))) {
               const acc = accountMap.get(Number(aid));
               account = {
-                ...acc,
-                // mssqlBrand: acc.product_id
-                //   ? brandMap.get(String(acc.product_id)) || null
-                //   : null,
-                // mssqlIndustry: acc.industry_id
-                //   ? indMap.get(String(acc.industry_id)) || null
-                //   : null,
-                // mssqlDepartment: acc.department_id
-                //   ? deptMap.get(String(acc.department_id)) || null
-                //   : null,
+                ...acc
               };
             }
             return {
               ...r,
               module: "account",
-              module_id: account ? Number(account.id) : null,
-              transaction_number: account?.account_name ?? null,
               account,
             };
           });
