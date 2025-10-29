@@ -119,6 +119,37 @@ export default function WorkOrdersPage() {
     }
   }, [location?.state, navigate]);
 
+  // Handle query parameters (e.g., from calendar)
+  useEffect(() => {
+    const urlParams = new URLSearchParams(location.search);
+    const selectWoId = urlParams.get('select');
+    const filterDate = urlParams.get('date');
+    
+    if (selectWoId && workOrders.length > 0) {
+      // Find the work order in the current list
+      const foundWO = workOrders.find(wo => 
+        String(wo.id ?? wo.woId ?? wo.wo_id) === String(selectWoId)
+      );
+      if (foundWO) {
+        setSelectedWO(foundWO);
+        setEditingWO(null);
+        // Clear the query parameter
+        navigate("/workorders", { replace: true });
+      } else {
+        // If not found in current list, fetch it directly
+        fetchSelectedWO(selectWoId).then(() => {
+          // Clear the query parameter after fetching
+          navigate("/workorders", { replace: true });
+        });
+      }
+    } else if (filterDate) {
+      // Set search to filter by date (assuming search includes date filtering)
+      setSearch(filterDate);
+      // Clear the query parameter
+      navigate("/workorders", { replace: true });
+    }
+  }, [location.search, workOrders, navigate]);
+
   useEffect(() => {
     if (currentUser) {
       fetchNewAssignedWorkOrders();

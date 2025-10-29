@@ -471,6 +471,59 @@ router.post("/", async (req, res) => {
   }
 });
 
+router.put("/calendar/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { due_date, from_time, to_time } = toSnake(req.body);
+
+    console.log("Updating workorder (calendar) ", {
+      id,
+      due_date,
+      from_time,
+      to_time,
+    });
+
+    const updateResult = await db.query(
+      `
+        UPDATE workorders 
+        SET 
+          due_date=$1,
+          updated_at=NOW()
+        WHERE id=$2
+        RETURNING id
+      `,
+      [due_date, id],
+    );
+
+    if (!updateResult || !updateResult.rows || updateResult.rows.length === 0) {
+      return res.status(404).json({ error: "Not found" });
+    }
+
+    const updatedId = updateResult.rows[0].id;
+
+    const result = await db.query(
+      `
+        SELECT 
+          w.*, 
+          u.username AS assignee_username
+        FROM workorders w
+        LEFT JOIN users u ON w.assignee = u.id
+        WHERE w.id = $1
+      `,
+      [updatedId],
+    );
+
+    console.log("Updated workorder (calendar) result:", result);
+
+    if (result.rows.length === 0)
+      return res.status(404).json({ error: "Not found" });
+    return res.json(result.rows[0]);
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: "Failed to update workorder" });
+  }
+});
+
 // Update existing workorder
 router.put("/:id", async (req, res) => {
   try {
