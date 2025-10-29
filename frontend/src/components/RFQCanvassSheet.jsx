@@ -505,13 +505,6 @@ export default function RFQCanvassSheet({
             Select Recommended Vendor
           </button>
         </div>
-        <button
-          type="button"
-          className={`bg-blue-600 hover:bg-blue-700 text-white rounded-md px-8 h-10 border-blue-600 ${source === 'rfq' ? '' : 'hidden'}`}
-          onClick={onForApproval}
-        >
-          For Approval
-        </button>
       </div>
     </div>
   );

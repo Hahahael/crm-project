@@ -347,6 +347,7 @@ const ApprovalsPage = () => {
         <div>
           <RFQDetails
             rfq={detailsData}
+            hideTabs={true}
             onBack={() => setSelectedApproval(null)}
           />
           <RFQCanvassSheet
