@@ -2,8 +2,10 @@ import { useState, useEffect, useRef } from "react";
 import {
   LuArrowLeft,
   LuCheck,
+  LuFile,
   LuPlus,
   LuSave,
+  LuUpload,
   LuX,
   LuTrash,
 } from "react-icons/lu";
@@ -19,6 +21,7 @@ const TechnicalForm = ({
   const [errors, setErrors] = useState({});
   const [itemsList, setItemsList] = useState([]);
   const [trItems, setTrItems] = useState([]);
+  const [attachments, setAttachments] = useState([]);
   const nextTempIdRef = useRef(-1);
   const [formData, setFormData] = useState({
     trNumber: "",
@@ -174,6 +177,24 @@ const TechnicalForm = ({
           })),
         );
       }
+      
+      // Initialize attachments if they exist
+      if (technicalReco.attachments && Array.isArray(technicalReco.attachments)) {
+        const existingAttachments = technicalReco.attachments.map((att) => ({
+          id: att.Id || att.id,
+          name: att.FileName || att.filename || att.name,
+          size: att.FileSize || att.file_size || att.size,
+          type: att.FileType || att.file_type || att.type,
+          uploaded: true,
+          uploading: false,
+          isExisting: true, // Flag to distinguish existing vs new files
+          uploaded_at: att.UploadDate || att.uploaded_at,
+          // Note: We don't store the actual file data in state for existing files
+          // They will be loaded from the server when needed
+        }));
+        setAttachments(existingAttachments);
+        console.log(`📁 Loaded ${existingAttachments.length} existing attachments`);
+      }
     } else if (technicalReco && Object.keys(technicalReco).length === 0) {
       setFormData({
         trNumber: "",
@@ -275,7 +296,7 @@ const TechnicalForm = ({
       return;
     }
 
-    // Convert empty optional fields to null and include trItems
+    // Convert empty optional fields to null and include trItems and attachments
     const cleanedFormData = {
       ...formData,
       installationRequirements: formData.installationRequirements || null,
@@ -283,9 +304,22 @@ const TechnicalForm = ({
       maintenanceRequirements: formData.maintenanceRequirements || null,
       additionalNotes: formData.additionalNotes || null,
       items: trItems,
+      attachments: attachments.filter(att => att.uploaded), // Only include successfully uploaded files
     };
 
     setErrors({});
+    
+    // If there are new files to upload, include them in the cleaned data
+    const newFiles = attachments.filter(att => att.uploaded && att.base64);
+    if (newFiles.length > 0) {
+      cleanedFormData.newAttachments = newFiles.map(file => ({
+        name: file.name,
+        size: file.size,
+        type: file.type,
+        base64: file.base64
+      }));
+    }
+    
     onSave(cleanedFormData, mode);
   };
 
@@ -331,6 +365,149 @@ const TechnicalForm = ({
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [trItems]);
+
+  // File upload functions
+  const formatFileSize = (bytes) => {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  };
+
+  const validateFile = (file) => {
+    const maxSize = 10 * 1024 * 1024; // 10MB in bytes
+    const allowedTypes = [
+      'application/pdf',
+      'application/msword',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'application/vnd.ms-excel',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'application/vnd.ms-powerpoint',
+      'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+      'text/plain',
+      'image/jpeg',
+      'image/jpg',
+      'image/png',
+      'image/gif'
+    ];
+
+    if (file.size > maxSize) {
+      return { valid: false, error: `File "${file.name}" is too large. Maximum size is 10MB.` };
+    }
+
+    if (!allowedTypes.includes(file.type)) {
+      return { valid: false, error: `File "${file.name}" has an unsupported format.` };
+    }
+
+    return { valid: true };
+  };
+
+  const handleFileUpload = async (event) => {
+    const files = Array.from(event.target.files);
+    
+    for (const file of files) {
+      const validation = validateFile(file);
+      if (!validation.valid) {
+        alert(validation.error);
+        continue;
+      }
+
+      // Check if file already exists
+      if (attachments.find(att => att.name === file.name && att.size === file.size)) {
+        alert(`File "${file.name}" is already uploaded.`);
+        continue;
+      }
+
+      // Add file to attachments with uploading state
+      const fileObj = {
+        name: file.name,
+        size: file.size,
+        type: file.type,
+        file: file,
+        uploading: true,
+        uploaded: false
+      };
+
+      setAttachments(prev => [...prev, fileObj]);
+
+      try {
+        // Convert file to base64 for API transmission  
+        const base64 = await fileToBase64(file);
+        
+        // Update file status to uploaded
+        setAttachments(prev => 
+          prev.map(att => 
+            att.name === file.name && att.size === file.size
+              ? { ...att, uploading: false, uploaded: true, base64 }
+              : att
+          )
+        );
+
+        console.log(`File "${file.name}" processed and ready for upload`);
+      } catch (error) {
+        console.error('Error processing file:', error);
+        // Remove file from list if processing failed
+        setAttachments(prev => 
+          prev.filter(att => !(att.name === file.name && att.size === file.size))
+        );
+        alert(`Failed to process file "${file.name}"`);
+      }
+    }
+
+    // Clear the input
+    event.target.value = '';
+  };
+
+  const fileToBase64 = (file) => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = () => {
+        // Remove the data URL prefix (e.g., "data:application/pdf;base64,")
+        const base64 = reader.result.split(',')[1];
+        resolve(base64);
+      };
+      reader.onerror = error => reject(error);
+    });
+  };
+
+  const removeAttachment = (index) => {
+    setAttachments(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const downloadAttachment = async (attachmentId, filename) => {
+    try {
+      const trId = formData.id || formData.trId;
+      if (!trId) {
+        alert('Cannot download file: Technical recommendation ID not found');
+        return;
+      }
+
+      const response = await apiBackendFetch(
+        `/api/technicals/${trId}/attachments/${attachmentId}/download`
+      );
+
+      if (!response.ok) {
+        throw new Error('Failed to download file');
+      }
+
+      // Create blob and download
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      
+    } catch (error) {
+      console.error('Download error:', error);
+      alert(`Failed to download ${filename}`);
+    }
+  };
 
   return (
     <form onSubmit={handleSubmit} className="h-full w-full p-6 overflow-y-auto">
@@ -1004,28 +1181,109 @@ const TechnicalForm = ({
               Attachments
             </h3>
             <p className="text-sm text-gray-500">
-              Upload relevant documents and files
+              Upload relevant documents and files (Max 10MB per file)
             </p>
           </div>
           <div className="p-6 pt-0 space-y-4">
-            <div>
-              <label
-                className="text-sm font-medium"
-                htmlFor="attachmentsPlaceholder"
-              >
-                Attachments Placeholder
-              </label>
-              <textarea
-                className="flex min-h-[60px] w-full rounded-md border border-gray-200 px-3 py-2 text-sm shadow-sm bg-yellow-50"
-                id="attachmentsPlaceholder"
-                name="attachmentsPlaceholder"
-                rows={3}
-                value={formData.attachmentsPlaceholder}
-                onChange={handleChange}
-                placeholder="Describe the current system in detail"
-                isReadOnly={true}
+            {/* File Upload Area */}
+            <div 
+              className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-gray-400 transition-colors"
+              onDragOver={(e) => {
+                e.preventDefault();
+                e.currentTarget.classList.add('border-blue-400', 'bg-blue-50');
+              }}
+              onDragLeave={(e) => {
+                e.preventDefault();
+                e.currentTarget.classList.remove('border-blue-400', 'bg-blue-50');
+              }}
+              onDrop={(e) => {
+                e.preventDefault();
+                e.currentTarget.classList.remove('border-blue-400', 'bg-blue-50');
+                const files = Array.from(e.dataTransfer.files);
+                if (files.length > 0) {
+                  // Create a fake event object for handleFileUpload
+                  handleFileUpload({ target: { files, value: '' } });
+                }
+              }}
+            >
+              <input
+                type="file"
+                id="fileUpload"
+                multiple
+                accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.jpg,.jpeg,.png,.gif"
+                onChange={handleFileUpload}
+                className="hidden"
               />
+              <label
+                htmlFor="fileUpload"
+                className="cursor-pointer flex flex-col items-center space-y-2"
+              >
+                <LuUpload className="h-8 w-8 text-gray-400" />
+                <span className="text-sm font-medium text-gray-700">
+                  Click to upload files or drag and drop
+                </span>
+                <span className="text-xs text-gray-500">
+                  PDF, DOC, XLS, PPT, TXT, Images (Max 10MB each)
+                </span>
+              </label>
             </div>
+
+            {/* Uploaded Files List */}
+            {attachments && attachments.length > 0 && (
+              <div className="space-y-2">
+                <h4 className="text-sm font-medium text-gray-700">
+                  Uploaded Files ({attachments.length})
+                </h4>
+                <div className="space-y-2">
+                  {attachments.map((file, index) => (
+                    <div
+                      key={index}
+                      className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200"
+                    >
+                      <div className="flex items-center space-x-3">
+                        <LuFile className="h-5 w-5 text-gray-400" />
+                        <div>
+                          <p className="text-sm font-medium text-gray-700">
+                            {file.name}
+                          </p>
+                          <p className="text-xs text-gray-500">
+                            {formatFileSize(file.size)} • {file.type}
+                            {file.isExisting && file.uploaded_at && (
+                              <span> • Uploaded {new Date(file.uploaded_at).toLocaleDateString()}</span>
+                            )}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        {file.uploading && (
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                        )}
+                        {file.uploaded && !file.uploading && (
+                          <>
+                            {file.id && (
+                              <button
+                                type="button"
+                                onClick={() => downloadAttachment(file.id, file.name)}
+                                className="text-blue-500 hover:text-blue-700 transition-colors text-xs px-2 py-1 rounded border border-blue-300 hover:border-blue-500"
+                              >
+                                Download
+                              </button>
+                            )}
+                          </>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => removeAttachment(index)}
+                          className="text-red-500 hover:text-red-700 transition-colors"
+                        >
+                          <LuX className="h-4 w-4" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         </div>
 

@@ -276,6 +276,10 @@ router.post("/quotations", async (req, res) => {
           `UPDATE workorders SET stage_status = 'Completed', updated_at = NOW(), done_date = NOW() WHERE id = $1`,
           [hintedWoId],
         );
+        await db.query(
+          `UPDATE quotations SET stage_status = 'Completed', updated_at = NOW(), done_date = NOW() WHERE id = $1`,
+          [hintedWoId],
+        );
         // Record a workflow stage: Quotations -> Submitted (idempotent)
         const existing = await db.query(
           `SELECT * FROM workflow_stages WHERE wo_id = $1 AND stage_name = 'Quotations' ORDER BY created_at DESC LIMIT 1`,

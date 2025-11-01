@@ -1,7 +1,7 @@
 import express from "express";
 import db from "../db.js";
 import { toSnake } from "../helper/utils.js";
-import { poolPromise } from "../mssql.js";
+import { poolPromise, poolCrmPromise } from "../mssql.js";
 
 function logAttributes(label, obj) {
   try {
@@ -324,15 +324,80 @@ router.get("/:id", async (req, res) => {
           department: dRes.recordset && dRes.recordset[0] ? dRes.recordset[0] : null,
         };
 
-        const response = { ...base, account };
-        console.log("Fetched technical recommendation:", response);
-        return res.json(response);
+        base.account = account;
+        console.log("Fetched technical recommendation:", base);
+        // return res.json(base);
       }
     } catch (enrichErr) {
       console.warn(
         "Failed to enrich technical recommendation account:",
         enrichErr.message,
       );
+    }
+
+    // Fetch attachments using PostgreSQL file IDs to query MSSQL
+    try {
+      const crmPool = await poolCrmPromise;
+      let attachments = [];
+
+      // Get file IDs from PostgreSQL attachments JSONB
+      let fileIds = [];
+      if (base.attachments) {
+        try {
+          const parsed = typeof base.attachments === 'string' 
+            ? JSON.parse(base.attachments) 
+            : base.attachments;
+          fileIds = Array.isArray(parsed) ? parsed : [];
+          console.log("Extracted file IDs from PostgreSQL attachments:", fileIds);
+        } catch {
+          console.warn("Failed to parse PostgreSQL attachments JSONB");
+          fileIds = [];
+        }
+      }
+
+      // If we have file IDs, fetch the actual file metadata from MSSQL
+      if (fileIds.length > 0) {
+        const placeholders = fileIds.map((_, index) => `@id${index}`).join(',');
+        const request = crmPool.request();
+        
+        // Add parameters for each file ID
+        fileIds.forEach((id, index) => {
+          request.input(`id${index}`, id);
+        });
+
+        const attachmentsRes = await request.query(`
+          SELECT Id, FileName, FileSize, FileType, UploadDate, UploadedBy
+          FROM [crmdb].[FileStorage] 
+          WHERE Id IN (${placeholders})
+          ORDER BY UploadDate DESC
+        `);
+        
+        attachments = attachmentsRes.recordset || [];
+      }
+
+      // If no file IDs in PostgreSQL, fallback to querying by TR ID
+      if (attachments.length === 0) {
+        const attachmentsRes = await crmPool
+          .request()
+          .input('tr_id', id)
+          .query(`
+            SELECT Id, FileName, FileSize, FileType, UploadDate, UploadedBy
+            FROM [crmdb].[FileStorage] 
+            WHERE TrId = @tr_id
+            ORDER BY UploadDate DESC
+          `);
+        
+        attachments = attachmentsRes.recordset || [];
+      }
+
+      base.attachments = attachments;
+      console.log(`📁 Fetched ${attachments.length} attachments for TR ${id} using file IDs [${fileIds.join(', ')}]`);
+      console.log("🔍 Raw attachment details:", attachments);
+      console.log("🔍 Final base.attachments:", base.attachments);
+      
+    } catch (attachErr) {
+      console.warn("Failed to fetch attachments for TR:", attachErr.message);
+      base.attachments = [];
     }
 
     console.log("Fetched technical recommendation:", base);
@@ -421,18 +486,86 @@ router.post("/", async (req, res) => {
     // Create workflow stage for new technical recommendation (Draft)
     await db.query(
       `
-                        INSERT INTO workflow_stages (wo_id, stage_name, status, assigned_to, created_at, updated_at)
-                        VALUES ($1, $2, $3, $4, NOW(), NOW())`,
+        INSERT INTO workflow_stages (wo_id, stage_name, status, assigned_to, created_at, updated_at)
+        VALUES ($1, $2, $3, $4, NOW(), NOW())
+      `,
       [wo_id, "Technical Recommendation", "Draft", assignee],
     );
 
+    // Handle file uploads if any new attachments
+    if (body.new_attachments && Array.isArray(body.new_attachments) && body.new_attachments.length > 0) {
+      try {
+        const crmPool = await poolCrmPromise;
+        const uploadedFileIds = []; // Array to collect MSSQL file IDs
+        
+        console.log(`📁 Processing ${body.new_attachments.length} new attachments for new TR ${newId}`);
+        
+        for (const file of body.new_attachments) {
+          if (!file.name || !file.base64 || !file.type || !file.size) {
+            console.warn("Skipping invalid file:", file);
+            continue;
+          }
+
+          // Validate file size (10MB limit)
+          if (file.size > 10 * 1024 * 1024) {
+            console.warn(`File "${file.name}" exceeds 10MB limit, skipping`);
+            continue;
+          }
+
+          // Convert base64 to binary
+          const fileBuffer = Buffer.from(file.base64, 'base64');
+
+          // Insert file into MSSQL and get the ID
+          const result = await crmPool
+            .request()
+            .input('tr_id', newId)
+            .input('filename', file.name)
+            .input('file_size', file.size)
+            .input('file_type', file.type)
+            .input('file_data', fileBuffer)
+            .input('uploaded_by', req.user?.id || null)
+            .query(`
+              INSERT INTO [crmdb].[FileStorage] 
+              (TrId, FileName, FileSize, FileType, Content, UploadDate, UploadedBy)
+              VALUES (@tr_id, @filename, @file_size, @file_type, @file_data, GETDATE(), @uploaded_by);
+              SELECT SCOPE_IDENTITY() as id;
+            `);
+
+          // Collect the file ID for PostgreSQL storage
+          if (result.recordset && result.recordset[0]) {
+            uploadedFileIds.push(result.recordset[0].id);
+            console.log(`✅ Uploaded file: ${file.name} (ID: ${result.recordset[0].id}) for new TR ${newId}`);
+          }
+        }
+
+        // Update PostgreSQL attachments field with array of MSSQL file IDs
+        if (uploadedFileIds.length > 0) {
+          try {
+            await db.query(
+              `UPDATE technical_recommendations SET attachments = $1 WHERE id = $2`,
+              [JSON.stringify(uploadedFileIds), newId]
+            );
+
+            console.log(`✅ Updated PostgreSQL attachments with file IDs [${uploadedFileIds.join(', ')}] for new TR ${newId}`);
+          } catch (pgError) {
+            console.error("PostgreSQL attachments update error:", pgError);
+          }
+        }
+
+      } catch (fileError) {
+        console.error("File upload error during TR creation:", fileError);
+        // Don't fail the entire creation if file upload fails
+      }
+    }
+
     const final = await db.query(
       `
-                        SELECT tr.*,
-                                u.username AS assignee_username
-                        FROM technical_recommendations tr
-                        LEFT JOIN users u ON tr.assignee = u.id
-                        WHERE tr.id = $1`,
+        SELECT tr.*,
+                u.username AS assignee_username
+        FROM technical_recommendations tr
+        LEFT JOIN users u ON tr.assignee = u.id
+        WHERE tr.id = $1
+      `,
       [newId],
     );
 
@@ -455,19 +588,21 @@ router.put("/:id", async (req, res) => {
     const actual_from_time = body.actual_from_time || null;
     const actual_to_time = body.actual_to_time || null;
     // Add all fields you want to update here
+    console.log("Attachments field on update:", body.attachments);
     const updateResult = await db.query(
       `
-                        UPDATE technical_recommendations 
-                        SET 
-                                status=$1, priority=$2, title=$3, account_id=$4, contact_person=$5,
-                                contact_number=$6, contact_email=$7, current_system=$8, current_system_issues=$9, proposed_solution=$10,
-                                technical_justification=$11, installation_requirements=$12, training_requirements=$13,
-                                maintenance_requirements=$14, attachments=$15, additional_notes=$16, updated_at=NOW(), actual_date=$17,
-                                actual_from_time=$18, actual_to_time=$19
-                        WHERE id=$20
-                        RETURNING id`,
+        UPDATE technical_recommendations 
+        SET 
+          status=$1, priority=$2, title=$3, account_id=$4, contact_person=$5,
+          contact_number=$6, contact_email=$7, current_system=$8, current_system_issues=$9, proposed_solution=$10,
+          technical_justification=$11, installation_requirements=$12, training_requirements=$13,
+          maintenance_requirements=$14, additional_notes=$15, updated_at=NOW(), actual_date=$16,
+          actual_from_time=$17, actual_to_time=$18
+        WHERE id=$19
+        RETURNING id
+      `,
       [
-        body.status,
+        body.status || "In Progress",
         body.priority,
         body.title,
         body.account_id,
@@ -481,7 +616,6 @@ router.put("/:id", async (req, res) => {
         body.installation_requirements,
         body.training_requirements,
         body.maintenance_requirements,
-        body.attachments,
         body.additional_notes,
         actual_date,
         actual_from_time,
@@ -525,8 +659,7 @@ router.put("/:id", async (req, res) => {
       } else {
         // Insert new item
         await db.query(
-          `
-                                        INSERT INTO tr_items (tr_id, item_id, quantity) VALUES ($1, $2, $3)`,
+          `INSERT INTO tr_items (tr_id, item_id, quantity) VALUES ($1, $2, $3)`,
           [id, item.id, item.quantity],
         );
       }
@@ -535,14 +668,15 @@ router.put("/:id", async (req, res) => {
     const updatedId = updateResult.rows[0].id;
     const result = await db.query(
       `
-                        SELECT
-                                tr.*,
-                                u.username AS assignee_username,
-                                sl.sl_number AS sl_number
-                        FROM technical_recommendations tr
-                        LEFT JOIN users u ON tr.assignee = u.id
-                        LEFT JOIN sales_leads sl ON tr.sl_id = sl.id
-                        WHERE tr.id = $1`,
+        SELECT
+          tr.*,
+          u.username AS assignee_username,
+          sl.sl_number AS sl_number
+        FROM technical_recommendations tr
+        LEFT JOIN users u ON tr.assignee = u.id
+        LEFT JOIN sales_leads sl ON tr.sl_id = sl.id
+        WHERE tr.id = $1
+      `,
       [updatedId],
     );
     if (result.rows.length === 0)
@@ -551,14 +685,109 @@ router.put("/:id", async (req, res) => {
     // Fetch items assigned to this tr
     const itemsRes = await db.query(
       `
-                        SELECT
-                                ti.*,
-                                i.*
-                        FROM tr_items ti
-                        LEFT JOIN items i ON ti.item_id = i.id
-                        WHERE ti.tr_id = $1`,
+        SELECT
+          ti.*,
+          i.*
+        FROM tr_items ti
+        LEFT JOIN items i ON ti.item_id = i.id
+        WHERE ti.tr_id = $1
+      `,
       [updatedId],
     );
+
+    // Handle file uploads if any new attachments
+    if (body.new_attachments && Array.isArray(body.new_attachments) && body.new_attachments.length > 0) {
+      try {
+        const crmPool = await poolCrmPromise;
+        const newFileIds = []; // Array to collect new MSSQL file IDs
+        
+        console.log(`📁 Processing ${body.new_attachments.length} new attachments for TR ${updatedId}`);
+        
+        for (const file of body.new_attachments) {
+          if (!file.name || !file.base64 || !file.type || !file.size) {
+            console.warn("Skipping invalid file:", file);
+            continue;
+          }
+
+          // Validate file size (10MB limit)
+          if (file.size > 10 * 1024 * 1024) {
+            console.warn(`File "${file.name}" exceeds 10MB limit, skipping`);
+            continue;
+          }
+
+          // Convert base64 to binary
+          const fileBuffer = Buffer.from(file.base64, 'base64');
+
+          // Insert file into MSSQL and get the ID
+          const result = await crmPool
+            .request()
+            .input('tr_id', updatedId)
+            .input('filename', file.name)
+            .input('file_size', file.size)
+            .input('file_type', file.type)
+            .input('file_data', fileBuffer)
+            .input('uploaded_by', req.user?.id || null)
+            .query(`
+              INSERT INTO [crmdb].[FileStorage] 
+              (TrId, FileName, FileSize, FileType, Content, UploadDate, UploadedBy)
+              VALUES (@tr_id, @filename, @file_size, @file_type, @file_data, GETDATE(), @uploaded_by);
+              SELECT SCOPE_IDENTITY() as id;
+            `);
+
+          // Collect the file ID for PostgreSQL storage
+          if (result.recordset && result.recordset[0]) {
+            newFileIds.push(result.recordset[0].id);
+            console.log(`✅ Uploaded file: ${file.name} (ID: ${result.recordset[0].id}) for TR ${updatedId}`);
+          }
+        }
+
+        // Update PostgreSQL attachments field with MSSQL file IDs (append to existing)
+        if (newFileIds.length > 0) {
+          try {
+            // Get current attachment IDs from PostgreSQL
+            const currentTrRes = await db.query(
+              `SELECT attachments FROM technical_recommendations WHERE id = $1`,
+              [updatedId]
+            );
+            
+            let currentFileIds = [];
+            if (currentTrRes.rows[0]?.attachments) {
+              // Parse existing attachment IDs (should be array of integers)
+              try {
+                const parsed = JSON.parse(currentTrRes.rows[0].attachments);
+                currentFileIds = Array.isArray(parsed) ? parsed : [];
+              } catch {
+                currentFileIds = [];
+              }
+            }
+
+            // Append new file IDs to existing ones
+            const updatedFileIds = [...currentFileIds, ...newFileIds];
+
+            console.log("Current file IDs:", currentFileIds);
+            console.log("New file IDs:", newFileIds);
+            console.log("Updated combined file IDs:", updatedFileIds);
+
+            // Update PostgreSQL attachments field with combined file IDs
+            const trAttachmentsRes = await db.query(
+              `UPDATE technical_recommendations SET attachments = $1 WHERE id = $2 RETURNING *`,
+              [JSON.stringify(updatedFileIds), updatedId]
+            );
+
+            console.log("Post attachments update result:", trAttachmentsRes.rows[0]);
+
+            console.log(`✅ Updated PostgreSQL attachments with file IDs [${updatedFileIds.join(', ')}] for TR ${updatedId}`);
+          } catch (pgError) {
+            console.error("PostgreSQL attachments update error:", pgError);
+          }
+        }
+
+      } catch (fileError) {
+        console.error("File upload error during TR update:", fileError);
+        // Don't fail the entire update if file upload fails
+      }
+    }
+
     const response = { ...result.rows[0], items: itemsRes.rows };
     
     const base = { ...result.rows[0], items: itemsRes.rows };
@@ -668,6 +897,241 @@ router.get("/summary/status", async (req, res) => {
   } catch (err) {
     console.error(err);
     return res.status(500).json({ error: "Failed to fetch status summary" });
+  }
+});
+
+// File upload endpoint for technical recommendations
+router.post("/:id/attachments", async (req, res) => {
+  try {
+    const { id: trId } = req.params;
+    const { files } = req.body;
+
+    if (!files || !Array.isArray(files) || files.length === 0) {
+      return res.status(400).json({ error: "No files provided" });
+    }
+
+    const crmPool = await poolCrmPromise;
+    const uploadedFiles = [];
+    const newFileIds = [];
+
+    for (const file of files) {
+      // Validate file data
+      if (!file.name || !file.base64 || !file.type || !file.size) {
+        console.warn("Skipping invalid file:", file);
+        continue;
+      }
+
+      // Validate file size (10MB limit)
+      if (file.size > 10 * 1024 * 1024) {
+        return res.status(400).json({ 
+          error: `File "${file.name}" exceeds 10MB limit` 
+        });
+      }
+
+      // Convert base64 to binary
+      const fileBuffer = Buffer.from(file.base64, 'base64');
+
+      // Insert file into MSSQL
+      const result = await crmPool
+        .request()
+        .input('tr_id', trId)
+        .input('filename', file.name)
+        .input('file_size', file.size)
+        .input('file_type', file.type)
+        .input('file_data', fileBuffer)
+        .input('uploaded_by', req.user?.id || null)
+        .query(`
+          INSERT INTO [crmdb].[FileStorage] 
+          (TrId, FileName, FileSize, FileType, Content, UploadDate, UploadedBy)
+          VALUES (@tr_id, @filename, @file_size, @file_type, @file_data, GETDATE(), @uploaded_by);
+          SELECT SCOPE_IDENTITY() as id;
+        `);
+
+      if (result.recordset && result.recordset[0]) {
+        const fileId = result.recordset[0].id;
+        newFileIds.push(fileId);
+        
+        uploadedFiles.push({
+          Id: fileId,
+          FileName: file.name,
+          FileSize: file.size,
+          FileType: file.type,
+          UploadDate: new Date().toISOString()
+        });
+      }
+    }
+
+    // Update PostgreSQL attachments field with new file IDs (append to existing)
+    if (newFileIds.length > 0) {
+      try {
+        // Get current file IDs from PostgreSQL
+        const currentTrRes = await db.query(
+          `SELECT attachments FROM technical_recommendations WHERE id = $1`,
+          [trId]
+        );
+        
+        let currentFileIds = [];
+        if (currentTrRes.rows[0]?.attachments) {
+          try {
+            const parsed = JSON.parse(currentTrRes.rows[0].attachments);
+            currentFileIds = Array.isArray(parsed) ? parsed : [];
+          } catch {
+            currentFileIds = [];
+          }
+        }
+
+        // Append new file IDs to existing ones
+        const updatedFileIds = [...currentFileIds, ...newFileIds];
+
+        // Update PostgreSQL attachments field
+        await db.query(
+          `UPDATE technical_recommendations SET attachments = $1 WHERE id = $2`,
+          [JSON.stringify(updatedFileIds), trId]
+        );
+
+        console.log(`✅ Updated PostgreSQL attachments with file IDs [${updatedFileIds.join(', ')}] for TR ${trId}`);
+      } catch (pgError) {
+        console.warn("Failed to update PostgreSQL attachments:", pgError.message);
+      }
+    }
+
+    console.log(`✅ Uploaded ${uploadedFiles.length} files for TR ${trId}`);
+    
+    res.json({
+      message: `Successfully uploaded ${uploadedFiles.length} files`,
+      files: uploadedFiles
+    });
+
+  } catch (error) {
+    console.error("File upload error:", error);
+    return res.status(500).json({ error: "Failed to upload files" });
+  }
+});
+
+// Get attachments for a technical recommendation
+router.get("/:id/attachments", async (req, res) => {
+  try {
+    const { id: trId } = req.params;
+    const crmPool = await poolCrmPromise;
+
+    const result = await crmPool
+      .request()
+      .input('tr_id', trId)
+      .query(`
+        SELECT Id, FileName, FileSize, FileType, UploadDate, UploadedBy
+        FROM [crmdb].[FileStorage] 
+        WHERE TrId = @tr_id
+        ORDER BY UploadDate DESC
+      `);
+
+    res.json(result.recordset);
+
+  } catch (error) {
+    console.error("Get attachments error:", error);
+    return res.status(500).json({ error: "Failed to get attachments" });
+  }
+});
+
+// Download a specific attachment
+router.get("/:id/attachments/:attachmentId/download", async (req, res) => {
+  try {
+    const { attachmentId } = req.params;
+    const crmPool = await poolCrmPromise;
+
+    console.log(`🔍 Downloading attachment ID ${attachmentId} for TR ${req.params.id}`);
+
+    const result = await crmPool
+      .request()
+      .input('attachment_id', attachmentId)
+      .query(`
+        SELECT FileName, FileType, Content
+        FROM [crmdb].[FileStorage] 
+        WHERE Id = @attachment_id
+      `);
+
+    if (result.recordset.length === 0) {
+      return res.status(404).json({ error: "File not found" });
+    }
+
+    const file = result.recordset[0];
+    
+    res.set({
+      'Content-Type': file.FileType,
+      'Content-Disposition': `attachment; filename="${file.FileName}"`,
+      'Content-Length': file.Content.length
+    });
+
+    console.log(`✅ Serving download for file: ${file.FileName} (Type: ${file.FileType}, Size: ${file.Content.length} bytes)`);
+
+    res.send(file.Content);
+
+  } catch (error) {
+    console.error("File download error:", error);
+    return res.status(500).json({ error: "Failed to download file" });
+  }
+});
+
+// Delete an attachment
+router.delete("/:id/attachments/:attachmentId", async (req, res) => {
+  try {
+    const { attachmentId } = req.params;
+    const crmPool = await poolCrmPromise;
+
+    const result = await crmPool
+      .request()
+      .input('attachment_id', attachmentId)
+      .query(`
+        DELETE FROM [crmdb].[FileStorage] 
+        WHERE Id = @attachment_id;
+        SELECT @@ROWCOUNT as deleted_count;
+      `);
+
+    if (result.recordset[0].deleted_count === 0) {
+      return res.status(404).json({ error: "File not found" });
+    }
+
+    // Also update PostgreSQL JSONB to remove the deleted file ID
+    try {
+      const { id: trId } = req.params;
+      
+      // Get current file IDs from PostgreSQL
+      const currentTrRes = await db.query(
+        `SELECT attachments FROM technical_recommendations WHERE id = $1`,
+        [trId]
+      );
+      
+      if (currentTrRes.rows[0]?.attachments) {
+        let currentFileIds = [];
+        try {
+          const parsed = JSON.parse(currentTrRes.rows[0].attachments);
+          currentFileIds = Array.isArray(parsed) ? parsed : [];
+        } catch {
+          currentFileIds = [];
+        }
+
+        // Filter out the deleted file ID
+        const updatedFileIds = currentFileIds.filter(id => 
+          String(id) !== String(attachmentId)
+        );
+
+        // Update PostgreSQL attachments field with remaining file IDs
+        await db.query(
+          `UPDATE technical_recommendations SET attachments = $1 WHERE id = $2`,
+          [JSON.stringify(updatedFileIds), trId]
+        );
+
+        console.log(`✅ Updated PostgreSQL attachments, removed file ID ${attachmentId} from TR ${trId}`);
+      }
+    } catch (pgError) {
+      console.warn("Failed to update PostgreSQL attachments after delete:", pgError.message);
+      // Don't fail the delete operation if PostgreSQL update fails
+    }
+
+    res.json({ message: "File deleted successfully" });
+
+  } catch (error) {
+    console.error("File delete error:", error);
+    return res.status(500).json({ error: "Failed to delete file" });
   }
 });
 
