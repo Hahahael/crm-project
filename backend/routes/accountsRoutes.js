@@ -361,7 +361,7 @@ router.get("/naefs", async (req, res) => {
 // ADD new account (Dual creation: MSSQL + PostgreSQL)
 router.post("/", async (req, res) => {
   console.log("POST /api/accounts called - Dual creation mode");
-  console.log("Request body:", req.body);
+  console.log("Request body for creating a new account:", req.body);
   
   try {
     const body = toSnake(req.body);
@@ -502,6 +502,77 @@ router.post("/", async (req, res) => {
   }
 });
 
+// UPDATE account from approval
+router.put("/approval/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const body = toSnake(req.body);
+    console.log("Approving account id", id, "with data:", body);
+
+    const updateResult = await db.query(`
+      UPDATE accounts SET
+        due_date = $1
+      WHERE kristem_account_id = $2
+      RETURNING *
+    `, [
+      body.due_date,
+      id
+    ]);
+
+    if (updateResult.rows.length === 0) {
+      return res.status(404).json({ error: "Account not found for approval" });
+    }
+
+    // Create workflow stage for new technical recommendation (Draft)
+    await db.query(
+      `
+        INSERT INTO workflow_stages (wo_id, stage_name, status, assigned_to, created_at, updated_at)
+        VALUES ($1, $2, $3, $4, NOW(), NOW())
+      `,
+      [body.wo_id, "Quotations", "Draft", body.assignee],
+    );
+
+    const updatedAccount = updateResult.rows[0];
+    console.log("✅ Approved PostgreSQL account:", updatedAccount);
+
+    return res.json(updatedAccount);
+  } catch (err) {
+    console.error("PUT /api/accounts/:id/approve error:", err);
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+// UPDATE account from workorder
+router.put("/workorder/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const body = toSnake(req.body);
+    console.log("Approving work order id", id, "with data:", body);
+
+    const updateResult = await db.query(`
+      UPDATE accounts SET
+        wo_source_id = $1
+      WHERE kristem_account_id = $2
+      RETURNING *
+    `, [
+      body.wo_id,
+      id
+    ]);
+
+    if (updateResult.rows.length === 0) {
+      return res.status(404).json({ error: "Account not found for approval" });
+    }
+
+    const updatedAccount = updateResult.rows[0];
+    console.log("✅ Approved PostgreSQL account:", updatedAccount);
+
+    return res.json(updatedAccount);
+  } catch (err) {
+    console.error("PUT /api/accounts/:id/approve error:", err);
+    return res.status(500).json({ error: err.message });
+  }
+});
+
 // UPDATE account
 router.put("/:id", async (req, res) => {
   try {
@@ -562,7 +633,7 @@ router.put("/:id", async (req, res) => {
       WHERE id = $47
       RETURNING *
     `, [
-      body.stage_status,
+      body.stage_status || "In Progress",
       body.ref_number,
       body.requested_by || body.contact_person,
       body.designation,

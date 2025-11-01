@@ -224,7 +224,7 @@ export default function WorkOrdersPage() {
 
       const savedWorkOrder = await response.json();
 
-      // If creating, also create the initial workflow stage
+      // If creating, also create the initial workflow stage and populate the new account's linked workorder
       if (mode !== "edit") {
         await apiBackendFetch("/api/workflow-stages", {
           method: "POST",
@@ -235,6 +235,15 @@ export default function WorkOrdersPage() {
             assigned_to: savedWorkOrder?.assignee ?? null,
           }),
         });
+
+        if (formData.is_new_account) {
+          await apiBackendFetch(`/api/accounts/workorder/${formData.accountId}`, {
+            method: "POST",
+            body: JSON.stringify({
+              wo_id: savedWorkOrder?.wo_id ?? savedWorkOrder?.woId ?? savedWorkOrder?.id
+            }),
+          });
+        }
       }
 
       // Fetch all workflow stages and log them

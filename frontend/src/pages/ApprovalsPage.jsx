@@ -194,6 +194,7 @@ const ApprovalsPage = () => {
         toTime,
       };
       let accountId;
+      const prevWorkOrderAssignee = detailsData?.assignee || detailsData?.assignedTo || detailsData?.preparedBy;
       const currentType = actionApproval.stageName || actionApproval.module;
       if (modalType === "approve") {
         if (
@@ -275,6 +276,20 @@ const ApprovalsPage = () => {
             payload,
           );
 
+          // Create workflow stage for current stage (Approved)
+          const approvedStageRes = await apiBackendFetch("/api/workflow-stages", {
+            method: "POST",
+            body: JSON.stringify({
+              wo_id: actionApproval?.wo_id ?? actionApproval?.woId ?? null,
+              stage_name: currentType,
+              status: "Approved",
+              assigned_to: prevWorkOrderAssignee,
+              notified: false,
+              remarks,
+              next_stage: nextModuleType,
+            }),
+          });
+
           // Create skeletal record for next module
           const nextModuleRes = await apiBackendFetch(endpoint, {
             method: nextModuleType === "NAEF" ? "PUT" : "POST",
@@ -285,23 +300,18 @@ const ApprovalsPage = () => {
           if (nextModuleRes.ok) {
             nextModuleData = await nextModuleRes.json();
           } else {
+            // Delete the approved workflow stage since next module creation failed
             console.error("Failed to create next module:", nextModuleRes);
+            const approvedStageData = await approvedStageRes.json();
+            const approvedStageId = approvedStageData.id;
+            await apiBackendFetch(`/api/workflow-stages/${approvedStageId}`, {
+              method: "DELETE",
+              body: JSON.stringify({
+                id: approvedStageId,
+              }),
+            });
             throw new Error("Failed to create next module");
           }
-
-          // Create workflow stage for current stage (Approved)
-          await apiBackendFetch("/api/workflow-stages", {
-            method: "POST",
-            body: JSON.stringify({
-              wo_id: actionApproval?.wo_id ?? actionApproval?.woId ?? null,
-              stage_name: currentType,
-              status: "Approved",
-              assigned_to: assignee,
-              notified: false,
-              remarks,
-              next_stage: nextModuleType,
-            }),
-          });
 
           console.log("Next module created with details", nextModuleData);
           // Create workflow stage for next module (Draft)
