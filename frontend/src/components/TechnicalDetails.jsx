@@ -1,5 +1,6 @@
-import { LuArrowLeft, LuFileCheck, LuPencil, LuPrinter } from "react-icons/lu";
+import { LuArrowLeft, LuDownload, LuEye, LuFile, LuFileCheck, LuPencil, LuPrinter, LuX } from "react-icons/lu";
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { apiBackendFetch } from "../services/api.js";
 import utils from "../helper/utils";
 import SalesLeadDetails from "./SalesLeadDetails.jsx";
@@ -18,8 +19,132 @@ const TechnicalDetails = ({
   hideTabs = false,
 }) => {
   console.log("TechnicalDetails - technicalReco:", technicalReco);
+  console.log("📎 Attachments data:", technicalReco.attachments);
+  console.log("📎 Attachments array:", utils.toArray(technicalReco.attachments));
+  
   const isAssignedToMe =
     currentUser && technicalReco.assignee === currentUser.id;
+
+  // File size formatter
+  const formatFileSize = (bytes) => {
+    if (!bytes || bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  };
+
+  // Check if file is previewable
+  const isPreviewable = (fileType) => {
+    const previewableTypes = [
+      'application/pdf',
+      'image/jpeg',
+      'image/jpg', 
+      'image/png',
+      'image/gif',
+      'image/webp',
+      'text/plain',
+      'text/csv',
+      'application/json'
+    ];
+    return previewableTypes.includes(fileType?.toLowerCase());
+  };
+
+  // Preview file handler
+  const previewFileHandler = async (attachmentId, filename, fileType) => {
+    console.log('🔍 Preview clicked:', { attachmentId, filename, fileType });
+    try {
+      const trId = technicalReco.id;
+      console.log('📋 TR ID:', trId);
+      
+      if (!trId) {
+        alert('Technical Recommendation ID not found');
+        return;
+      }
+
+      console.log('🎯 Checking if previewable:', fileType, '→', isPreviewable(fileType));
+      if (!isPreviewable(fileType)) {
+        console.log('❌ File not previewable, downloading instead');
+        // If not previewable, download instead
+        downloadAttachment(attachmentId, filename);
+        return;
+      }
+
+      console.log('📥 Fetching file from API...');
+      const response = await apiBackendFetch(`/api/technicals/${trId}/attachments/${attachmentId}/download`);
+      
+      if (!response.ok) {
+        throw new Error(`Failed to load file: ${response.status} ${response.statusText}`);
+      }
+
+      console.log('✅ File fetched successfully, creating blob...');
+      // Create blob URL for preview
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      console.log('🎨 Blob URL created:', url);
+      
+      // Set preview state with animation
+      console.log('🔄 Setting preview state...');
+      setPreviewFile({ id: attachmentId, name: filename, type: fileType });
+      setPreviewUrl(url);
+      setShowPreview(true);
+      // Trigger fade-in animation after a brief delay
+      setTimeout(() => setIsAnimating(true), 10);
+      console.log('✅ Preview state set successfully');
+      
+    } catch (error) {
+      console.error('Preview error:', error);
+      alert(`Failed to preview ${filename}: ${error.message}`);
+    }
+  };
+
+  // Download attachment handler
+  const downloadAttachment = async (attachmentId, filename) => {
+    try {
+      const trId = technicalReco.id;
+      if (!trId) {
+        alert('Technical Recommendation ID not found');
+        return;
+      }
+
+      const response = await apiBackendFetch(`/api/technicals/${trId}/attachments/${attachmentId}/download`);
+      
+      if (!response.ok) {
+        throw new Error('Failed to download file');
+      }
+
+      // Create blob and download
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      
+    } catch (error) {
+      console.error('Download error:', error);
+      alert(`Failed to download ${filename}: ${error.message}`);
+    }
+  };
+
+  // Close preview handler with fade-out animation
+  const closePreview = () => {
+    // Start fade-out animation
+    setIsAnimating(false);
+    
+    // Wait for animation to complete before hiding modal
+    setTimeout(() => {
+      if (previewUrl) {
+        window.URL.revokeObjectURL(previewUrl);
+      }
+      setPreviewFile(null);
+      setPreviewUrl(null);
+      setShowPreview(false);
+    }, 200); // Match the CSS transition duration
+  };
   // const isCreator = currentUser && technicalReco.createdBy === currentUser.id;
 
   // Tabs: TR (Technical), SL (Sales Lead), WO (Work Order)
@@ -30,6 +155,12 @@ const TechnicalDetails = ({
   const [woLoading, setWoLoading] = useState(false);
   const [rfqDetails, setRfqDetails] = useState(null);
   const [rfqLoading, setRfqLoading] = useState(false);
+
+  // File preview state
+  const [previewFile, setPreviewFile] = useState(null);
+  const [previewUrl, setPreviewUrl] = useState(null);
+  const [showPreview, setShowPreview] = useState(false);
+  const [isAnimating, setIsAnimating] = useState(false);
 
   const renderStatusBadge = (status) => {
     if (!status) return "bg-gray-100 text-gray-800";
@@ -486,46 +617,83 @@ const TechnicalDetails = ({
             <h3 className="font-bold leading-none tracking-tight">
               Attachments
             </h3>
-            <p className="text-sm text-gray-500">Related files and documents</p>
+            <p className="text-sm text-gray-500">
+              Related files and documents ({utils.toArray(technicalReco.attachments).length} files)
+            </p>
           </div>
-          <div className="p-6 pt-0 overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr>
-                  <th className="text-left font-medium text-gray-500">
-                    File Name
-                  </th>
-                  <th className="text-left font-medium text-gray-500">Type</th>
-                  <th className="text-left font-medium text-gray-500">Size</th>
-                  <th className="text-left font-medium text-gray-500">
-                    Uploaded By
-                  </th>
-                  <th className="text-left font-medium text-gray-500">
-                    Upload Date
-                  </th>
-                  <th className="text-right font-medium text-gray-500">
-                    Actions
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {utils.toArray(technicalReco.attachments).map((file, idx) => (
-                  <tr key={idx}>
-                    <td className="p-2">{file.name}</td>
-                    <td className="p-2">{file.type}</td>
-                    <td className="p-2">{file.size}</td>
-                    <td className="p-2">{file.uploadedBy}</td>
-                    <td className="p-2">{file.uploadDate}</td>
-                    <td className="p-2 text-right">
-                      <button className="inline-flex items-center justify-center rounded-md text-sm font-medium hover:bg-accent hover:text-accent-foreground h-9 w-9">
-                        {/* Download icon here */}
-                        Download
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div className="p-6 pt-0">
+            {utils.toArray(technicalReco.attachments).length > 0 ? (
+              <div className="space-y-3">
+                {utils.toArray(technicalReco.attachments).map((file, idx) => {
+                  console.log('📄 Processing file:', file);
+                  const fileName = file.FileName || file.name || 'Unknown File';
+                  const fileType = file.FileType || file.type || 'Unknown Type';
+                  const fileId = file.Id || file.id;
+                  const canPreview = isPreviewable(fileType);
+                  console.log(`📄 File details: ${fileName} (${fileType}) - ID: ${fileId} - Previewable: ${canPreview}`);
+                  
+                  return (
+                    <div key={fileId || idx} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg border border-gray-200 hover:bg-gray-100 transition-all">
+                      <div 
+                        className={`flex items-center space-x-4 flex-1 ${canPreview ? '' : ''}`}
+                        onClick={() => canPreview && previewFileHandler(fileId, fileName, fileType)}
+                      >
+                        <div className="relative">
+                          <LuFile className="h-8 w-8 text-gray-400" />
+                          {canPreview && (
+                            <LuEye className="h-4 w-4 text-blue-500 absolute -top-1 -right-1 bg-white rounded-full p-0.5" />
+                          )}
+                        </div>
+                        <div>
+                          <p className={`text-sm font-medium ${canPreview ? 'text-blue-600 hover:text-blue-800 cursor-pointer' : 'text-gray-900'}`}>
+                            {fileName}
+                            {canPreview && <span className="text-xs text-blue-500 ml-2">(Click to preview)</span>}
+                          </p>
+                          <div className="flex items-center space-x-4 text-xs text-gray-500">
+                            <span>{fileType}</span>
+                            <span>•</span>
+                            <span>{formatFileSize(file.FileSize || file.size)}</span>
+                            {(file.UploadDate || file.uploadDate) && (
+                              <>
+                                <span>•</span>
+                                <span>{new Date(file.UploadDate || file.uploadDate).toLocaleDateString()}</span>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex space-x-2">
+                        {canPreview && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              console.log('🔘 Preview button clicked directly');
+                              previewFileHandler(fileId, fileName, fileType);
+                            }}
+                            className="inline-flex items-center justify-center px-3 py-2 text-sm font-medium text-green-600 bg-green-50 border border-green-200 rounded-md hover:bg-green-100 hover:border-green-300 transition-colors cursor-pointer"
+                          >
+                            <LuEye className="h-4 w-4 mr-2" />
+                            Preview
+                          </button>
+                        )}
+                        <button
+                          onClick={() => downloadAttachment(fileId, fileName)}
+                          className="inline-flex items-center justify-center px-3 py-2 text-sm font-medium text-blue-600 bg-blue-50 border border-blue-200 rounded-md hover:bg-blue-100 hover:border-blue-300 transition-colors cursor-pointer"
+                        >
+                          <LuDownload className="h-4 w-4 mr-2" />
+                          Download
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="text-center py-8">
+                <LuFile className="h-12 w-12 text-gray-300 mx-auto mb-4" />
+                <p className="text-gray-500 text-sm">No attachments found</p>
+              </div>
+            )}
           </div>
         </div>
 
@@ -605,6 +773,92 @@ const TechnicalDetails = ({
             <div className="p-6 text-sm text-gray-600">No related work order found.</div>
           )}
         </div>
+      )}
+
+      {/* File Preview Modal */}
+      {showPreview && previewFile && previewUrl && createPortal(
+        <div 
+          className={`fixed inset-0 bg-black/50 flex items-center justify-center z-[50] transition-opacity duration-200 ease-out ${
+            isAnimating ? 'opacity-100' : 'opacity-0'
+          }`} 
+          onClick={closePreview}
+        >
+          <div 
+            className={`bg-white rounded-lg shadow-xl max-w-4xl max-h-[90vh] w-full mx-4 flex flex-col transform transition-all duration-200 ease-out ${
+              isAnimating ? 'scale-100 opacity-100' : 'scale-95 opacity-0'
+            }`} 
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div className="flex items-center justify-between p-4 border-b">
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900">{previewFile.name}</h3>
+                <p className="text-sm text-gray-500">{previewFile.type}</p>
+              </div>
+              <div className="flex items-center space-x-2">
+                <button
+                  onClick={() => downloadAttachment(previewFile.id, previewFile.name)}
+                  className="inline-flex items-center px-3 py-2 text-sm font-medium text-blue-600 bg-blue-50 border border-blue-200 rounded-md hover:bg-blue-100"
+                >
+                  <LuDownload className="h-4 w-4 mr-2" />
+                  Download
+                </button>
+                <button
+                  onClick={closePreview}
+                  className="inline-flex items-center justify-center w-8 h-8 text-gray-400 hover:text-gray-600 rounded-full hover:bg-gray-100"
+                >
+                  <LuX className="h-5 w-5" />
+                </button>
+              </div>
+            </div>
+
+            {/* Modal Content */}
+            <div className="flex-1 overflow-auto p-4">
+              {previewFile.type?.startsWith('image/') ? (
+                // Image Preview
+                <div className="flex justify-center">
+                  <img 
+                    src={previewUrl} 
+                    alt={previewFile.name}
+                    className="max-w-full max-h-full object-contain rounded-lg shadow-sm"
+                  />
+                </div>
+              ) : previewFile.type === 'application/pdf' ? (
+                // PDF Preview
+                <div className="w-full h-[70vh]">
+                  <iframe
+                    src={previewUrl}
+                    className="w-full h-full border-0 rounded-lg"
+                    title={previewFile.name}
+                  />
+                </div>
+              ) : previewFile.type?.startsWith('text/') || previewFile.type === 'application/json' ? (
+                // Text Preview
+                <div className="bg-gray-50 rounded-lg p-4 max-h-[70vh] overflow-auto">
+                  <iframe
+                    src={previewUrl}
+                    className="w-full h-96 border-0"
+                    title={previewFile.name}
+                  />
+                </div>
+              ) : (
+                // Fallback for unsupported types
+                <div className="text-center py-8">
+                  <LuFile className="h-16 w-16 text-gray-300 mx-auto mb-4" />
+                  <p className="text-gray-500">Preview not available for this file type</p>
+                  <button
+                    onClick={() => downloadAttachment(previewFile.id, previewFile.name)}
+                    className="mt-4 inline-flex items-center px-4 py-2 text-sm font-medium text-blue-600 bg-blue-50 border border-blue-200 rounded-md hover:bg-blue-100"
+                  >
+                    <LuDownload className="h-4 w-4 mr-2" />
+                    Download to view
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>,
+        document.body
       )}
     </div>
   );
