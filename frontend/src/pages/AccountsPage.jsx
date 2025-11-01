@@ -236,7 +236,7 @@ export default function AccountsPage() {
   const handleSubmitForApproval = async (formData) => {
     try {
       // Set stage_status to Submitted
-      const submitData = { ...formData, stage_status: "Submitted" };
+      const submitData = { ...formData, stageStatus: "Submitted" };
       const response = await apiBackendFetch(`/api/accounts/${formData.id}`, {
         method: "PUT",
         body: JSON.stringify(submitData),
@@ -244,6 +244,7 @@ export default function AccountsPage() {
       if (!response.ok)
         throw new Error("Failed to submit account for approval");
       const savedAccount = await response.json();
+      console.log("Submitted account for approval:", savedAccount);
 
       // Create workflow stage for new account
       const result = await apiBackendFetch("/api/workflow-stages", {
@@ -256,6 +257,8 @@ export default function AccountsPage() {
           assigned_to: savedAccount.prepared_by || savedAccount.preparedBy,
         }),
       });
+
+      if (!result.ok) throw new Error("Failed to create workflow stage");
 
       console.log("Workflow stage created:", result);
 

@@ -569,6 +569,7 @@ router.get("/assigned/latest/:id/:stageName", async (req, res) => {
           WHERE ws.status = 'Draft' AND ws.stage_name = $2
         `;
       } else if (stage.includes("rfq")) {
+        console.log("Using rfqs join");
         query = `
           SELECT rfq.*, sl.sl_number, a.account_name AS account_name
           FROM workflow_stages ws
@@ -614,6 +615,8 @@ router.get("/assigned/latest/:id/:stageName", async (req, res) => {
       }
     }
 
+    console.log("Executing assigned latest workflow stages query:", query);
+    console.log("With parameters:", [id, stageName]);
     const result = await db.query(query, [id, stageName]);
     console.log("Latest assigned workflow stages result:", result.rows);
     
