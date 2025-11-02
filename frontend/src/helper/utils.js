@@ -119,6 +119,12 @@ export function calculateTimeliness(
   return { status: "on_time", daysLate: 0 };
 }
 
+export function formatCurrency(value) {
+  if (value === null || value === undefined || Number.isNaN(Number(value)))
+    return "-";
+  return `₱${Number(value).toFixed(2)}`;
+}
+
 // ✅ Default export with all helpers
 export default {
   toCamel,
@@ -132,4 +138,5 @@ export default {
   getVendorStatus,
   formatNumber,
   calculateTimeliness,
+  formatCurrency,
 };

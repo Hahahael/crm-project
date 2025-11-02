@@ -29,17 +29,17 @@ function mergePrimaryWithParent(detail, parent) {
 router.get("/", async (req, res) => {
   try {
     const result = await db.query(`
-                SELECT 
-                        r.*, 
-                        u.username AS assignee_username,
-                        sl.sl_number AS sl_number,
-                        a.account_name AS account_name
-                FROM rfqs r
-                LEFT JOIN users u ON r.assignee = u.id
-                LEFT JOIN sales_leads sl ON r.sl_id = sl.id
-                LEFT JOIN accounts a ON r.account_id = a.id
-                ORDER BY r.id ASC
-                `);
+      SELECT 
+        r.*, 
+        u.username AS assignee_username,
+        sl.sl_number AS sl_number,
+        a.account_name AS account_name
+      FROM rfqs r
+      LEFT JOIN users u ON r.assignee = u.id
+      LEFT JOIN sales_leads sl ON r.sl_id = sl.id
+      LEFT JOIN accounts a ON r.account_id = a.id
+      ORDER BY r.id ASC
+    `);
     const rows = result.rows;
 
     // Enrich accounts from SPI (kristem, brand, industry, department)
@@ -512,18 +512,20 @@ router.post("/", async (req, res) => {
     // Create workflow stage for new technical recommendation (Draft)
     await db.query(
       `
-                        INSERT INTO workflow_stages (wo_id, stage_name, status, assigned_to, created_at, updated_at)
-                        VALUES ($1, $2, $3, $4, NOW(), NOW())`,
+        INSERT INTO workflow_stages (wo_id, stage_name, status, assigned_to, created_at, updated_at)
+        VALUES ($1, $2, $3, $4, NOW(), NOW())
+      `,
       [wo_id, "RFQ", "Draft", assignee],
     );
 
     const final = await db.query(
       `
-                        SELECT r.*, u.username AS assignee_username, a.account_name AS account_name
-                        FROM rfqs r
-                        LEFT JOIN users u ON r.assignee = u.id
-                        LEFT JOIN accounts a ON r.account_id = a.id
-                        WHERE r.id = $1`,
+        SELECT r.*, u.username AS assignee_username, a.account_name AS account_name
+        FROM rfqs r
+        LEFT JOIN users u ON r.assignee = u.id
+        LEFT JOIN accounts a ON r.account_id = a.id
+        WHERE r.id = $1
+      `,
       [newId],
     );
 
