@@ -71,7 +71,7 @@ export default function TechnicalsPage() {
 
           });
       }
-      setTimeout(() => setLoading(false), 500);
+      setTimeout(() => setLoading(false));
     } catch (err) {
       console.error("Error retrieving technical recommendations:", err);
       setError("Failed to fetch technical recommendations.");

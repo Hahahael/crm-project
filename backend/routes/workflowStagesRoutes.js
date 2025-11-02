@@ -29,7 +29,9 @@ router.get("/latest-submitted", async (req, res) => {
           sl.id AS module_id,
           sl.account_id,
           sl.urgency AS urgency,
-          NULL AS priority
+          NULL AS priority,
+          NULL AS title,
+          NULL AS amount
         FROM workflow_stages ws
         INNER JOIN (
           SELECT wo_id, MAX(created_at) AS max_created
@@ -57,7 +59,9 @@ router.get("/latest-submitted", async (req, res) => {
           r.id AS module_id,
           r.account_id,
           NULL AS urgency,
-          NULL AS priority
+          NULL AS priority,
+          NULL AS title,
+          r.grand_total AS amount
         FROM workflow_stages ws
         INNER JOIN (
           SELECT wo_id, MAX(created_at) AS max_created
@@ -85,7 +89,9 @@ router.get("/latest-submitted", async (req, res) => {
           tr.id AS module_id,
           tr.account_id,
           NULL AS urgency,
-          tr.priority AS priority
+          tr.priority AS priority,
+          tr.title AS title,
+          NULL AS amount
         FROM workflow_stages ws
         INNER JOIN (
           SELECT wo_id, MAX(created_at) AS max_created
@@ -113,7 +119,9 @@ router.get("/latest-submitted", async (req, res) => {
           wo.id AS module_id,
           wo.account_id,
           NULL AS urgency,
-          NULL AS priority
+          NULL AS priority,
+          NULL AS title,
+          NULL AS amount
         FROM workflow_stages ws
         INNER JOIN (
           SELECT wo_id, MAX(created_at) AS max_created
@@ -129,7 +137,8 @@ router.get("/latest-submitted", async (req, res) => {
       FROM latest_stages
       ORDER BY submitted_date DESC;
     `;
-    const { rows } = await db.query(unionQuery);
+    let { rows } = await db.query(unionQuery);
+    console.log("Base latest submitted workflow stages:", rows);
 
     // Fetch Account/NAEF latest-submitted separately and populate via CRM
     const accountLatestQuery = `
@@ -156,8 +165,10 @@ router.get("/latest-submitted", async (req, res) => {
         a.naef_number AS transaction_number,
         a.kristem_account_id AS module_id,
         wo.account_id AS account_id,
-        NULL::text AS urgency,
-        NULL::text AS priority
+        NULL AS urgency,
+        NULL AS priority,
+        NULL AS title,
+        NULL AS amount
       FROM latest_acc la
       LEFT JOIN users u ON la.assigned_to = u.id
       LEFT JOIN workorders wo ON la.wo_id = wo.id
@@ -176,6 +187,8 @@ router.get("/latest-submitted", async (req, res) => {
             .filter((v) => v !== null && v !== undefined),
         ),
       );
+
+      console.log("Unique account IDs to fetch from CRM:", accountIds);
 
       if (accountIds.length > 0) {
         const spiPool = await poolPromise;
@@ -213,14 +226,32 @@ router.get("/latest-submitted", async (req, res) => {
             };
           });
 
+          // Build Account/NAEF rows from CRM and attach same account object
+          const otherRowsBuilt = rows.map((r) => {
+            const aid = r.accountId ?? r.account_id;
+            let account = null;
+            if (aid != null && accountMap.has(Number(aid))) {
+              const acc = accountMap.get(Number(aid));
+              account = {
+                ...acc
+              };
+            }
+            return {
+              ...r,
+              account,
+            };
+          });
+
           // Merge base rows with account/naef rows
-          rows.push(...accRowsBuilt);
+          otherRowsBuilt.push(...accRowsBuilt);
           // Re-sort by submitted_date DESC after merging
-          rows.sort((a, b) => {
+          otherRowsBuilt.sort((a, b) => {
             const da = new Date(a.submitted_date || a.submittedDate || 0).getTime();
             const db = new Date(b.submitted_date || b.submittedDate || 0).getTime();
             return db - da;
           });
+
+          rows = otherRowsBuilt
         }
       }
     } catch (enrichErr) {
@@ -329,10 +360,12 @@ router.post("/", async (req, res) => {
     let insertedStage;
     try {
       const result = await db.query(
-        `INSERT INTO workflow_stages
-                                        (wo_id, stage_name, status, assigned_to, notified, remarks, created_at, updated_at)
-                                VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())
-                                RETURNING *`,
+        `
+          INSERT INTO workflow_stages
+            (wo_id, stage_name, status, assigned_to, notified, remarks, created_at, updated_at)
+          VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())
+          RETURNING *
+        `,
         [wo_id, stage_name, status, assigned_to, notified, remarks],
       );
       insertedStage = result.rows[0];

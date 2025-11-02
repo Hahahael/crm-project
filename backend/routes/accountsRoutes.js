@@ -254,7 +254,7 @@ router.get("/naefs", async (req, res) => {
         u.username as prepared_by_username
       FROM accounts a
       LEFT JOIN users u ON a.prepared_by = u.id
-      WHERE a.is_naef = true
+      WHERE a.is_naef = true AND a.stage_status IN ('Draft', 'In Progress', 'Submitted', 'Approved', 'Rejected')
       ORDER BY a.created_at DESC
     `);
     
@@ -440,7 +440,7 @@ router.post("/", async (req, res) => {
     `, [
       naef_number,
       kristemId, // Link to MSSQL customer
-      body.stage_status || 'Draft',
+      body.stage_status || 'Pending',
       body.ref_number,
       body.date_created || new Date(),
       body.contact_person,

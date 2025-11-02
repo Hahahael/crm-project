@@ -12,6 +12,8 @@ import {
   LuTrendingUp,
   LuWorkflow,
   LuTriangleAlert,
+  LuFilter,
+  LuX,
 } from "react-icons/lu";
 import {
   ResponsiveContainer,
@@ -32,6 +34,11 @@ export default function DashboardPage() {
   // workorders state intentionally omitted — server provides aggregated dashboard endpoints
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  
+  // Filter states
+  const [dateFilter, setDateFilter] = useState('');
+  const [assigneeFilter, setAssigneeFilter] = useState('');
+  const [availableAssignees, setAvailableAssignees] = useState([]);
   const [workorderStatusSummary, setWorkorderStatusSummary] = useState({
     total: 0,
     pending: 0,
@@ -52,9 +59,14 @@ export default function DashboardPage() {
   useEffect(() => {
     async function fetchData() {
       try {
+        // Build query parameters for filters
+        const queryParams = new URLSearchParams();
+        if (dateFilter) queryParams.append('date', dateFilter);
+        if (assigneeFilter) queryParams.append('assignee', assigneeFilter);
+        const queryString = queryParams.toString();
 
         const workorderSummaryRes = await apiBackendFetch(
-          "/api/workorders/summary/status",
+          `/api/workorders/summary/status${queryString ? `?${queryString}` : ''}`,
         );
         if (workorderSummaryRes.ok) {
           const workorderSummaryData = await workorderSummaryRes.json();
@@ -70,7 +82,7 @@ export default function DashboardPage() {
         }
 
         const workflowStagesSummaryRes = await apiBackendFetch(
-          "/api/dashboard/summary/latest",
+          `/api/dashboard/summary/latest${queryString ? `?${queryString}` : ''}`,
         );
         if (workflowStagesSummaryRes.ok) {
           const workflowStagesSummaryData = await workflowStagesSummaryRes.json();
@@ -94,9 +106,9 @@ export default function DashboardPage() {
 
         // Fetch server-side aggregates
         const [summaryRes, dueRes, stageRes] = await Promise.all([
-          apiBackendFetch("/api/dashboard/summary"),
-          apiBackendFetch("/api/dashboard/due-performance"),
-          apiBackendFetch("/api/dashboard/stage-distribution"),
+          apiBackendFetch(`/api/dashboard/summary${queryString ? `?${queryString}` : ''}`),
+          apiBackendFetch(`/api/dashboard/due-performance${queryString ? `?${queryString}` : ''}`),
+          apiBackendFetch(`/api/dashboard/stage-distribution${queryString ? `?${queryString}` : ''}`),
         ]);
 
         if (!summaryRes.ok)
@@ -129,6 +141,22 @@ export default function DashboardPage() {
       }
     }
     fetchData();
+  }, [dateFilter, assigneeFilter]);
+
+  // Fetch available assignees for the dropdown
+  useEffect(() => {
+    async function fetchAssignees() {
+      try {
+        const response = await apiBackendFetch('/api/users');
+        if (response.ok) {
+          const users = await response.json();
+          setAvailableAssignees(users.filter(user => user.username)); // Only users with usernames
+        }
+      } catch (error) {
+        console.error('Error fetching assignees:', error);
+      }
+    }
+    fetchAssignees();
   }, []);
 
   // Use server-side summary when available
@@ -179,7 +207,90 @@ export default function DashboardPage() {
 
   return (
     <div className="p-6">
-      <h1 className="text-2xl font-bold mb-4">Dashboard</h1>
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-2xl font-bold">Dashboard</h1>
+        
+        {/* Filters */}
+        <div className="flex gap-4 items-center">
+          {/* Date Filter */}
+          <div className="relative">
+            <input
+              type="date"
+              value={dateFilter}
+              onChange={(e) => setDateFilter(e.target.value)}
+              className="flex h-9 rounded-md border border-gray-200 bg-transparent px-3 py-1 text-sm shadow-xs transition-colors pr-8 min-w-[140px]"
+              title="Filter by date"
+            />
+            <LuCalendar className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4 pointer-events-none" />
+          </div>
+
+          {/* Assignee Filter */}
+          <div className="relative">
+            <select
+              value={assigneeFilter}
+              onChange={(e) => setAssigneeFilter(e.target.value)}
+              className="flex h-9 rounded-md border border-gray-200 bg-transparent px-3 py-1 text-sm shadow-xs transition-colors appearance-none pr-8 min-w-[160px]"
+            >
+              <option value="">All Assignees</option>
+              {availableAssignees.map((user) => (
+                <option key={user.id} value={user.username}>
+                  {user.username}
+                </option>
+              ))}
+            </select>
+            <LuFilter className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4 pointer-events-none" />
+          </div>
+
+          {/* Clear Filters */}
+          {(dateFilter || assigneeFilter) && (
+            <button
+              onClick={() => {
+                setDateFilter('');
+                setAssigneeFilter('');
+              }}
+              className="inline-flex items-center px-3 py-1 text-sm text-gray-500 hover:text-gray-700 underline"
+              title="Clear all filters"
+            >
+              <LuX className="h-3 w-3 mr-1" />
+              Clear
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Active Filters Display */}
+      {(dateFilter || assigneeFilter) && (
+        <div className="mb-4 flex flex-wrap gap-2">
+          {dateFilter && (
+            <div className="inline-flex items-center gap-2 rounded-full bg-blue-50 text-blue-700 px-3 py-1 text-xs border border-blue-200">
+              <LuCalendar className="h-3 w-3" />
+              <span>Date: {dateFilter}</span>
+              <button
+                type="button"
+                className="ml-1 rounded-full hover:bg-blue-100 px-1.5 cursor-pointer"
+                onClick={() => setDateFilter('')}
+                aria-label="Clear date filter"
+              >
+                ×
+              </button>
+            </div>
+          )}
+          {assigneeFilter && (
+            <div className="inline-flex items-center gap-2 rounded-full bg-green-50 text-green-700 px-3 py-1 text-xs border border-green-200">
+              <LuUsers className="h-3 w-3" />
+              <span>Assignee: {assigneeFilter}</span>
+              <button
+                type="button"
+                className="ml-1 rounded-full hover:bg-green-100 px-1.5 cursor-pointer"
+                onClick={() => setAssigneeFilter('')}
+                aria-label="Clear assignee filter"
+              >
+                ×
+              </button>
+            </div>
+          )}
+        </div>
+      )}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mb-6">
         <div className="rounded-xl border border-gray-200 bg-card text-card-foreground shadow p-6">
           <div className="flex items-center justify-between pb-2">

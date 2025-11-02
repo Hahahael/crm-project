@@ -65,7 +65,7 @@ const AccountDetails = ({
             </button>)}
             <h1 className="text-2xl font-bold">NAEF Details</h1>
             <div className="inline-flex items-center rounded-md border px-2.5 py-0.5 text-xs font-semibold bg-green-100 text-green-800">
-              {account.stage_status}
+              {account.stageStatus}
             </div>
           </div>
         </div>
