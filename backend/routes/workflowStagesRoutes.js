@@ -724,6 +724,7 @@ router.get("/summary/latest", async (req, res) => {
     `;
 
     const result = await db.query(sql);
+    console.log("Fetched latest workflow stages summary:", result.rows);
     return res.json(result.rows || []);
   } catch (err) {
     console.error("Failed to fetch summary latest workflow stages:", err);

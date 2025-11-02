@@ -142,7 +142,7 @@ export default function RFQsTable({ rfqs, onView, onEdit }) {
                 {renderStatusBadge(rfq.stageStatus)}
               </td>
               <td className="px-4 py-2 text-black text-sm">
-                {rfq.grandTotal || "-"}
+                {util.formatCurrency(rfq.grandTotal) || "-"}
               </td>
               <td className="px-4 py-2 text-black text-sm">
                 {util.formatDate(rfq.dueDate, "MM/DD/YYYY")}

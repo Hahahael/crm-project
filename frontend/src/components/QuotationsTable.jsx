@@ -63,6 +63,68 @@ export default function QuotationsTable({ quotations, onView, onSend }) {
       </span>
     );
   };
+
+  const renderStatusBadge = (status) => {
+    if (!status)
+      return (
+        <span className={`${baseBadge} rounded-full bg-gray-50 text-gray-600`}>
+          -
+        </span>
+      );
+    const s = String(status).toLowerCase();
+    switch (s) {
+      case "pending":
+      case "draft":
+        return (
+          <span
+            className={`${baseBadge} rounded-full bg-yellow-100 text-yellow-800`}
+          >
+            {status}
+          </span>
+        );
+      case "open":
+      case "in progress":
+      case "in-progress":
+      case "ongoing":
+      case "active":
+      case "started":
+        return (
+          <span
+            className={`${baseBadge} rounded-full bg-blue-50 text-blue-700`}
+          >
+            {status}
+          </span>
+        );
+      case "completed":
+      case "done":
+      case "submitted":
+      case "approved":
+        return (
+          <span
+            className={`${baseBadge} rounded-full bg-green-50 text-green-700`}
+          >
+            {status}
+          </span>
+        );
+      case "cancelled":
+      case "canceled":
+      case "rejected":
+        return (
+          <span className={`${baseBadge} rounded-full bg-red-50 text-red-700`}>
+            {status}
+          </span>
+        );
+      default:
+        return (
+          <span
+            className={`${baseBadge} rounded-full bg-gray-50 text-gray-600`}
+          >
+            {status}
+          </span>
+        );
+    }
+  };
+  
   console.log("QuotationsTable - quotations:", quotations);
   return (
     <div className="relative overflow-x-auto rounded-lg border border-gray-200 bg-white">
@@ -126,13 +188,13 @@ export default function QuotationsTable({ quotations, onView, onSend }) {
                 {quotation.account?.kristem?.Name || "-"}
               </td>
               <td className="px-4 py-2 text-black text-sm">
-                {quotation.stageStatus || "-"}
+                {renderStatusBadge(quotation.stageStatus) || "-"}
               </td>
               <td className="px-4 py-2 text-black text-sm">
-                {util.formatDate(quotation.createdAt, "MM/DD/YYYY") || "-"}
+                {util.formatCurrency(quotation.rfq?.grandTotal) || "-"}
               </td>
               <td className="px-4 py-2 text-black text-sm">
-                {util.formatDate(quotation.updatedAt, "MM/DD/YYYY") || "-"}
+                {util.formatDate(quotation.submittedDate, "MM/DD/YYYY") || "-"}
               </td>
               <td className="px-4 py-2 text-black text-sm">
                 {util.formatDate(quotation.dueDate, "MM/DD/YYYY") || "-"}
@@ -198,7 +260,7 @@ export default function QuotationsTable({ quotations, onView, onSend }) {
                 })()}
               </td>
               <td className="px-4 py-2 text-black text-sm">
-                {quotation.assignee || "-"}
+                {quotation.assigneeUsername || "-"}
               </td>
               <td className="px-4 py-2 text-black text-sm">
                 <div className="flex gap-2">
