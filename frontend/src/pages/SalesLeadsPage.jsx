@@ -166,7 +166,7 @@ export default function SalesLeadsPage() {
 
       console.log("Fetched sales leads:", salesLeadsData);
 
-      setTimeout(() => setLoading(false), 500);
+      setTimeout(() => setLoading(false));
     } catch (err) {
       console.error("Error retrieving salesleads:", err);
       setError("Failed to fetch sales leads.");
@@ -276,7 +276,21 @@ export default function SalesLeadsPage() {
         subtext="Please wait while we fetch your data."
       />
     );
-  if (error) return <p className="p-4 text-red-600">{error}</p>;
+
+    if (error) {
+      return (
+        <div className="p-6 flex items-center justify-center min-h-screen">
+          <div className="text-center">
+            <div className="text-red-500 mb-4">
+              <svg className="w-12 h-12 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+            <p className="text-red-600 font-medium">{error}</p>
+          </div>
+        </div>
+      );
+    }
 
   const term = (search || "").toLowerCase();
 

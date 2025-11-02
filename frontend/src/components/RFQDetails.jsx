@@ -559,19 +559,19 @@ const RFQDetails = ({
                         className="hover:bg-gray-100 transition-all duration-200"
                       >
                         <td className="text-sm p-2 align-middle">
-                          {item.details.Description}
+                          {item.details?.Description}
                         </td>
                         <td className="text-sm p-2 align-middle">
-                          {item.details.BRAND_ID}
+                          {item.details?.BRAND_ID}
                         </td>
                         <td className="text-sm p-2 align-middle">
-                          {item.details.Code}
+                          {item.details?.Code}
                         </td>
                         <td className="text-sm p-2 align-middle">
                           {item.quantity}
                         </td>
                         <td className="text-sm p-2 align-middle">
-                          {item.details.SK_UOM}
+                          {item.details?.SK_UOM}
                         </td>
                         <td className="text-sm p-2 align-middle">
                           {item.leadTime || "-"}
