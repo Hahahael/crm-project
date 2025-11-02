@@ -207,24 +207,57 @@ const ApprovalActionModal = ({ isOpen, type, approval, onClose, onSubmit, submit
                 className="w-full border border-gray-200 rounded p-2"
                 required
               />
-              {/* Conditional dropdown for next stage */}
-              {nextStageOptions.length > 0 && (
-                <select
-                  name="nextStage"
-                  value={form.nextStage}
-                  onChange={handleChange}
-                  className="w-full border border-gray-200 rounded p-2"
-                  required
-                >
-                  <option value="" disabled>
-                    Select Next Stage
-                  </option>
-                  {nextStageOptions.map((opt) => (
-                    <option key={opt.value} value={opt.value}>
-                      {opt.label}
+              {/* Next Stage Selection/Display */}
+              {nextStageOptions.length > 0 ? (
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-gray-700">
+                    Next Stage
+                  </label>
+                  <select
+                    name="nextStage"
+                    value={form.nextStage}
+                    onChange={handleChange}
+                    className="w-full border border-gray-200 rounded p-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    required
+                  >
+                    <option value="" disabled>
+                      Select Next Stage
                     </option>
-                  ))}
-                </select>
+                    {nextStageOptions.map((opt) => (
+                      <option key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="text-xs text-gray-500">
+                    Choose the next stage for this workflow
+                  </p>
+                </div>
+              ) : (
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                  <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                    <span className="text-sm font-medium text-blue-800">
+                      Next Stage Information
+                    </span>
+                  </div>
+                  <p className="text-sm text-blue-700 mt-1">
+                    {(() => {
+                      // Determine what happens next based on current stage
+                      if (stage === "RFQ" || stage === "rfq") {
+                        return "After approval, this will proceed to Quotations stage.";
+                      } else if (stage === "Quotations" || stage === "quotations") {
+                        return "After approval, this will proceed to Work Order creation.";
+                      } else if (stage === "Work Order" || stage === "work_order") {
+                        return "After approval, this work order will be marked as completed.";
+                      } else if (stage === "Account" || stage === "NAEF") {
+                        return "After approval, the account will be created and available for use.";
+                      } else {
+                        return "This item will proceed to the next stage in the workflow.";
+                      }
+                    })()}
+                  </p>
+                </div>
               )}
             </div>
           )}
