@@ -73,7 +73,7 @@ router.get("/", async (req, res) => {
             normId(c.ProductBrandId) ??
             normId(c.Brand_ID) ??
             normId(c.BrandId) ??
-            null;
+            2;
           const iId =
             normId(c.Customer_Industry_Group_Id) ??
             normId(c.Industry_Group_Id) ??
@@ -83,7 +83,7 @@ router.get("/", async (req, res) => {
             normId(c.Department_Id) ??
             normId(c.DepartmentID) ??
             normId(c.DepartmentId) ??
-            null;
+            2;
           if (bId != null) bIds.add(bId);
           if (iId != null) iIds.add(iId);
           if (dId != null) dIds.add(dId);

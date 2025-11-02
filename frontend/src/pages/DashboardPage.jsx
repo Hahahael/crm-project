@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { apiBackendFetch } from "../services/api";
 import utils from "../helper/utils";
 import {
@@ -36,9 +36,13 @@ export default function DashboardPage() {
   const [error, setError] = useState(null);
   
   // Filter states
-  const [dateFilter, setDateFilter] = useState('');
+  const [dateRange, setDateRange] = useState({ start: '', end: '' });
   const [assigneeFilter, setAssigneeFilter] = useState('');
   const [availableAssignees, setAvailableAssignees] = useState([]);
+  
+  // Refs for date range pickers
+  const startDateRef = useRef(null);
+  const endDateRef = useRef(null);
   const [workorderStatusSummary, setWorkorderStatusSummary] = useState({
     total: 0,
     pending: 0,
@@ -55,13 +59,15 @@ export default function DashboardPage() {
   const [duePerf, setDuePerf] = useState(null);
   const [stageDist, setStageDist] = useState([]);
   const [assignees, setAssignees] = useState({ totalActive: 0, top: [] });
+  const [workflowStagesRaw, setWorkflowStagesRaw] = useState([]);
 
   useEffect(() => {
     async function fetchData() {
       try {
         // Build query parameters for filters
         const queryParams = new URLSearchParams();
-        if (dateFilter) queryParams.append('date', dateFilter);
+        if (dateRange.start) queryParams.append('startDate', dateRange.start);
+        if (dateRange.end) queryParams.append('endDate', dateRange.end);
         if (assigneeFilter) queryParams.append('assignee', assigneeFilter);
         const queryString = queryParams.toString();
 
@@ -108,7 +114,7 @@ export default function DashboardPage() {
         const [summaryRes, dueRes, stageRes] = await Promise.all([
           apiBackendFetch(`/api/dashboard/summary${queryString ? `?${queryString}` : ''}`),
           apiBackendFetch(`/api/dashboard/due-performance${queryString ? `?${queryString}` : ''}`),
-          apiBackendFetch(`/api/dashboard/stage-distribution${queryString ? `?${queryString}` : ''}`),
+          apiBackendFetch(`/api/workflow-stages/summary/latest${queryString ? `?${queryString}` : ''}`),
         ]);
 
         if (!summaryRes.ok)
@@ -116,7 +122,7 @@ export default function DashboardPage() {
         if (!dueRes.ok) throw new Error("Failed to fetch due performance");
         if (!stageRes.ok) throw new Error("Failed to fetch stage distribution");
 
-        const [summaryData, dueData, stageData, assigneesData] =
+        const [summaryData, dueData, workflowStagesData, assigneesData] =
           await Promise.all([
             summaryRes.json(),
             dueRes.json(),
@@ -128,10 +134,42 @@ export default function DashboardPage() {
           assigneesJson = await assigneesData.json();
         }
 
+        // Store raw workflow stages data
+        setWorkflowStagesRaw(Array.isArray(workflowStagesData) ? workflowStagesData : []);
+
+        // Process workflow stages to create stage distribution
+        const stageDistribution = [];
+        if (Array.isArray(workflowStagesData)) {
+          // Group by stage_name and count
+          const stageGroups = workflowStagesData.reduce((acc, stage) => {
+            const stageName = stage.stageName || stage.stage_name || 'Unknown';
+            if (!acc[stageName]) {
+              acc[stageName] = 0;
+            }
+            acc[stageName]++;
+            return acc;
+          }, {});
+
+          // Convert to array format expected by the chart
+          const total = Object.values(stageGroups).reduce((sum, count) => sum + count, 0);
+          Object.entries(stageGroups).forEach(([stageName, count]) => {
+            stageDistribution.push({
+              stage: stageName,
+              name: stageName,
+              count: count,
+              woPct: total > 0 ? (count / total) * 100 : 0
+            });
+          });
+          
+          // Sort by count descending
+          stageDistribution.sort((a, b) => b.count - a.count);
+        }
+
         console.log("Fetched dashboard data:", dueData);
+        console.log("Processed stage distribution:", stageDistribution);
         setSummary(summaryData);
         setDuePerf(dueData);
-        setStageDist(Array.isArray(stageData) ? stageData : []);
+        setStageDist(stageDistribution);
         setAssignees(assigneesJson || { totalActive: 0, top: [] });
       } catch (err) {
         console.error("Dashboard fetch error", err);
@@ -141,7 +179,7 @@ export default function DashboardPage() {
       }
     }
     fetchData();
-  }, [dateFilter, assigneeFilter]);
+  }, [dateRange.start, dateRange.end, assigneeFilter]);
 
   // Fetch available assignees for the dropdown
   useEffect(() => {
@@ -196,6 +234,94 @@ export default function DashboardPage() {
   const wfTotal = Number(workflowStagesSummary.total || 0);
   const wfPct = (n) => (wfTotal > 0 ? (Number(n || 0) / wfTotal) * 100 : 0);
 
+  // Process workflow stages for detailed status breakdown
+  const processDetailedStatusBreakdown = () => {
+    if (!Array.isArray(workflowStagesRaw) || workflowStagesRaw.length === 0) {
+      return {};
+    }
+
+    // Group by status first, then by stageName
+    const statusGroups = workflowStagesRaw.reduce((acc, stage) => {
+      const status = stage.status || 'Unknown';
+      const stageName = stage.stageName || stage.stage_name || 'Unknown';
+      
+      if (!acc[status]) {
+        acc[status] = {};
+      }
+      if (!acc[status][stageName]) {
+        acc[status][stageName] = [];
+      }
+      acc[status][stageName].push(stage);
+      return acc;
+    }, {});
+
+    // Process each status group
+    const processedBreakdown = {};
+    Object.entries(statusGroups).forEach(([status, stageGroups]) => {
+      const totalForStatus = Object.values(stageGroups).reduce((sum, stages) => sum + stages.length, 0);
+      
+      processedBreakdown[status] = {
+        total: totalForStatus,
+        percentage: workflowStagesRaw.length > 0 ? (totalForStatus / workflowStagesRaw.length) * 100 : 0,
+        modules: Object.entries(stageGroups).map(([stageName, stages]) => ({
+          name: stageName,
+          count: stages.length,
+          percentage: totalForStatus > 0 ? (stages.length / totalForStatus) * 100 : 0,
+          stages
+        })).sort((a, b) => b.count - a.count) // Sort modules by count descending
+      };
+    });
+
+    return processedBreakdown;
+  };
+
+  const detailedStatusBreakdown = processDetailedStatusBreakdown();
+
+  // Process active assignees from workflow stages data
+  const processActiveAssignees = () => {
+    if (!Array.isArray(workflowStagesRaw) || workflowStagesRaw.length === 0) {
+      return { totalActive: 0, top: [] };
+    }
+
+    // Group workflow stages by assignee (only those with assigned_to)
+    const assigneeGroups = workflowStagesRaw.reduce((acc, stage) => {
+      const assigneeId = stage.assignedTo || stage.assigned_to;
+      const assigneeName = stage.assignedToUsername || stage.assigned_to_username;
+      
+      // Only count stages that have an assignee and are not completed/approved
+      if (assigneeId && !['completed', 'approved'].includes((stage.status || '').toLowerCase())) {
+        const key = `${assigneeId}-${assigneeName || 'Unknown'}`;
+        if (!acc[key]) {
+          acc[key] = {
+            id: assigneeId,
+            name: assigneeName || `User ${assigneeId}`,
+            count: 0,
+            stages: []
+          };
+        }
+        acc[key].count++;
+        acc[key].stages.push(stage);
+      }
+      
+      return acc;
+    }, {});
+
+    // Convert to array and sort by count
+    const activeAssignees = Object.values(assigneeGroups)
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 10); // Limit to top 10
+
+    return {
+      totalActive: activeAssignees.length,
+      top: activeAssignees.map(assignee => ({
+        assignee: assignee.name,
+        count: assignee.count
+      }))
+    };
+  };
+
+  const processedAssignees = processActiveAssignees();
+
   if (loading)
     return (
       <LoadingModal
@@ -212,16 +338,63 @@ export default function DashboardPage() {
         
         {/* Filters */}
         <div className="flex gap-4 items-center">
-          {/* Date Filter */}
-          <div className="relative">
-            <input
-              type="date"
-              value={dateFilter}
-              onChange={(e) => setDateFilter(e.target.value)}
-              className="flex h-9 rounded-md border border-gray-200 bg-transparent px-3 py-1 text-sm shadow-xs transition-colors pr-8 min-w-[140px]"
-              title="Filter by date"
-            />
-            <LuCalendar className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4 pointer-events-none" />
+          {/* Date Range Filter */}
+          <div className="flex items-center gap-2">
+            {/* Start Date */}
+            <div className="relative">
+              <input
+                ref={startDateRef}
+                type="date"
+                value={dateRange.start}
+                onChange={(e) => setDateRange(prev => ({ ...prev, start: e.target.value }))}
+                className="hide-native-date-icon flex h-9 rounded-md border border-gray-200 bg-transparent px-3 pr-10 py-1 text-sm shadow-xs transition-colors min-w-[140px]"
+                title="Start date"
+                placeholder="Start date"
+              />
+              <button
+                type="button"
+                onClick={() => {
+                  const el = startDateRef.current;
+                  if (!el) return;
+                  el.focus();
+                  el.showPicker?.();
+                }}
+                className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 h-4 w-4 cursor-pointer"
+                title="Open start date picker"
+              >
+                <LuCalendar className="h-4 w-4" />
+              </button>
+            </div>
+            
+            {/* Range Separator */}
+            <span className="text-gray-400 text-sm">to</span>
+            
+            {/* End Date */}
+            <div className="relative">
+              <input
+                ref={endDateRef}
+                type="date"
+                value={dateRange.end}
+                onChange={(e) => setDateRange(prev => ({ ...prev, end: e.target.value }))}
+                min={dateRange.start || undefined}
+                className="hide-native-date-icon flex h-9 rounded-md border border-gray-200 bg-transparent px-3 pr-10 py-1 text-sm shadow-xs transition-colors min-w-[140px]"
+                title="End date"
+                placeholder="End date"
+              />
+              <button
+                type="button"
+                onClick={() => {
+                  const el = endDateRef.current;
+                  if (!el) return;
+                  el.focus();
+                  el.showPicker?.();
+                }}
+                className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 h-4 w-4 cursor-pointer"
+                title="Open end date picker"
+              >
+                <LuCalendar className="h-4 w-4" />
+              </button>
+            </div>
           </div>
 
           {/* Assignee Filter */}
@@ -242,10 +415,10 @@ export default function DashboardPage() {
           </div>
 
           {/* Clear Filters */}
-          {(dateFilter || assigneeFilter) && (
+          {(dateRange.start || dateRange.end || assigneeFilter) && (
             <button
               onClick={() => {
-                setDateFilter('');
+                setDateRange({ start: '', end: '' });
                 setAssigneeFilter('');
               }}
               className="inline-flex items-center px-3 py-1 text-sm text-gray-500 hover:text-gray-700 underline"
@@ -259,17 +432,21 @@ export default function DashboardPage() {
       </div>
 
       {/* Active Filters Display */}
-      {(dateFilter || assigneeFilter) && (
+      {(dateRange.start || dateRange.end || assigneeFilter) && (
         <div className="mb-4 flex flex-wrap gap-2">
-          {dateFilter && (
+          {(dateRange.start || dateRange.end) && (
             <div className="inline-flex items-center gap-2 rounded-full bg-blue-50 text-blue-700 px-3 py-1 text-xs border border-blue-200">
               <LuCalendar className="h-3 w-3" />
-              <span>Date: {dateFilter}</span>
+              <span>
+                Date: {dateRange.start || 'Start'} 
+                {(dateRange.start || dateRange.end) && ' to '} 
+                {dateRange.end || 'End'}
+              </span>
               <button
                 type="button"
                 className="ml-1 rounded-full hover:bg-blue-100 px-1.5 cursor-pointer"
-                onClick={() => setDateFilter('')}
-                aria-label="Clear date filter"
+                onClick={() => setDateRange({ start: '', end: '' })}
+                aria-label="Clear date range filter"
               >
                 ×
               </button>
@@ -412,14 +589,15 @@ export default function DashboardPage() {
               <LuUsers className="w-4 h-4" />
             </div>
           </div>
-          <div className="text-2xl font-bold mt-2">{assignees.totalActive}</div>
-          <p className="text-xs text-gray-500 mt-1">Team members assigned</p>
+          <div className="text-2xl font-bold mt-2">{processedAssignees.totalActive}</div>
+          <p className="text-xs text-gray-500 mt-1">Team members with active tasks</p>
           <div className="mt-2 text-xs">
-            {assignees.top && assignees.top.length > 0 ? (
+            {processedAssignees.top && processedAssignees.top.length > 0 ? (
               <ul className="list-none p-0 m-0 space-y-1">
-                {assignees.top.slice(0, 3).map((a, idx) => (
-                  <li key={idx}>
-                    {a.assignee} — {a.count}
+                {processedAssignees.top.slice(0, 3).map((a, idx) => (
+                  <li key={idx} className="flex justify-between items-center">
+                    <span className="text-gray-700">{a.assignee}</span>
+                    <span className="font-medium text-purple-600">{a.count}</span>
                   </li>
                 ))}
               </ul>
@@ -427,6 +605,11 @@ export default function DashboardPage() {
               <div className="text-xs text-gray-500">No active assignees</div>
             )}
           </div>
+          {processedAssignees.top.length > 3 && (
+            <div className="mt-2 text-xs text-gray-500">
+              +{processedAssignees.totalActive - 3} more assignees
+            </div>
+          )}
         </div>
 
         <div className="rounded-xl border border-gray-200 bg-card text-card-foreground shadow p-6">
@@ -446,17 +629,8 @@ export default function DashboardPage() {
       {/* Stage distribution */}
       <div className="grid grid-col-1 xl:grid-cols-2 gap-4 mb-6">
         <div className="rounded-xl border border-gray-200 bg-card text-card-foreground shadow p-6 mb-6">
-          <h3 className="font-semibold mb-4">Sub Stage Distribution</h3>
-          <div className="flex flex-wrap gap-2 mb-4">
-            {stageDist.map((s) => (
-              <div
-                key={s.stage || s.name}
-                className="inline-flex items-center rounded-md border border-gray-200 px-2.5 py-0.5 font-semibold text-xs"
-              >
-                {s.stage || s.name}: {s.count} ({utils.formatNumber(s.woPct, 1)}%)
-              </div>
-            ))}
-          </div>
+          <h3 className="font-semibold mb-4">Sub-Stage Distribution</h3>
+          {/* Pie Chart with Custom Tooltip */}
           <div style={{ width: "100%", height: 280 }}>
             <ResponsiveContainer>
               <PieChart>
@@ -466,116 +640,195 @@ export default function DashboardPage() {
                   cx="50%"
                   cy="50%"
                   outerRadius={80}
-                  label
+                  label={false}
                 >
-                  {pieData.map((entry, index) => (
-                    <Cell
-                      key={`cell-${index}`}
-                      fill={
-                        ["#3b82f6", "#06b6d4", "#10b981", "#f59e0b", "#ef4444"][
-                          index % 5
-                        ]
-                      }
-                    />
-                  ))}
+                  {pieData.map((entry, index) => {
+                    const colors = ["#3b82f6", "#06b6d4", "#10b981", "#f59e0b", "#8b5cf6", "#f97316", "#06b6d4"];
+                    return (
+                      <Cell
+                        key={`cell-${index}`}
+                        fill={colors[index % colors.length]}
+                      />
+                    );
+                  })}
                 </Pie>
-                <RechartsTooltip />
+                <RechartsTooltip 
+                  content={({ active, payload }) => {
+                    if (active && payload && payload.length) {
+                      const data = payload[0];
+                      const total = pieData.reduce((sum, item) => sum + item.value, 0);
+                      const percentage = total > 0 ? ((data.value / total) * 100).toFixed(1) : 0;
+                      
+                      return (
+                        <div className="bg-white border border-gray-200 rounded-lg shadow-lg p-3">
+                          <div className="text-sm font-medium text-gray-600 mb-1">
+                            {data.payload.name}
+                          </div>
+                          <div className="text-base font-semibold text-gray-900">
+                            Count: {data.value} ({percentage}%)
+                          </div>
+                        </div>
+                      );
+                    }
+                    return null;
+                  }}
+                />
               </PieChart>
             </ResponsiveContainer>
+          </div>
+          
+          {/* Two-column stage indicators with color dots */}
+          <div className="grid grid-cols-2 gap-3 mb-6">
+            {stageDist.map((s, index) => {
+              const colors = ["#3b82f6", "#06b6d4", "#10b981", "#f59e0b", "#8b5cf6", "#f97316", "#06b6d4"];
+              const color = colors[index % colors.length];
+              
+              return (
+                <div
+                  key={s.stage || s.name}
+                  className="flex items-center gap-3 p-2 rounded-lg bg-gray-50 bg-gray-100"
+                >
+                  <div 
+                    className="w-3 h-3 rounded-full flex-shrink-0"
+                    style={{ backgroundColor: color }}
+                  />
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-medium text-gray-900 truncate">
+                      {s.stage || s.name}
+                    </div>
+                    <div className="text-xs text-gray-500">
+                      {s.count} WOs ({utils.formatNumber(s.woPct, 1)}%)
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </div>
         <div className="rounded-xl border border-gray-200 shadow p-6 mb-6 space-y-6">
           <h3 className="font-semibold mb-4 flex"><LuWorkflow className="h-6 w-6 mr-2"/>Detailed Status Breakdown</h3>
-          <div className="bg-yellow-100 p-3 rounded-lg space-y-3">
-            <div className="flex justify-between">
-              <div className="flex">
-                <div className="rounded-full bg-yellow-500 my-auto p-2 mr-2">
-                  <LuClock className="h-5 w-5 text-white"/>
+          
+          {Object.entries(detailedStatusBreakdown).map(([status, data]) => {
+            // Define status styling
+            const getStatusStyling = (status) => {
+              switch (status.toLowerCase()) {
+                case 'draft':
+                  return {
+                    bgColor: 'bg-gray-100',
+                    textColor: 'text-gray-700',
+                    iconBg: 'bg-gray-500',
+                    icon: LuFileText,
+                    progressColor: 'bg-gray-500'
+                  };
+                case 'in progress':
+                  return {
+                    bgColor: 'bg-blue-100',
+                    textColor: 'text-blue-700',
+                    iconBg: 'bg-blue-500',
+                    icon: LuPlay,
+                    progressColor: 'bg-blue-500'
+                  };
+                case 'pending':
+                  return {
+                    bgColor: 'bg-yellow-100',
+                    textColor: 'text-yellow-700',
+                    iconBg: 'bg-yellow-500',
+                    icon: LuClock,
+                    progressColor: 'bg-yellow-500'
+                  };
+                case 'submitted':
+                  return {
+                    bgColor: 'bg-purple-100',
+                    textColor: 'text-purple-700',
+                    iconBg: 'bg-purple-500',
+                    icon: LuCheck,
+                    progressColor: 'bg-purple-500'
+                  };
+                case 'approved':
+                  return {
+                    bgColor: 'bg-green-100',
+                    textColor: 'text-green-700',
+                    iconBg: 'bg-green-500',
+                    icon: LuCheck,
+                    progressColor: 'bg-green-500'
+                  };
+                case 'rejected':
+                  return {
+                    bgColor: 'bg-red-100',
+                    textColor: 'text-red-700',
+                    iconBg: 'bg-red-500',
+                    icon: LuCircleAlert,
+                    progressColor: 'bg-red-500'
+                  };
+                default:
+                  return {
+                    bgColor: 'bg-gray-100',
+                    textColor: 'text-gray-700',
+                    iconBg: 'bg-gray-500',
+                    icon: LuFileText,
+                    progressColor: 'bg-gray-500'
+                  };
+              }
+            };
+
+            const styling = getStatusStyling(status);
+            const IconComponent = styling.icon;
+
+            return (
+              <div key={status} className={`${styling.bgColor} p-4 rounded-lg space-y-4`}>
+                {/* Status Header */}
+                <div className="flex justify-between items-center">
+                  <div className="flex items-center gap-3">
+                    <div className={`rounded-full ${styling.iconBg} p-2`}>
+                      <IconComponent className="h-5 w-5 text-white"/>
+                    </div>
+                    <div className="flex flex-col">
+                      <div className={`font-bold ${styling.textColor} text-lg`}>
+                        {status}
+                      </div>
+                      <p className="text-gray-500 text-sm">
+                        Total: {data.total} workorders ({utils.formatNumber(data.percentage, 1)}%)
+                      </p>
+                    </div>
+                  </div>
                 </div>
-                <div className="flex flex-col">
-                  <div className="font-bold text-yellow-600">Pending</div>
-                  <p className="text-gray-400 text-xs">Total: {workflowStagesSummary.pending?.length || 0} workorders ({wfPct(workflowStagesSummary.pending?.length)}%)</p>
+
+                {/* Progress Bar */}
+                <div className="w-full bg-gray-300 rounded-full h-2">
+                  <div
+                    className={`h-2 ${styling.progressColor} rounded-full transition-all duration-300`}
+                    style={{ width: `${data.percentage}%` }}
+                    aria-label={`${status} progress`}
+                  />
+                </div>
+
+                {/* Module Breakdown */}
+                <div>
+                  <p className="text-gray-600 text-sm font-medium mb-3">Module Breakdown:</p>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                    {data.modules.map((module) => (
+                      <div
+                        key={module.name}
+                        className="flex justify-between items-center bg-white/60 rounded-lg px-3 py-2 border border-gray-200"
+                      >
+                        <div className="flex flex-col">
+                          <span className="text-sm font-medium text-gray-800">
+                            {module.name}
+                          </span>
+                          <span className="text-xs text-gray-500">
+                            {utils.formatNumber(module.percentage, 1)}% of {status.toLowerCase()}
+                          </span>
+                        </div>
+                        <div className={`px-2 py-1 rounded-full text-xs font-medium ${styling.textColor} bg-white`}>
+                          {module.count}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
-              <div className="flex space-x-3">
-                <div className="border border-gray-300 rounded-sm px-2 py-1 my-auto h-6"><p className="text-xs font-semibold">{wfPct(workflowStagesSummary.pending?.length)}% On Time</p></div>
-                <div className="flex bg-red-500 rounded-sm px-2 py-1 my-auto h-6 shadow-sm"><LuTriangleAlert className="h-3 w-3 mr-1 my-auto"/><p className="text-xs font-semibold text-white">{wfPct(workflowStagesSummary.pending?.length)} Overdue</p></div>
-              </div>
-            </div>
-            <div>
-              <div className="h-2 w-full bg-gray-400 rounded">
-                <div
-                  className="h-2 bg-amber-500 rounded"
-                  style={{ width: `${woPct(workflowStagesSummary.pending.length)}%` }}
-                  aria-label="In progress progress"
-                />
-              </div>
-            </div>
-            <div>
-              <p className="text-gray-400 text-xs">Sub-Status Breakdown:</p>
-              <div></div>
-            </div>
-          </div>
-          <div className="bg-blue-100 p-3 rounded-lg space-y-3">
-            <div className="flex justify-between">
-              <div className="flex">
-                <div className="rounded-full bg-blue-500 my-auto p-2 mr-2">
-                  <LuPlay className="h-5 w-5 text-white"/>
-                </div>
-                <div className="flex flex-col">
-                  <div className="font-bold text-blue-600">In Progress</div>
-                  <p className="text-gray-400 text-xs">Total: {workflowStagesSummary.inProgress?.length || 0} workorders ({wfPct(workflowStagesSummary.inProgress?.length)}%)</p>
-                </div>
-              </div>
-              <div className="flex space-x-3">
-                <div className="border border-gray-300 rounded-sm px-2 py-1 my-auto h-6"><p className="text-xs font-semibold">{wfPct(workflowStagesSummary.inProgress?.length)}% On Time</p></div>
-                <div className="flex bg-red-500 rounded-sm px-2 py-1 my-auto h-6 shadow-sm"><LuTriangleAlert className="h-3 w-3 mr-1 my-auto"/><p className="text-xs font-semibold text-white">{wfPct(workflowStagesSummary.inProgress?.length)} Overdue</p></div>
-              </div>
-            </div>
-            <div>
-              <div className="h-2 w-full bg-gray-400 rounded">
-                <div
-                  className="h-2 bg-blue-500 rounded"
-                  style={{ width: `${woPct(workflowStagesSummary.inProgress.length)}%` }}
-                  aria-label="In progress progress"
-                />
-              </div>
-            </div>
-            <div>
-              <p className="text-gray-400 text-xs">Sub-Status Breakdown:</p>
-              <div></div>
-            </div>
-          </div>
-          <div className="bg-green-100 p-3 rounded-lg space-y-3">
-            <div className="flex justify-between">
-              <div className="flex">
-                <div className="rounded-full bg-green-500 my-auto p-2 mr-2">
-                  <LuClock className="h-5 w-5 text-white"/>
-                </div>
-                <div className="flex flex-col">
-                  <div className="font-bold text-green-600">Completed</div>
-                  <p className="text-gray-400 text-sm">Total: {workflowStagesSummary.completed?.length || 0} workorders ({wfPct(workflowStagesSummary.completed?.length)}%)</p>
-                </div>
-              </div>
-              <div className="flex space-x-3">
-                <div className="border border-gray-300 rounded-sm px-2 py-1 my-auto h-6"><p className="text-xs font-semibold">{wfPct(workflowStagesSummary.completed?.length)}% On Time</p></div>
-                <div className="flex bg-red-500 rounded-sm px-2 py-1 my-auto h-6 shadow-sm"><LuTriangleAlert className="h-3 w-3 mr-1 my-auto"/><p className="text-xs font-semibold text-white">{wfPct(workflowStagesSummary.completed?.length)} Overdue</p></div>
-              </div>
-            </div>
-            <div>
-              <div className="h-2 w-full bg-gray-400 rounded">
-                <div
-                  className="h-2 bg-green-500 rounded"
-                  style={{ width: `${woPct(workflowStagesSummary.completed.length)}%` }}
-                  aria-label="In progress progress"
-                />
-              </div>
-            </div>
-            <div>
-              <p className="text-gray-400 text-xs">Sub-Status Breakdown:</p>
-              <div></div>
-            </div>
-          </div>
+            );
+          })}
         </div>
       </div>
 
