@@ -222,8 +222,10 @@ export default function AccountsPage() {
   const fetchEditingAccount = async (id) => {
     if (!id) return;
 
+    console.log("fetchEditingAccount called with id:", id);
+
     // 🧠 handle case when id is actually an object
-    const resolvedId = typeof id === "object" && (id.kristemAccountId || id.id) ? id.kristemAccountId ?? id.id : id;
+    const resolvedId = typeof id === "object" && (id.kristemAccountId || id.id || id.accountId) ? id.kristemAccountId ?? id.id ?? id.accountId : id;
     console.log("Fetching selected account with ID:", resolvedId);
 
     try {
@@ -245,20 +247,21 @@ export default function AccountsPage() {
     console.log("Saving account:", formData, "Mode:", mode);
     try {
       console.log(formData.id);
+      const submitData = { ...formData, stageStatus: "In Progress" };
       
       let response;
       if (mode === "create") {
         response = await apiBackendFetch("/api/accounts", {
           method: "POST",
-          body: JSON.stringify(formData),
+          body: JSON.stringify(submitData),
         });
       } else {
-        response = await apiBackendFetch(`/api/accounts/${formData.id}`, {
+        response = await apiBackendFetch(`/api/accounts/${submitData.kristemAccountId}`, {
           method: "PUT",
-          body: JSON.stringify(formData),
+          body: JSON.stringify(submitData),
         });
       }
-
+s
       if (!response.ok) throw new Error("Failed to save account");
       const savedAccount = await response.json();
 
@@ -282,6 +285,7 @@ export default function AccountsPage() {
 
       setSuccessMessage("Account saved successfully!");
       await fetchAllData();
+      await fetchNewAssignedNAEFs();
       fetchSelectedAccount(savedAccount);
     } catch (err) {
       console.error("Error saving NAEF Stage:", err);
@@ -293,7 +297,7 @@ export default function AccountsPage() {
     try {
       // Set stage_status to Submitted
       const submitData = { ...formData, stageStatus: "Submitted" };
-      const response = await apiBackendFetch(`/api/accounts/${formData.id}`, {
+      const response = await apiBackendFetch(`/api/accounts/${formData.kristemAccountId}`, {
         method: "PUT",
         body: JSON.stringify(submitData),
       });

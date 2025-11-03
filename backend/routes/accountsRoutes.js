@@ -634,7 +634,7 @@ router.put("/:id", async (req, res) => {
         updated_at = NOW(),
         from_time = $45,
         to_time = $46
-      WHERE id = $47
+      WHERE kristem_account_id = $47
       RETURNING *
     `, [
       body.stage_status || "In Progress",
