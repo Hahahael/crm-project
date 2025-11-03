@@ -2,10 +2,10 @@ import { LuArrowLeft, LuPencil, LuPrinter, LuFileCheck } from "react-icons/lu";
 import { useEffect } from "react";
 import { apiBackendFetch } from "../services/api.js";
 import utils from "../helper/utils";
+import { useUser } from "../contexts/UserContext.jsx";
 
 const AccountDetails = ({
   account,
-  currentUser,
   workWeeks,
   onBack,
   onEdit,
@@ -14,6 +14,7 @@ const AccountDetails = ({
   onSubmit,
   source="account"
 }) => {
+  const { currentUser } = useUser();
   const isAssignedToMe = currentUser && account.prepared_by === currentUser.id;
   const isCreator = currentUser && account.prepared_by === currentUser.id;
   const accountFinal = account.account ?? account;

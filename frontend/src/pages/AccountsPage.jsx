@@ -30,7 +30,6 @@ export default function AccountsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [successMessage, setSuccessMessage] = useState("");
-  const [currentUser, setCurrentUser] = useState(null);
   const [newAssignedAccounts, setNewAssignedAccounts] = useState([]);
   const [statusSummary, setStatusSummary] = useState({
     total: 0,
@@ -112,7 +111,6 @@ export default function AccountsPage() {
   };
 
   useEffect(() => {
-    fetchCurrentUser();
     fetchAllData();
   }, []);
 

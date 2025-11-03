@@ -17,13 +17,14 @@ export const UserProvider = ({ children }) => {
         setCurrentUser(data.user);
         setError(null);
       } else {
+        // Don't treat auth failures as errors - user might not be logged in
         setCurrentUser(null);
-        setError('Failed to fetch user information');
+        setError(null);
       }
     } catch (err) {
       console.error("Failed to fetch current user", err);
       setCurrentUser(null);
-      setError(err.message);
+      setError(null); // Don't set error for network issues
     } finally {
       setLoading(false);
     }
