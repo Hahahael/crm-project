@@ -13,10 +13,10 @@ import utils from "../helper/utils";
 import SalesLeadDetails from "./SalesLeadDetails.jsx";
 import WorkOrderDetails from "./WorkOrderDetails.jsx";
 import TechnicalDetails from "./TechnicalDetails.jsx";
+import { useUser } from "../contexts/UserContext.jsx";
 
 const RFQDetails = ({
   rfq,
-  currentUser,
   onBack,
   onEdit,
   onPrint,
@@ -24,6 +24,7 @@ const RFQDetails = ({
   hideTabs = false,
   source = "rfq"
 }) => {
+  const { currentUser } = useUser();
   const [items, setItems] = useState([]);
   const [vendors, setVendors] = useState([]);
   const [activeTab, setActiveTab] = useState("RFQ"); // RFQ | SL | WO | TR
@@ -276,21 +277,21 @@ const RFQDetails = ({
         {source === "rfq" && 
           <div className="flex gap-2">
             <button
-              className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-light shadow h-9 px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white"
+              className={`items-center justify-center whitespace-nowrap rounded-md text-sm font-light shadow h-9 px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white ${rfq.assignee !== currentUser.id ? "hidden" : "inline-flex"}`}
               onClick={() => onEdit(rfq, "canvass")}
             >
               <LuChartBar className="mr-2" /> View Canvass Sheet
             </button>
             <button
               onClick={() => onEdit(rfq, "details")}
-              className={`items-center justify-center whitespace-nowrap rounded-md text-sm font-light shadow h-9 px-4 py-2 bg-purple-500 hover:bg-purple-600 text-white ${rfq.stageStatus === "Submitted" || rfq.stageStatus === "Approved" ? "hidden" : "inline-flex"}`}
+              className={`items-center justify-center whitespace-nowrap rounded-md text-sm font-light shadow h-9 px-4 py-2 bg-purple-500 hover:bg-purple-600 text-white ${rfq.stageStatus === "Submitted" || rfq.stageStatus === "Approved" || rfq.assignee !== currentUser.id ? "hidden" : "inline-flex"}`}
             >
               <LuPencil className="mr-2" />
               Manage RFQ
             </button>
             <button
               onClick={() => onSubmit(rfq)}
-              className={`items-center justify-center whitespace-nowrap rounded-md text-sm font-light shadow h-9 px-4 py-2 bg-green-500 hover:bg-green-600 text-white ${rfq.stageStatus === "Submitted" || rfq.stageStatus === "Approved" ? "hidden" : "inline-flex"}`}
+              className={`items-center justify-center whitespace-nowrap rounded-md text-sm font-light shadow h-9 px-4 py-2 bg-green-500 hover:bg-green-600 text-white ${rfq.stageStatus === "Submitted" || rfq.stageStatus === "Approved" || rfq.assignee !== currentUser.id ? "hidden" : "inline-flex"}`}
             >
               <LuFileCheck className="mr-2" />
               Submit for Approval
@@ -534,14 +535,14 @@ const RFQDetails = ({
                 <div className="grid grid-cols-1 gap-4">
                   <button
                     onClick={() => onEdit(rfq, "vendors")}
-                    className={`flex items-center justify-center whitespace-nowrap rounded-md text-xs font-light shadow h-9 px-4 py-2 bg-purple-500 hover:bg-purple-600 text-white ${rfq.stageStatus === "Submitted" || rfq.stageStatus === "Approved" ? "hidden" : "inline-flex"}`}
+                    className={`flex items-center justify-center whitespace-nowrap rounded-md text-xs font-light shadow h-9 px-4 py-2 bg-purple-500 hover:bg-purple-600 text-white ${rfq.stageStatus === "Submitted" || rfq.stageStatus === "Approved" || rfq.assignee !== currentUser.id ? "hidden" : "inline-flex"}`}
                   >
                     <LuPencil className="h-4 w-4 mr-2" />
                     Manage Vendors
                   </button>
                   <button
                     onClick={() => onEdit(rfq, "canvass")}
-                    className="flex items-center justify-center whitespace-nowrap rounded-md text-xs font-light shadow h-9 px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white"
+                    className={`items-center justify-center whitespace-nowrap rounded-md text-xs font-light shadow h-9 px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white ${rfq.assignee !== currentUser.id ? "hidden" : "flex"}`}
                   >
                     <LuChartBar className="h-4 w-4 mr-2" /> View Canvass
                   </button>

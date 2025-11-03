@@ -6,10 +6,10 @@ import utils from "../helper/utils";
 import SalesLeadDetails from "./SalesLeadDetails.jsx";
 import WorkOrderDetails from "./WorkOrderDetails.jsx";
 import RFQDetails from "./RFQDetails.jsx";
+import { useUser } from "../contexts/UserContext.jsx";
 
 const TechnicalDetails = ({
   technicalReco,
-  currentUser,
   onBack,
   onEdit,
   onSave,
@@ -18,6 +18,7 @@ const TechnicalDetails = ({
   source = "technicalDetails",
   hideTabs = false,
 }) => {
+  const { currentUser } = useUser();
   console.log("TechnicalDetails - technicalReco:", technicalReco);
   console.log("📎 Attachments data:", technicalReco.attachments);
   console.log("📎 Attachments array:", utils.toArray(technicalReco.attachments));
@@ -346,14 +347,14 @@ const TechnicalDetails = ({
           </button>
           <button
             onClick={() => onEdit(technicalReco)}
-            className={`items-center justify-center whitespace-nowrap rounded-md text-sm font-light shadow h-9 px-4 py-2 bg-purple-500 hover:bg-purple-600 text-white ${technicalReco.stageStatus === "Approved" || technicalReco.stageStatus === "Submitted" ? "hidden pointer-events-none" : "inline-flex"}`}
+            className={`items-center justify-center whitespace-nowrap rounded-md text-sm font-light shadow h-9 px-4 py-2 bg-purple-500 hover:bg-purple-600 text-white ${technicalReco.stageStatus === "Approved" || technicalReco.assignee !== currentUser.id ? "hidden pointer-events-none" : "inline-flex"}`}
           >
             <LuPencil className="h-4 w-4 mr-2" />
             Edit
           </button>
           <button
             onClick={() => onSubmit(technicalReco)}
-            className={`items-center justify-center whitespace-nowrap rounded-md text-sm font-light shadow h-9 px-4 py-2 bg-green-500 hover:bg-green-600 text-white ${technicalReco.stageStatus === "Approved" || technicalReco.stageStatus === "Submitted" ? "hidden pointer-events-none" : "inline-flex"}`}
+            className={`items-center justify-center whitespace-nowrap rounded-md text-sm font-light shadow h-9 px-4 py-2 bg-green-500 hover:bg-green-600 text-white ${technicalReco.stageStatus === "Approved" || technicalReco.stageStatus === "Submitted" || technicalReco.assignee !== currentUser.id ? "hidden pointer-events-none" : "inline-flex"}`}
           >
             <LuFileCheck className="h-4 w-4 mr-2" />
             Submit for Approval

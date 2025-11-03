@@ -18,11 +18,13 @@ import WorkOrderForm from "../components/WorkOrderForm";
 import { apiBackendFetch } from "../services/api";
 import LoadingModal from "../components/LoadingModal";
 import { toSnake } from "../helper/utils";
+import { useUser } from "../contexts/UserContext";
 
 export default function WorkOrdersPage() {
   const timeoutRef = useRef();
   const navigate = useNavigate();
   const location = useLocation();
+  const { currentUser } = useUser();
 
   const [workOrders, setWorkOrders] = useState([]);
   const [search, setSearch] = useState("");
@@ -31,7 +33,6 @@ export default function WorkOrdersPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [successMessage, setSuccessMessage] = useState("");
-  const [currentUser, setCurrentUser] = useState(null);
   const [newAssignedWorkOrders, setNewAssignedWorkOrders] = useState([]);
   const [statusSummary, setStatusSummary] = useState({
     total: 0,
@@ -94,17 +95,7 @@ export default function WorkOrdersPage() {
     }
   };
 
-  const fetchCurrentUser = async () => {
-    try {
-      const res = await apiBackendFetch("/auth/me");
-      if (res.ok) {
-        const data = await res.json();
-        setCurrentUser(data.user);
-      }
-    } catch (err) {
-      console.error("Failed to fetch current user", err);
-    }
-  };
+
 
   const fetchNewAssignedWorkOrders = useCallback(async () => {
     if (!currentUser) return;
@@ -124,7 +115,6 @@ export default function WorkOrdersPage() {
   }, [currentUser]);
 
   useEffect(() => {
-    fetchCurrentUser();
     fetchAllData();
   }, []);
 

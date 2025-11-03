@@ -18,6 +18,7 @@ import {
   LuPanelLeftClose,
   LuPanelRightClose
 } from "react-icons/lu";
+// import VersionInfo from "./VersionInfo.jsx";
 
 const apiUrl = import.meta.env.VITE_API_URL;
 
@@ -240,6 +241,9 @@ export default function Layout() {
               </button>
             </div>
           )}
+
+          {/* Version Info */}
+          {/* <VersionInfo collapsed={isCollapsed} /> */}
 
           {/* Logout button - always visible */}
           <div className={`${isCollapsed ? "m-2 my-4" : "m-4"}`}>

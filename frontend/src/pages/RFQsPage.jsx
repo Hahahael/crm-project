@@ -16,8 +16,10 @@ import RFQForm from "../components/RFQFormWrapper";
 import { apiBackendFetch } from "../services/api";
 import LoadingModal from "../components/LoadingModal";
 import RFQCanvassSheet from "../components/RFQCanvassSheet";
+import { useUser } from "../contexts/UserContext.jsx";
 
 export default function RFQsPage() {
+  const { currentUser } = useUser();
   const timeoutRef = useRef();
 
   const [RFQs, setRFQs] = useState([]);
@@ -27,7 +29,6 @@ export default function RFQsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [successMessage, setSuccessMessage] = useState("");
-  const [currentUser, setCurrentUser] = useState(null);
   const [selectedTab, setSelectedTab] = useState("details");
   const [newAssignedRFQs, setNewAssignedRFQs] = useState([]);
   const [activeCardFilter, setActiveCardFilter] = useState("all"); // all | draft | sent | responded | completed
@@ -59,18 +60,6 @@ export default function RFQsPage() {
     }
   };
 
-  const fetchCurrentUser = async () => {
-    try {
-      const res = await apiBackendFetch("/auth/me");
-      if (res.ok) {
-        const data = await res.json();
-        setCurrentUser(data.user);
-      }
-    } catch (err) {
-      console.error("Failed to fetch current user", err);
-    }
-  };
-
   const fetchNewAssignedRFQs = useCallback(async () => {
     console.log("fetchNewRFQs called");
     if (!currentUser) return;
@@ -89,7 +78,6 @@ export default function RFQsPage() {
   }, [currentUser]);
 
   useEffect(() => {
-    fetchCurrentUser();
     fetchAllData();
   }, []);
 

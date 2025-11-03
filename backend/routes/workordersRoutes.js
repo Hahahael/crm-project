@@ -274,6 +274,17 @@ router.get("/:id", async (req, res) => {
 
     // Enrich account details via MSSQL SPI only (crmdb.accounts deprecated)
     try {
+      let baseAcc = {};
+      const baseAccRes = await db.query(
+        `SELECT * FROM accounts WHERE kristem_account_id = $1`,
+        [wo.accountId],
+      );
+      if (baseAccRes.rows && baseAccRes.rows[0]) {
+        baseAcc = baseAccRes.rows[0];
+      }
+
+      console.log("Base account fetch result for workorder", id, "with account_id:", wo.accountId, ":", baseAcc);
+
       const spiPool = await poolPromise;
       const accId = Number(wo.accountId ?? wo.account_id);
       let customer = null;
@@ -285,27 +296,40 @@ router.get("/:id", async (req, res) => {
         customer = custRes.recordset && custRes.recordset[0] ? custRes.recordset[0] : null;
       }
 
+      console.log("SPI customer fetch result for workorder", id, ":", customer);
+
       if (customer) {
+        let source = customer;
+        if (Object.keys(baseAcc).length === 0) {
+          source = baseAcc;
+        }
         const normId = (v) => {
           const n = Number(v);
           return Number.isFinite(n) ? n : null;
         };
         const bId =
-          (normId(customer.Product_Brand_Id) ??
-          normId(customer.ProductBrandId) ??
-          normId(customer.Brand_ID) ??
-          normId(customer.BrandId) ??
-          2);
+          (
+            normId(source.productId) ??
+            normId(source.Product_Brand_Id) ??
+            normId(source.ProductBrandId) ??
+            normId(source.Brand_ID) ??
+            normId(source.BrandId) ??
+            2
+          );
         const iId =
-          normId(customer.Customer_Industry_Group_Id) ??
-          normId(customer.Industry_Group_Id) ??
-          normId(customer.IndustryGroupId) ??
+          normId(source.industryId) ??
+          normId(source.Customer_Industry_Group_Id) ??
+          normId(source.Industry_Group_Id) ??
+          normId(source.IndustryGroupId) ??
           null;
         const dId =
-          (normId(customer.Department_Id) ??
-          normId(customer.DepartmentID) ??
-          normId(customer.DepartmentId) ??
-          2);
+          (
+            normId(source.departmentId) ??
+            normId(source.Department_Id) ??
+            normId(source.DepartmentID) ??
+            normId(source.DepartmentId) ??
+            2
+          );
 
         const [bRes, iRes, dRes] = await Promise.all([
           spiPool
@@ -326,13 +350,11 @@ router.get("/:id", async (req, res) => {
             .query("SELECT TOP (1) * FROM spidb.CusDepartment WHERE Id = @did"),
         ]);
 
-        const enrichedAccount = {
-          kristem: customer,
-          brand: bRes.recordset && bRes.recordset[0] ? bRes.recordset[0] : null,
-          industry: iRes.recordset && iRes.recordset[0] ? iRes.recordset[0] : null,
-          department: dRes.recordset && dRes.recordset[0] ? dRes.recordset[0] : null,
-        };
-        return res.json({ ...wo, account: enrichedAccount });
+        baseAcc.kristem = customer;
+        baseAcc.brand = bRes.recordset && bRes.recordset[0] ? bRes.recordset[0] : null;
+        baseAcc.industry = iRes.recordset && iRes.recordset[0] ? iRes.recordset[0] : null;
+        baseAcc.department = dRes.recordset && dRes.recordset[0] ? dRes.recordset[0] : null;
+        return res.json({ ...wo, account: baseAcc });
       }
     } catch (enrichErr) {
       console.warn("Failed to enrich workorder account via MSSQL SPI:", enrichErr.message);
@@ -622,28 +644,78 @@ router.put("/:id", async (req, res) => {
 // Get workorder status summary
 router.get("/summary/status", async (req, res) => {
   try {
-    const result = await db.query(`
+    // Extract filter parameters
+    const { status, assignee, startDate, endDate } = req.query;
+    
+    // Build WHERE conditions
+    let whereConditions = [];
+    let queryParams = [];
+    let paramIndex = 1;
+    
+    // Only add status filter if it's a non-empty string
+    if (status && status.trim() !== '') {
+      // Handle different status types
+      const statusValue = status.trim();
+      if (statusValue === 'Pending' || statusValue === 'Completed') {
+        // Work order statuses - filter by workorders.stage_status
+        whereConditions.push(`w.stage_status = $${paramIndex}`);
+      } else {
+        // Detailed statuses - filter by workflow stage status
+        whereConditions.push(`w.stage_status = $${paramIndex}`);
+      }
+      queryParams.push(statusValue);
+      paramIndex++;
+    }
+    
+    // Only add assignee filter if it's a non-empty string
+    if (assignee && assignee.trim() !== '') {
+      // Filter by assignee username - join with users table
+      whereConditions.push(`u.username = $${paramIndex}`);
+      queryParams.push(assignee.trim());
+      paramIndex++;
+    }
+    
+    if (startDate && startDate.trim() !== '') {
+      whereConditions.push(`w.created_at >= $${paramIndex}::timestamp`);
+      queryParams.push(startDate.trim());
+      paramIndex++;
+    }
+    
+    if (endDate && endDate.trim() !== '') {
+      whereConditions.push(`w.created_at <= $${paramIndex}::timestamp`);
+      queryParams.push(endDate.trim());
+      paramIndex++;
+    }
+    
+    const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : '';
+    
+    const query = `
       SELECT
         COUNT(*) AS total,
-        SUM(CASE WHEN stage_status IN ('Draft', 'Pending') THEN 1 ELSE 0 END) AS in_pending_fix,
-        SUM(CASE WHEN stage_status = 'In Progress' THEN 1 ELSE 0 END) AS in_progress,
-        SUM(CASE WHEN stage_status = 'Completed' THEN 1 ELSE 0 END) AS completed,
+        SUM(CASE WHEN w.stage_status IN ('Draft', 'Pending') THEN 1 ELSE 0 END) AS in_pending_fix,
+        SUM(CASE WHEN w.stage_status = 'In Progress' THEN 1 ELSE 0 END) AS in_progress,
+        SUM(CASE WHEN w.stage_status = 'Completed' THEN 1 ELSE 0 END) AS completed,
         SUM(
           CASE
-            WHEN stage_status IN ('Draft', 'Pending', 'In Progress')
-              AND due_date < CURRENT_DATE
+            WHEN w.stage_status IN ('Draft', 'Pending', 'In Progress')
+              AND w.due_date < CURRENT_DATE
             THEN 1 ELSE 0
           END
         ) AS overdue,
         SUM(
           CASE
-            WHEN stage_status IN ('Draft', 'Pending', 'In Progress')
-              AND due_date BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '3 days'
+            WHEN w.stage_status IN ('Draft', 'Pending', 'In Progress')
+              AND w.due_date BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '3 days'
             THEN 1 ELSE 0
           END
         ) AS due_soon
-      FROM workorders;
-    `);
+      FROM workorders w
+      LEFT JOIN users u ON w.assignee = u.id
+      ${whereClause};
+    `;
+    
+    console.log('Work orders summary query:', query, 'params:', queryParams);
+    const result = await db.query(query, queryParams);
 
     // Back-compat: expose 'pending' key (alias) for frontend consumption
     const row = result.rows[0] || {};

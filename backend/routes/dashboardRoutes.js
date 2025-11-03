@@ -70,31 +70,81 @@ async function tryQuery(primarySql, fallbackSql = null, params = []) {
 // /api/dashboard/summary
 router.get("/summary", async (req, res) => {
   try {
+    // Extract filter parameters
+    const { status, assignee, startDate, endDate } = req.query;
+    
+    // Build WHERE conditions
+    let whereConditions = [];
+    let queryParams = [];
+    let paramIndex = 1;
+    
+    // Only add status filter if it's a non-empty string
+    if (status && status.trim() !== '') {
+      // Handle different status types
+      const statusValue = status.trim();
+      if (statusValue === 'Pending' || statusValue === 'Completed') {
+        // Work order statuses - filter by workorders.stage_status
+        whereConditions.push(`w.stage_status = $${paramIndex}`);
+      } else {
+        // Detailed statuses - filter by workflow stage status
+        // This would need to join with workflow_stages table or use a different approach
+        whereConditions.push(`w.stage_status = $${paramIndex}`);
+      }
+      queryParams.push(statusValue);
+      paramIndex++;
+    }
+    
+    // Only add assignee filter if it's a non-empty string
+    if (assignee && assignee.trim() !== '') {
+      whereConditions.push(`u.username = $${paramIndex}`);
+      queryParams.push(assignee.trim());
+      paramIndex++;
+    }
+    
+    if (startDate) {
+      whereConditions.push(`w.created_at >= $${paramIndex}::timestamp`);
+      queryParams.push(startDate);
+      paramIndex++;
+    }
+    
+    if (endDate) {
+      whereConditions.push(`w.created_at <= $${paramIndex}::timestamp`);
+      queryParams.push(endDate);
+      paramIndex++;
+    }
+    
+    const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : '';
+    
     const primarySql = `
       SELECT
         COUNT(*) AS total,
-        SUM(CASE WHEN stage_status = 'Pending' THEN 1 ELSE 0 END) AS pending,
-        SUM(CASE WHEN stage_status = 'In Progress' THEN 1 ELSE 0 END) AS "inProgress",
-        SUM(CASE WHEN stage_status = 'Completed' THEN 1 ELSE 0 END) AS completed,
-        SUM(CASE WHEN (DATE(due_date) < CURRENT_DATE AND done_date IS NULL) THEN 1 ELSE 0 END) AS overdue,
-        SUM(CASE WHEN (DATE(due_date) BETWEEN CURRENT_DATE AND (CURRENT_DATE + INTERVAL '3 days') AND done_date IS NULL) THEN 1 ELSE 0 END) AS "dueSoon",
-        SUM(CASE WHEN done_date IS NOT NULL AND DATE(done_date) <= DATE(due_date) THEN 1 ELSE 0 END) AS "onTimeCount"
-      FROM workorders
+        SUM(CASE WHEN w.stage_status = 'Pending' THEN 1 ELSE 0 END) AS pending,
+        SUM(CASE WHEN w.stage_status = 'In Progress' THEN 1 ELSE 0 END) AS "inProgress",
+        SUM(CASE WHEN w.stage_status = 'Completed' THEN 1 ELSE 0 END) AS completed,
+        SUM(CASE WHEN (DATE(w.due_date) < CURRENT_DATE AND w.done_date IS NULL) THEN 1 ELSE 0 END) AS overdue,
+        SUM(CASE WHEN (DATE(w.due_date) BETWEEN CURRENT_DATE AND (CURRENT_DATE + INTERVAL '3 days') AND w.done_date IS NULL) THEN 1 ELSE 0 END) AS "dueSoon",
+        SUM(CASE WHEN w.done_date IS NOT NULL AND DATE(w.done_date) <= DATE(w.due_date) THEN 1 ELSE 0 END) AS "onTimeCount"
+      FROM workorders w
+      LEFT JOIN users u ON w.assignee = u.id
+      ${whereClause}
     `;
 
     const fallbackSql = `
       SELECT
         COUNT(*) AS total,
-        SUM(CASE WHEN stage_status = 'Pending' THEN 1 ELSE 0 END) AS pending,
-        SUM(CASE WHEN stage_status = 'In Progress' THEN 1 ELSE 0 END) AS "inProgress",
-        SUM(CASE WHEN stage_status = 'Completed' THEN 1 ELSE 0 END) AS completed,
-        SUM(CASE WHEN (DATE(due_date) < DATE(NOW()) AND (done_date IS NULL)) THEN 1 ELSE 0 END) AS overdue,
-        SUM(CASE WHEN (DATE(due_date) >= DATE(NOW()) AND DATE(due_date) <= DATE(NOW() + INTERVAL '3 days') AND (done_date IS NULL)) THEN 1 ELSE 0 END) AS "dueSoon",
-        SUM(CASE WHEN done_date IS NOT NULL AND DATE(done_date) <= DATE(due_date) THEN 1 ELSE 0 END) AS "onTimeCount"
-      FROM rfqs
+        SUM(CASE WHEN r.stage_status = 'Draft' THEN 1 ELSE 0 END) AS draft,
+        SUM(CASE WHEN r.stage_status = 'In Progress' THEN 1 ELSE 0 END) AS "inProgress",
+        SUM(CASE WHEN r.stage_status = 'Completed' THEN 1 ELSE 0 END) AS completed,
+        SUM(CASE WHEN (DATE(r.due_date) < DATE(NOW()) AND (r.done_date IS NULL)) THEN 1 ELSE 0 END) AS overdue,
+        SUM(CASE WHEN (DATE(r.due_date) >= DATE(NOW()) AND DATE(r.due_date) <= DATE(NOW() + INTERVAL '3 days') AND (r.done_date IS NULL)) THEN 1 ELSE 0 END) AS "dueSoon",
+        SUM(CASE WHEN r.done_date IS NOT NULL AND DATE(r.done_date) <= DATE(r.due_date) THEN 1 ELSE 0 END) AS "onTimeCount"
+      FROM rfqs r
+      LEFT JOIN users u ON r.assignee = u.id
+      ${whereClause.replace('w.', 'r.')}
     `;
 
-    const result = await tryQuery(primarySql, fallbackSql);
+    console.log('Dashboard summary query:', primarySql, 'params:', queryParams);
+    const result = await tryQuery(primarySql, fallbackSql, queryParams);
     let row = result.rows && result.rows[0] ? result.rows[0] : {};
 
     if (!row || Object.keys(row).length === 0) {
@@ -129,29 +179,78 @@ router.get("/summary", async (req, res) => {
 // /api/dashboard/due-performance
 router.get("/due-performance", async (req, res) => {
   try {
+    // Extract filter parameters
+    const { status, assignee, startDate, endDate } = req.query;
+    
+    // Build WHERE conditions
+    let whereConditions = [];
+    let queryParams = [];
+    let paramIndex = 1;
+    
+    // Only add status filter if it's a non-empty string
+    if (status && status.trim() !== '') {
+      // Handle different status types
+      const statusValue = status.trim();
+      if (statusValue === 'Pending' || statusValue === 'Completed') {
+        // Work order statuses - filter by workorders.stage_status
+        whereConditions.push(`w.stage_status = $${paramIndex}`);
+      } else {
+        // Detailed statuses - filter by workflow stage status
+        whereConditions.push(`w.stage_status = $${paramIndex}`);
+      }
+      queryParams.push(statusValue);
+      paramIndex++;
+    }
+    
+    // Only add assignee filter if it's a non-empty string
+    if (assignee && assignee.trim() !== '') {
+      whereConditions.push(`u.username = $${paramIndex}`);
+      queryParams.push(assignee.trim());
+      paramIndex++;
+    }
+    
+    if (startDate) {
+      whereConditions.push(`w.created_at >= $${paramIndex}::timestamp`);
+      queryParams.push(startDate);
+      paramIndex++;
+    }
+    
+    if (endDate) {
+      whereConditions.push(`w.created_at <= $${paramIndex}::timestamp`);
+      queryParams.push(endDate);
+      paramIndex++;
+    }
+    
+    const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : '';
+    
     const primarySql = `
       SELECT
-        SUM(CASE WHEN done_date IS NOT NULL AND CAST(done_date AS timestamp) < CAST(due_date AS timestamp) THEN 1 ELSE 0 END) AS early,
-        SUM(CASE WHEN done_date IS NOT NULL AND CAST(done_date AS timestamp) = CAST(due_date AS timestamp) THEN 1 ELSE 0 END) AS onTime,
-        SUM(CASE WHEN done_date IS NULL AND CAST(due_date AS timestamp) >= CAST(NOW() AS timestamp)
-                AND CAST(due_date AS timestamp) <= CAST((NOW() + INTERVAL '3 days') AS timestamp) THEN 1 ELSE 0 END) AS dueSoon,
-        SUM(CASE WHEN done_date IS NULL AND CAST(due_date AS timestamp) < CAST(NOW() AS timestamp) THEN 1 ELSE 0 END) AS overdue,
-        SUM(CASE WHEN done_date IS NULL THEN 1 ELSE 0 END) AS notCompleted
-      FROM workorders;
+        SUM(CASE WHEN w.done_date IS NOT NULL AND CAST(w.done_date AS timestamp) < CAST(w.due_date AS timestamp) THEN 1 ELSE 0 END) AS early,
+        SUM(CASE WHEN w.done_date IS NOT NULL AND CAST(w.done_date AS timestamp) = CAST(w.due_date AS timestamp) THEN 1 ELSE 0 END) AS onTime,
+        SUM(CASE WHEN w.done_date IS NULL AND CAST(w.due_date AS timestamp) >= CAST(NOW() AS timestamp)
+                AND CAST(w.due_date AS timestamp) <= CAST((NOW() + INTERVAL '3 days') AS timestamp) THEN 1 ELSE 0 END) AS dueSoon,
+        SUM(CASE WHEN w.done_date IS NULL AND CAST(w.due_date AS timestamp) < CAST(NOW() AS timestamp) THEN 1 ELSE 0 END) AS overdue,
+        SUM(CASE WHEN w.done_date IS NULL THEN 1 ELSE 0 END) AS notCompleted
+      FROM workorders w
+      LEFT JOIN users u ON w.assignee = u.id
+      ${whereClause};
     `;
 
     const fallbackSql = `
       SELECT
-        SUM(CASE WHEN done_date IS NOT NULL AND CAST(done_date AS timestamp) < CAST(due_date AS timestamp) THEN 1 ELSE 0 END) AS early,
-        SUM(CASE WHEN done_date IS NOT NULL AND CAST(done_date AS timestamp) = CAST(due_date AS timestamp) THEN 1 ELSE 0 END) AS onTime,
-        SUM(CASE WHEN done_date IS NULL AND CAST(due_date AS timestamp) >= CAST(NOW() AS timestamp)
-                AND CAST(due_date AS timestamp) <= CAST((NOW() + INTERVAL '3 days') AS timestamp) THEN 1 ELSE 0 END) AS dueSoon,
-        SUM(CASE WHEN done_date IS NULL AND CAST(due_date AS timestamp) < CAST(NOW() AS timestamp) THEN 1 ELSE 0 END) AS overdue,
-        SUM(CASE WHEN done_date IS NULL THEN 1 ELSE 0 END) AS notCompleted
-      FROM rfqs;
+        SUM(CASE WHEN r.done_date IS NOT NULL AND CAST(r.done_date AS timestamp) < CAST(r.due_date AS timestamp) THEN 1 ELSE 0 END) AS early,
+        SUM(CASE WHEN r.done_date IS NOT NULL AND CAST(r.done_date AS timestamp) = CAST(r.due_date AS timestamp) THEN 1 ELSE 0 END) AS onTime,
+        SUM(CASE WHEN r.done_date IS NULL AND CAST(r.due_date AS timestamp) >= CAST(NOW() AS timestamp)
+                AND CAST(r.due_date AS timestamp) <= CAST((NOW() + INTERVAL '3 days') AS timestamp) THEN 1 ELSE 0 END) AS dueSoon,
+        SUM(CASE WHEN r.done_date IS NULL AND CAST(r.due_date AS timestamp) < CAST(NOW() AS timestamp) THEN 1 ELSE 0 END) AS overdue,
+        SUM(CASE WHEN r.done_date IS NULL THEN 1 ELSE 0 END) AS notCompleted
+      FROM rfqs r
+      LEFT JOIN users u ON r.assignee = u.id
+      ${whereClause.replace('w.', 'r.')};
     `;
 
-    const result = await tryQuery(primarySql, fallbackSql);
+    console.log('Dashboard due-performance query:', primarySql, 'params:', queryParams);
+    const result = await tryQuery(primarySql, fallbackSql, queryParams);
     let row = result.rows && result.rows[0] ? result.rows[0] : {};
 
     // fallback logic
@@ -205,9 +304,70 @@ router.get("/due-performance", async (req, res) => {
 // /api/dashboard/stage-distribution
 router.get("/stage-distribution", async (req, res) => {
   try {
-    const primarySql = `SELECT stage_status AS stage, COUNT(*) AS count FROM workorders GROUP BY stage_status ORDER BY count DESC`;
-    const fallbackSql = `SELECT stage_status AS stage, COUNT(*) AS count FROM rfqs GROUP BY stage_status ORDER BY count DESC`;
-    const result = await tryQuery(primarySql, fallbackSql);
+    // Extract filter parameters
+    const { status, assignee, startDate, endDate } = req.query;
+    
+    // Build WHERE conditions
+    let whereConditions = [];
+    let queryParams = [];
+    let paramIndex = 1;
+    
+    // Only add status filter if it's a non-empty string
+    if (status && status.trim() !== '') {
+      // Handle different status types
+      const statusValue = status.trim();
+      if (statusValue === 'Pending' || statusValue === 'Completed') {
+        // Work order statuses - filter by workorders.stage_status
+        whereConditions.push(`w.stage_status = $${paramIndex}`);
+      } else {
+        // Detailed statuses - filter by workflow stage status
+        whereConditions.push(`w.stage_status = $${paramIndex}`);
+      }
+      queryParams.push(statusValue);
+      paramIndex++;
+    }
+    
+    // Only add assignee filter if it's a non-empty string
+    if (assignee && assignee.trim() !== '') {
+      whereConditions.push(`u.username = $${paramIndex}`);
+      queryParams.push(assignee.trim());
+      paramIndex++;
+    }
+    
+    if (startDate) {
+      whereConditions.push(`w.created_at >= $${paramIndex}::timestamp`);
+      queryParams.push(startDate);
+      paramIndex++;
+    }
+    
+    if (endDate) {
+      whereConditions.push(`w.created_at <= $${paramIndex}::timestamp`);
+      queryParams.push(endDate);
+      paramIndex++;
+    }
+    
+    const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : '';
+    
+    const primarySql = `
+      SELECT w.stage_status AS stage, COUNT(*) AS count 
+      FROM workorders w
+      LEFT JOIN users u ON w.assignee = u.id
+      ${whereClause}
+      GROUP BY w.stage_status 
+      ORDER BY count DESC
+    `;
+    
+    const fallbackSql = `
+      SELECT r.stage_status AS stage, COUNT(*) AS count 
+      FROM rfqs r
+      LEFT JOIN users u ON r.assignee = u.id
+      ${whereClause.replace('w.', 'r.')}
+      GROUP BY r.stage_status 
+      ORDER BY count DESC
+    `;
+    
+    console.log('Dashboard stage-distribution query:', primarySql, 'params:', queryParams);
+    const result = await tryQuery(primarySql, fallbackSql, queryParams);
     const rows = result.rows || [];
     const total = rows.reduce((s, r) => s + Number(r.count || 0), 0) || 0;
     const out = rows.map((r) => ({
@@ -228,6 +388,31 @@ router.get("/stage-distribution", async (req, res) => {
 router.get("/assignees", async (req, res) => {
   try {
     const limit = parseInt(req.query.limit, 10) || 10;
+    const { startDate, endDate } = req.query;
+    
+    // Build WHERE conditions (excluding assignee filter since this endpoint is about assignees)
+    let whereConditions = ['COALESCE(w.assigned_to, w.assignee) IS NOT NULL'];
+    let queryParams = [];
+    let paramIndex = 1;
+    
+    if (startDate) {
+      whereConditions.push(`w.created_at >= $${paramIndex}::timestamp`);
+      queryParams.push(startDate);
+      paramIndex++;
+    }
+    
+    if (endDate) {
+      whereConditions.push(`w.created_at <= $${paramIndex}::timestamp`);
+      queryParams.push(endDate);
+      paramIndex++;
+    }
+    
+    // Add limit parameter
+    queryParams.push(limit);
+    const limitParam = `$${paramIndex}`;
+    
+    const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : '';
+    
     // Primary tries to use workorders + users; fallback uses rfqs
     const primarySql = `
       SELECT u.id AS assignee_id,
@@ -235,20 +420,33 @@ router.get("/assignees", async (req, res) => {
         COUNT(*) AS count
       FROM workorders w
       LEFT JOIN users u ON u.id = COALESCE(w.assigned_to, w.assignee)
-      WHERE COALESCE(w.assigned_to, w.assignee) IS NOT NULL
+      ${whereClause}
       GROUP BY u.id, u.username, u.first_name, u.last_name
       ORDER BY count DESC
-      LIMIT $1
+      LIMIT ${limitParam}
     `;
+    
+    // Adjust fallback query conditions
+    const fallbackWhereConditions = ['r.assignee IS NOT NULL'];
+    if (startDate) {
+      fallbackWhereConditions.push(`r.created_at >= $${queryParams.length - 1}`); // startDate param
+    }
+    if (endDate) {
+      fallbackWhereConditions.push(`r.created_at <= $${queryParams.length}`); // endDate param  
+    }
+    const fallbackWhereClause = fallbackWhereConditions.length > 0 ? `WHERE ${fallbackWhereConditions.join(' AND ')}` : '';
+    
     const fallbackSql = `
       SELECT r.assignee AS assignee_id, NULL AS assignee_name, COUNT(*) AS count
       FROM rfqs r
-      WHERE r.assignee IS NOT NULL
+      ${fallbackWhereClause}
       GROUP BY r.assignee
       ORDER BY count DESC
-      LIMIT $1
+      LIMIT ${limitParam}
     `;
-    const result = await tryQuery(primarySql, fallbackSql, [limit]);
+    
+    console.log('Dashboard assignees query:', primarySql, 'params:', queryParams);
+    const result = await tryQuery(primarySql, fallbackSql, queryParams);
     const rows = result.rows || [];
     return res.json({
       totalActive: rows.length,
@@ -265,7 +463,60 @@ router.get("/assignees", async (req, res) => {
 
 router.get("/summary/latest", async (req, res) => {
   try {
-    // Build base query using CTE to get latest created_at per wo_id (no filters)
+    // Extract filter parameters
+    const { assignee, startDate, endDate } = req.query;
+    
+    // Build WHERE conditions for filtering
+    let whereConditions = [];
+    let queryParams = [];
+    let paramIndex = 1;
+    
+    // Only add assignee filter if it's a non-empty string
+    if (assignee && assignee.trim() !== '') {
+      // Filter by assignee username - join with users table
+      whereConditions.push(`u.username = $${paramIndex}`);
+      queryParams.push(assignee.trim());
+      paramIndex++;
+    }
+    
+    if (startDate) {
+      whereConditions.push(`ws.created_at >= $${paramIndex}`);
+      queryParams.push(startDate);
+      paramIndex++;
+    }
+    
+    if (endDate) {
+      whereConditions.push(`ws.created_at <= $${paramIndex}`);
+      queryParams.push(endDate);
+      paramIndex++;
+    }
+    
+    // Build separate WHERE clauses for outer and inner queries
+    const outerWhereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : '';
+    
+    // Build inner query WHERE clause (replace table aliases)
+    let innerWhereConditions = [];
+    let innerParamIndex = 1;
+    
+    // Only add assignee filter if it's a non-empty string
+    if (assignee && assignee.trim() !== '') {
+      innerWhereConditions.push(`u2.username = $${innerParamIndex}`);
+      innerParamIndex++;
+    }
+    
+    if (startDate) {
+      innerWhereConditions.push(`ws2.created_at >= $${innerParamIndex}`);
+      innerParamIndex++;
+    }
+    
+    if (endDate) {
+      innerWhereConditions.push(`ws2.created_at <= $${innerParamIndex}`);
+      innerParamIndex++;
+    }
+    
+    const innerWhereClause = innerWhereConditions.length > 0 ? `WHERE ${innerWhereConditions.join(' AND ')}` : '';
+    
+    // Build base query using CTE to get latest created_at per wo_id with filters
     const sql = `
       SELECT
         ws.id,
@@ -277,17 +528,23 @@ router.get("/summary/latest", async (req, res) => {
         ws.created_at,
         ws.updated_at
       FROM workflow_stages ws
+      LEFT JOIN users u ON ws.assigned_to = u.id
       INNER JOIN (
         SELECT wo_id, MAX(created_at) AS max_created
-        FROM workflow_stages
+        FROM workflow_stages ws2
+        ${assignee && assignee.trim() !== '' ? 'LEFT JOIN users u2 ON ws2.assigned_to = u2.id' : ''}
+        ${innerWhereClause}
         GROUP BY wo_id
       ) latest
         ON ws.wo_id = latest.wo_id
         AND ws.created_at = latest.max_created
+      ${outerWhereClause}
       ORDER BY ws.created_at DESC;
     `;
+    
+    console.log('Dashboard summary/latest query:', sql, 'params:', queryParams);
 
-    const result = await db.query(sql);
+    const result = await db.query(sql, queryParams);
     const rows = result.rows || [];
     for (const row of rows) {
       console.log("Fetching details for row:", row);
@@ -301,7 +558,7 @@ router.get("/summary/latest", async (req, res) => {
       } else if (row.stageName.toLowerCase().includes("rfq")) {
         rowQuery = `SELECT * FROM rfqs WHERE id = $1`;
       } else if (row.stageName.toLowerCase().includes("naef") || row.stageName.toLowerCase().includes("accounts")) {
-        rowQuery = `SELECT * FROM accounts WHERE wo_id = $1`;
+        rowQuery = `SELECT * FROM accounts WHERE wo_source_id = $1`;
       } else if (row.stageName.toLowerCase().includes("quotation")) {
         rowQuery = `SELECT * FROM quotations WHERE wo_id = $1`;
       }

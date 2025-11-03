@@ -14,8 +14,10 @@ import LoadingModal from "../components/LoadingModal";
 import AccountsTable from "../components/AccountsTable";
 import AccountDetails from "../components/AccountDetails";
 import AccountForm from "../components/AccountForm";
+import { useUser } from "../contexts/UserContext.jsx";
 
 export default function AccountsPage() {
+  const { currentUser } = useUser();
   const timeoutRef = useRef();
   const location = useLocation();
   const salesLead = location.state?.salesLead;
@@ -28,7 +30,6 @@ export default function AccountsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [successMessage, setSuccessMessage] = useState("");
-  const [currentUser, setCurrentUser] = useState(null);
   const [newAssignedAccounts, setNewAssignedAccounts] = useState([]);
   const [statusSummary, setStatusSummary] = useState({
     total: 0,
@@ -91,18 +92,6 @@ export default function AccountsPage() {
     }
   };
 
-  const fetchCurrentUser = async () => {
-    try {
-      const res = await apiBackendFetch("/auth/me");
-      if (res.ok) {
-        const data = await res.json();
-        setCurrentUser(data.user);
-      }
-    } catch (err) {
-      console.error("Failed to fetch current user", err);
-    }
-  };
-
   const fetchNewAssignedNAEFs = async () => {
     if (!currentUser) return;
     try {
@@ -122,7 +111,6 @@ export default function AccountsPage() {
   };
 
   useEffect(() => {
-    fetchCurrentUser();
     fetchAllData();
   }, []);
 
@@ -310,7 +298,7 @@ export default function AccountsPage() {
       const result = await apiBackendFetch("/api/workflow-stages", {
         method: "POST",
         body: JSON.stringify({
-          wo_id: savedAccount.wo_id || savedAccount.woSourceId,
+          wo_id: savedAccount.woSourceId,
           account_id: savedAccount.id,
           stage_name: "NAEF",
           status: "Submitted",

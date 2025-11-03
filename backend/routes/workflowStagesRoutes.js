@@ -700,7 +700,70 @@ router.get("/assigned/latest/:id/:stageName", async (req, res) => {
 //  - status: filter by stage status (e.g. status=Submitted)
 router.get("/summary/latest", async (req, res) => {
   try {
-    // Build base query using CTE to get latest created_at per wo_id (no filters)
+    // Extract filter parameters
+    const { status, assignee, startDate, endDate } = req.query;
+    
+    // Build WHERE conditions for filtering
+    let whereConditions = [];
+    let queryParams = [];
+    let paramIndex = 1;
+    
+    // Only add status filter if it's a non-empty string and NOT a work order status
+    if (status && status.trim() !== '' && status !== 'Pending' && status !== 'Completed') {
+      whereConditions.push(`ws.status = $${paramIndex}`);
+      queryParams.push(status.trim());
+      paramIndex++;
+    }
+    
+    // Only add assignee filter if it's a non-empty string
+    if (assignee && assignee.trim() !== '') {
+      whereConditions.push(`u.username = $${paramIndex}`);
+      queryParams.push(assignee.trim());
+      paramIndex++;
+    }
+    
+    if (startDate && startDate.trim() !== '') {
+      whereConditions.push(`ws.created_at >= $${paramIndex}::timestamp`);
+      queryParams.push(startDate.trim());
+      paramIndex++;
+    }
+    
+    if (endDate && endDate.trim() !== '') {
+      whereConditions.push(`ws.created_at <= $${paramIndex}::timestamp`);
+      queryParams.push(endDate.trim());
+      paramIndex++;
+    }
+    
+    // Build separate WHERE clauses for outer and inner queries
+    const outerWhereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : '';
+    
+    // Build inner query WHERE clause using the same parameter indices as outer query
+    let innerWhereConditions = [];
+    let innerParamStart = 1;
+    
+    // Skip status parameter if it exists
+    if (status && status.trim() !== '' && status !== 'Pending' && status !== 'Completed') {
+      innerParamStart++;
+    }
+    
+    if (assignee && assignee.trim() !== '') {
+      innerWhereConditions.push(`u2.username = $${innerParamStart}`);
+      innerParamStart++;
+    }
+    
+    if (startDate && startDate.trim() !== '') {
+      innerWhereConditions.push(`ws2.created_at >= $${innerParamStart}::timestamp`);
+      innerParamStart++;
+    }
+    
+    if (endDate && endDate.trim() !== '') {
+      innerWhereConditions.push(`ws2.created_at <= $${innerParamStart}::timestamp`);
+      innerParamStart++;
+    }
+    
+    const innerWhereClause = innerWhereConditions.length > 0 ? `WHERE ${innerWhereConditions.join(' AND ')}` : '';
+
+    // Build filtered query using CTE
     const sql = `
       SELECT
         ws.id,
@@ -713,19 +776,23 @@ router.get("/summary/latest", async (req, res) => {
         ws.updated_at,
         u.username AS assigned_to_username
       FROM workflow_stages ws
+      LEFT JOIN users u ON ws.assigned_to = u.id
       INNER JOIN (
         SELECT wo_id, MAX(created_at) AS max_created
-        FROM workflow_stages
+        FROM workflow_stages ws2
+        ${assignee && assignee.trim() !== '' ? 'LEFT JOIN users u2 ON ws2.assigned_to = u2.id' : ''}
+        ${innerWhereClause}
         GROUP BY wo_id
       ) latest
         ON ws.wo_id = latest.wo_id
         AND ws.created_at = latest.max_created
-      LEFT JOIN users u ON ws.assigned_to = u.id
+      ${outerWhereClause}
       ORDER BY ws.created_at DESC;
     `;
 
-    const result = await db.query(sql);
-    console.log("Fetched latest workflow stages summary:", result.rows);
+    console.log('Workflow stages summary/latest query:', sql, 'params:', queryParams);
+    const result = await db.query(sql, queryParams);
+    console.log("Fetched latest workflow stages summary:", result.rows?.length || 0, "records");
     return res.json(result.rows || []);
   } catch (err) {
     console.error("Failed to fetch summary latest workflow stages:", err);
