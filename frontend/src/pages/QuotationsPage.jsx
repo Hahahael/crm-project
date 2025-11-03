@@ -64,7 +64,7 @@ export default function QuotationsPage() {
       //                 completed: Number(summaryData.completed) || 0,
       //         });
       // }
-      setTimeout(() => setLoading(false), 500);
+      setTimeout(() => setLoading(false));
     } catch (err) {
       console.error("Error retrieving Quotations:", err);
       setError("Failed to fetch Quotations.");
@@ -146,7 +146,6 @@ export default function QuotationsPage() {
         }
       }
       return { trData, rfqData };
-      // setTimeout(() => setLoading(false), 500);
     } catch (err) {
       console.error("Error fetching TR and RFQ:", err);
       return { trData: null, rfqData: null };

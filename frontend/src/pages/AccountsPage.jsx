@@ -199,7 +199,8 @@ export default function AccountsPage() {
     if (!id) return;
 
     // 🧠 handle case when id is actually an object
-    const resolvedId = typeof id === "object" && id.id ? id.id : id;
+    const resolvedId = typeof id === "object" && (id.kristemAccountId || id.id) ? id.kristemAccountId ?? id.id : id;
+    console.log("Fetching selected account with ID:", resolvedId);
 
     try {
       // setLoading(true);
@@ -222,7 +223,8 @@ export default function AccountsPage() {
     if (!id) return;
 
     // 🧠 handle case when id is actually an object
-    const resolvedId = typeof id === "object" && id.id ? id.id : id;
+    const resolvedId = typeof id === "object" && (id.kristemAccountId || id.id) ? id.kristemAccountId ?? id.id : id;
+    console.log("Fetching selected account with ID:", resolvedId);
 
     try {
       // setLoading(true);
@@ -280,7 +282,7 @@ export default function AccountsPage() {
 
       setSuccessMessage("Account saved successfully!");
       await fetchAllData();
-      fetchSelectedAccount(savedAccount.id);
+      fetchSelectedAccount(savedAccount);
     } catch (err) {
       console.error("Error saving NAEF Stage:", err);
       setError("Failed to save NAEF Stage");
@@ -382,12 +384,12 @@ export default function AccountsPage() {
                   </div>
                   <div className="space-y-1">
                     <p className="text-sm text-gray-900">
-                      {newAssignedAccounts.map((tr) => tr.trNumber).join(", ")}
+                      {newAssignedAccounts.map((acc) => acc?.account?.kristem?.Code).join(", ")}
                     </p>
                   </div>
                   <div className="mt-3">
                     <button
-                      onClick={() => setSelectedAccount(newAssignedAccounts[0])}
+                      onClick={async () => await fetchEditingAccount(newAssignedAccounts[0])}
                       className="inline-flex items-center justify-center whitespace-nowrap font-medium transition-colors shadow h-8 rounded-md px-3 text-xs bg-purple-600 hover:bg-purple-700 text-white cursor-pointer"
                     >
                       View First NAEF
@@ -423,8 +425,7 @@ export default function AccountsPage() {
                   </div>
                   <div className="space-y-1">
                     <p className="text-sm font-medium text-gray-900">
-                      {newAssignedAccounts[0].trNumber} -{" "}
-                      {newAssignedAccounts[0].title}
+                      {newAssignedAccounts[0]?.account?.kristem?.Code} - {"New Account Setup"}
                     </p>
                     <p className="text-sm text-gray-600">
                       Account: {newAssignedAccounts[0].accountId}
@@ -436,8 +437,7 @@ export default function AccountsPage() {
                   <div className="mt-3">
                     <button
                       onClick={() => {
-                        setEditingAccount({});
-                        setSelectedAccount(null);
+                        fetchEditingAccount(newAssignedAccounts[0]);
                       }}
                       className="inline-flex items-center justify-center whitespace-nowrap font-medium transition-colors shadow h-8 rounded-md px-3 text-xs bg-purple-600 hover:bg-purple-700 text-white cursor-pointer"
                     >
@@ -577,14 +577,6 @@ export default function AccountsPage() {
             currentUser={currentUser}
             onBack={() => setSelectedAccount(null)}
             onEdit={() => fetchEditingAccount(selectedAccount)}
-            onTechnicalRecoUpdated={(updatedTR) => {
-              setSelectedAccount(updatedTR);
-              // Optionally, update the accounts array as well:
-              setAccounts((prev) =>
-                prev.map((tr) => (tr.id === updatedTR.id ? updatedTR : tr)),
-              );
-              fetchNewAssignedNAEFs(); // <-- refresh from backend
-            }}
             onSubmit={(formData) => handleSubmitForApproval(formData)}
           />
         )}
@@ -605,7 +597,7 @@ export default function AccountsPage() {
             onSave={(formData, mode) => handleSave(formData, mode)}
             onBack={() => {
               fetchNewAssignedNAEFs();
-              setEditingAccount(null);
+              fetchSelectedAccount(editingAccount);
             }}
           />
         )}

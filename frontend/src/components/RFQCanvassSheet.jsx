@@ -495,7 +495,7 @@ export default function RFQCanvassSheet({
       </div>
 
       {/* Actions */}
-      <div className="flex justify-between items-center">
+      {/* <div className="flex justify-between items-center">
         <div>
           <button
             type="button"
@@ -505,7 +505,7 @@ export default function RFQCanvassSheet({
             Select Recommended Vendor
           </button>
         </div>
-      </div>
+      </div> */}
     </div>
   );
 }

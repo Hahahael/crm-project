@@ -245,13 +245,12 @@ const ApprovalActionModal = ({ isOpen, type, approval, onClose, onSubmit, submit
                     {(() => {
                       // Determine what happens next based on current stage
                       if (stage === "RFQ" || stage === "rfq") {
+                        if (woIsNew) {
+                          return "After approval, this will proceed to NAEF stage for new account creation.";
+                        }
                         return "After approval, this will proceed to Quotations stage.";
-                      } else if (stage === "Quotations" || stage === "quotations") {
-                        return "After approval, this will proceed to Work Order creation.";
-                      } else if (stage === "Work Order" || stage === "work_order") {
-                        return "After approval, this work order will be marked as completed.";
                       } else if (stage === "Account" || stage === "NAEF") {
-                        return "After approval, the account will be created and available for use.";
+                        return "After approval, this will proceed to Quotations stage.";
                       } else {
                         return "This item will proceed to the next stage in the workflow.";
                       }

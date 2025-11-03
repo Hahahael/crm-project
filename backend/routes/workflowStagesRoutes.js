@@ -391,10 +391,11 @@ router.post("/", async (req, res) => {
           break;
         case "Account":
         case "NAEF":
+          console.log("🔍 WORKFLOW: Updating Account/NAEF stage status for wo_id:", wo_id, "to status:", status, "and account_id:", body.account_id);
           if (body.account_id) {
             const updateQuery = status === "Approved"
-              ? "UPDATE accounts SET stage_status = $1, done_date = NOW() WHERE id = $2"
-              : "UPDATE accounts SET stage_status = $1 WHERE id = $2";
+              ? "UPDATE accounts SET stage_status = $1, done_date = NOW() WHERE kristem_account_id = $2"
+              : "UPDATE accounts SET stage_status = $1 WHERE kristem_account_id = $2";
             
             await db.query(updateQuery, [status, body.account_id]);
             
@@ -402,7 +403,7 @@ router.post("/", async (req, res) => {
             if (status === "Approved") {
               console.log("🔍 WORKFLOW: Account approval detected for account ID:", body.account_id);
               try {
-                const accountResult = await db.query("SELECT * FROM accounts WHERE id = $1", [body.account_id]);
+                const accountResult = await db.query("SELECT * FROM accounts WHERE kristem_account_id = $1", [wo_id]);
                 if (accountResult.rows.length > 0) {
                   const account = accountResult.rows[0];
                   console.log("🔍 WORKFLOW: Account details:", { 
@@ -633,7 +634,7 @@ router.get("/assigned/latest/:id/:stageName", async (req, res) => {
         `;
       } else {
         query = `
-          SELECT ws.*, wo.*, a.account_name AS account_name
+          SELECT ws.*, wo.*, a.*
           FROM workflow_stages ws
           INNER JOIN (
             SELECT wo_id, MAX(created_at) AS max_created
@@ -643,7 +644,7 @@ router.get("/assigned/latest/:id/:stageName", async (req, res) => {
           ) latest ON ws.wo_id = latest.wo_id AND ws.created_at = latest.max_created
           INNER JOIN workorders wo ON ws.wo_id = wo.id
           LEFT JOIN accounts a ON wo.account_id = a.id
-          WHERE ws.status = 'Pending' AND ws.stage_name = $2
+          WHERE ws.status = 'Draft' AND ws.stage_name = $2
         `;
       }
     }
@@ -657,7 +658,7 @@ router.get("/assigned/latest/:id/:stageName", async (req, res) => {
       for (const row of result.rows) {
         const base = row;
         const spiPool = await poolPromise;
-        const accId = Number(base.accountId ?? base.account_id);
+        const accId = Number(base.accountId ?? base.account_id ?? base.kristemAccountId);
         console.log("🔍 Single TR - Account ID:", accId, "from base:", base.accountId, base.account_id);
         let customer = null;
         if (Number.isFinite(accId)) {
@@ -675,12 +676,12 @@ router.get("/assigned/latest/:id/:stageName", async (req, res) => {
           };
 
           row.account = account;
-          console.log("Fetched technical recommendation:", row);
+          console.log("Fetched row:", row);
         }
       }
     } catch (enrichErr) {
       console.warn(
-        "Failed to enrich technical recommendation account:",
+        "Failed to enrich account data:",
         enrichErr.message,
       );
     }
