@@ -295,7 +295,7 @@ const WorkOrderDetails = ({
                 Industry
               </label>
               <div className="col-span-2 w-full rounded-md bg-yellow-50 text-md border border-gray-200 px-3 py-3">
-                {workOrder.account?.industry?.Description ?? ""}
+                {workOrder.account?.industry?.Description ?? workOrder.account?.industry?.Code ?? ""}
               </div>
               <label
                 htmlFor="woNumberInput"

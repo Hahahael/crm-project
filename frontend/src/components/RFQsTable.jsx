@@ -10,8 +10,10 @@ import {
 } from "react-icons/lu";
 import util from "../helper/utils.js";
 import config from "../config.js";
+import { useUser } from "../contexts/UserContext.jsx";
 
 export default function RFQsTable({ rfqs, onView, onEdit }) {
+  const { currentUser } = useUser();
   const baseBadge = "inline-flex items-center px-2.5 py-0.5 text-xs";
 
   const renderStatusBadge = (status) => {
@@ -138,9 +140,6 @@ export default function RFQsTable({ rfqs, onView, onEdit }) {
                         {rfq.vendor?.Name || rfq.vendor?.name || rfq.vendor?.VendorName || "Selected"}
                       </span>
                     </div>
-                    {rfq.vendor?.Name || rfq.vendor?.name || rfq.vendor?.VendorName ? (
-                      <span className="text-xs text-gray-500 ml-4">Vendor selected</span>
-                    ) : null}
                   </div>
                 ) : (
                   <div className="flex items-center gap-2">
@@ -236,7 +235,7 @@ export default function RFQsTable({ rfqs, onView, onEdit }) {
                   </button>
                   <button
                     onClick={() => onEdit(rfq)}
-                    className={`cursor-pointer rounded px-2 py-1 text-black  border border-gray-200 bg-white hover:bg-gray-100 transition-all duration-200 ${rfq.stageStatus === "Approved" || rfq.stageStatus === "Submitted" ? "opacity-50 cursor-not-allowed hover:bg-white pointer-events-none" : ""}`}
+                    className={`cursor-pointer rounded px-2 py-1 text-black  border border-gray-200 bg-white hover:bg-gray-100 transition-all duration-200 ${rfq.stageStatus === "Approved" || rfq.assignee !== currentUser.id ? "opacity-50 cursor-not-allowed hover:bg-white pointer-events-none" : ""}`}
                   >
                     <LuPencil className="my-auto" />
                   </button>

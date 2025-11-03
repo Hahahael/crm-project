@@ -125,7 +125,67 @@ export function formatCurrency(value) {
   return `₱${Number(value).toFixed(2)}`;
 }
 
-// ✅ Default export with all helpers
+// Config helper functions (using existing config.js)
+import config from "../config.js";
+
+export function getBadgeClasses(type, status, fallback = "bg-gray-100 text-gray-700") {
+  const badgeConfig = config[`${type}BadgeClasses`];
+  if (!badgeConfig) return fallback;
+  return badgeConfig[status] || fallback;
+}
+
+export function getCompleteBadgeClasses(type, status) {
+  const base = config.components.baseBadge;
+  const rounded = config.components.badgeRounded;
+  const statusClasses = getBadgeClasses(type, status);
+  return `${base} ${rounded} ${statusClasses}`;
+}
+
+export function getButtonClasses(variant = 'primary', size = 'md', additional = '') {
+  const base = config.components.baseButton;
+  const sizeClass = config.components.buttonSizes[size];
+  const variantClass = config.components.buttonVariants[variant];
+  return `${base} ${sizeClass} ${variantClass} ${additional}`.trim();
+}
+
+export function getNotificationClasses(type = 'info') {
+  const base = config.components.baseNotification;
+  const variant = config.components.notificationVariants[type];
+  return `${base} ${variant}`;
+}
+
+export function calculateVAT(subtotal) {
+  return Number(subtotal) * config.business.vatRate;
+}
+
+export function calculateGrandTotal(subtotal) {
+  return Number(subtotal) + calculateVAT(subtotal);
+}
+
+export function validateField(type, value) {
+  const pattern = config.business.validation[type];
+  if (!pattern) return true; // No validation pattern defined
+  return pattern.test(value);
+}
+
+export function validateFileUpload(file) {
+  if (!file) return { valid: false, error: 'No file selected' };
+  
+  // Check file size
+  if (file.size > config.business.maxFileSize) {
+    const maxSizeMB = config.business.maxFileSize / (1024 * 1024);
+    return { valid: false, error: `File size must be less than ${maxSizeMB}MB` };
+  }
+  
+  // Check file type
+  if (!config.business.allowedFileTypes.includes(file.type)) {
+    return { valid: false, error: 'File type not allowed' };
+  }
+  
+  return { valid: true };
+}
+
+// ✅ Default export with all helpers including new ones
 export default {
   toCamel,
   toSnake,
@@ -139,4 +199,13 @@ export default {
   formatNumber,
   calculateTimeliness,
   formatCurrency,
+  // New helper functions
+  getBadgeClasses,
+  getCompleteBadgeClasses,
+  getButtonClasses,
+  getNotificationClasses,
+  calculateVAT,
+  calculateGrandTotal,
+  validateField,
+  validateFileUpload,
 };

@@ -163,17 +163,29 @@ router.get("/", async (req, res) => {
           const vendorRes = await spiPool
             .request()
             .query(`SELECT * FROM spidb.vendor WHERE Id IN (${uniqueVendorIds.join(",")})`);
+          const detailsRes = await pool
+            .request()
+            .input("vendor_id", Number(vendorKey))
+            .query(
+              "SELECT * FROM spidb.vendor_details WHERE Vendor_Id = @vendor_id",
+            );
           
           const vendorMap = new Map();
           (vendorRes.recordset || []).forEach(vendor => {
             vendorMap.set(vendor.Id, vendor);
           });
           
+          const detail =
+            detailsRes && detailsRes.recordset && detailsRes.recordset[0]
+              ? detailsRes.recordset[0]
+              : null;
+          
           // Add vendor details to each RFQ
           rows.forEach(rfq => {
             const vendorId = rfq.selected_vendor_id || rfq.selectedVendorId;
             if (vendorId && vendorMap.has(vendorId)) {
               rfq.vendor = vendorMap.get(vendorId);
+              rfq.vendor.details = detail;
             }
           });
           

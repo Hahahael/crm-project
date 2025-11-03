@@ -9,8 +9,10 @@ import {
   LuClock
 } from "react-icons/lu";
 import util from "../helper/utils.js";
+import { useUser } from "../contexts/UserContext.jsx";
 
 export default function QuotationsTable({ quotations, onView, onSend }) {
+  const { currentUser } = useUser();
   const getQuotationType = (quotation) => {
     if (quotation.rfq) return "RFQ";
     if (quotation.tr) return "Technical Recommendation";
@@ -274,7 +276,7 @@ export default function QuotationsTable({ quotations, onView, onSend }) {
                   </button>
                   <button
                     onClick={() => onSend && onSend(quotation)}
-                    className={`cursor-pointer rounded px-2 py-2 text-black border border-gray-200 bg-white hover:bg-gray-100 transition-all duration-200 ${quotation.stageStatus === "Submitted" ? "opacity-50 cursor-not-allowed hover:bg-white pointer-events-none" : ""}`}
+                    className={`cursor-pointer rounded px-2 py-2 text-black border border-gray-200 bg-white hover:bg-gray-100 transition-all duration-200 ${quotation.stageStatus === "Submitted" || quotation.assignee !== currentUser.id ? "opacity-50 cursor-not-allowed hover:bg-white pointer-events-none" : ""}`}
                     title="Send to MSSQL"
                   >
                     <LuSend className="my-auto" />

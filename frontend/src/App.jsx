@@ -12,10 +12,12 @@ import AccountsPage from "./pages/AccountsPage";
 import ApprovalsPage from "./pages/ApprovalsPage";
 import QuotationsPage from "./pages/QuotationsPage";
 import CalendarPage from "./pages/CalendarPage";
+import { UserProvider } from "./contexts/UserContext";
 
 function App() {
   return (
     <BrowserRouter>
+      <UserProvider>
       <Routes>
         <Route path="/" element={<Navigate to="/login" replace />} />
 
@@ -104,6 +106,7 @@ function App() {
           />
         </Route>
       </Routes>
+      </UserProvider>
     </BrowserRouter>
   );
 }

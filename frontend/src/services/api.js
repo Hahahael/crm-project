@@ -1,9 +1,9 @@
 // services/api.js
 const getApiUrl = () => {
   // If explicitly set via environment variable, use that
-  if (import.meta.env.VITE_API_URL) {
-    return import.meta.env.VITE_API_URL;
-  }
+  // if (import.meta.env.VITE_API_URL) {
+  //   return import.meta.env.VITE_API_URL;
+  // }
   
   // Auto-detect based on current location
   const isDevelopment = 

@@ -14,6 +14,7 @@ import {
   LuTriangleAlert,
   LuFilter,
   LuX,
+  LuRotateCcw,
 } from "react-icons/lu";
 import {
   ResponsiveContainer,
@@ -28,17 +29,21 @@ import {
   CartesianGrid,
 } from "recharts";
 import LoadingModal from "../components/LoadingModal";
-import { workflowStages } from "../../../backend/mocks/workflowstagesMocks";
 
 export default function DashboardPage() {
   // workorders state intentionally omitted — server provides aggregated dashboard endpoints
   const [loading, setLoading] = useState(true);
+  const [filterLoading, setFilterLoading] = useState(false);
   const [error, setError] = useState(null);
   
   // Filter states
-  const [dateRange, setDateRange] = useState({ start: '', end: '' });
+  const [statusFilter, setStatusFilter] = useState(''); // Pending, In Progress, Completed
   const [assigneeFilter, setAssigneeFilter] = useState('');
+  const [dateRangeFilter, setDateRangeFilter] = useState(''); // Today, This Week, This Month, This Quarter, This Year
   const [availableAssignees, setAvailableAssignees] = useState([]);
+  
+  // Legacy filter states (keeping for compatibility)
+  const [dateRange, setDateRange] = useState({ start: '', end: '' });
   
   // Refs for date range pickers
   const startDateRef = useRef(null);
@@ -61,15 +66,113 @@ export default function DashboardPage() {
   const [assignees, setAssignees] = useState({ totalActive: 0, top: [] });
   const [workflowStagesRaw, setWorkflowStagesRaw] = useState([]);
 
+  // Helper function to calculate date ranges
+  const getDateRangeValues = (rangeType) => {
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    
+    switch (rangeType) {
+      case 'today':
+        return {
+          start: today.toISOString().split('T')[0],
+          end: today.toISOString().split('T')[0]
+        };
+      
+      case 'thisWeek': {
+        const startOfWeek = new Date(today);
+        startOfWeek.setDate(today.getDate() - today.getDay()); // Sunday
+        const endOfWeek = new Date(startOfWeek);
+        endOfWeek.setDate(startOfWeek.getDate() + 6); // Saturday
+        return {
+          start: startOfWeek.toISOString().split('T')[0],
+          end: endOfWeek.toISOString().split('T')[0]
+        };
+      }
+      
+      case 'thisMonth': {
+        const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+        const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+        return {
+          start: startOfMonth.toISOString().split('T')[0],
+          end: endOfMonth.toISOString().split('T')[0]
+        };
+      }
+      
+      case 'thisQuarter': {
+        const quarter = Math.floor(now.getMonth() / 3);
+        const startOfQuarter = new Date(now.getFullYear(), quarter * 3, 1);
+        const endOfQuarter = new Date(now.getFullYear(), quarter * 3 + 3, 0);
+        return {
+          start: startOfQuarter.toISOString().split('T')[0],
+          end: endOfQuarter.toISOString().split('T')[0]
+        };
+      }
+      
+      case 'thisYear': {
+        const startOfYear = new Date(now.getFullYear(), 0, 1);
+        const endOfYear = new Date(now.getFullYear(), 11, 31);
+        return {
+          start: startOfYear.toISOString().split('T')[0],
+          end: endOfYear.toISOString().split('T')[0]
+        };
+      }
+      
+      default:
+        return { start: '', end: '' };
+    }
+  };
+
   useEffect(() => {
     async function fetchData() {
       try {
+        // Set filter loading if this is not the initial load
+        if (!loading) {
+          setFilterLoading(true);
+        }
         // Build query parameters for filters
         const queryParams = new URLSearchParams();
-        if (dateRange.start) queryParams.append('startDate', dateRange.start);
-        if (dateRange.end) queryParams.append('endDate', dateRange.end);
-        if (assigneeFilter) queryParams.append('assignee', assigneeFilter);
+        
+        // Add status filter
+        if (statusFilter && statusFilter.trim() !== '') {
+          queryParams.append('status', statusFilter);
+        }
+        
+        // Add assignee filter
+        if (assigneeFilter && assigneeFilter.trim() !== '') {
+          queryParams.append('assignee', assigneeFilter);
+        }
+        
+        // Add date range filter
+        if (dateRangeFilter && dateRangeFilter.trim() !== '') {
+          const dateRange = getDateRangeValues(dateRangeFilter);
+          if (dateRange.start) queryParams.append('startDate', dateRange.start);
+          if (dateRange.end) queryParams.append('endDate', dateRange.end);
+        }
+        
         const queryString = queryParams.toString();
+
+        // Build separate query parameters for detailed sections (exclude work order statuses)
+        const detailedQueryParams = new URLSearchParams();
+        
+        // Only add status filter if it's NOT a work order status (Pending/Completed)
+        if (statusFilter && statusFilter.trim() !== '' && 
+            statusFilter !== 'Pending' && statusFilter !== 'Completed') {
+          detailedQueryParams.append('status', statusFilter);
+        }
+        
+        // Add assignee filter (same as main)
+        if (assigneeFilter && assigneeFilter.trim() !== '') {
+          detailedQueryParams.append('assignee', assigneeFilter);
+        }
+        
+        // Add date range filter (same as main)
+        if (dateRangeFilter && dateRangeFilter.trim() !== '') {
+          const dateRange = getDateRangeValues(dateRangeFilter);
+          if (dateRange.start) detailedQueryParams.append('startDate', dateRange.start);
+          if (dateRange.end) detailedQueryParams.append('endDate', dateRange.end);
+        }
+        
+        const detailedQueryString = detailedQueryParams.toString();
 
         const workorderSummaryRes = await apiBackendFetch(
           `/api/workorders/summary/status${queryString ? `?${queryString}` : ''}`,
@@ -85,10 +188,13 @@ export default function DashboardPage() {
             ) || 0,
             completed: Number(workorderSummaryData.completed ?? 0) || 0,
           });
+        } else if (workorderSummaryRes.status !== 401 && workorderSummaryRes.status !== 403) {
+          // Log error but don't fail the whole dashboard for non-auth errors
+          console.error("Failed to fetch workorder summary:", workorderSummaryRes.status, workorderSummaryRes.statusText);
         }
 
         const workflowStagesSummaryRes = await apiBackendFetch(
-          `/api/dashboard/summary/latest${queryString ? `?${queryString}` : ''}`,
+          `/api/dashboard/summary/latest${detailedQueryString ? `?${detailedQueryString}` : ''}`,
         );
         if (workflowStagesSummaryRes.ok) {
           const workflowStagesSummaryData = await workflowStagesSummaryRes.json();
@@ -114,7 +220,7 @@ export default function DashboardPage() {
         const [summaryRes, dueRes, stageRes] = await Promise.all([
           apiBackendFetch(`/api/dashboard/summary${queryString ? `?${queryString}` : ''}`),
           apiBackendFetch(`/api/dashboard/due-performance${queryString ? `?${queryString}` : ''}`),
-          apiBackendFetch(`/api/workflow-stages/summary/latest${queryString ? `?${queryString}` : ''}`),
+          apiBackendFetch(`/api/workflow-stages/summary/latest${detailedQueryString ? `?${detailedQueryString}` : ''}`),
         ]);
 
         if (!summaryRes.ok)
@@ -176,10 +282,11 @@ export default function DashboardPage() {
         setError("Failed to load dashboard data");
       } finally {
         setLoading(false);
+        setFilterLoading(false);
       }
     }
     fetchData();
-  }, [dateRange.start, dateRange.end, assigneeFilter]);
+  }, [statusFilter, assigneeFilter, dateRangeFilter, dateRange.start, dateRange.end, loading]);
 
   // Fetch available assignees for the dropdown
   useEffect(() => {
@@ -333,76 +440,53 @@ export default function DashboardPage() {
 
   return (
     <div className="p-6">
-      <div className="flex justify-between items-center mb-6">
+      {/* Header Section */}
+      <div className="mb-6">
         <h1 className="text-2xl font-bold">Dashboard</h1>
-        
-        {/* Filters */}
-        <div className="flex gap-4 items-center">
-          {/* Date Range Filter */}
-          <div className="flex items-center gap-2">
-            {/* Start Date */}
-            <div className="relative">
-              <input
-                ref={startDateRef}
-                type="date"
-                value={dateRange.start}
-                onChange={(e) => setDateRange(prev => ({ ...prev, start: e.target.value }))}
-                className="hide-native-date-icon flex h-9 rounded-md border border-gray-200 bg-transparent px-3 pr-10 py-1 text-sm shadow-xs transition-colors min-w-[140px]"
-                title="Start date"
-                placeholder="Start date"
-              />
-              <button
-                type="button"
-                onClick={() => {
-                  const el = startDateRef.current;
-                  if (!el) return;
-                  el.focus();
-                  el.showPicker?.();
-                }}
-                className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 h-4 w-4 cursor-pointer"
-                title="Open start date picker"
-              >
-                <LuCalendar className="h-4 w-4" />
-              </button>
-            </div>
-            
-            {/* Range Separator */}
-            <span className="text-gray-400 text-sm">to</span>
-            
-            {/* End Date */}
-            <div className="relative">
-              <input
-                ref={endDateRef}
-                type="date"
-                value={dateRange.end}
-                onChange={(e) => setDateRange(prev => ({ ...prev, end: e.target.value }))}
-                min={dateRange.start || undefined}
-                className="hide-native-date-icon flex h-9 rounded-md border border-gray-200 bg-transparent px-3 pr-10 py-1 text-sm shadow-xs transition-colors min-w-[140px]"
-                title="End date"
-                placeholder="End date"
-              />
-              <button
-                type="button"
-                onClick={() => {
-                  const el = endDateRef.current;
-                  if (!el) return;
-                  el.focus();
-                  el.showPicker?.();
-                }}
-                className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 h-4 w-4 cursor-pointer"
-                title="Open end date picker"
-              >
-                <LuCalendar className="h-4 w-4" />
-              </button>
-            </div>
-          </div>
+        <p className="text-gray-600 mt-1">Comprehensive analysis of workorder stages, status distribution, and due date performance</p>
+      </div>
 
-          {/* Assignee Filter */}
-          <div className="relative">
+      {/* Filters Section */}
+      <div className="p-4 mb-6 border border-gray-200 rounded-lg bg-white shadow-sm">
+        <div className="flex flex-col sm:flex-row gap-4 items-center">
+          <div className="flex items-center gap-2">
+            <LuFilter className="h-4 w-4 text-gray-500" />
+            <span className="text-sm font-medium">Filters:</span>
+            {/* Loading Indicator */}
+            {filterLoading && (
+              <div className="inline-flex items-center">
+                <div className="w-3 h-3 border border-blue-200 rounded-full animate-spin border-t-blue-600 mr-1"></div>
+                <span className="text-xs text-gray-500">Updating...</span>
+              </div>
+            )}
+          </div>
+          
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 flex-1">
+            {/* Status Filter */}
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="flex h-9 w-full items-center justify-between rounded-md border border-gray-300 bg-transparent px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+            >
+              <option value="">All Statuses</option>
+              <optgroup label="Work Order Status">
+                <option value="Pending">Pending</option>
+                <option value="Completed">Completed</option>
+              </optgroup>
+              <optgroup label="Detailed Status">
+                <option value="Draft">Draft</option>
+                <option value="In Progress">In Progress</option>
+                <option value="Submitted">Submitted</option>
+                <option value="Approved">Approved</option>
+                <option value="Rejected">Rejected</option>
+              </optgroup>
+            </select>
+
+            {/* Assignee Filter */}
             <select
               value={assigneeFilter}
               onChange={(e) => setAssigneeFilter(e.target.value)}
-              className="flex h-9 rounded-md border border-gray-200 bg-transparent px-3 py-1 text-sm shadow-xs transition-colors appearance-none pr-8 min-w-[160px]"
+              className="flex h-9 w-full items-center justify-between rounded-md border border-gray-300 bg-transparent px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
             >
               <option value="">All Assignees</option>
               {availableAssignees.map((user) => (
@@ -411,65 +495,71 @@ export default function DashboardPage() {
                 </option>
               ))}
             </select>
-            <LuFilter className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4 pointer-events-none" />
-          </div>
 
-          {/* Clear Filters */}
-          {(dateRange.start || dateRange.end || assigneeFilter) && (
-            <button
-              onClick={() => {
-                setDateRange({ start: '', end: '' });
-                setAssigneeFilter('');
-              }}
-              className="inline-flex items-center px-3 py-1 text-sm text-gray-500 hover:text-gray-700 underline"
-              title="Clear all filters"
+            {/* Date Range Filter */}
+            <select
+              value={dateRangeFilter}
+              onChange={(e) => setDateRangeFilter(e.target.value)}
+              className="flex h-9 w-full items-center justify-between rounded-md border border-gray-300 bg-transparent px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
             >
-              <LuX className="h-3 w-3 mr-1" />
-              Clear
-            </button>
-          )}
+              <option value="">All Time</option>
+              <option value="today">Today</option>
+              <option value="thisWeek">This Week</option>
+              <option value="thisMonth">This Month</option>
+              <option value="thisQuarter">This Quarter</option>
+              <option value="thisYear">This Year</option>
+            </select>
+          </div>
+          
+          <button
+            onClick={() => {
+              setStatusFilter('');
+              setAssigneeFilter('');
+              setDateRangeFilter('');
+              setDateRange({ start: '', end: '' });
+            }}
+            disabled={filterLoading}
+            className="inline-flex items-center justify-center rounded-md text-sm font-medium border border-gray-300 bg-white shadow-sm hover:bg-gray-50 h-9 px-4 py-2 disabled:opacity-50 disabled:pointer-events-none"
+          >
+            Reset Filters
+          </button>
         </div>
       </div>
 
-      {/* Active Filters Display */}
-      {(dateRange.start || dateRange.end || assigneeFilter) && (
-        <div className="mb-4 flex flex-wrap gap-2">
-          {(dateRange.start || dateRange.end) && (
-            <div className="inline-flex items-center gap-2 rounded-full bg-blue-50 text-blue-700 px-3 py-1 text-xs border border-blue-200">
-              <LuCalendar className="h-3 w-3" />
-              <span>
-                Date: {dateRange.start || 'Start'} 
-                {(dateRange.start || dateRange.end) && ' to '} 
-                {dateRange.end || 'End'}
-              </span>
-              <button
-                type="button"
-                className="ml-1 rounded-full hover:bg-blue-100 px-1.5 cursor-pointer"
-                onClick={() => setDateRange({ start: '', end: '' })}
-                aria-label="Clear date range filter"
-              >
-                ×
-              </button>
+      {/* Dashboard Content with Loading Overlay */}
+      <div className="relative">
+        {/* Loading Overlay with Smooth Animation */}
+        <div className={`absolute inset-0 z-10 flex items-center justify-center rounded-lg transition-all duration-300 ease-in-out ${
+          filterLoading 
+            ? 'opacity-100 visible bg-white/80 backdrop-blur-sm' 
+            : 'opacity-0 invisible bg-white/0'
+        }`}>
+          <div className={`flex flex-col items-center gap-3 transition-all duration-300 ease-in-out ${
+            filterLoading ? 'scale-100 opacity-100' : 'scale-95 opacity-0'
+          }`}>
+            <div className="relative">
+              <div className="animate-spin rounded-full h-10 w-10 border-3 border-blue-200"></div>
+              <div className="animate-spin rounded-full h-10 w-10 border-3 border-transparent border-t-blue-600 absolute top-0 left-0"></div>
             </div>
-          )}
-          {assigneeFilter && (
-            <div className="inline-flex items-center gap-2 rounded-full bg-green-50 text-green-700 px-3 py-1 text-xs border border-green-200">
-              <LuUsers className="h-3 w-3" />
-              <span>Assignee: {assigneeFilter}</span>
-              <button
-                type="button"
-                className="ml-1 rounded-full hover:bg-green-100 px-1.5 cursor-pointer"
-                onClick={() => setAssigneeFilter('')}
-                aria-label="Clear assignee filter"
-              >
-                ×
-              </button>
+            <div className="text-center">
+              <p className="text-sm text-gray-700 font-medium">Applying filters</p>
+              <div className="flex items-center justify-center mt-1">
+                <div className="flex space-x-1">
+                  <div className="w-1 h-1 bg-blue-600 rounded-full animate-bounce"></div>
+                  <div className="w-1 h-1 bg-blue-600 rounded-full animate-bounce" style={{animationDelay: '0.1s'}}></div>
+                  <div className="w-1 h-1 bg-blue-600 rounded-full animate-bounce" style={{animationDelay: '0.2s'}}></div>
+                </div>
+              </div>
             </div>
-          )}
+          </div>
         </div>
-      )}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mb-6">
-        <div className="rounded-xl border border-gray-200 bg-card text-card-foreground shadow p-6">
+        
+        <div className={`grid gap-4 md:grid-cols-2 lg:grid-cols-4 mb-6 transition-all duration-300 ease-in-out ${
+          filterLoading ? 'opacity-50 scale-[0.98]' : 'opacity-100 scale-100'
+        }`}>
+        <div className={`rounded-xl border border-gray-200 bg-card text-card-foreground shadow p-6 transition-all duration-300 ${
+          filterLoading ? 'animate-pulse bg-gray-50 border-gray-100' : 'bg-white border-gray-200'
+        }`}>
           <div className="flex items-center justify-between pb-2">
             <h3 className="tracking-tight text-sm font-medium">
               Total Workorders
@@ -478,19 +568,23 @@ export default function DashboardPage() {
               <LuFileText className="w-4 h-4" />
             </div>
           </div>
-          <div className="text-2xl font-bold mt-2">{workorderStatusSummary.total}</div>
+          <div className="text-2xl font-bold mt-2 transition-all duration-500 ease-out transform">
+            <span className={`inline-block transition-all duration-300 ${filterLoading ? 'scale-95 opacity-70' : 'scale-100 opacity-100'}`}>
+              {workorderStatusSummary.total}
+            </span>
+          </div>
           <p className="text-xs text-gray-500 mt-1">All workorders in system</p>
           <div className="text-xs text-gray-600 mt-2">+0 this week</div>
         </div>
 
         <div className="rounded-xl border border-gray-200 bg-card text-card-foreground shadow p-6">
           <div className="flex items-center justify-between pb-2">
-            <h3 className="tracking-tight text-sm font-medium">Pending</h3>
+            <h3 className="tracking-tight text-sm font-medium">Draft</h3>
             <div className="p-2 rounded-full bg-yellow-500 text-white">
               <LuClock className="w-4 h-4" />
             </div>
           </div>
-          <div className="text-2xl font-bold mt-2">{workorderStatusSummary.pending}</div>
+          <div className="text-2xl font-bold mt-2">{workorderStatusSummary.draft || 0}</div>
           <p className="text-xs text-gray-500 mt-1">Waiting to be started</p>
           {/* Progress: pending vs total */}
           <div className="mt-3">
@@ -514,7 +608,11 @@ export default function DashboardPage() {
               <LuPlay className="w-4 h-4" />
             </div>
           </div>
-          <div className="text-2xl font-bold mt-2">{workorderStatusSummary.inProgress}</div>
+          <div className="text-2xl font-bold mt-2 transition-all duration-500 ease-out">
+            <span className={`inline-block transition-all duration-300 ${filterLoading ? 'scale-95 opacity-70' : 'scale-100 opacity-100'}`}>
+              {workorderStatusSummary.inProgress}
+            </span>
+          </div>
           <p className="text-xs text-gray-500 mt-1">Currently active</p>
           {/* Progress: in progress vs total */}
           <div className="mt-3">
@@ -538,7 +636,11 @@ export default function DashboardPage() {
               <LuCheck className="w-4 h-4" />
             </div>
           </div>
-          <div className="text-2xl font-bold mt-2">{workorderStatusSummary.completed}</div>
+          <div className="text-2xl font-bold mt-2 transition-all duration-500 ease-out">
+            <span className={`inline-block transition-all duration-300 ${filterLoading ? 'scale-95 opacity-70' : 'scale-100 opacity-100'}`}>
+              {workorderStatusSummary.completed}
+            </span>
+          </div>
           <p className="text-xs text-gray-500 mt-1">Successfully finished</p>
           {/* Progress: completed vs total */}
           <div className="mt-3">
@@ -627,11 +729,13 @@ export default function DashboardPage() {
       </div>
 
       {/* Stage distribution */}
-      <div className="grid grid-col-1 xl:grid-cols-2 gap-4 mb-6">
-        <div className="rounded-xl border border-gray-200 bg-card text-card-foreground shadow p-6 mb-6">
+      <div className={`grid grid-col-1 xl:grid-cols-2 gap-4 mb-6 transition-all duration-300 ease-in-out ${
+        filterLoading ? 'opacity-50 scale-[0.98]' : 'opacity-100 scale-100'
+      }`}>
+        <div className="rounded-xl border border-gray-200 bg-card text-card-foreground shadow p-6 mb-6 xl:mb-0 flex flex-col">
           <h3 className="font-semibold mb-4">Sub-Stage Distribution</h3>
           {/* Pie Chart with Custom Tooltip */}
-          <div style={{ width: "100%", height: 280 }}>
+          <div className="w-full h-[800px]">
             <ResponsiveContainer>
               <PieChart>
                 <Pie
@@ -639,7 +743,9 @@ export default function DashboardPage() {
                   data={pieData}
                   cx="50%"
                   cy="50%"
-                  outerRadius={80}
+                  outerRadius="75%"
+                  innerRadius="45%"
+                  paddingAngle={1.5}
                   label={false}
                 >
                   {pieData.map((entry, index) => {
@@ -705,7 +811,7 @@ export default function DashboardPage() {
             })}
           </div>
         </div>
-        <div className="rounded-xl border border-gray-200 shadow p-6 mb-6 space-y-6">
+        <div className="rounded-xl border border-gray-200 shadow p-6 mb-6 xl:mb-0 space-y-6 flex flex-col">
           <h3 className="font-semibold mb-4 flex"><LuWorkflow className="h-6 w-6 mr-2"/>Detailed Status Breakdown</h3>
           
           {Object.entries(detailedStatusBreakdown).map(([status, data]) => {
@@ -714,11 +820,11 @@ export default function DashboardPage() {
               switch (status.toLowerCase()) {
                 case 'draft':
                   return {
-                    bgColor: 'bg-gray-100',
-                    textColor: 'text-gray-700',
-                    iconBg: 'bg-gray-500',
-                    icon: LuFileText,
-                    progressColor: 'bg-gray-500'
+                    bgColor: 'bg-yellow-100',
+                    textColor: 'text-yellow-700',
+                    iconBg: 'bg-yellow-500',
+                    icon: LuClock,
+                    progressColor: 'bg-yellow-500'
                   };
                 case 'in progress':
                   return {
@@ -809,7 +915,7 @@ export default function DashboardPage() {
                     {data.modules.map((module) => (
                       <div
                         key={module.name}
-                        className="flex justify-between items-center bg-white/60 rounded-lg px-3 py-2 border border-gray-200"
+                        className="flex justify-between items-center bg-white/60 rounded-lg px-3 py-2"
                       >
                         <div className="flex flex-col">
                           <span className="text-sm font-medium text-gray-800">
@@ -835,7 +941,9 @@ export default function DashboardPage() {
       {/* Due date performance */}
       <div className="rounded-xl border border-gray-200 bg-card text-card-foreground shadow p-6">
         <h3 className="font-semibold mb-4">Due Date Performance Analysis</h3>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className={`grid grid-cols-2 md:grid-cols-4 gap-4 transition-all duration-300 ease-in-out ${
+          filterLoading ? 'opacity-50 scale-[0.98]' : 'opacity-100 scale-100'
+        }`}>
           <div className="text-center p-3 bg-green-50 rounded-lg">
             <div className="text-2xl font-bold text-green-700">
               {utils.formatNumber(onTimeRate, 1)}%
@@ -878,6 +986,7 @@ export default function DashboardPage() {
       </div>
 
       {/* TODO: charts and detailed tables */}
+      </div> {/* End of relative wrapper for loading overlay */}
     </div>
   );
 }

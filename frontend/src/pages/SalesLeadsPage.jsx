@@ -21,8 +21,10 @@ import SalesLeadDetails from "../components/SalesLeadDetails";
 import SalesLeadForm from "../components/SalesLeadForm";
 import { apiBackendFetch } from "../services/api";
 import LoadingModal from "../components/LoadingModal";
+import { useUser } from "../contexts/UserContext";
 
 export default function SalesLeadsPage() {
+  const { currentUser } = useUser();
   // Handler for submit/approval (called by SalesLeadForm)
   const handleSubmitForApproval = async (formData) => {
     try {
@@ -98,7 +100,6 @@ export default function SalesLeadsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [successMessage, setSuccessMessage] = useState("");
-  const [currentUser, setCurrentUser] = useState(null);
   const [newAssignedSalesLeads, setNewAssignedSalesLeads] = useState([]);
   const [statusSummary, setStatusSummary] = useState({
     total: 0,
@@ -173,18 +174,6 @@ export default function SalesLeadsPage() {
     }
   };
 
-  const fetchCurrentUser = async () => {
-    try {
-      const res = await apiBackendFetch("/auth/me");
-      if (res.ok) {
-        const data = await res.json();
-        setCurrentUser(data.user);
-      }
-    } catch (err) {
-      console.error("Failed to fetch current user", err);
-    }
-  };
-
   const fetchNewAssignedSalesLeads = useCallback(async () => {
     if (!currentUser) return;
     try {
@@ -248,7 +237,6 @@ export default function SalesLeadsPage() {
   }, []);
 
   useEffect(() => {
-    fetchCurrentUser();
     fetchAllData();
   }, []);
 
@@ -644,7 +632,6 @@ export default function SalesLeadsPage() {
         {selectedSL && !editingSL && (
           <SalesLeadDetails
             salesLead={selectedSL}
-            currentUser={currentUser}
             onBack={() => setSelectedSL(null)}
             onEdit={() => fetchEditingSL(selectedSL.id)}
             onSubmit={(passedSL) => {
