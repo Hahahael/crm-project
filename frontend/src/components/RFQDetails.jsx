@@ -215,6 +215,39 @@ const RFQDetails = ({
   const bestVendorName = bestVendorEntry?.name || "-";
   const bestVendorTotal = Number(bestVendorEntry?.total || 0);
   const savingsVsNext = Math.max(0, Number((nextBestEntry?.total || bestVendorTotal) - bestVendorTotal));
+
+  // Selected vendor computation - use selectedVendorId from rfq
+  const selectedVendorId = rfq?.selectedVendorId || rfq?.selected_vendor_id;
+  
+  // Find the actual selected vendor from the vendors array (not quotations)
+  const selectedVendorData = selectedVendorId 
+    ? vendors.find(v => String(v.Id || v.vendorId || v.vendor_id) === String(selectedVendorId))
+    : null;
+  
+  // Use vendor name from RFQ's vendor object if available, otherwise from selected vendor data
+  // Handle MSSQL vendor fields (Name, VendorName, etc.)
+  const selectedVendorName = rfq?.vendor?.Name || rfq?.vendor?.name || rfq?.vendor?.VendorName || 
+                             selectedVendorData?.Name || selectedVendorData?.name || "-";
+  
+  // Get the selected vendor's grand total (from vendor data, not quotations calculation)
+  // If grandTotal isn't available, calculate from subtotal + vat
+  const selectedVendorGrandTotal = selectedVendorData?.grandTotal || selectedVendorData?.grand_total;
+  const selectedVendorSubtotal = Number(selectedVendorData?.subtotal || 0);
+  const selectedVendorVat = Number(selectedVendorData?.vat || 0);
+  const selectedVendorTotal = selectedVendorGrandTotal 
+    ? Number(selectedVendorGrandTotal)
+    : selectedVendorSubtotal + selectedVendorVat;
+  
+  // Calculate savings of selected vendor vs best alternative from quotations
+  const otherVendorTotals = vendorTotalsList
+    .filter(v => String(v.vendor.id || v.vendor.vendorId || v.vendor.vendor_id) !== String(selectedVendorId))
+    .map(v => Number(v.total || 0))
+    .filter(total => total > 0);
+  
+  const bestAlternativeTotal = otherVendorTotals.length > 0 ? Math.min(...otherVendorTotals) : selectedVendorTotal;
+  const selectedVendorSavings = selectedVendorTotal > 0 && bestAlternativeTotal > selectedVendorTotal 
+    ? bestAlternativeTotal - selectedVendorTotal 
+    : 0;
   // Per-vendor savings relative to best (positive numbers mean best saves that amount)
   // Note: compute per-vendor savings if needed elsewhere
 
@@ -459,14 +492,34 @@ const RFQDetails = ({
           <div className="rounded-xl border border-gray-200 p-6 shadow-sm">
             <div className="flex flex-col space-y-1.5 pb-6">
               <h3 className="font-bold leading-none tracking-tight">
-                Best Quote
+                {selectedVendorId ? "Selected Vendor" : "Best Quote"}
               </h3>
+              {selectedVendorId && (
+                <p className="text-sm text-gray-600">
+                  Vendor has been selected for this RFQ
+                </p>
+              )}
             </div>
             <div className="pt-0">
               <div className="grid grid-cols-1 gap-4">
-                <VendorDetail label="Vendor:" value={bestVendorName} />
-                <VendorDetail label="Amount:" value={`$${utils.formatNumber(bestVendorTotal, 2)}`} />
-                <VendorDetail label="Savings:" value={`$${utils.formatNumber(savingsVsNext, 2)}`} />
+                {selectedVendorId ? (
+                  <>
+                    <VendorDetail label="Vendor:" value={selectedVendorName} />
+                    <VendorDetail label="Amount:" value={`$${utils.formatNumber(selectedVendorTotal, 2)}`} />
+                    <VendorDetail label="Savings:" value={`$${utils.formatNumber(selectedVendorSavings, 2)}`} />
+                    {selectedVendorSavings > 0 && (
+                      <div className="text-xs text-green-600 bg-green-50 px-2 py-1 rounded">
+                        💰 Saves ${utils.formatNumber(selectedVendorSavings, 2)} vs best alternative
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <>
+                    <VendorDetail label="Vendor:" value={bestVendorName} />
+                    <VendorDetail label="Amount:" value={`$${utils.formatNumber(bestVendorTotal, 2)}`} />
+                    <VendorDetail label="Savings:" value={`$${utils.formatNumber(savingsVsNext, 2)}`} />
+                  </>
+                )}
               </div>
             </div>
           </div>

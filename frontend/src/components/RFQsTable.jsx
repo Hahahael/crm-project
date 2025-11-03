@@ -90,7 +90,7 @@ export default function RFQsTable({ rfqs, onView, onEdit }) {
               Account
             </th>
             <th className="px-4 py-2 font-normal text-gray-500 text-sm w-[10%]">
-              Vendor
+              Selected Vendor
             </th>
             <th className="px-4 py-2 font-normal text-gray-500 text-sm w-[8%]">
               Contact Person
@@ -130,7 +130,24 @@ export default function RFQsTable({ rfqs, onView, onEdit }) {
               </td>
               <td className="px-4 py-2 text-black text-sm">{rfq.account.kristem.Name}</td>
               <td className="px-4 py-2 text-black text-sm">
-                {rfq.vendor || "-"}
+                {rfq.selectedVendorId || rfq.selected_vendor_id ? (
+                  <div className="flex flex-col gap-1">
+                    <div className="flex items-center gap-2">
+                      <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                      <span className="text-green-700 font-medium">
+                        {rfq.vendor?.Name || rfq.vendor?.name || rfq.vendor?.VendorName || "Selected"}
+                      </span>
+                    </div>
+                    {rfq.vendor?.Name || rfq.vendor?.name || rfq.vendor?.VendorName ? (
+                      <span className="text-xs text-gray-500 ml-4">Vendor selected</span>
+                    ) : null}
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 bg-gray-300 rounded-full"></div>
+                    <span className="text-gray-500">Pending</span>
+                  </div>
+                )}
               </td>
               <td className="px-4 py-2 text-black text-sm">
                 {rfq.contactPerson || "-"}
