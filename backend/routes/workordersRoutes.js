@@ -447,11 +447,13 @@ router.post("/", async (req, res) => {
 
     const newId = insertResult.rows[0].id;
 
-    const updateAccountQuery = `UPDATE accounts SET wo_source_id=$1 WHERE id = $2`;
-    await db.query(updateAccountQuery, [
+    const updateAccountQuery = `UPDATE accounts SET wo_source_id=$1 WHERE kristem_account_id = $2 RETURNING *`;
+    const updatedAccount = await db.query(updateAccountQuery, [
       insertResult.rows[0].id,
       finalAccountId,
     ]);
+
+    console.log("Updated account after workorder creation:", updatedAccount.rows[0]);
 
     // 5️⃣ Return new row with assignee details
     const final = await db.query(

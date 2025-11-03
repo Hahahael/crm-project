@@ -95,7 +95,7 @@ const AccountForm = ({
       trainingRequirements,
       maintenanceRequirements,
       attachments,
-      additionalNotes,
+      additional,
       ...requiredFields
     } = formData;
 
@@ -125,7 +125,7 @@ const AccountForm = ({
       installationRequirements: formData.installationRequirements || null,
       trainingRequirements: formData.trainingRequirements || null,
       maintenanceRequirements: formData.maintenanceRequirements || null,
-      additionalNotes: formData.additionalNotes || null,
+      additional: formData.additional || null,
       items: trItems,
     };
 
@@ -143,7 +143,7 @@ const AccountForm = ({
       trainingRequirements,
       maintenanceRequirements,
       attachments,
-      additionalNotes,
+      additional,
       trItems,
       ...requiredFields
     } = formData;
@@ -163,7 +163,7 @@ const AccountForm = ({
       installationRequirements: formData.installationRequirements || null,
       trainingRequirements: formData.trainingRequirements || null,
       maintenanceRequirements: formData.maintenanceRequirements || null,
-      additionalNotes: formData.additionalNotes || null,
+      additional: formData.additional || null,
       items: trItems,
     };
     console.log(trItems);
@@ -211,7 +211,7 @@ const AccountForm = ({
               : "New NAEF"}
           </h1>
           <h2 className="text-lg text-gray-500">
-            `${account.kristem?.Code}`
+            {account.kristem?.Code}
           </h2>
           <h2 className="text-sm text-gray-500">
             {mode === "edit"
@@ -275,7 +275,7 @@ const AccountForm = ({
                   id="requestBy"
                   type="text"
                   name="requestBy"
-                  value={formData.preparedBy}
+                  value={formData.requestedBy}
                   onChange={handleChange}
                   readOnly
                 />
@@ -969,7 +969,7 @@ const AccountForm = ({
                 id="preparedBy"
                 type="text"
                 name="preparedBy"
-                value={formData.preparedBy}
+                value={formData.preparedByUsername}
                 onChange={handleChange}
                 readOnly
               />

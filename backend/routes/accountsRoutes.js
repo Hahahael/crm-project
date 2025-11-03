@@ -511,11 +511,15 @@ router.put("/approval/:id", async (req, res) => {
 
     const updateResult = await db.query(`
       UPDATE accounts SET
-        due_date = $1
-      WHERE kristem_account_id = $2
+        due_date = $1,
+        stage_status = 'Draft',
+        prepared_by = $2,
+        updated_at = NOW()
+      WHERE kristem_account_id = $3
       RETURNING *
     `, [
       body.due_date,
+      body.assignee,
       id
     ]);
 
@@ -523,13 +527,13 @@ router.put("/approval/:id", async (req, res) => {
       return res.status(404).json({ error: "Account not found for approval" });
     }
 
-    // Create workflow stage for new technical recommendation (Draft)
+    // Create workflow stage for NAEF (Draft)
     await db.query(
       `
         INSERT INTO workflow_stages (wo_id, stage_name, status, assigned_to, created_at, updated_at)
         VALUES ($1, $2, $3, $4, NOW(), NOW())
       `,
-      [body.wo_id, "Quotations", "Draft", body.assignee],
+      [body.wo_id, "NAEF", "Draft", body.assignee],
     );
 
     const updatedAccount = updateResult.rows[0];
@@ -803,8 +807,9 @@ router.get("/:id", async (req, res) => {
         u.username as prepared_by_username
       FROM accounts a
       LEFT JOIN users u ON a.prepared_by = u.id
-      WHERE a.id = $1
+      WHERE a.kristem_account_id = $1
     `, [id]);
+    console.log("✅ Found account in PostgreSQL:", pgResult.rows[0]);
     
     if (pgResult.rows.length > 0) {
       const account = pgResult.rows[0];

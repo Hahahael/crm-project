@@ -251,7 +251,7 @@ const ApprovalsPage = () => {
         fromTime,
         toTime,
       };
-      let accountId;
+      let accountId = actionApproval.accountId || detailsData.accountId || detailsData.kristemAccountId;
       const prevWorkOrderAssignee = detailsData?.assignee || detailsData?.assignedTo || detailsData?.preparedBy;
       const currentType = actionApproval.stageName || actionApproval.module;
       if (modalType === "approve") {
@@ -345,6 +345,7 @@ const ApprovalsPage = () => {
               notified: false,
               remarks,
               next_stage: nextModuleType,
+              account_id: accountId
             }),
           });
 

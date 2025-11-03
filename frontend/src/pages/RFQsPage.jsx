@@ -197,8 +197,7 @@ export default function RFQsPage() {
       setSuccessMessage("RFQ saved successfully!"); // ✅ trigger success message
       await fetchAllData();
       await fetchNewAssignedRFQs();
-      setSelectedRFQ(null);
-      setEditingRFQ(null);
+      fetchRFQById(formData.id);
     } catch (err) {
       console.error("Error saving RFQ:", err);
       setError("Failed to save RFQ");
