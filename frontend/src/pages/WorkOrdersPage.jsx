@@ -554,7 +554,7 @@ export default function WorkOrdersPage() {
                       {newAssignedWorkOrders[0].workDescription}
                     </p>
                     <p className="text-sm text-gray-600">
-                      Account: {newAssignedWorkOrders[0].accountName}
+                      Account: {newAssignedWorkOrders[0].account?.kristem?.Name}
                     </p>
                     <p className="text-sm text-gray-600">
                       Contact: {newAssignedWorkOrders[0].contactPerson}

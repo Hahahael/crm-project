@@ -274,7 +274,7 @@ export default function QuotationsTable({ quotations, onView, onSend }) {
                   </button>
                   <button
                     onClick={() => onSend && onSend(quotation)}
-                    className="cursor-pointer rounded px-2 py-2 text-black border border-gray-200 bg-white hover:bg-gray-100 transition-all duration-200"
+                    className={`cursor-pointer rounded px-2 py-2 text-black border border-gray-200 bg-white hover:bg-gray-100 transition-all duration-200 ${quotation.stageStatus === "Submitted" ? "opacity-50 cursor-not-allowed hover:bg-white pointer-events-none" : ""}`}
                     title="Send to MSSQL"
                   >
                     <LuSend className="my-auto" />

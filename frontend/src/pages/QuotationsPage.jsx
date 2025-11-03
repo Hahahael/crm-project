@@ -246,10 +246,10 @@ export default function QuotationsPage() {
     try {
       // Ensure we have the related TR and RFQ available before building the MSSQL payload
       const { trData, rfqData } = await getTRAndRFQ(quotation);
-  const payload = buildMssqlPayload(quotation, rfqData, trData);
-  // Provide a hint to the backend MSSQL handler so it can mark the corresponding
-  // Postgres Work Order as Completed only after a successful MSSQL insert.
-  payload.POSTGRES_WO_ID = quotation?.wo_id || quotation?.woId || quotation?.workorder?.id || null;
+      const payload = buildMssqlPayload(quotation, rfqData, trData);
+      // Provide a hint to the backend MSSQL handler so it can mark the corresponding
+      // Postgres Work Order as Completed only after a successful MSSQL insert.
+      payload.POSTGRES_WO_ID = quotation?.wo_id || quotation?.woId || quotation?.workorder?.id || null;
       console.log("Sending MSSQL payload:", payload);
       // Use quick endpoint for demo/testing that inserts quotation + details
       const res = await apiBackendFetch("/api/mssql/quotations", {
@@ -293,6 +293,7 @@ export default function QuotationsPage() {
       setSelectedQuotation(null);
       setSelectedTR(null);
       setSelectedRFQ(null);
+      await fetchAllData();
     }
   };
 
