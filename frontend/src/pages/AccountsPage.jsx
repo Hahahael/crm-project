@@ -261,7 +261,7 @@ export default function AccountsPage() {
           body: JSON.stringify(submitData),
         });
       }
-s
+
       if (!response.ok) throw new Error("Failed to save account");
       const savedAccount = await response.json();
 
