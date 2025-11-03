@@ -34,8 +34,8 @@ export default function RFQCanvassSheet({
   const canonItemId = (obj) => (obj ? (obj.itemId ?? obj.item_id ?? obj.id) : undefined);
   const canonVendorId = (obj) => (obj ? (obj.vendorId ?? obj.vendor_id ?? obj.id) : undefined);
   const idEq = (a, b) => String(a ?? "") === String(b ?? "");
-  // Global selected vendor for ALL items
-  const [selectedVendorAll, setSelectedVendorAll] = useState(() => rfq?.selectedVendorId ?? null);
+  // Global selected vendor for ALL items - use the database field
+  const [selectedVendorAll, setSelectedVendorAll] = useState(() => rfq?.selectedVendorId || rfq?.selected_vendor_id || null);
 
   // Apply a single vendor selection across all items
   const handleSelectVendorAll = (vendorId) => {
@@ -68,8 +68,8 @@ export default function RFQCanvassSheet({
       setFormData((prev) => ({
         ...prev,
         items: updatedItems,
+        selectedVendorId: vendorId, // Store the selected vendor ID in formData
         selectedVendorsByItem: newSelection,
-        selectedVendorId: vendorId,
       }));
   };
 
@@ -82,19 +82,25 @@ export default function RFQCanvassSheet({
   };
 
   const [selectedVendorsByItem, setSelectedVendorsByItem] = useState(() => {
-    // Initialize from formData.selectedVendorsByItem if available, else use bestVendorId
-    if (
-      formData.selectedVendorsByItem &&
-      Object.keys(formData.selectedVendorsByItem).length > 0
-    ) {
-      return formData.selectedVendorsByItem;
+    // Initialize per-item vendor selection based on the global selectedVendorId
+    const itemVendorMap = {};
+    const globalSelectedVendor = rfq?.selectedVendorId || rfq?.selected_vendor_id;
+    
+    if (globalSelectedVendor && Array.isArray(formItems)) {
+      // If there's a global selected vendor, apply it to all items
+      formItems.forEach((item) => {
+        const iid = canonItemId(item);
+        itemVendorMap[iid] = globalSelectedVendor;
+      });
+    } else if (Array.isArray(formItems)) {
+      // Fallback: use individual item vendor selections if no global selection
+      formItems.forEach((item) => {
+        const iid = canonItemId(item);
+        const bestVid = item.bestVendorId ?? null;
+        if (bestVid) itemVendorMap[iid] = bestVid;
+      });
     }
-    const initial = {};
-    (formItems || []).forEach((item) => {
-      const iid = canonItemId(item);
-      if (item.bestVendorId) initial[iid] = item.bestVendorId;
-    });
-    return initial;
+    return itemVendorMap;
   });
 
   // Generate quotations array from items and vendors as state, derived from rfq.items and rfq.vendors
@@ -155,15 +161,46 @@ export default function RFQCanvassSheet({
     [formItems, formVendors],
   );
 
-  const [quotations, setQuotations] = useState(() =>
-    generateQuotations({
-      ...(formItems || []).reduce((acc, item) => {
+  const [quotations, setQuotations] = useState(() => {
+    // Initialize quotations based on the selectedVendorsByItem
+    const globalSelectedVendor = rfq?.selectedVendorId || rfq?.selected_vendor_id;
+    let initialSelections = {};
+    
+    if (globalSelectedVendor && Array.isArray(formItems)) {
+      // Use global selected vendor for all items
+      formItems.forEach((item) => {
+        const iid = canonItemId(item);
+        initialSelections[iid] = globalSelectedVendor;
+      });
+    } else {
+      // Fallback to individual item selections
+      initialSelections = (formItems || []).reduce((acc, item) => {
         const iid = canonItemId(item);
         if (item.bestVendorId) acc[iid] = item.bestVendorId;
         return acc;
-      }, {}),
-    }),
-  );
+      }, {});
+    }
+    
+    return generateQuotations(initialSelections);
+  });
+
+  // Watch for changes in the RFQ's selected vendor and update local state
+  useEffect(() => {
+    const globalSelectedVendor = rfq?.selectedVendorId || rfq?.selected_vendor_id;
+    if (globalSelectedVendor !== selectedVendorAll) {
+      setSelectedVendorAll(globalSelectedVendor);
+      
+      // Update selectedVendorsByItem to reflect the global selection
+      if (globalSelectedVendor && Array.isArray(formItems)) {
+        const newSelections = {};
+        formItems.forEach((item) => {
+          const iid = canonItemId(item);
+          newSelections[iid] = globalSelectedVendor;
+        });
+        setSelectedVendorsByItem(newSelections);
+      }
+    }
+  }, [rfq?.selectedVendorId, rfq?.selected_vendor_id, selectedVendorAll, formItems]);
 
   // Sync quotations when selectedVendorsByItem changes
   useEffect(() => {

@@ -52,6 +52,7 @@ export default function RFQFormWrapper({
     additionalNotes: "",
     items: [],
     vendors: [],
+    selectedVendorId: null,
   });
   const [formItems, setFormItems] = useState([]);
   const [formVendors, setFormVendors] = useState([]);
@@ -129,6 +130,7 @@ export default function RFQFormWrapper({
         rfqDate: rfq.createdAt || prev.rfqDate,
         items: normalizedItems,
         vendors: normalizedVendors,
+        selectedVendorId: rfq.selectedVendorId || rfq.selected_vendor_id || null,
       }));
     } else if (rfq && Object.keys(rfq).length === 0) {
       setFormItems([]);
@@ -147,6 +149,7 @@ export default function RFQFormWrapper({
         grandTotal: 0,
         additionalNotes: "",
         items: [],
+        selectedVendorId: null,
         vendors: [],
       });
     }
