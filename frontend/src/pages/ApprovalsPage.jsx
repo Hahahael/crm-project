@@ -504,7 +504,6 @@ const ApprovalsPage = () => {
         return (
           <AccountDetails
             account={detailsData}
-            currentUser={null}
             workWeeks={[]}
             onBack={() => setSelectedApproval(null)}
             onEdit={() => {}}

@@ -235,6 +235,7 @@ export default function DashboardPage() {
             stageRes.json(),
             apiBackendFetch("/api/dashboard/assignees"),
           ]);
+        console.log("Fetched dashboard data:", summaryData, dueData, workflowStagesData, assigneesData);
         let assigneesJson = { totalActive: 0, top: [] };
         if (assigneesData.ok) {
           assigneesJson = await assigneesData.json();
@@ -448,8 +449,8 @@ export default function DashboardPage() {
 
       {/* Filters Section */}
       <div className="p-4 mb-6 border border-gray-200 rounded-lg bg-white shadow-sm">
-        <div className="flex flex-col sm:flex-row gap-4 items-center">
-          <div className="flex items-center gap-2">
+        <div className="flex flex-col md:flex-row gap-4 items-center">
+          <div className="flex items-center gap-2 w-full md:w-auto">
             <LuFilter className="h-4 w-4 text-gray-500" />
             <span className="text-sm font-medium">Filters:</span>
             {/* Loading Indicator */}
@@ -461,7 +462,7 @@ export default function DashboardPage() {
             )}
           </div>
           
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 flex-1">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 flex-1 w-full">
             {/* Status Filter */}
             <select
               value={statusFilter}
@@ -519,7 +520,7 @@ export default function DashboardPage() {
               setDateRange({ start: '', end: '' });
             }}
             disabled={filterLoading}
-            className="inline-flex items-center justify-center rounded-md text-sm font-medium border border-gray-300 bg-white shadow-sm hover:bg-gray-50 h-9 px-4 py-2 disabled:opacity-50 disabled:pointer-events-none"
+            className="inline-flex items-center justify-center rounded-md text-sm font-medium border border-gray-300 bg-white shadow-sm hover:bg-gray-50 h-9 px-4 py-2 disabled:opacity-50 disabled:pointer-events-none w-full md:w-auto"
           >
             Reset Filters
           </button>
@@ -735,7 +736,7 @@ export default function DashboardPage() {
         <div className="rounded-xl border border-gray-200 bg-card text-card-foreground shadow p-6 mb-6 xl:mb-0 flex flex-col">
           <h3 className="font-semibold mb-4">Sub-Stage Distribution</h3>
           {/* Pie Chart with Custom Tooltip */}
-          <div className="w-full h-[800px]">
+          <div className="w-full h-[450px] md:h-[600px]">
             <ResponsiveContainer>
               <PieChart>
                 <Pie
