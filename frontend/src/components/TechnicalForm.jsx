@@ -882,9 +882,9 @@ const TechnicalForm = ({
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200">
-                    {trItems?.map((item) => (
+                    {trItems?.map((item, index) => (
                       <tr
-                        key={item.id}
+                        key={index}
                         className="hover:bg-gray-100 transition-all duration-200"
                       >
                         <td
@@ -973,10 +973,11 @@ const TechnicalForm = ({
                                       )
                                         .toString()
                                         .toLowerCase();
-                                      const already = trItems.some(
-                                        (tr) => tr.item_id === (i.Id || i.id),
-                                      );
-                                      return text.includes(q) && !already;
+                                      // const already = trItems.some(
+                                      //   (tr) => tr.item_id === (i.Id || i.id),
+                                      // );
+                                      // return text.includes(q) && !already;
+                                      return text.includes(q);
                                     })
                                     .map((itm) => (
                                       <li
