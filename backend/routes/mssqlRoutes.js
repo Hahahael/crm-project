@@ -227,6 +227,7 @@ router.post("/quotations", async (req, res) => {
     qKeys.forEach((k, i) => trxReq.input(`q${i}`, filteredQuotation[k]));
 
     const insertQuotationSql = `INSERT INTO spidb.quotation (${qCols}) OUTPUT INSERTED.* VALUES (${qParams})`;
+    
     const insertRes = await trxReq.query(insertQuotationSql);
     const insertedQuotation = insertRes.recordset && insertRes.recordset[0];
 

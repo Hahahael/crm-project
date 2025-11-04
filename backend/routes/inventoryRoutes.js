@@ -119,7 +119,7 @@ router.get("/mssql/stocks", async (req, res) => {
     console.log("Unique stock IDs to fetch:", stockIds);
     let stocksMap = {};
     if (stockIds.length > 0) {
-      const stocksSql = `SELECT * FROM spidb.stock WHERE Id IN (${stockIds.join(",")})`;
+      const stocksSql = `SELECT * FROM spidb.stock_details WHERE Stock_Id IN (${stockIds.join(",")})`;
       const stocksRes = await pool.request().query(stocksSql);
       const stocks = stocksRes.recordset || [];
       logAttributes("stock (parent fetched)", stocksRes.recordset || []);
@@ -163,7 +163,7 @@ router.get("/mssql/stocks/:id", async (req, res) => {
     const stockRes = await pool
       .request()
       .input("id", id)
-      .query("SELECT * FROM spidb.stock WHERE Id = @id");
+      .query("SELECT * FROM spidb.stock_details WHERE Id = @id");
     if (!stockRes.recordset || stockRes.recordset.length === 0) {
       return res.status(404).json({ error: "Stock not found" });
     }

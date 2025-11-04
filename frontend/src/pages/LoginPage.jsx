@@ -84,7 +84,7 @@ function LoginPage() {
 
           <button
             type="submit"
-            className="w-full rounded-md bg-blue-600 py-2 text-white hover:bg-blue-700 transition-all ease-in"
+            className="w-full rounded-md bg-blue-500 py-2 text-white hover:bg-blue-700 transition-all ease-in cursor-pointer "
           >
             Sign In
           </button>
