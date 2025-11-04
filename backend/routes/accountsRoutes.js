@@ -254,7 +254,7 @@ router.get("/naefs", async (req, res) => {
         u.username as prepared_by_username
       FROM accounts a
       LEFT JOIN users u ON a.prepared_by = u.id
-      WHERE a.is_naef = true
+      WHERE a.is_naef = true AND a.stage_status IN ('Draft', 'In Progress', 'Submitted', 'Approved', 'Rejected')
       ORDER BY a.created_at DESC
     `);
     
@@ -361,7 +361,7 @@ router.get("/naefs", async (req, res) => {
 // ADD new account (Dual creation: MSSQL + PostgreSQL)
 router.post("/", async (req, res) => {
   console.log("POST /api/accounts called - Dual creation mode");
-  console.log("Request body:", req.body);
+  console.log("Request body for creating a new account:", req.body);
   
   try {
     const body = toSnake(req.body);
@@ -440,7 +440,7 @@ router.post("/", async (req, res) => {
     `, [
       naef_number,
       kristemId, // Link to MSSQL customer
-      body.stage_status || 'Draft',
+      body.stage_status || 'Pending',
       body.ref_number,
       body.date_created || new Date(),
       body.contact_person,
@@ -502,6 +502,81 @@ router.post("/", async (req, res) => {
   }
 });
 
+// UPDATE account from approval
+router.put("/approval/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const body = toSnake(req.body);
+    console.log("Approving account id", id, "with data:", body);
+
+    const updateResult = await db.query(`
+      UPDATE accounts SET
+        due_date = $1,
+        stage_status = 'Draft',
+        prepared_by = $2,
+        updated_at = NOW()
+      WHERE kristem_account_id = $3
+      RETURNING *
+    `, [
+      body.due_date,
+      body.assignee,
+      id
+    ]);
+
+    if (updateResult.rows.length === 0) {
+      return res.status(404).json({ error: "Account not found for approval" });
+    }
+
+    // Create workflow stage for NAEF (Draft)
+    await db.query(
+      `
+        INSERT INTO workflow_stages (wo_id, stage_name, status, assigned_to, created_at, updated_at)
+        VALUES ($1, $2, $3, $4, NOW(), NOW())
+      `,
+      [body.wo_id, "NAEF", "Draft", body.assignee],
+    );
+
+    const updatedAccount = updateResult.rows[0];
+    console.log("✅ Approved PostgreSQL account:", updatedAccount);
+
+    return res.json(updatedAccount);
+  } catch (err) {
+    console.error("PUT /api/accounts/:id/approve error:", err);
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+// UPDATE account from workorder
+router.put("/workorder/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const body = toSnake(req.body);
+    console.log("Approving work order id", id, "with data:", body);
+
+    const updateResult = await db.query(`
+      UPDATE accounts SET
+        wo_source_id = $1
+      WHERE kristem_account_id = $2
+      RETURNING *
+    `, [
+      body.wo_id,
+      id
+    ]);
+
+    if (updateResult.rows.length === 0) {
+      return res.status(404).json({ error: "Account not found for approval" });
+    }
+
+    const updatedAccount = updateResult.rows[0];
+    console.log("✅ Approved PostgreSQL account:", updatedAccount);
+
+    return res.json(updatedAccount);
+  } catch (err) {
+    console.error("PUT /api/accounts/:id/approve error:", err);
+    return res.status(500).json({ error: err.message });
+  }
+});
+
 // UPDATE account
 router.put("/:id", async (req, res) => {
   try {
@@ -559,10 +634,10 @@ router.put("/:id", async (req, res) => {
         updated_at = NOW(),
         from_time = $45,
         to_time = $46
-      WHERE id = $47
+      WHERE kristem_account_id = $47
       RETURNING *
     `, [
-      body.stage_status,
+      body.stage_status || "In Progress",
       body.ref_number,
       body.requested_by || body.contact_person,
       body.designation,
@@ -732,8 +807,9 @@ router.get("/:id", async (req, res) => {
         u.username as prepared_by_username
       FROM accounts a
       LEFT JOIN users u ON a.prepared_by = u.id
-      WHERE a.id = $1
+      WHERE a.kristem_account_id = $1
     `, [id]);
+    console.log("✅ Found account in PostgreSQL:", pgResult.rows[0]);
     
     if (pgResult.rows.length > 0) {
       const account = pgResult.rows[0];

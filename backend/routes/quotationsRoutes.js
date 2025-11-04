@@ -18,7 +18,7 @@ router.get("/", async (req, res) => {
     const qRes = await db.query(`
       SELECT 
         q.*, 
-        u.username AS username,
+        u.username AS assignee_username,
         a.account_name AS account_name
       FROM quotations q
       LEFT JOIN users u ON q.assignee = u.id
@@ -83,6 +83,7 @@ router.get("/", async (req, res) => {
 
     // Enrich with MSSQL customer data
     try {
+      console.log("Starting enrichment of quotations with customer data from MSSQL");
       // Collect account IDs that need customer enrichment
       const accountIds = [
         ...new Set(
@@ -93,57 +94,151 @@ router.get("/", async (req, res) => {
       ];
 
       if (accountIds.length > 0) {
-        console.log("Enriching quotations with customer data for account IDs:", accountIds);
-        
-        // Get PostgreSQL accounts to find kristem_account_ids
-        const accountsQuery = `SELECT id, kristem_account_id FROM accounts WHERE kristem_account_id IN (${accountIds.map((_, i) => `$${i + 1}`).join(",")})`;
-        const accountsRes = await db.query(accountsQuery, accountIds);
-        const accountsMap = accountsRes.rows;
+        const spiPool = await poolPromise;
+        const custRes = await spiPool
+          .request()
+          .query(`SELECT * FROM spidb.customer WHERE Id IN (${accountIds.join(",")})`);
+        const customers = custRes.recordset || [];
+        const custMap = new Map(customers.map((c) => [Number(c.Id), c]));
+        console.log(`Fetched ${customers.length} customers from MSSQL for enrichment`);
 
-        console.log("Fetched kristem_account_ids for accounts:", accountsMap);
+        const normId = (v) => {
+          const n = Number(v);
+          return Number.isFinite(n) ? n : null;
+        };
+        const bIds = new Set();
+        const iIds = new Set();
+        const dIds = new Set();
+        for (const c of customers) {
+          const bId =
+            normId(c.Product_Brand_Id) ??
+            normId(c.ProductBrandId) ??
+            normId(c.Brand_ID) ??
+            normId(c.BrandId) ??
+            2;
+          const iId =
+            normId(c.Customer_Industry_Group_Id) ??
+            normId(c.Industry_Group_Id) ??
+            normId(c.IndustryGroupId) ??
+            null;
+          const dId =
+            normId(c.Department_Id) ??
+            normId(c.DepartmentID) ??
+            normId(c.DepartmentId) ??
+            2;
+          if (bId != null) bIds.add(bId);
+          if (iId != null) iIds.add(iId);
+          if (dId != null) dIds.add(dId);
+        }
+        bIds.add(2);
+        dIds.add(2);
 
-        // Get kristem customer IDs
-        const kristemIds = [
-          ...new Set(
-            Object.values(accountsMap)
-              .map(id => Number(id))
-              .filter(id => Number.isFinite(id))
-          ),
-        ];
+        const [brandRes, indRes, deptRes] = await Promise.all([
+          bIds.size
+            ? spiPool
+                .request()
+                .query(`SELECT * FROM spidb.brand WHERE ID IN (${Array.from(bIds).join(",")})`)
+            : Promise.resolve({ recordset: [] }),
+          iIds.size
+            ? spiPool
+                .request()
+                .query(`SELECT * FROM spidb.Customer_Industry_Group WHERE Id IN (${Array.from(iIds).join(",")})`)
+            : Promise.resolve({ recordset: [] }),
+          dIds.size
+            ? spiPool
+                .request()
+                .query(`SELECT * FROM spidb.CusDepartment WHERE Id IN (${Array.from(dIds).join(",")})`)
+            : Promise.resolve({ recordset: [] }),
+        ]);
 
-        console.log("Collected kristem customer IDs for MSSQL query:", kristemIds);
+        const brandMap = new Map((brandRes.recordset || []).map((b) => [Number(b.ID ?? b.Id), b]));
+        const indMap = new Map((indRes.recordset || []).map((i) => [Number(i.Id), i]));
+        const deptMap = new Map((deptRes.recordset || []).map((d) => [Number(d.Id), d]));
 
-        if (kristemIds.length > 0) {
-          console.log("Fetching customer data from MSSQL for kristem IDs:", kristemIds);
-          const spiPool = await poolPromise;
-          const customerQuery = `SELECT * FROM spidb.customer WHERE Id IN (${kristemIds.join(",")})`;
-          const customerRes = await spiPool.request().query(customerQuery);
-          const customerMap = Object.fromEntries(
-            customerRes.recordset.map((c) => [Number(c.Id), c])
-          );
-
-          console.log("Fetched customers from MSSQL:", customerRes.recordset);
-
-          // Attach customer data to quotations
-          enriched.forEach((q) => {
-            console.log("Enriching quotation ID:", q);
-            const accountId = q.account_id || q.accountId;
-            if (accountId) {
-              const kristemId = accountsMap[accountId];
-              if (kristemId) {
-                q.customer = customerMap[Number(kristemId)] || null;
-              }
-            }
-          });
-
-          console.log(`✅ Enriched ${enriched.length} quotations with customer data`);
+        for (const q of enriched) {
+          const aid = Number(q.accountId ?? q.account_id);
+          const cust = Number.isFinite(aid) ? custMap.get(aid) || null : null;
+          if (!cust) {
+            q.account = null;
+            continue;
+          }
+          const bId =
+            (normId(cust.Product_Brand_Id) ??
+              normId(cust.ProductBrandId) ??
+              normId(cust.Brand_ID) ??
+              normId(cust.BrandId) ??
+              2);
+          const iId =
+            normId(cust.Customer_Industry_Group_Id) ??
+            normId(cust.Industry_Group_Id) ??
+            normId(cust.IndustryGroupId) ??
+            null;
+          const dId =
+            (normId(cust.Department_Id) ??
+              normId(cust.DepartmentID) ??
+              normId(cust.DepartmentId) ??
+              2);
+          q.account = {
+            kristem: cust,
+            brand: brandMap.get(bId) || null,
+            industry: iId != null ? indMap.get(iId) || null : null,
+            department: deptMap.get(dId) || null,
+          };
+          console.log("Quotation: ", q);
         }
       }
+
+      // if (accountIds.length > 0) {
+      //   console.log("Enriching quotations with customer data for account IDs:", accountIds);
+        
+      //   // Get PostgreSQL accounts to find kristem_account_ids
+      //   // const accountsQuery = `SELECT id, kristem_account_id FROM accounts WHERE kristem_account_id IN (${accountIds.map((_, i) => `$${i + 1}`).join(",")})`;
+      //   // const accountsRes = await db.query(accountsQuery, accountIds);
+      //   // const accountsMap = accountsRes.rows;
+
+      //   // console.log("Fetched kristem_account_ids for accounts:", accountsMap);
+
+      //   // // Get kristem customer IDs
+      //   // const kristemIds = [
+      //   //   ...new Set(
+      //   //     accountsMap
+      //   //       .map(acc => Number(acc.kristemAccountId))
+      //   //       .filter(Number.isFinite)
+      //   //   ),
+      //   // ];
+
+      //   // const accountsMapObj = Object.fromEntries(
+      //   //   accountsMap.map(acc => [Number(acc.id), Number(acc.kristemAccountId)])
+      //   // );
+
+      //   if (accountIds.length > 0) {
+      //     const spiPool = await poolPromise;
+      //     const customerQuery = `SELECT * FROM spidb.customer WHERE Id IN (${accountIds.join(",")})`;
+      //     const customerRes = await spiPool.request().query(customerQuery);
+      //     const customerMap = Object.fromEntries(
+      //       customerRes.recordset.map((c) => [Number(c.Id), c])
+      //     );
+
+      //     console.log("Fetched customers from MSSQL:", customerRes.recordset);
+
+      //     // Attach customer data to quotations
+      //     enriched.forEach((q) => {
+      //       console.log("Enriching quotation ID:", q.id);
+      //       const accountId = q.account_id || q.accountId;
+      //       if (accountId) {
+      //         console.log("Account ID for enrichment:", accountId);
+      //         q.account = customerMap[accountId];
+      //       }
+      //     });
+
+      //     console.log(`✅ Enriched ${enriched.length} quotations with customer data`);
+      //   }
+      // }
     } catch (customerErr) {
       console.warn("Failed to enrich quotations with customer data:", customerErr.message);
     }
 
-    console.log("✅ Enriched quotations:", enriched);
+    // console.log("✅ Enriched quotations:", enriched);
     return res.json(enriched);
   } catch (err) {
     console.error(err);

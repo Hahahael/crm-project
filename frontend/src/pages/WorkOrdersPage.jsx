@@ -7,6 +7,7 @@ import {
   LuCircleAlert,
   LuClipboardList,
   LuClock,
+  LuFilter,
   LuPlus,
   LuSearch,
   LuX,
@@ -17,11 +18,13 @@ import WorkOrderForm from "../components/WorkOrderForm";
 import { apiBackendFetch } from "../services/api";
 import LoadingModal from "../components/LoadingModal";
 import { toSnake } from "../helper/utils";
+import { useUser } from "../contexts/UserContext";
 
 export default function WorkOrdersPage() {
   const timeoutRef = useRef();
   const navigate = useNavigate();
   const location = useLocation();
+  const { currentUser } = useUser();
 
   const [workOrders, setWorkOrders] = useState([]);
   const [search, setSearch] = useState("");
@@ -30,7 +33,6 @@ export default function WorkOrdersPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [successMessage, setSuccessMessage] = useState("");
-  const [currentUser, setCurrentUser] = useState(null);
   const [newAssignedWorkOrders, setNewAssignedWorkOrders] = useState([]);
   const [statusSummary, setStatusSummary] = useState({
     total: 0,
@@ -39,6 +41,25 @@ export default function WorkOrdersPage() {
     completed: 0,
   });
   const [statusFilter, setStatusFilter] = useState(null); // 'Pending' | 'In Progress' | 'Completed' | null
+  const [stageStatusFilter, setStageStatusFilter] = useState(''); // dropdown for stage status
+  const [serviceTypeFilter, setServiceTypeFilter] = useState(''); // 'fsl', 'esl', 'new_account', ''
+
+  // Unified filter handler to sync both status systems
+  const handleStageFilterChange = (newStageFilter) => {
+    setStageStatusFilter(newStageFilter);
+    
+    // Sync with status filter for summary cards
+    if (newStageFilter === 'Pending') {
+      setStatusFilter('Pending');
+    } else if (newStageFilter === 'In Progress') {
+      setStatusFilter('In Progress');
+    } else if (newStageFilter === 'Completed') {
+      setStatusFilter('Completed');
+    } else if (newStageFilter === '' || newStageFilter === 'Draft' || newStageFilter === 'Approved') {
+      // Clear status filter for stages that don't have summary card equivalents
+      setStatusFilter(null);
+    }
+  };
 
   const fetchAllData = async () => {
     try {
@@ -67,24 +88,14 @@ export default function WorkOrdersPage() {
       }
 
       // Add a minimum delay before hiding loading modal
-      setTimeout(() => setLoading(false), 500);
+      setTimeout(() => setLoading(false));
     } catch (err) {
       console.error("Error retrieving workorders:", err);
       setError("Failed to fetch work orders.");
     }
   };
 
-  const fetchCurrentUser = async () => {
-    try {
-      const res = await apiBackendFetch("/auth/me");
-      if (res.ok) {
-        const data = await res.json();
-        setCurrentUser(data.user);
-      }
-    } catch (err) {
-      console.error("Failed to fetch current user", err);
-    }
-  };
+
 
   const fetchNewAssignedWorkOrders = useCallback(async () => {
     if (!currentUser) return;
@@ -104,7 +115,6 @@ export default function WorkOrdersPage() {
   }, [currentUser]);
 
   useEffect(() => {
-    fetchCurrentUser();
     fetchAllData();
   }, []);
 
@@ -174,14 +184,29 @@ export default function WorkOrdersPage() {
         subtext="Please wait while we fetch your data."
       />
     );
-  if (error) return <p className="p-4 text-red-600">{error}</p>;
+
+    if (error) {
+      return (
+        <div className="p-6 flex items-center justify-center min-h-screen">
+          <div className="text-center">
+            <div className="text-red-500 mb-4">
+              <svg className="w-12 h-12 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+            <p className="text-red-600 font-medium">{error}</p>
+          </div>
+        </div>
+      );
+    }
 
   const filtered = workOrders
     .filter((wo) => {
       const q = search.toLowerCase();
       return (
         (wo.woNumber || "").toLowerCase().includes(q) ||
-        (wo.accountName || "").toLowerCase().includes(q)
+        (wo.accountName || "").toLowerCase().includes(q) ||
+        (wo.workDescription || "").toLowerCase().includes(q)
       );
     })
     .filter((wo) => {
@@ -190,6 +215,27 @@ export default function WorkOrdersPage() {
       const t = statusFilter.toLowerCase();
       if (t === "in progress") return s === "in progress" || s === "in-progress";
       return s === t;
+    })
+    .filter((wo) => {
+      // Stage Status Filter
+      if (!stageStatusFilter) return true;
+      const currentStage = String(wo.stageStatus || wo.stage_status || "").toLowerCase();
+      return currentStage === stageStatusFilter.toLowerCase();
+    })
+    .filter((wo) => {
+      // Service Type Filter
+      if (!serviceTypeFilter) return true;
+      
+      switch (serviceTypeFilter) {
+        case 'fsl':
+          return wo.isFsl === true;
+        case 'esl':
+          return wo.isEsl === true;
+        case 'new_account':
+          return wo.isNewAccount === true;
+        default:
+          return true;
+      }
     });
 
   const handleSave = async (formData, mode) => {
@@ -224,7 +270,7 @@ export default function WorkOrdersPage() {
 
       const savedWorkOrder = await response.json();
 
-      // If creating, also create the initial workflow stage
+      // If creating, also create the initial workflow stage and populate the new account's linked workorder
       if (mode !== "edit") {
         await apiBackendFetch("/api/workflow-stages", {
           method: "POST",
@@ -235,6 +281,15 @@ export default function WorkOrdersPage() {
             assigned_to: savedWorkOrder?.assignee ?? null,
           }),
         });
+
+        if (formData.is_new_account) {
+          await apiBackendFetch(`/api/accounts/workorder/${formData.accountId}`, {
+            method: "POST",
+            body: JSON.stringify({
+              wo_id: savedWorkOrder?.wo_id ?? savedWorkOrder?.woId ?? savedWorkOrder?.id
+            }),
+          });
+        }
       }
 
       // Fetch all workflow stages and log them
@@ -489,7 +544,7 @@ export default function WorkOrdersPage() {
                       {newAssignedWorkOrders[0].workDescription}
                     </p>
                     <p className="text-sm text-gray-600">
-                      Account: {newAssignedWorkOrders[0].accountName}
+                      Account: {newAssignedWorkOrders[0].account?.kristem?.Name}
                     </p>
                     <p className="text-sm text-gray-600">
                       Contact: {newAssignedWorkOrders[0].contactPerson}
@@ -531,8 +586,11 @@ export default function WorkOrdersPage() {
           {/* Status center */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
             <div
-              className={`relative flex flex-col rounded-xl shadow-sm border border-gray-200 p-6 cursor-pointer hover:shadow-md transition ${!statusFilter ? "ring-2 ring-blue-500" : ""}`}
-              onClick={() => setStatusFilter(null)}
+              className={`relative flex flex-col rounded-xl shadow-sm border border-gray-200 p-6 cursor-pointer hover:shadow-md transition ${!statusFilter && !stageStatusFilter ? "ring-2 ring-blue-500" : ""}`}
+              onClick={() => {
+                setStatusFilter(null);
+                setStageStatusFilter('');
+              }}
               role="button"
               tabIndex={0}
             >
@@ -544,8 +602,11 @@ export default function WorkOrdersPage() {
               </p>
             </div>
             <div
-              className={`relative flex flex-col rounded-xl shadow-sm border border-gray-200 p-6 cursor-pointer hover:shadow-md transition ${statusFilter === "Pending" ? "ring-2 ring-blue-500" : ""}`}
-              onClick={() => setStatusFilter("Pending")}
+              className={`relative flex flex-col rounded-xl shadow-sm border border-gray-200 p-6 cursor-pointer hover:shadow-md transition ${(statusFilter === "Pending" || stageStatusFilter === "Pending") ? "ring-2 ring-blue-500" : ""}`}
+              onClick={() => {
+                setStatusFilter("Pending");
+                setStageStatusFilter("Pending");
+              }}
               role="button"
               tabIndex={0}
             >
@@ -557,8 +618,11 @@ export default function WorkOrdersPage() {
               </p>
             </div>
             <div
-              className={`relative flex flex-col rounded-xl shadow-sm border border-gray-200 p-6 cursor-pointer hover:shadow-md transition ${statusFilter === "In Progress" ? "ring-2 ring-blue-500" : ""}`}
-              onClick={() => setStatusFilter("In Progress")}
+              className={`relative flex flex-col rounded-xl shadow-sm border border-gray-200 p-6 cursor-pointer hover:shadow-md transition ${(statusFilter === "In Progress" || stageStatusFilter === "In Progress") ? "ring-2 ring-blue-500" : ""}`}
+              onClick={() => {
+                setStatusFilter("In Progress");
+                setStageStatusFilter("In Progress");
+              }}
               role="button"
               tabIndex={0}
             >
@@ -570,8 +634,11 @@ export default function WorkOrdersPage() {
               </p>
             </div>
             <div
-              className={`relative flex flex-col rounded-xl shadow-sm border border-gray-200 p-6 cursor-pointer hover:shadow-md transition ${statusFilter === "Completed" ? "ring-2 ring-blue-500" : ""}`}
-              onClick={() => setStatusFilter("Completed")}
+              className={`relative flex flex-col rounded-xl shadow-sm border border-gray-200 p-6 cursor-pointer hover:shadow-md transition ${(statusFilter === "Completed" || stageStatusFilter === "Completed") ? "ring-2 ring-blue-500" : ""}`}
+              onClick={() => {
+                setStatusFilter("Completed");
+                setStageStatusFilter("Completed");
+              }}
               role="button"
               tabIndex={0}
             >
@@ -584,10 +651,12 @@ export default function WorkOrdersPage() {
             </div>
           </div>
 
-          {/* Search + Table */}
+          {/* Search + Filters + Table */}
           <div className="flex flex-col p-6 border border-gray-200 rounded-md gap-6">
-            <div className="flex">
-              <div className="relative flex gap-6">
+            {/* Search, Filters, and Create New Row */}
+            <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+              {/* Search Input */}
+              <div className="relative flex-1">
                 <LuSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
                 <input
                   type="text"
@@ -597,30 +666,110 @@ export default function WorkOrdersPage() {
                   placeholder="Search workorders..."
                 />
               </div>
-              {statusFilter && (
-                <div className="ml-4 inline-flex items-center gap-2 rounded-full bg-blue-50 text-blue-700 px-3 py-1 text-xs border border-blue-200">
-                  <span>Filter:</span>
-                  <span className="font-semibold">{statusFilter}</span>
-                  <button
-                    type="button"
-                    className="ml-1 rounded-full hover:bg-blue-100 px-1.5 cursor-pointer"
-                    onClick={() => setStatusFilter(null)}
-                    aria-label="Clear status filter"
+
+              {/* Filters */}
+              <div className="flex gap-3">
+                {/* Stage Status Filter */}
+                <div className="relative">
+                  <select
+                    value={stageStatusFilter}
+                    onChange={(e) => handleStageFilterChange(e.target.value)}
+                    className="flex h-9 rounded-md border border-gray-200 bg-transparent px-3 py-1 text-sm shadow-xs transition-colors appearance-none pr-8 min-w-[140px]"
                   >
-                    ×
-                  </button>
+                    <option value="">All Stages</option>
+                    <option value="Draft">Draft</option>
+                    <option value="Pending">Pending</option>
+                    <option value="In Progress">In Progress</option>
+                    <option value="Completed">Completed</option>
+                    <option value="Approved">Approved</option>
+                  </select>
+                  <LuFilter className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4 pointer-events-none" />
                 </div>
-              )}
-              <div className="ml-auto">
-                <button
-                  onClick={() => {
-                    setEditingWO({});
-                    setSelectedWO(null);
-                  }}
-                  className="ml-auto px-4 py-2 rounded-md bg-blue-500 text-white hover:bg-blue-600 font-medium transition-all duration-150 cursor-pointer text-sm flex shadow-sm"
-                >
-                  <LuPlus className="my-auto mr-2" /> Create New
-                </button>
+
+                {/* Service Type Filter */}
+                <div className="relative">
+                  <select
+                    value={serviceTypeFilter}
+                    onChange={(e) => setServiceTypeFilter(e.target.value)}
+                    className="flex h-9 rounded-md border border-gray-200 bg-transparent px-3 py-1 text-sm shadow-xs transition-colors appearance-none pr-8 min-w-[140px]"
+                  >
+                    <option value="">All Types</option>
+                    <option value="fsl">FSL Only</option>
+                    <option value="esl">ESL Only</option>
+                    <option value="new_account">New Account</option>
+                  </select>
+                  <LuFilter className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4 pointer-events-none" />
+                </div>
+              </div>
+
+              {/* Create New Work Order Button */}
+              <button
+                onClick={() => {
+                  setEditingWO({});
+                  setSelectedWO(null);
+                }}
+                className="px-4 py-2 rounded-md bg-blue-500 text-white hover:bg-blue-600 font-medium transition-all duration-150 cursor-pointer text-sm flex items-center gap-2 shadow-sm whitespace-nowrap"
+              >
+                <LuPlus className="h-4 w-4" />
+                Create New
+              </button>
+            </div>
+
+            {/* Active Filters Display and Add Button */}
+            <div className="flex flex-wrap items-center gap-2">
+              {/* Filter badges */}
+              <div className="flex flex-wrap gap-2">
+                {/* Unified Stage/Status Filter Badge */}
+                {(statusFilter || stageStatusFilter) && (
+                  <div className="inline-flex items-center gap-2 rounded-full bg-blue-50 text-blue-700 px-3 py-1 text-xs border border-blue-200">
+                    <span>Status:</span>
+                    <span className="font-semibold">{stageStatusFilter || statusFilter}</span>
+                    <button
+                      type="button"
+                      className="ml-1 rounded-full hover:bg-blue-100 px-1.5 cursor-pointer"
+                      onClick={() => {
+                        setStatusFilter(null);
+                        handleStageFilterChange('');
+                      }}
+                      aria-label="Clear status filter"
+                    >
+                      ×
+                    </button>
+                  </div>
+                )}
+                
+                {serviceTypeFilter && (
+                  <div className="inline-flex items-center gap-2 rounded-full bg-purple-50 text-purple-700 px-3 py-1 text-xs border border-purple-200">
+                    <span>Type:</span>
+                    <span className="font-semibold">
+                      {serviceTypeFilter === 'fsl' && 'FSL'}
+                      {serviceTypeFilter === 'esl' && 'ESL'}
+                      {serviceTypeFilter === 'new_account' && 'New Account'}
+                    </span>
+                    <button
+                      type="button"
+                      className="ml-1 rounded-full hover:bg-purple-100 px-1.5 cursor-pointer"
+                      onClick={() => setServiceTypeFilter('')}
+                      aria-label="Clear service type filter"
+                    >
+                      ×
+                    </button>
+                  </div>
+                )}
+
+                {/* Clear All Filters */}
+                {(statusFilter || stageStatusFilter || serviceTypeFilter) && (
+                  <button
+                    onClick={() => {
+                      setStatusFilter(null);
+                      setStageStatusFilter('');
+                      setServiceTypeFilter('');
+                    }}
+                    className="text-xs text-gray-500 hover:text-gray-700 underline"
+                  >
+                    Clear all filters
+                  </button>
+                )}
               </div>
             </div>
 

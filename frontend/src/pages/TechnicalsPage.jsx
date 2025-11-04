@@ -16,8 +16,10 @@ import TechnicalDetails from "../components/TechnicalDetails";
 import TechnicalForm from "../components/TechnicalForm";
 import { apiBackendFetch } from "../services/api";
 import LoadingModal from "../components/LoadingModal";
+import { useUser } from "../contexts/UserContext.jsx";
 
 export default function TechnicalsPage() {
+  const { currentUser } = useUser();
   const timeoutRef = useRef();
   const location = useLocation();
   const salesLead = location.state?.salesLead;
@@ -30,7 +32,6 @@ export default function TechnicalsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [successMessage, setSuccessMessage] = useState("");
-  const [currentUser, setCurrentUser] = useState(null);
   const [newAssignedTechnicalRecos, setNewAssignedTechnicalRecos] = useState(
     [],
   );
@@ -71,22 +72,10 @@ export default function TechnicalsPage() {
 
           });
       }
-      setTimeout(() => setLoading(false), 500);
+      setTimeout(() => setLoading(false));
     } catch (err) {
       console.error("Error retrieving technical recommendations:", err);
       setError("Failed to fetch technical recommendations.");
-    }
-  };
-
-  const fetchCurrentUser = async () => {
-    try {
-      const res = await apiBackendFetch("/auth/me");
-      if (res.ok) {
-        const data = await res.json();
-        setCurrentUser(data.user);
-      }
-    } catch (err) {
-      console.error("Failed to fetch current user", err);
     }
   };
 
@@ -112,7 +101,6 @@ export default function TechnicalsPage() {
   };
 
   useEffect(() => {
-    fetchCurrentUser();
     fetchAllData();
   }, []);
 

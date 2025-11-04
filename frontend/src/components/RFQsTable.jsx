@@ -10,8 +10,10 @@ import {
 } from "react-icons/lu";
 import util from "../helper/utils.js";
 import config from "../config.js";
+import { useUser } from "../contexts/UserContext.jsx";
 
 export default function RFQsTable({ rfqs, onView, onEdit }) {
+  const { currentUser } = useUser();
   const baseBadge = "inline-flex items-center px-2.5 py-0.5 text-xs";
 
   const renderStatusBadge = (status) => {
@@ -90,7 +92,7 @@ export default function RFQsTable({ rfqs, onView, onEdit }) {
               Account
             </th>
             <th className="px-4 py-2 font-normal text-gray-500 text-sm w-[10%]">
-              Vendor
+              Selected Vendor
             </th>
             <th className="px-4 py-2 font-normal text-gray-500 text-sm w-[8%]">
               Contact Person
@@ -130,7 +132,21 @@ export default function RFQsTable({ rfqs, onView, onEdit }) {
               </td>
               <td className="px-4 py-2 text-black text-sm">{rfq.account.kristem.Name}</td>
               <td className="px-4 py-2 text-black text-sm">
-                {rfq.vendor || "-"}
+                {rfq.selectedVendorId || rfq.selected_vendor_id ? (
+                  <div className="flex flex-col gap-1">
+                    <div className="flex items-center gap-2">
+                      <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                      <span className="text-green-700 font-medium">
+                        {rfq.vendor?.Name || rfq.vendor?.name || rfq.vendor?.VendorName || "Selected"}
+                      </span>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 bg-gray-300 rounded-full"></div>
+                    <span className="text-gray-500">Pending</span>
+                  </div>
+                )}
               </td>
               <td className="px-4 py-2 text-black text-sm">
                 {rfq.contactPerson || "-"}
@@ -142,7 +158,7 @@ export default function RFQsTable({ rfqs, onView, onEdit }) {
                 {renderStatusBadge(rfq.stageStatus)}
               </td>
               <td className="px-4 py-2 text-black text-sm">
-                {rfq.grandTotal || "-"}
+                {util.formatCurrency(rfq.grandTotal) || "-"}
               </td>
               <td className="px-4 py-2 text-black text-sm">
                 {util.formatDate(rfq.dueDate, "MM/DD/YYYY")}
@@ -219,7 +235,7 @@ export default function RFQsTable({ rfqs, onView, onEdit }) {
                   </button>
                   <button
                     onClick={() => onEdit(rfq)}
-                    className={`cursor-pointer rounded px-2 py-1 text-black  border border-gray-200 bg-white hover:bg-gray-100 transition-all duration-200 ${rfq.stageStatus === "Approved" || rfq.stageStatus === "Submitted" ? "opacity-50 cursor-not-allowed hover:bg-white pointer-events-none" : ""}`}
+                    className={`cursor-pointer rounded px-2 py-1 text-black  border border-gray-200 bg-white hover:bg-gray-100 transition-all duration-200 ${rfq.stageStatus === "Approved" || rfq.assignee !== currentUser.id ? "opacity-50 cursor-not-allowed hover:bg-white pointer-events-none" : ""}`}
                   >
                     <LuPencil className="my-auto" />
                   </button>

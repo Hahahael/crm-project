@@ -12,98 +12,38 @@ import AccountsPage from "./pages/AccountsPage";
 import ApprovalsPage from "./pages/ApprovalsPage";
 import QuotationsPage from "./pages/QuotationsPage";
 import CalendarPage from "./pages/CalendarPage";
+import { UserProvider } from "./contexts/UserContext";
 
 function App() {
   return (
     <BrowserRouter>
-      <Routes>
+        <Routes>
         <Route path="/" element={<Navigate to="/login" replace />} />
 
         <Route path="/login" element={<LoginPage />} />
 
-        <Route element={<Layout />}>
+        <Route element={
+          <ProtectedRoute>
+            <UserProvider>
+              <Layout />
+            </UserProvider>
+          </ProtectedRoute>
+        }>
           <Route
             path="/dashboard"
-            element={
-              <ProtectedRoute>
-                <DashboardPage />
-              </ProtectedRoute>
-            }
+            element={<DashboardPage />}
           />
-          <Route
-            path="/workorders"
-            element={
-              <ProtectedRoute>
-                <WorkOrdersPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/salesleads"
-            element={
-              <ProtectedRoute>
-                <SalesLeadsPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/technicals"
-            element={
-              <ProtectedRoute>
-                <TechnicalsPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/rfqs"
-            element={
-              <ProtectedRoute>
-                <RFQsPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/quotations"
-            element={
-              <ProtectedRoute>
-                <QuotationsPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/users"
-            element={
-              <ProtectedRoute>
-                <UsersPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/accounts"
-            element={
-              <ProtectedRoute>
-                <AccountsPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/approvals"
-            element={
-              <ProtectedRoute>
-                <ApprovalsPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/calendar"
-            element={
-              <ProtectedRoute>
-                <CalendarPage />
-              </ProtectedRoute>
-            }
-          />
+          <Route path="/workorders" element={<WorkOrdersPage />} />
+          <Route path="/salesleads" element={<SalesLeadsPage />} />
+          <Route path="/technicals" element={<TechnicalsPage />} />
+          <Route path="/rfqs" element={<RFQsPage />} />
+          <Route path="/quotations" element={<QuotationsPage />} />
+          <Route path="/users" element={<UsersPage />} />
+          <Route path="/accounts" element={<AccountsPage />} />
+          <Route path="/approvals" element={<ApprovalsPage />} />
+          <Route path="/calendar" element={<CalendarPage />} />
         </Route>
-      </Routes>
+        </Routes>
     </BrowserRouter>
   );
 }

@@ -167,17 +167,18 @@ const WorkOrderForm = ({ workOrder, mode = "create", onSave, onBack }) => {
       setFormData((prev) => {
         // If already hydrated, skip
         const acc = accounts.find((a) => a.id == prev.account_id);
+        console.log("Hydrating account fields for", acc);
         if (!acc) return prev;
         const department_name =
-          departments.find((d) => d.Id == acc.department_id)?.Department ||
+          departments.find((d) => d.Id == acc.department?.Id)?.Department ||
           prev.department ||
           "";
         const industry_name =
-          industries.find((i) => i.Id == acc.industry_id)?.Code ||
+          industries.find((i) => i.Id == acc.industry?.Id)?.Code ||
           prev.industry ||
           "";
         const product_name =
-          product_brands.find((p) => p.ID == acc.product_id)?.Description ||
+          product_brands.find((p) => p.ID == acc.brand?.ID)?.Description ||
           prev.product_brand ||
           "";
         return {
@@ -271,11 +272,13 @@ const WorkOrderForm = ({ workOrder, mode = "create", onSave, onBack }) => {
 
   // load initial (editing) data
   useEffect(() => {
+    console.log("WorkOrderForm received workOrder prop:", workOrder);
     if (workOrder && Object.keys(workOrder).length > 0) {
+      console.log("Loading work order data into form:", workOrder);
       setFormData((prev) => ({
         ...prev,
         ...workOrder,
-        wo_date: workOrder.wo_date || prev.wo_date,
+        wo_date: utils.formatDate(workOrder.wo_date, "YYYY-MM-DD") || prev.wo_date,
         // normalize incoming due_date to a YYYY-MM-DD string once
         due_date:
           utils.formatDate(workOrder.due_date, "YYYY-MM-DD") ||
