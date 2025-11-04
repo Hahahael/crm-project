@@ -17,8 +17,10 @@ import TechnicalDetails from "../components/TechnicalDetails";
 import { apiBackendFetch } from "../services/api";
 import LoadingModal from "../components/LoadingModal";
 import RFQCanvassSheet from "../components/RFQCanvassSheet";
+import { useUser } from "../contexts/UserContext.jsx";
 
 export default function QuotationsPage() {
+  const { currentUser } = useUser();
   const timeoutRef = useRef();
 
   const [quotations, setQuotations] = useState([]);
@@ -28,7 +30,6 @@ export default function QuotationsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [successMessage, setSuccessMessage] = useState("");
-  const [currentUser, setCurrentUser] = useState(null);
   // kept for future UI tabs (prefixed with _ to avoid unused-var lint)
   const [_selectedTab, _setSelectedTab] = useState("details");
   const [newAssignedQuotations, setNewAssignedQuotations] = useState([]);
@@ -64,7 +65,7 @@ export default function QuotationsPage() {
       //                 completed: Number(summaryData.completed) || 0,
       //         });
       // }
-      setTimeout(() => setLoading(false), 500);
+      setTimeout(() => setLoading(false));
     } catch (err) {
       console.error("Error retrieving Quotations:", err);
       setError("Failed to fetch Quotations.");
@@ -87,18 +88,6 @@ export default function QuotationsPage() {
       console.log("Fetched MSSQL quotations:", data);
     } catch (err) {
       console.error("Error fetching MSSQL quotations:", err);
-    }
-  };
-
-  const fetchCurrentUser = async () => {
-    try {
-      const res = await apiBackendFetch("/auth/me");
-      if (res.ok) {
-        const data = await res.json();
-        setCurrentUser(data.user);
-      }
-    } catch (err) {
-      console.error("Failed to fetch current user", err);
     }
   };
 
@@ -146,7 +135,6 @@ export default function QuotationsPage() {
         }
       }
       return { trData, rfqData };
-      // setTimeout(() => setLoading(false), 500);
     } catch (err) {
       console.error("Error fetching TR and RFQ:", err);
       return { trData: null, rfqData: null };
@@ -249,7 +237,6 @@ export default function QuotationsPage() {
       // Ensure we have the related TR and RFQ available before building the MSSQL payload
       const { trData, rfqData } = await getTRAndRFQ(quotation);
       const payload = buildMssqlPayload(quotation, rfqData, trData);
-
       // Provide a hint to the backend MSSQL handler so it can mark the corresponding
       // Postgres Work Order as Completed only after a successful MSSQL insert.
       payload.POSTGRES_WO_ID = quotation?.wo_id || quotation?.woId || quotation?.workorder?.id || null;
@@ -296,11 +283,11 @@ export default function QuotationsPage() {
       setSelectedQuotation(null);
       setSelectedTR(null);
       setSelectedRFQ(null);
+      await fetchAllData();
     }
   };
 
   useEffect(() => {
-    fetchCurrentUser();
     fetchAllData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -578,7 +565,7 @@ export default function QuotationsPage() {
 
               {/* Right side: submit button */}
               <button
-                className="inline-flex items-center justify-center font-medium transition-colors bg-green-600 hover:bg-green-500 h-10 rounded-md px-4 text-sm text-white shadow-sm cursor-pointer"
+                className={`inline-flex items-center justify-center font-medium transition-colors bg-green-600 hover:bg-green-500 h-10 rounded-md px-4 text-sm text-white shadow-sm cursor-pointer ${selectedQuotation.assignee !== currentUser.id || selectedQuotation.status === "Submitted" ? "opacity-50 cursor-not-allowed pointer-events-none" : ""}`}
                 onClick={() => {
                   console.log("Submitting quotation");
                   console.log("Selected quotation before closing:", selectedQuotation);

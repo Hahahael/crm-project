@@ -1,5 +1,5 @@
 //src/components/AccountsTable
-import { LuEllipsis, LuEye, LuPencil, LuTrash } from "react-icons/lu";
+import { LuEllipsis, LuEye, LuPencil, LuTrash, LuClock, LuCheck, LuCircleAlert } from "react-icons/lu";
 import util from "../helper/utils.js";
 
 export default function AccountsTable({ accounts, onView, onEdit }) {
@@ -134,7 +134,61 @@ export default function AccountsTable({ accounts, onView, onEdit }) {
                 {util.formatDate(account.doneDate, "MM/DD/YYYY")}
               </td>
               <td className="px-4 py-2 text-black text-sm">
-                {account.delayStatus}
+                {(() => {
+                  const { status, daysLate } = util.calculateTimeliness(
+                    account.dueDate,
+                    account.doneDate,
+                  );
+                  const base =
+                    "inline-flex items-center rounded-md border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2";
+                  switch (status) {
+                    case "overdue":
+                      return (
+                        <div
+                          className={`${base} bg-red-50 text-red-700 border-red-200`}
+                        >
+                          <LuClock className="mr-2 h-4 w-4 text-red-700" />
+                          <span>
+                            Overdue
+                            {typeof daysLate === "number"
+                              ? ` · ${daysLate}d`
+                              : ""}
+                          </span>
+                        </div>
+                      );
+                    case "late":
+                      return (
+                        <div
+                          className={`${base} bg-yellow-50 text-yellow-800 border-yellow-200`}
+                        >
+                          <LuCircleAlert className="mr-2 h-4 w-4 text-yellow-800" />
+                          <span>
+                            Late
+                            {typeof daysLate === "number"
+                              ? ` · ${daysLate}d`
+                              : ""}
+                          </span>
+                        </div>
+                      );
+                    case "on_time":
+                      return (
+                        <div
+                          className={`${base} bg-green-50 text-green-700 border-green-200`}
+                        >
+                          <LuCheck className="mr-2 h-4 w-4 text-green-700" />
+                          <span>On time</span>
+                        </div>
+                      );
+                    default:
+                      return (
+                        <div
+                          className={`${base} bg-gray-50 text-gray-600 border-gray-200`}
+                        >
+                          <span>-</span>
+                        </div>
+                      );
+                  }
+                })()}
               </td>
               <td className="px-4 py-2 text-black text-sm">
                 <div className="flex gap-2">

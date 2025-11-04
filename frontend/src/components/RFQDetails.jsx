@@ -13,10 +13,10 @@ import utils from "../helper/utils";
 import SalesLeadDetails from "./SalesLeadDetails.jsx";
 import WorkOrderDetails from "./WorkOrderDetails.jsx";
 import TechnicalDetails from "./TechnicalDetails.jsx";
+import { useUser } from "../contexts/UserContext.jsx";
 
 const RFQDetails = ({
   rfq,
-  currentUser,
   onBack,
   onEdit,
   onPrint,
@@ -24,6 +24,7 @@ const RFQDetails = ({
   hideTabs = false,
   source = "rfq"
 }) => {
+  const { currentUser } = useUser();
   const [items, setItems] = useState([]);
   const [vendors, setVendors] = useState([]);
   const [activeTab, setActiveTab] = useState("RFQ"); // RFQ | SL | WO | TR
@@ -215,6 +216,39 @@ const RFQDetails = ({
   const bestVendorName = bestVendorEntry?.name || "-";
   const bestVendorTotal = Number(bestVendorEntry?.total || 0);
   const savingsVsNext = Math.max(0, Number((nextBestEntry?.total || bestVendorTotal) - bestVendorTotal));
+
+  // Selected vendor computation - use selectedVendorId from rfq
+  const selectedVendorId = rfq?.selectedVendorId || rfq?.selected_vendor_id;
+  
+  // Find the actual selected vendor from the vendors array (not quotations)
+  const selectedVendorData = selectedVendorId 
+    ? vendors.find(v => String(v.Id || v.vendorId || v.vendor_id) === String(selectedVendorId))
+    : null;
+  
+  // Use vendor name from RFQ's vendor object if available, otherwise from selected vendor data
+  // Handle MSSQL vendor fields (Name, VendorName, etc.)
+  const selectedVendorName = rfq?.vendor?.Name || rfq?.vendor?.name || rfq?.vendor?.VendorName || 
+                             selectedVendorData?.Name || selectedVendorData?.name || "-";
+  
+  // Get the selected vendor's grand total (from vendor data, not quotations calculation)
+  // If grandTotal isn't available, calculate from subtotal + vat
+  const selectedVendorGrandTotal = selectedVendorData?.grandTotal || selectedVendorData?.grand_total;
+  const selectedVendorSubtotal = Number(selectedVendorData?.subtotal || 0);
+  const selectedVendorVat = Number(selectedVendorData?.vat || 0);
+  const selectedVendorTotal = selectedVendorGrandTotal 
+    ? Number(selectedVendorGrandTotal)
+    : selectedVendorSubtotal + selectedVendorVat;
+  
+  // Calculate savings of selected vendor vs best alternative from quotations
+  const otherVendorTotals = vendorTotalsList
+    .filter(v => String(v.vendor.id || v.vendor.vendorId || v.vendor.vendor_id) !== String(selectedVendorId))
+    .map(v => Number(v.total || 0))
+    .filter(total => total > 0);
+  
+  const bestAlternativeTotal = otherVendorTotals.length > 0 ? Math.min(...otherVendorTotals) : selectedVendorTotal;
+  const selectedVendorSavings = selectedVendorTotal > 0 && bestAlternativeTotal > selectedVendorTotal 
+    ? bestAlternativeTotal - selectedVendorTotal 
+    : 0;
   // Per-vendor savings relative to best (positive numbers mean best saves that amount)
   // Note: compute per-vendor savings if needed elsewhere
 
@@ -243,21 +277,21 @@ const RFQDetails = ({
         {source === "rfq" && 
           <div className="flex gap-2">
             <button
-              className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-light shadow h-9 px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white"
+              className={`items-center justify-center whitespace-nowrap rounded-md text-sm font-light shadow h-9 px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white ${rfq.assignee !== currentUser.id ? "hidden" : "inline-flex"}`}
               onClick={() => onEdit(rfq, "canvass")}
             >
               <LuChartBar className="mr-2" /> View Canvass Sheet
             </button>
             <button
               onClick={() => onEdit(rfq, "details")}
-              className={`items-center justify-center whitespace-nowrap rounded-md text-sm font-light shadow h-9 px-4 py-2 bg-purple-500 hover:bg-purple-600 text-white ${rfq.stageStatus === "Submitted" || rfq.stageStatus === "Approved" ? "hidden" : "inline-flex"}`}
+              className={`items-center justify-center whitespace-nowrap rounded-md text-sm font-light shadow h-9 px-4 py-2 bg-purple-500 hover:bg-purple-600 text-white ${rfq.stageStatus === "Submitted" || rfq.stageStatus === "Approved" || rfq.assignee !== currentUser.id ? "hidden" : "inline-flex"}`}
             >
               <LuPencil className="mr-2" />
               Manage RFQ
             </button>
             <button
               onClick={() => onSubmit(rfq)}
-              className={`items-center justify-center whitespace-nowrap rounded-md text-sm font-light shadow h-9 px-4 py-2 bg-green-500 hover:bg-green-600 text-white ${rfq.stageStatus === "Submitted" || rfq.stageStatus === "Approved" ? "hidden" : "inline-flex"}`}
+              className={`items-center justify-center whitespace-nowrap rounded-md text-sm font-light shadow h-9 px-4 py-2 bg-green-500 hover:bg-green-600 text-white ${rfq.stageStatus === "Submitted" || rfq.stageStatus === "Approved" || rfq.assignee !== currentUser.id ? "hidden" : "inline-flex"}`}
             >
               <LuFileCheck className="mr-2" />
               Submit for Approval
@@ -459,14 +493,34 @@ const RFQDetails = ({
           <div className="rounded-xl border border-gray-200 p-6 shadow-sm">
             <div className="flex flex-col space-y-1.5 pb-6">
               <h3 className="font-bold leading-none tracking-tight">
-                Best Quote
+                {selectedVendorId ? "Selected Vendor" : "Best Quote"}
               </h3>
+              {selectedVendorId && (
+                <p className="text-sm text-gray-600">
+                  Vendor has been selected for this RFQ
+                </p>
+              )}
             </div>
             <div className="pt-0">
               <div className="grid grid-cols-1 gap-4">
-                <VendorDetail label="Vendor:" value={bestVendorName} />
-                <VendorDetail label="Amount:" value={`$${utils.formatNumber(bestVendorTotal, 2)}`} />
-                <VendorDetail label="Savings:" value={`$${utils.formatNumber(savingsVsNext, 2)}`} />
+                {selectedVendorId ? (
+                  <>
+                    <VendorDetail label="Vendor:" value={selectedVendorName} />
+                    <VendorDetail label="Amount:" value={`$${utils.formatNumber(selectedVendorTotal, 2)}`} />
+                    <VendorDetail label="Savings:" value={`$${utils.formatNumber(selectedVendorSavings, 2)}`} />
+                    {selectedVendorSavings > 0 && (
+                      <div className="text-xs text-green-600 bg-green-50 px-2 py-1 rounded">
+                        💰 Saves ${utils.formatNumber(selectedVendorSavings, 2)} vs best alternative
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <>
+                    <VendorDetail label="Vendor:" value={bestVendorName} />
+                    <VendorDetail label="Amount:" value={`$${utils.formatNumber(bestVendorTotal, 2)}`} />
+                    <VendorDetail label="Savings:" value={`$${utils.formatNumber(savingsVsNext, 2)}`} />
+                  </>
+                )}
               </div>
             </div>
           </div>
@@ -481,14 +535,14 @@ const RFQDetails = ({
                 <div className="grid grid-cols-1 gap-4">
                   <button
                     onClick={() => onEdit(rfq, "vendors")}
-                    className={`flex items-center justify-center whitespace-nowrap rounded-md text-xs font-light shadow h-9 px-4 py-2 bg-purple-500 hover:bg-purple-600 text-white ${rfq.stageStatus === "Submitted" || rfq.stageStatus === "Approved" ? "hidden" : "inline-flex"}`}
+                    className={`flex items-center justify-center whitespace-nowrap rounded-md text-xs font-light shadow h-9 px-4 py-2 bg-purple-500 hover:bg-purple-600 text-white ${rfq.stageStatus === "Submitted" || rfq.stageStatus === "Approved" || rfq.assignee !== currentUser.id ? "hidden" : "inline-flex"}`}
                   >
                     <LuPencil className="h-4 w-4 mr-2" />
                     Manage Vendors
                   </button>
                   <button
                     onClick={() => onEdit(rfq, "canvass")}
-                    className="flex items-center justify-center whitespace-nowrap rounded-md text-xs font-light shadow h-9 px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white"
+                    className={`items-center justify-center whitespace-nowrap rounded-md text-xs font-light shadow h-9 px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white ${rfq.assignee !== currentUser.id ? "hidden" : "flex"}`}
                   >
                     <LuChartBar className="h-4 w-4 mr-2" /> View Canvass
                   </button>
@@ -559,19 +613,19 @@ const RFQDetails = ({
                         className="hover:bg-gray-100 transition-all duration-200"
                       >
                         <td className="text-sm p-2 align-middle">
-                          {item.details.Description}
+                          {item.details?.Description}
                         </td>
                         <td className="text-sm p-2 align-middle">
-                          {item.details.BRAND_ID}
+                          {item.details?.BRAND_ID}
                         </td>
                         <td className="text-sm p-2 align-middle">
-                          {item.details.Code}
+                          {item.details?.Code}
                         </td>
                         <td className="text-sm p-2 align-middle">
                           {item.quantity}
                         </td>
                         <td className="text-sm p-2 align-middle">
-                          {item.details.SK_UOM}
+                          {item.details?.SK_UOM}
                         </td>
                         <td className="text-sm p-2 align-middle">
                           {item.leadTime || "-"}

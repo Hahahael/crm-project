@@ -16,8 +16,10 @@ import RFQForm from "../components/RFQFormWrapper";
 import { apiBackendFetch } from "../services/api";
 import LoadingModal from "../components/LoadingModal";
 import RFQCanvassSheet from "../components/RFQCanvassSheet";
+import { useUser } from "../contexts/UserContext.jsx";
 
 export default function RFQsPage() {
+  const { currentUser } = useUser();
   const timeoutRef = useRef();
 
   const [RFQs, setRFQs] = useState([]);
@@ -27,7 +29,6 @@ export default function RFQsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [successMessage, setSuccessMessage] = useState("");
-  const [currentUser, setCurrentUser] = useState(null);
   const [selectedTab, setSelectedTab] = useState("details");
   const [newAssignedRFQs, setNewAssignedRFQs] = useState([]);
   const [activeCardFilter, setActiveCardFilter] = useState("all"); // all | draft | sent | responded | completed
@@ -59,18 +60,6 @@ export default function RFQsPage() {
     }
   };
 
-  const fetchCurrentUser = async () => {
-    try {
-      const res = await apiBackendFetch("/auth/me");
-      if (res.ok) {
-        const data = await res.json();
-        setCurrentUser(data.user);
-      }
-    } catch (err) {
-      console.error("Failed to fetch current user", err);
-    }
-  };
-
   const fetchNewAssignedRFQs = useCallback(async () => {
     console.log("fetchNewRFQs called");
     if (!currentUser) return;
@@ -89,7 +78,6 @@ export default function RFQsPage() {
   }, [currentUser]);
 
   useEffect(() => {
-    fetchCurrentUser();
     fetchAllData();
   }, []);
 
@@ -117,7 +105,21 @@ export default function RFQsPage() {
         subtext="Please wait while we fetch your data."
       />
     );
-  if (error) return <p className="p-4 text-red-600">{error}</p>;
+
+    if (error) {
+      return (
+        <div className="p-6 flex items-center justify-center min-h-screen">
+          <div className="text-center">
+            <div className="text-red-500 mb-4">
+              <svg className="w-12 h-12 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+            <p className="text-red-600 font-medium">{error}</p>
+          </div>
+        </div>
+      );
+    }
 
   // Filter by card selection
   const statusMatchesActiveFilter = (rfq) => {
@@ -183,8 +185,7 @@ export default function RFQsPage() {
       setSuccessMessage("RFQ saved successfully!"); // ✅ trigger success message
       await fetchAllData();
       await fetchNewAssignedRFQs();
-      setSelectedRFQ(null);
-      setEditingRFQ(null);
+      fetchRFQById(formData.id);
     } catch (err) {
       console.error("Error saving RFQ:", err);
       setError("Failed to save RFQ");

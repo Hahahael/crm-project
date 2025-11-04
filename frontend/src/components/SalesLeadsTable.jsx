@@ -9,9 +9,12 @@ import {
   LuCheck,
 } from "react-icons/lu";
 import util from "../helper/utils.js";
+import { useUser } from "../contexts/UserContext.jsx";
 import config from "../config.js";
 
 export default function SalesLeadsTable({ salesLeads, onView, onEdit }) {
+  const { currentUser } = useUser();
+  console.log("Current User in SalesLeadsTable:", currentUser);
   const baseBadge = "inline-flex items-center px-2.5 py-0.5 text-xs";
 
   const renderStatusBadge = (status) => {
@@ -310,7 +313,7 @@ export default function SalesLeadsTable({ salesLeads, onView, onEdit }) {
                   </button>
                   <button
                     onClick={() => onEdit(sl)}
-                    className={`rounded px-2 py-1 text-black border border-gray-200 bg-white transition-all duration-200 ${sl.stageStatus === "Approved" || sl.stageStatus === "Submitted" ? "opacity-50 cursor-not-allowed hover:bg-white pointer-events-none" : "cursor-pointer hover:bg-gray-100"}`}
+                    className={`rounded px-2 py-1 text-black border border-gray-200 bg-white transition-all duration-200 ${sl.stageStatus === "Approved" || sl.assignee !== currentUser?.id ? "opacity-50 cursor-not-allowed hover:bg-white pointer-events-none" : "cursor-pointer hover:bg-gray-100"}`}
                   >
                     <LuPencil className="my-auto" />
                   </button>

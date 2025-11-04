@@ -51,7 +51,7 @@ if (process.env.USE_MOCK === "true") {
     ...(mustUseSsl ? { ...baseConfig, ssl: { rejectUnauthorized: false } } : baseConfig),
     // Connection robustness
     max: Number(process.env.DB_POOL_MAX || 10),
-    idleTimeoutMillis: Number(process.env.DB_IDLE_TIMEOUT_MS || 30000),
+    idleTimeoutMillis: Number(process.env.DB_IDLE_TIMEOUT_MS || 600000), // 10 minutes instead of 30 seconds
     connectionTimeoutMillis: Number(process.env.DB_CONNECT_TIMEOUT_MS || 10000),
     keepAlive: true,
     keepAliveInitialDelayMillis: Number(process.env.DB_KEEPALIVE_DELAY_MS || 10000),

@@ -29,7 +29,9 @@ router.get("/latest-submitted", async (req, res) => {
           sl.id AS module_id,
           sl.account_id,
           sl.urgency AS urgency,
-          NULL AS priority
+          NULL AS priority,
+          NULL AS title,
+          NULL AS amount
         FROM workflow_stages ws
         INNER JOIN (
           SELECT wo_id, MAX(created_at) AS max_created
@@ -57,7 +59,9 @@ router.get("/latest-submitted", async (req, res) => {
           r.id AS module_id,
           r.account_id,
           NULL AS urgency,
-          NULL AS priority
+          NULL AS priority,
+          NULL AS title,
+          r.grand_total AS amount
         FROM workflow_stages ws
         INNER JOIN (
           SELECT wo_id, MAX(created_at) AS max_created
@@ -85,7 +89,9 @@ router.get("/latest-submitted", async (req, res) => {
           tr.id AS module_id,
           tr.account_id,
           NULL AS urgency,
-          tr.priority AS priority
+          tr.priority AS priority,
+          tr.title AS title,
+          NULL AS amount
         FROM workflow_stages ws
         INNER JOIN (
           SELECT wo_id, MAX(created_at) AS max_created
@@ -113,7 +119,9 @@ router.get("/latest-submitted", async (req, res) => {
           wo.id AS module_id,
           wo.account_id,
           NULL AS urgency,
-          NULL AS priority
+          NULL AS priority,
+          NULL AS title,
+          NULL AS amount
         FROM workflow_stages ws
         INNER JOIN (
           SELECT wo_id, MAX(created_at) AS max_created
@@ -129,7 +137,8 @@ router.get("/latest-submitted", async (req, res) => {
       FROM latest_stages
       ORDER BY submitted_date DESC;
     `;
-    const { rows } = await db.query(unionQuery);
+    let { rows } = await db.query(unionQuery);
+    console.log("Base latest submitted workflow stages:", rows);
 
     // Fetch Account/NAEF latest-submitted separately and populate via CRM
     const accountLatestQuery = `
@@ -156,8 +165,10 @@ router.get("/latest-submitted", async (req, res) => {
         a.naef_number AS transaction_number,
         a.kristem_account_id AS module_id,
         wo.account_id AS account_id,
-        NULL::text AS urgency,
-        NULL::text AS priority
+        NULL AS urgency,
+        NULL AS priority,
+        NULL AS title,
+        NULL AS amount
       FROM latest_acc la
       LEFT JOIN users u ON la.assigned_to = u.id
       LEFT JOIN workorders wo ON la.wo_id = wo.id
@@ -176,6 +187,8 @@ router.get("/latest-submitted", async (req, res) => {
             .filter((v) => v !== null && v !== undefined),
         ),
       );
+
+      console.log("Unique account IDs to fetch from CRM:", accountIds);
 
       if (accountIds.length > 0) {
         const spiPool = await poolPromise;
@@ -213,14 +226,32 @@ router.get("/latest-submitted", async (req, res) => {
             };
           });
 
+          // Build Account/NAEF rows from CRM and attach same account object
+          const otherRowsBuilt = rows.map((r) => {
+            const aid = r.accountId ?? r.account_id;
+            let account = null;
+            if (aid != null && accountMap.has(Number(aid))) {
+              const acc = accountMap.get(Number(aid));
+              account = {
+                ...acc
+              };
+            }
+            return {
+              ...r,
+              account,
+            };
+          });
+
           // Merge base rows with account/naef rows
-          rows.push(...accRowsBuilt);
+          otherRowsBuilt.push(...accRowsBuilt);
           // Re-sort by submitted_date DESC after merging
-          rows.sort((a, b) => {
+          otherRowsBuilt.sort((a, b) => {
             const da = new Date(a.submitted_date || a.submittedDate || 0).getTime();
             const db = new Date(b.submitted_date || b.submittedDate || 0).getTime();
             return db - da;
           });
+
+          rows = otherRowsBuilt
         }
       }
     } catch (enrichErr) {
@@ -329,10 +360,12 @@ router.post("/", async (req, res) => {
     let insertedStage;
     try {
       const result = await db.query(
-        `INSERT INTO workflow_stages
-                                        (wo_id, stage_name, status, assigned_to, notified, remarks, created_at, updated_at)
-                                VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())
-                                RETURNING *`,
+        `
+          INSERT INTO workflow_stages
+            (wo_id, stage_name, status, assigned_to, notified, remarks, created_at, updated_at)
+          VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())
+          RETURNING *
+        `,
         [wo_id, stage_name, status, assigned_to, notified, remarks],
       );
       insertedStage = result.rows[0];
@@ -358,10 +391,11 @@ router.post("/", async (req, res) => {
           break;
         case "Account":
         case "NAEF":
+          console.log("🔍 WORKFLOW: Updating Account/NAEF stage status for wo_id:", wo_id, "to status:", status, "and account_id:", body.account_id);
           if (body.account_id) {
             const updateQuery = status === "Approved"
-              ? "UPDATE accounts SET stage_status = $1, done_date = NOW() WHERE id = $2"
-              : "UPDATE accounts SET stage_status = $1 WHERE id = $2";
+              ? "UPDATE accounts SET stage_status = $1, done_date = NOW() WHERE kristem_account_id = $2"
+              : "UPDATE accounts SET stage_status = $1 WHERE kristem_account_id = $2";
             
             await db.query(updateQuery, [status, body.account_id]);
             
@@ -369,7 +403,7 @@ router.post("/", async (req, res) => {
             if (status === "Approved") {
               console.log("🔍 WORKFLOW: Account approval detected for account ID:", body.account_id);
               try {
-                const accountResult = await db.query("SELECT * FROM accounts WHERE id = $1", [body.account_id]);
+                const accountResult = await db.query("SELECT * FROM accounts WHERE kristem_account_id = $1", [wo_id]);
                 if (accountResult.rows.length > 0) {
                   const account = accountResult.rows[0];
                   console.log("🔍 WORKFLOW: Account details:", { 
@@ -569,6 +603,7 @@ router.get("/assigned/latest/:id/:stageName", async (req, res) => {
           WHERE ws.status = 'Draft' AND ws.stage_name = $2
         `;
       } else if (stage.includes("rfq")) {
+        console.log("Using rfqs join");
         query = `
           SELECT rfq.*, sl.sl_number, a.account_name AS account_name
           FROM workflow_stages ws
@@ -599,7 +634,7 @@ router.get("/assigned/latest/:id/:stageName", async (req, res) => {
         `;
       } else {
         query = `
-          SELECT ws.*, wo.*, a.account_name AS account_name
+          SELECT ws.*, wo.*, a.*
           FROM workflow_stages ws
           INNER JOIN (
             SELECT wo_id, MAX(created_at) AS max_created
@@ -609,11 +644,13 @@ router.get("/assigned/latest/:id/:stageName", async (req, res) => {
           ) latest ON ws.wo_id = latest.wo_id AND ws.created_at = latest.max_created
           INNER JOIN workorders wo ON ws.wo_id = wo.id
           LEFT JOIN accounts a ON wo.account_id = a.id
-          WHERE ws.status = 'Pending' AND ws.stage_name = $2
+          WHERE ws.status = 'Draft' AND ws.stage_name = $2
         `;
       }
     }
 
+    console.log("Executing assigned latest workflow stages query:", query);
+    console.log("With parameters:", [id, stageName]);
     const result = await db.query(query, [id, stageName]);
     console.log("Latest assigned workflow stages result:", result.rows);
     
@@ -621,7 +658,7 @@ router.get("/assigned/latest/:id/:stageName", async (req, res) => {
       for (const row of result.rows) {
         const base = row;
         const spiPool = await poolPromise;
-        const accId = Number(base.accountId ?? base.account_id);
+        const accId = Number(base.accountId ?? base.account_id ?? base.kristemAccountId);
         console.log("🔍 Single TR - Account ID:", accId, "from base:", base.accountId, base.account_id);
         let customer = null;
         if (Number.isFinite(accId)) {
@@ -639,12 +676,12 @@ router.get("/assigned/latest/:id/:stageName", async (req, res) => {
           };
 
           row.account = account;
-          console.log("Fetched technical recommendation:", row);
+          console.log("Fetched row:", row);
         }
       }
     } catch (enrichErr) {
       console.warn(
-        "Failed to enrich technical recommendation account:",
+        "Failed to enrich account data:",
         enrichErr.message,
       );
     }
@@ -663,7 +700,70 @@ router.get("/assigned/latest/:id/:stageName", async (req, res) => {
 //  - status: filter by stage status (e.g. status=Submitted)
 router.get("/summary/latest", async (req, res) => {
   try {
-    // Build base query using CTE to get latest created_at per wo_id (no filters)
+    // Extract filter parameters
+    const { status, assignee, startDate, endDate } = req.query;
+    
+    // Build WHERE conditions for filtering
+    let whereConditions = [];
+    let queryParams = [];
+    let paramIndex = 1;
+    
+    // Only add status filter if it's a non-empty string and NOT a work order status
+    if (status && status.trim() !== '' && status !== 'Pending' && status !== 'Completed') {
+      whereConditions.push(`ws.status = $${paramIndex}`);
+      queryParams.push(status.trim());
+      paramIndex++;
+    }
+    
+    // Only add assignee filter if it's a non-empty string
+    if (assignee && assignee.trim() !== '') {
+      whereConditions.push(`u.username = $${paramIndex}`);
+      queryParams.push(assignee.trim());
+      paramIndex++;
+    }
+    
+    if (startDate && startDate.trim() !== '') {
+      whereConditions.push(`ws.created_at >= $${paramIndex}::timestamp`);
+      queryParams.push(startDate.trim());
+      paramIndex++;
+    }
+    
+    if (endDate && endDate.trim() !== '') {
+      whereConditions.push(`ws.created_at <= $${paramIndex}::timestamp`);
+      queryParams.push(endDate.trim());
+      paramIndex++;
+    }
+    
+    // Build separate WHERE clauses for outer and inner queries
+    const outerWhereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : '';
+    
+    // Build inner query WHERE clause using the same parameter indices as outer query
+    let innerWhereConditions = [];
+    let innerParamStart = 1;
+    
+    // Skip status parameter if it exists
+    if (status && status.trim() !== '' && status !== 'Pending' && status !== 'Completed') {
+      innerParamStart++;
+    }
+    
+    if (assignee && assignee.trim() !== '') {
+      innerWhereConditions.push(`u2.username = $${innerParamStart}`);
+      innerParamStart++;
+    }
+    
+    if (startDate && startDate.trim() !== '') {
+      innerWhereConditions.push(`ws2.created_at >= $${innerParamStart}::timestamp`);
+      innerParamStart++;
+    }
+    
+    if (endDate && endDate.trim() !== '') {
+      innerWhereConditions.push(`ws2.created_at <= $${innerParamStart}::timestamp`);
+      innerParamStart++;
+    }
+    
+    const innerWhereClause = innerWhereConditions.length > 0 ? `WHERE ${innerWhereConditions.join(' AND ')}` : '';
+
+    // Build filtered query using CTE
     const sql = `
       SELECT
         ws.id,
@@ -676,18 +776,23 @@ router.get("/summary/latest", async (req, res) => {
         ws.updated_at,
         u.username AS assigned_to_username
       FROM workflow_stages ws
+      LEFT JOIN users u ON ws.assigned_to = u.id
       INNER JOIN (
         SELECT wo_id, MAX(created_at) AS max_created
-        FROM workflow_stages
+        FROM workflow_stages ws2
+        ${assignee && assignee.trim() !== '' ? 'LEFT JOIN users u2 ON ws2.assigned_to = u2.id' : ''}
+        ${innerWhereClause}
         GROUP BY wo_id
       ) latest
         ON ws.wo_id = latest.wo_id
         AND ws.created_at = latest.max_created
-      LEFT JOIN users u ON ws.assigned_to = u.id
+      ${outerWhereClause}
       ORDER BY ws.created_at DESC;
     `;
 
-    const result = await db.query(sql);
+    console.log('Workflow stages summary/latest query:', sql, 'params:', queryParams);
+    const result = await db.query(sql, queryParams);
+    console.log("Fetched latest workflow stages summary:", result.rows?.length || 0, "records");
     return res.json(result.rows || []);
   } catch (err) {
     console.error("Failed to fetch summary latest workflow stages:", err);

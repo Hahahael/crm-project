@@ -29,17 +29,17 @@ function mergePrimaryWithParent(detail, parent) {
 router.get("/", async (req, res) => {
   try {
     const result = await db.query(`
-                SELECT 
-                        r.*, 
-                        u.username AS assignee_username,
-                        sl.sl_number AS sl_number,
-                        a.account_name AS account_name
-                FROM rfqs r
-                LEFT JOIN users u ON r.assignee = u.id
-                LEFT JOIN sales_leads sl ON r.sl_id = sl.id
-                LEFT JOIN accounts a ON r.account_id = a.id
-                ORDER BY r.id ASC
-                `);
+      SELECT 
+        r.*, 
+        u.username AS assignee_username,
+        sl.sl_number AS sl_number,
+        a.account_name AS account_name
+      FROM rfqs r
+      LEFT JOIN users u ON r.assignee = u.id
+      LEFT JOIN sales_leads sl ON r.sl_id = sl.id
+      LEFT JOIN accounts a ON r.account_id = a.id
+      ORDER BY r.id ASC
+    `);
     const rows = result.rows;
 
     // Enrich accounts from SPI (kristem, brand, industry, department)
@@ -73,7 +73,7 @@ router.get("/", async (req, res) => {
             normId(c.ProductBrandId) ??
             normId(c.Brand_ID) ??
             normId(c.BrandId) ??
-            null;
+            2;
           const iId =
             normId(c.Customer_Industry_Group_Id) ??
             normId(c.Industry_Group_Id) ??
@@ -83,7 +83,7 @@ router.get("/", async (req, res) => {
             normId(c.Department_Id) ??
             normId(c.DepartmentID) ??
             normId(c.DepartmentId) ??
-            null;
+            2;
           if (bId != null) bIds.add(bId);
           if (iId != null) iIds.add(iId);
           if (dId != null) dIds.add(dId);
@@ -146,6 +146,54 @@ router.get("/", async (req, res) => {
       }
     } catch (enrichErr) {
       console.warn("Failed to enrich RFQs with SPI account data:", enrichErr.message);
+    }
+
+    // Fetch vendor details from MSSQL for RFQs that have selected_vendor_id
+    try {
+      const rfqsWithVendors = rows.filter(rfq => rfq.selected_vendor_id || rfq.selectedVendorId);
+      
+      if (rfqsWithVendors.length > 0) {
+        const vendorIds = rfqsWithVendors.map(rfq => rfq.selected_vendor_id || rfq.selectedVendorId);
+        const uniqueVendorIds = [...new Set(vendorIds)].filter(id => id != null);
+        
+        if (uniqueVendorIds.length > 0) {
+          const spiPool = await poolPromise;
+          
+          // Fetch vendors from MSSQL spidb.vendor table
+          const vendorRes = await spiPool
+            .request()
+            .query(`SELECT * FROM spidb.vendor WHERE Id IN (${uniqueVendorIds.join(",")})`);
+          const detailsRes = await pool
+            .request()
+            .input("vendor_id", Number(vendorKey))
+            .query(
+              "SELECT * FROM spidb.vendor_details WHERE Vendor_Id = @vendor_id",
+            );
+          
+          const vendorMap = new Map();
+          (vendorRes.recordset || []).forEach(vendor => {
+            vendorMap.set(vendor.Id, vendor);
+          });
+          
+          const detail =
+            detailsRes && detailsRes.recordset && detailsRes.recordset[0]
+              ? detailsRes.recordset[0]
+              : null;
+          
+          // Add vendor details to each RFQ
+          rows.forEach(rfq => {
+            const vendorId = rfq.selected_vendor_id || rfq.selectedVendorId;
+            if (vendorId && vendorMap.has(vendorId)) {
+              rfq.vendor = vendorMap.get(vendorId);
+              rfq.vendor.details = detail;
+            }
+          });
+          
+          console.log(`Enriched ${rfqsWithVendors.length} RFQs with selected vendor details from MSSQL`);
+        }
+      }
+    } catch (vendorErr) {
+      console.warn("Failed to enrich RFQs with vendor details from MSSQL:", vendorErr.message);
     }
 
     return res.json(rows);
@@ -422,6 +470,31 @@ router.get("/:id", async (req, res) => {
       console.warn("Failed to enrich RFQ account via SPI:", enrichErr.message);
     }
 
+    // Fetch selected vendor details from MSSQL if selected_vendor_id exists
+    if (rfq.selected_vendor_id || rfq.selectedVendorId) {
+      try {
+        const vendorId = rfq.selected_vendor_id || rfq.selectedVendorId;
+        const spiPool = await poolPromise;
+        
+        // Fetch from MSSQL spidb.vendor table
+        const vendorRes = await spiPool
+          .request()
+          .input("id", Number(vendorId))
+          .query("SELECT * FROM spidb.vendor WHERE Id = @id");
+        
+        if (vendorRes.recordset && vendorRes.recordset.length > 0) {
+          rfq.vendor = vendorRes.recordset[0];
+          console.log(`Fetched selected vendor details from MSSQL for RFQ ${id}:`, rfq.vendor);
+        } else {
+          console.warn(`Selected vendor ID ${vendorId} not found in spidb.vendor table for RFQ ${id}`);
+          rfq.vendor = null;
+        }
+      } catch (vendorErr) {
+        console.warn("Failed to fetch selected vendor details from MSSQL:", vendorErr.message);
+        rfq.vendor = null;
+      }
+    }
+
     return res.json(rfq);
   } catch (err) {
     console.error(err);
@@ -441,7 +514,7 @@ router.post("/", async (req, res) => {
       account_id,
       stage_status,
       items,
-      selected_vendors_by_item,
+      selected_vendor_id,
     } = body;
 
     // Generate TR number
@@ -478,7 +551,7 @@ router.post("/", async (req, res) => {
     const insertResult = await db.query(
       `
                         INSERT INTO rfqs 
-                        (wo_id, assignee, rfq_number, stage_status, due_date, sl_id, account_id, selected_vendors_by_item, created_at, created_by, updated_at)
+                        (wo_id, assignee, rfq_number, stage_status, due_date, sl_id, account_id, selected_vendor_id, created_at, created_by, updated_at)
                         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,NOW(),$9,NOW())
                         RETURNING id`,
       [
@@ -489,7 +562,7 @@ router.post("/", async (req, res) => {
         due_date,
         sl_id,
         account_id,
-        selected_vendors_by_item || null,
+        selected_vendor_id || null,
         assignee,
       ],
     );
@@ -512,18 +585,20 @@ router.post("/", async (req, res) => {
     // Create workflow stage for new technical recommendation (Draft)
     await db.query(
       `
-                        INSERT INTO workflow_stages (wo_id, stage_name, status, assigned_to, created_at, updated_at)
-                        VALUES ($1, $2, $3, $4, NOW(), NOW())`,
+        INSERT INTO workflow_stages (wo_id, stage_name, status, assigned_to, created_at, updated_at)
+        VALUES ($1, $2, $3, $4, NOW(), NOW())
+      `,
       [wo_id, "RFQ", "Draft", assignee],
     );
 
     const final = await db.query(
       `
-                        SELECT r.*, u.username AS assignee_username, a.account_name AS account_name
-                        FROM rfqs r
-                        LEFT JOIN users u ON r.assignee = u.id
-                        LEFT JOIN accounts a ON r.account_id = a.id
-                        WHERE r.id = $1`,
+        SELECT r.*, u.username AS assignee_username, a.account_name AS account_name
+        FROM rfqs r
+        LEFT JOIN users u ON r.assignee = u.id
+        LEFT JOIN accounts a ON r.account_id = a.id
+        WHERE r.id = $1
+      `,
       [newId],
     );
 
@@ -583,7 +658,7 @@ router.put("/:id", async (req, res) => {
           wo_id=$1, assignee=$2, rfq_number=$3, due_date=$4, description=$5,
           sl_id=$6, account_id=$7, payment_terms=$8, notes=$9, subtotal=$10,
           vat=$11, grand_total=$12, actual_date=$13, actual_from_time=$14, created_at=$15,
-          selected_vendors_by_item=$17, updated_by=$16, updated_at=NOW()
+          selected_vendor_id=$17, updated_by=$16, updated_at=NOW()
         WHERE id=$18
         RETURNING id`,
       [
@@ -603,7 +678,7 @@ router.put("/:id", async (req, res) => {
         actualFromTime,
         body.created_at,
         body.created_by,
-        body.selected_vendors_by_item || null,
+        body.selected_vendor_id || null,
         id,
       ],
     );

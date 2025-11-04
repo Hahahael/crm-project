@@ -14,8 +14,10 @@ import LoadingModal from "../components/LoadingModal";
 import AccountsTable from "../components/AccountsTable";
 import AccountDetails from "../components/AccountDetails";
 import AccountForm from "../components/AccountForm";
+import { useUser } from "../contexts/UserContext.jsx";
 
 export default function AccountsPage() {
+  const { currentUser } = useUser();
   const timeoutRef = useRef();
   const location = useLocation();
   const salesLead = location.state?.salesLead;
@@ -28,7 +30,6 @@ export default function AccountsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [successMessage, setSuccessMessage] = useState("");
-  const [currentUser, setCurrentUser] = useState(null);
   const [newAssignedAccounts, setNewAssignedAccounts] = useState([]);
   const [statusSummary, setStatusSummary] = useState({
     total: 0,
@@ -36,6 +37,7 @@ export default function AccountsPage() {
     inProgress: 0,
     completed: 0,
   });
+  const [statusFilter, setStatusFilter] = useState(null); // 'draft' | 'pending_approval' | 'overdue' | null
 
   console.log("editingAccount:", editingAccount);
 
@@ -51,35 +53,42 @@ export default function AccountsPage() {
       setAccounts(accountsData);
       console.log("Fetched accounts:", accountsData);
 
-      // Fetch status summary
-      // const summaryRes = await apiBackendFetch("/api/technicals/summary/status");
-      // if (summaryRes.ok) {
-      //     const summaryData = await summaryRes.json();
-      //     setStatusSummary({
-      //         total: Number(summaryData.total) || 0,
-      //         pending: Number(summaryData.pending) || 0,
-      //         inProgress: Number(summaryData.inProgress) || 0,
-      //         completed: Number(summaryData.completed) || 0,
-      //     });
-      // }
-      setTimeout(() => setLoading(false), 500);
+      // Calculate status summary from accounts data
+      const today = new Date();
+      const summary = {
+        total: accountsData.length,
+        pending: 0, // Draft NAEFs
+        inProgress: 0, // Pending Approval NAEFs  
+        completed: 0 // Overdue NAEFs
+      };
+
+      accountsData.forEach(account => {
+        const stageStatus = (account.stageStatus || account.stage_status || "").toLowerCase();
+        const dueDate = account.dueDate || account.due_date;
+
+        // Draft NAEFs
+        if (stageStatus === 'draft') {
+          summary.pending++;
+        }
+        
+        // Pending Approval NAEFs (Submitted)
+        if (stageStatus === 'submitted') {
+          summary.inProgress++;
+        }
+        
+        // Overdue NAEFs (not approved and past due date)
+        if (stageStatus !== 'approved' && dueDate && new Date(dueDate) < today) {
+          summary.completed++;
+        }
+      });
+
+      setStatusSummary(summary);
+      setTimeout(() => setLoading(false));
     } catch (err) {
       setAccounts([]);
-      setTimeout(() => setLoading(false), 500);
+      setTimeout(() => setLoading(false));
       console.error("Error retrieving accounts:", err);
       setError("Failed to fetch accounts.");
-    }
-  };
-
-  const fetchCurrentUser = async () => {
-    try {
-      const res = await apiBackendFetch("/auth/me");
-      if (res.ok) {
-        const data = await res.json();
-        setCurrentUser(data.user);
-      }
-    } catch (err) {
-      console.error("Failed to fetch current user", err);
     }
   };
 
@@ -102,7 +111,6 @@ export default function AccountsPage() {
   };
 
   useEffect(() => {
-    fetchCurrentUser();
     fetchAllData();
   }, []);
 
@@ -130,21 +138,57 @@ export default function AccountsPage() {
         subtext="Please wait while we fetch your data."
       />
     );
-  if (error) return <p className="p-4 text-red-600">{error}</p>;
 
-  const filtered = accounts.filter((a) => {
-    const q = (search || "").toLowerCase();
-    const name = (a.kristem?.Name || a.account_name || "").toLowerCase();
-    const code = (a.kristem?.Code || "").toLowerCase();
-    return name.includes(q) || code.includes(q);
-  });
+  if (error) {
+    return (
+      <div className="p-6 flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <div className="text-red-500 mb-4">
+            <svg className="w-12 h-12 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </div>
+          <p className="text-red-600 font-medium">{error}</p>
+        </div>
+      </div>
+    );
+  }
+
+  const filtered = accounts
+    .filter((a) => {
+      // Search filter
+      const q = (search || "").toLowerCase();
+      const name = (a.kristem?.Name || a.account_name || "").toLowerCase();
+      const code = (a.kristem?.Code || "").toLowerCase();
+      return name.includes(q) || code.includes(q);
+    })
+    .filter((a) => {
+      // Status filter
+      if (!statusFilter) return true;
+      
+      const stageStatus = (a.stageStatus || a.stage_status || "").toLowerCase();
+      const today = new Date();
+      const dueDate = a.dueDate || a.due_date;
+      
+      switch (statusFilter) {
+        case 'draft':
+          return stageStatus === 'draft';
+        case 'pending_approval':
+          return stageStatus === 'submitted';
+        case 'overdue':
+          return stageStatus !== 'approved' && dueDate && new Date(dueDate) < today;
+        default:
+          return true;
+      }
+    });
 
   // Fetch a single account and set as selected (details view)
   const fetchSelectedAccount = async (id) => {
     if (!id) return;
 
     // 🧠 handle case when id is actually an object
-    const resolvedId = typeof id === "object" && id.id ? id.id : id;
+    const resolvedId = typeof id === "object" && (id.kristemAccountId || id.id) ? id.kristemAccountId ?? id.id : id;
+    console.log("Fetching selected account with ID:", resolvedId);
 
     try {
       // setLoading(true);
@@ -166,8 +210,11 @@ export default function AccountsPage() {
   const fetchEditingAccount = async (id) => {
     if (!id) return;
 
+    console.log("fetchEditingAccount called with id:", id);
+
     // 🧠 handle case when id is actually an object
-    const resolvedId = typeof id === "object" && id.id ? id.id : id;
+    const resolvedId = typeof id === "object" && (id.kristemAccountId || id.id || id.accountId) ? id.kristemAccountId ?? id.id ?? id.accountId : id;
+    console.log("Fetching selected account with ID:", resolvedId);
 
     try {
       // setLoading(true);
@@ -188,17 +235,18 @@ export default function AccountsPage() {
     console.log("Saving account:", formData, "Mode:", mode);
     try {
       console.log(formData.id);
+      const submitData = { ...formData, stageStatus: "In Progress" };
       
       let response;
       if (mode === "create") {
         response = await apiBackendFetch("/api/accounts", {
           method: "POST",
-          body: JSON.stringify(formData),
+          body: JSON.stringify(submitData),
         });
       } else {
-        response = await apiBackendFetch(`/api/accounts/${formData.id}`, {
+        response = await apiBackendFetch(`/api/accounts/${submitData.kristemAccountId}`, {
           method: "PUT",
-          body: JSON.stringify(formData),
+          body: JSON.stringify(submitData),
         });
       }
 
@@ -225,8 +273,8 @@ export default function AccountsPage() {
 
       setSuccessMessage("Account saved successfully!");
       await fetchAllData();
-      setSelectedAccount(null);
-      setEditingAccount(null);
+      await fetchNewAssignedNAEFs();
+      fetchSelectedAccount(savedAccount);
     } catch (err) {
       console.error("Error saving NAEF Stage:", err);
       setError("Failed to save NAEF Stage");
@@ -236,26 +284,29 @@ export default function AccountsPage() {
   const handleSubmitForApproval = async (formData) => {
     try {
       // Set stage_status to Submitted
-      const submitData = { ...formData, stage_status: "Submitted" };
-      const response = await apiBackendFetch(`/api/accounts/${formData.id}`, {
+      const submitData = { ...formData, stageStatus: "Submitted" };
+      const response = await apiBackendFetch(`/api/accounts/${formData.kristemAccountId}`, {
         method: "PUT",
         body: JSON.stringify(submitData),
       });
       if (!response.ok)
         throw new Error("Failed to submit account for approval");
       const savedAccount = await response.json();
+      console.log("Submitted account for approval:", savedAccount);
 
       // Create workflow stage for new account
       const result = await apiBackendFetch("/api/workflow-stages", {
         method: "POST",
         body: JSON.stringify({
-          wo_id: savedAccount.wo_id || savedAccount.woSourceId,
+          wo_id: savedAccount.woSourceId,
           account_id: savedAccount.id,
           stage_name: "NAEF",
           status: "Submitted",
           assigned_to: savedAccount.prepared_by || savedAccount.preparedBy,
         }),
       });
+
+      if (!result.ok) throw new Error("Failed to create workflow stage");
 
       console.log("Workflow stage created:", result);
 
@@ -266,7 +317,7 @@ export default function AccountsPage() {
       await fetchNewAssignedNAEFs();
     } catch (err) {
       console.error("Error submitting for approval:", err);
-      setError("Failed to submit technical recommendation for approval");
+      setError("Failed to submit NAEF for approval");
     }
   };
   // Placeholder for state and logic
@@ -318,19 +369,19 @@ export default function AccountsPage() {
                   <div className="flex items-center space-x-2 mb-2">
                     <LuCircleAlert className="h-4 w-4 text-purple-600" />
                     <p className="text-sm font-semibold text-purple-800">
-                      {`You have ${newAssignedAccounts.length} new technical recommendation${
+                      {`You have ${newAssignedAccounts.length} new NAEF${
                         newAssignedAccounts.length > 1 ? "s" : ""
                       } assigned to you`}
                     </p>
                   </div>
                   <div className="space-y-1">
                     <p className="text-sm text-gray-900">
-                      {newAssignedAccounts.map((tr) => tr.trNumber).join(", ")}
+                      {newAssignedAccounts.map((acc) => acc?.account?.kristem?.Code).join(", ")}
                     </p>
                   </div>
                   <div className="mt-3">
                     <button
-                      onClick={() => setSelectedAccount(newAssignedAccounts[0])}
+                      onClick={async () => await fetchEditingAccount(newAssignedAccounts[0])}
                       className="inline-flex items-center justify-center whitespace-nowrap font-medium transition-colors shadow h-8 rounded-md px-3 text-xs bg-purple-600 hover:bg-purple-700 text-white cursor-pointer"
                     >
                       View First NAEF
@@ -358,16 +409,15 @@ export default function AccountsPage() {
                   <div className="flex items-center space-x-2 mb-2">
                     <LuCircleAlert className="h-4 w-4 text-purple-600" />
                     <p className="text-sm font-semibold text-purple-800">
-                      New Technical Recommendation
+                      New NAEF
                     </p>
                     <span className="inline-flex items-center rounded-md border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 hover:bg-secondary/80 bg-purple-100 text-purple-800 border-purple-200">
-                      TR
+                      NAEF
                     </span>
                   </div>
                   <div className="space-y-1">
                     <p className="text-sm font-medium text-gray-900">
-                      {newAssignedAccounts[0].trNumber} -{" "}
-                      {newAssignedAccounts[0].title}
+                      {newAssignedAccounts[0]?.account?.kristem?.Code} - {"New Account Setup"}
                     </p>
                     <p className="text-sm text-gray-600">
                       Account: {newAssignedAccounts[0].accountId}
@@ -379,12 +429,11 @@ export default function AccountsPage() {
                   <div className="mt-3">
                     <button
                       onClick={() => {
-                        setEditingAccount({});
-                        setSelectedAccount(null);
+                        fetchEditingAccount(newAssignedAccounts[0]);
                       }}
                       className="inline-flex items-center justify-center whitespace-nowrap font-medium transition-colors shadow h-8 rounded-md px-3 text-xs bg-purple-600 hover:bg-purple-700 text-white cursor-pointer"
                     >
-                      Open Technical Recommendation
+                      Open NAEF
                     </button>
                   </div>
                 </div>
@@ -402,34 +451,56 @@ export default function AccountsPage() {
 
           {/* Status center */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-            <div className="relative flex flex-col rounded-xl shadow-sm border border-gray-200 p-6">
+            <div 
+              className={`relative flex flex-col rounded-xl shadow-sm border border-gray-200 p-6 cursor-pointer hover:shadow-md transition ${!statusFilter ? "ring-2 ring-blue-500" : ""}`}
+              onClick={() => setStatusFilter(null)}
+              role="button"
+              tabIndex={0}
+            >
               <LuFileText className="absolute top-6 right-6 text-gray-600" />
-              <p className="text-sm mb-1 mr-4">Total Recommendations</p>
+              <p className="text-sm mb-1 mr-4">Total NAEFs</p>
               <h2 className="text-2xl font-bold">{statusSummary.total}</h2>
               <p className="text-xs text-gray-500">
-                All technical recommendations
+                All account enrollment forms
               </p>
             </div>
-            <div className="relative flex flex-col rounded-xl shadow-sm border border-gray-200 p-6">
-              <LuClipboard className="absolute top-6 right-6 text-gray-600" />
-              <p className="text-sm mb-1 mr-4">Draft</p>
+            <div 
+              className={`relative flex flex-col rounded-xl shadow-sm border border-gray-200 p-6 cursor-pointer hover:shadow-md transition ${statusFilter === "draft" ? "ring-2 ring-blue-500" : ""}`}
+              onClick={() => setStatusFilter("draft")}
+              role="button"
+              tabIndex={0}
+            >
+              <LuClipboard className="absolute top-6 right-6 text-yellow-600" />
+              <p className="text-sm mb-1 mr-4">Draft NAEFs</p>
               <h2 className="text-2xl font-bold">{statusSummary.pending}</h2>
               <p className="text-xs text-gray-500">
-                Recommendations in draft status
+                Forms in draft status
               </p>
             </div>
-            <div className="relative flex flex-col rounded-xl shadow-sm border border-gray-200 p-6">
-              <LuCircleCheck className="absolute top-6 right-6 text-gray-600" />
-              <p className="text-sm mb-1 mr-4">Approved</p>
+            <div 
+              className={`relative flex flex-col rounded-xl shadow-sm border border-gray-200 p-6 cursor-pointer hover:shadow-md transition ${statusFilter === "pending_approval" ? "ring-2 ring-blue-500" : ""}`}
+              onClick={() => setStatusFilter("pending_approval")}
+              role="button"
+              tabIndex={0}
+            >
+              <LuCircleCheck className="absolute top-6 right-6 text-blue-600" />
+              <p className="text-sm mb-1 mr-4">Pending Approval</p>
               <h2 className="text-2xl font-bold">{statusSummary.inProgress}</h2>
-              <p className="text-xs text-gray-500">Approved recommendations</p>
+              <p className="text-xs text-gray-500">
+                Forms awaiting approval
+              </p>
             </div>
-            <div className="relative flex flex-col rounded-xl shadow-sm border border-gray-200 p-6">
-              <LuCircleAlert className="absolute top-6 right-6 text-gray-600" />
-              <p className="text-sm mb-1 mr-4">High Priority</p>
+            <div 
+              className={`relative flex flex-col rounded-xl shadow-sm border border-gray-200 p-6 cursor-pointer hover:shadow-md transition ${statusFilter === "overdue" ? "ring-2 ring-blue-500" : ""}`}
+              onClick={() => setStatusFilter("overdue")}
+              role="button"
+              tabIndex={0}
+            >
+              <LuCircleAlert className="absolute top-6 right-6 text-red-600" />
+              <p className="text-sm mb-1 mr-4">Overdue NAEFs</p>
               <h2 className="text-2xl font-bold">{statusSummary.completed}</h2>
               <p className="text-xs text-gray-500">
-                High and critical priority items
+                Forms past due date
               </p>
             </div>
           </div>
@@ -444,10 +515,32 @@ export default function AccountsPage() {
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   className="flex h-9 w-full rounded-md border border-gray-200 bg-transparent px-3 py-1 text-sm shadow-xs transition-colors pl-10"
-                  placeholder="Search salesleads..."
+                  placeholder="Search NAEFs..."
                 />
               </div>
             </div>
+
+            {/* Active Filter Display */}
+            {statusFilter && (
+              <div className="flex items-center gap-2">
+                <div className="inline-flex items-center gap-2 rounded-full bg-blue-50 text-blue-700 px-3 py-1 text-xs border border-blue-200">
+                  <span>Filter:</span>
+                  <span className="font-semibold">
+                    {statusFilter === 'draft' && 'Draft NAEFs'}
+                    {statusFilter === 'pending_approval' && 'Pending Approval'}
+                    {statusFilter === 'overdue' && 'Overdue NAEFs'}
+                  </span>
+                  <button
+                    type="button"
+                    className="ml-1 rounded-full hover:bg-blue-100 px-1.5 cursor-pointer"
+                    onClick={() => setStatusFilter(null)}
+                    aria-label="Clear filter"
+                  >
+                    ×
+                  </button>
+                </div>
+              </div>
+            )}
 
             <AccountsTable
               accounts={filtered}
@@ -476,14 +569,6 @@ export default function AccountsPage() {
             currentUser={currentUser}
             onBack={() => setSelectedAccount(null)}
             onEdit={() => fetchEditingAccount(selectedAccount)}
-            onTechnicalRecoUpdated={(updatedTR) => {
-              setSelectedAccount(updatedTR);
-              // Optionally, update the accounts array as well:
-              setAccounts((prev) =>
-                prev.map((tr) => (tr.id === updatedTR.id ? updatedTR : tr)),
-              );
-              fetchNewAssignedNAEFs(); // <-- refresh from backend
-            }}
             onSubmit={(formData) => handleSubmitForApproval(formData)}
           />
         )}
@@ -504,7 +589,7 @@ export default function AccountsPage() {
             onSave={(formData, mode) => handleSave(formData, mode)}
             onBack={() => {
               fetchNewAssignedNAEFs();
-              setEditingAccount(null);
+              fetchSelectedAccount(editingAccount);
             }}
           />
         )}

@@ -2,10 +2,10 @@ import { LuArrowLeft, LuPencil, LuPrinter, LuFileCheck } from "react-icons/lu";
 import { useEffect } from "react";
 import { apiBackendFetch } from "../services/api.js";
 import utils from "../helper/utils";
+import { useUser } from "../contexts/UserContext.jsx";
 
 const AccountDetails = ({
   account,
-  currentUser,
   workWeeks,
   onBack,
   onEdit,
@@ -14,6 +14,7 @@ const AccountDetails = ({
   onSubmit,
   source="account"
 }) => {
+  const { currentUser } = useUser();
   const isAssignedToMe = currentUser && account.prepared_by === currentUser.id;
   const isCreator = currentUser && account.prepared_by === currentUser.id;
   const accountFinal = account.account ?? account;
@@ -65,7 +66,7 @@ const AccountDetails = ({
             </button>)}
             <h1 className="text-2xl font-bold">NAEF Details</h1>
             <div className="inline-flex items-center rounded-md border px-2.5 py-0.5 text-xs font-semibold bg-green-100 text-green-800">
-              {account.stage_status}
+              {account.stageStatus}
             </div>
           </div>
         </div>
@@ -86,7 +87,7 @@ const AccountDetails = ({
           </button>)}
           <button
             onClick={() => onSubmit(account)}
-            className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-light shadow h-9 px-4 py-2 bg-green-500 hover:bg-green-600 text-white"
+            className={`items-center justify-center whitespace-nowrap rounded-md text-sm font-light shadow h-9 px-4 py-2 bg-green-500 hover:bg-green-600 text-white ${account.stageStatus === 'Approved' ? 'hidden' : 'inline-flex'}`}
           >
             <LuFileCheck className="mr-2" />
             Submit for Approval
@@ -325,12 +326,12 @@ const AccountDetails = ({
             </h3>
           </div>
           <div className="p-6 pt-0 grid grid-cols-1 md:grid-cols-2 gap-6">
-            <Detail label="Prepared by User ID" value={accountFinal.preparedBy} />
-            <Detail label="Noted by User ID" value={accountFinal.notedBy} />
-            <Detail label="Approved by User ID" value={accountFinal.approvedBy} />
-            <Detail label="Received by User ID" value={accountFinal.receivedBy} />
+            <Detail label="Prepared by" value={accountFinal.preparedByUsername} />
+            <Detail label="Noted by" value={accountFinal.notedByUsername} />
+            <Detail label="Approved by" value={accountFinal.approvedByUsername} />
+            <Detail label="Received by" value={accountFinal.receivedByUsername} />
             <Detail
-              label="Acknowledge Approved by User ID"
+              label="Acknowledge Approved by"
               value={accountFinal.approvedDate}
             />
           </div>

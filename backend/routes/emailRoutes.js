@@ -1,30 +1,61 @@
 import express from "express";
 import nodemailer from "nodemailer";
+import { poolPromise } from "../mssql.js";
 
 const router = express.Router();
 
-// Create transporter (you'll need to configure this with your email provider)
-const createTransporter = () => {
-  // For development, you can use a service like Gmail, Outlook, or a dedicated SMTP service
-  // For production, consider using SendGrid, AWS SES, or similar services
-  
-  return nodemailer.createTransporter({
-    // Gmail configuration (you'll need to enable "less secure apps" or use app passwords)
-    service: 'gmail',
-    auth: {
-      user: process.env.EMAIL_USER || 'your-email@gmail.com',
-      pass: process.env.EMAIL_PASS || 'your-app-password'
+// Create transporter using MSSQL EmailCreds configuration
+const createTransporter = async () => {
+  try {
+    const pool = await poolPromise;
+    const result = await pool
+      .request()
+      .query("SELECT TOP 1 * FROM spidb.EmailCreds WHERE Id = 1");
+    
+    if (!result.recordset || result.recordset.length === 0) {
+      throw new Error("Email credentials not found in database");
     }
     
-    // Alternative SMTP configuration
-    // host: process.env.SMTP_HOST || 'smtp.example.com',
-    // port: process.env.SMTP_PORT || 587,
-    // secure: false, // true for 465, false for other ports
-    // auth: {
-    //   user: process.env.SMTP_USER,
-    //   pass: process.env.SMTP_PASS
-    // }
-  });
+    const emailConfig = result.recordset[0];
+    console.log("📧 Loading email config from database:", {
+      host: emailConfig.Host,
+      port: emailConfig.SmtpPort,
+      from: emailConfig.MailFrom,
+      fromName: emailConfig.MailFromName
+    });
+    
+    return nodemailer.createTransporter({
+      host: emailConfig.Host,
+      port: parseInt(emailConfig.SmtpPort),
+      secure: parseInt(emailConfig.SmtpPort) === 465, // true for 465, false for other ports
+      auth: {
+        user: emailConfig.NetworkCredsUserName,
+        pass: emailConfig.NetworkCredsPass
+      }
+    });
+  } catch (error) {
+    console.error("❌ Failed to create email transporter from database config:", error);
+    throw error;
+  }
+};
+
+// Get email configuration from database
+const getEmailConfig = async () => {
+  try {
+    const pool = await poolPromise;
+    const result = await pool
+      .request()
+      .query("SELECT TOP 1 * FROM spidb.EmailCreds WHERE Id = 1");
+    
+    if (!result.recordset || result.recordset.length === 0) {
+      throw new Error("Email credentials not found in database");
+    }
+    
+    return result.recordset[0];
+  } catch (error) {
+    console.error("❌ Failed to get email config:", error);
+    throw error;
+  }
 };
 
 // Send RFQ email
@@ -46,8 +77,9 @@ router.post("/send-rfq", async (req, res) => {
       });
     }
 
-    // Create transporter
-    const transporter = createTransporter();
+    // Create transporter with database config
+    const transporter = await createTransporter();
+    const emailConfig = await getEmailConfig();
 
     // Verify transporter configuration
     try {
@@ -60,9 +92,9 @@ router.post("/send-rfq", async (req, res) => {
       });
     }
 
-    // Prepare email options
+    // Prepare email options with database config
     const mailOptions = {
-      from: `"Procurement Team" <${process.env.EMAIL_USER || 'your-email@gmail.com'}>`,
+      from: `"${emailConfig.MailFromName}" <${emailConfig.MailFrom}>`,
       to: to,
       subject: subject,
       html: content,
@@ -108,15 +140,47 @@ router.post("/send-rfq", async (req, res) => {
   }
 });
 
+// Get email configuration (without sensitive data)
+router.get("/config", async (req, res) => {
+  try {
+    const emailConfig = await getEmailConfig();
+    
+    res.json({
+      success: true,
+      config: {
+        host: emailConfig.Host,
+        port: emailConfig.SmtpPort,
+        from: emailConfig.MailFrom,
+        fromName: emailConfig.MailFromName,
+        // Don't expose credentials
+        hasCredentials: !!(emailConfig.NetworkCredsUserName && emailConfig.NetworkCredsPass)
+      }
+    });
+  } catch (error) {
+    console.error("Failed to get email config:", error);
+    res.status(500).json({
+      error: "Failed to get email configuration",
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+});
+
 // Test email configuration
 router.post("/test", async (req, res) => {
   try {
-    const transporter = createTransporter();
+    const transporter = await createTransporter();
+    const emailConfig = await getEmailConfig();
     await transporter.verify();
     
     res.json({
       success: true,
-      message: "Email configuration is working"
+      message: "Email configuration is working",
+      config: {
+        host: emailConfig.Host,
+        port: emailConfig.SmtpPort,
+        from: emailConfig.MailFrom,
+        fromName: emailConfig.MailFromName
+      }
     });
   } catch (error) {
     console.error("Email configuration test failed:", error);

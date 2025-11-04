@@ -17,6 +17,13 @@ export default function CalendarPage() {
   const [isDragging, setIsDragging] = useState(false);
   const [updating, setUpdating] = useState(false);
   const [notification, setNotification] = useState({ message: '', type: '', visible: false });
+  const [selectedWorkOrder, setSelectedWorkOrder] = useState(null);
+  const [statusSummary, setStatusSummary] = useState({
+    total: 0,
+    pending: 0,
+    inProgress: 0,
+    completed: 0
+  });
 
   const monthYear = current.toLocaleDateString(undefined, {
     month: "long",
@@ -27,12 +34,30 @@ export default function CalendarPage() {
     let mounted = true;
     (async () => {
       try {
-        const workOrdersRes = await apiBackendFetch("/api/workorders");
-        if (!workOrdersRes.ok) return;
-        const workOrdersData = await workOrdersRes.json();
-        if (mounted) setWorkOrders(Array.isArray(workOrdersData) ? workOrdersData : []);
+        // Fetch work orders and status summary in parallel
+        const [workOrdersRes, statusRes] = await Promise.all([
+          apiBackendFetch("/api/workorders"),
+          apiBackendFetch("/api/workorders/summary/status")
+        ]);
+        
+        if (workOrdersRes.ok) {
+          const workOrdersData = await workOrdersRes.json();
+          if (mounted) setWorkOrders(Array.isArray(workOrdersData) ? workOrdersData : []);
+        }
+        
+        if (statusRes.ok) {
+          const statusData = await statusRes.json();
+          if (mounted) {
+            setStatusSummary({
+              total: statusData.total || 0,
+              pending: statusData.pending || 0,
+              inProgress: statusData.inProgress || statusData.in_progress || 0,
+              completed: statusData.completed || 0
+            });
+          }
+        }
       } catch (err) {
-        console.error("Error retrieving workorders:", err);
+        console.error("Error retrieving data:", err);
       }
     })();
     return () => {
@@ -215,7 +240,7 @@ export default function CalendarPage() {
       <div className="grid gap-6 lg:grid-cols-3">
         {/* Calendar grid */}
         <div className="lg:col-span-2">
-          <div className="grid grid-cols-7 gap-1">
+          <div className="grid grid-cols-7 gap-1 overflow-visible">
             {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((d) => (
               <div key={d} className="bg-white p-2 text-center text-sm font-medium rounded-md">
                 {d}
@@ -231,7 +256,7 @@ export default function CalendarPage() {
                   return (
                     <div
                       key={`${wi}-${di}`}
-                      className={`bg-white h-42 p-2 align-top rounded-md border border-gray-200 ${inMonth ? "" : "text-gray-400 bg-gray-50"} ${isToday ? `ring-2 ring-blue-500 ${flashToday ? 'bg-blue-100' : ''}` : ""} ${dragOverDate === dayKey ? 'ring-2 ring-green-400 bg-green-50 border-green-300' : 'hover:bg-blue-50'} cursor-pointer transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-blue-400`}
+                      className={`bg-white h-42 p-2 align-top rounded-md border border-gray-200 overflow-visible ${inMonth ? "" : "text-gray-400 bg-gray-50"} ${isToday ? `ring-2 ring-blue-500 ${flashToday ? 'bg-blue-100' : ''}` : ""} ${dragOverDate === dayKey ? 'ring-2 ring-green-400 bg-green-50 border-green-300' : 'hover:bg-blue-50'} cursor-pointer transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-blue-400`}
                       role="button"
                       tabIndex={0}
                       title="Click on empty space to create new work order"
@@ -288,19 +313,29 @@ export default function CalendarPage() {
                           <div className="inline-flex items-center rounded-md bg-blue-100 text-blue-700 text-[10px] px-1.5 py-0.5">
                             {events.length} workorder{events.length > 1 ? "s" : ""}
                           </div>
-                          <div className="flex flex-col gap-1 overflow-hidden">
-                            {events.slice(0, 3).map((wo, idx) => (
+                          <div className="flex flex-col gap-1 overflow-visible px-1 py-0.5">
+                            {events.slice(0, 3).map((wo, idx) => {
+                              const isCompleted = (wo.stageStatus || wo.stage_status || '').toLowerCase() === 'completed';
+                              const canDrag = !updating && !isCompleted;
+                              
+                              return (
                               <div
                                 key={(wo.id ?? wo.woId ?? wo.wo_id ?? idx) + "-pill"}
-                                className={`truncate text-[11px] leading-4 rounded px-1.5 py-0.5 border transition-colors duration-150 select-none ${
+                                className={`truncate text-[11px] leading-4 rounded px-1.5 py-0.5 border transition-all duration-200 select-none ${
                                   updating 
                                     ? 'bg-gray-50 border-gray-100 text-gray-400 cursor-not-allowed'
+                                    : selectedWorkOrder && (selectedWorkOrder.id ?? selectedWorkOrder.woId ?? selectedWorkOrder.wo_id) === (wo.id ?? wo.woId ?? wo.wo_id)
+                                    ? isCompleted
+                                      ? 'bg-green-100 border-green-300 text-green-800 cursor-pointer shadow-lg ring-2 ring-green-400 ring-offset-1 transform scale-105'
+                                      : 'bg-blue-100 border-blue-300 text-blue-800 cursor-move shadow-lg ring-2 ring-blue-400 ring-offset-1 transform scale-105'
+                                    : isCompleted
+                                    ? 'bg-green-50 border-green-200 text-green-700 hover:bg-green-100 cursor-pointer'
                                     : 'bg-gray-100 border-gray-200 hover:bg-blue-50 hover:border-blue-300 hover:text-blue-700 cursor-move'
                                 }`}
-                                title={`${wo.woNumber ?? wo.wo_number ?? "WO"} — ${wo.accountName ?? ""}\nClick to view details • Drag to reschedule`}
+                                title={`${wo.woNumber ?? wo.wo_number ?? "WO"} — ${wo.accountName ?? ""}\nClick to view details${canDrag ? ' • Drag to reschedule' : isCompleted ? ' • Completed (cannot reschedule)' : ''}`}
                                 role="button"
                                 tabIndex={0}
-                                draggable={!updating}
+                                draggable={canDrag}
                                 onDragStart={(e) => {
                                   setIsDragging(true);
                                   const woId = wo.id ?? wo.woId ?? wo.wo_id;
@@ -336,26 +371,21 @@ export default function CalendarPage() {
                                     return;
                                   }
                                   
-                                  // Navigate to work order details with query parameter
-                                  const woId = wo.id ?? wo.woId ?? wo.wo_id;
-                                  if (woId) {
-                                    navigate(`/workorders?select=${woId}`);
-                                  }
+                                  // Select work order to show details in Card 1
+                                  setSelectedWorkOrder(wo);
                                 }}
                                 onKeyDown={(e) => {
                                   if (e.key === "Enter" || e.key === " ") {
                                     e.stopPropagation();
                                     e.preventDefault();
-                                    const woId = wo.id ?? wo.woId ?? wo.wo_id;
-                                    if (woId) {
-                                      navigate(`/workorders?select=${woId}`);
-                                    }
+                                    setSelectedWorkOrder(wo);
                                   }
                                 }}
                               >
                                 {(wo.woNumber ?? wo.wo_number ?? "WO").toString()}
                               </div>
-                            ))}
+                              );
+                            })}
                             {events.length > 3 && (
                               <div 
                                 className="text-[10px] text-gray-500 cursor-pointer hover:text-blue-600 transition-colors duration-150"
@@ -391,43 +421,133 @@ export default function CalendarPage() {
 
         {/* Sidebar cards */}
         <div className="flex flex-col gap-4">
-          {/* Card 1: Select a Workorder */}
+          {/* Card 1: Work Order Details */}
           <div className="rounded-xl border border-gray-200 bg-white shadow p-6">
-            <div className="flex items-center gap-4">
-              <div className="flex items-center justify-center rounded-lg bg-blue-50 text-blue-600 w-16 h-16">
-                <LuClipboardList className="w-10 h-10" />
-              </div>
+            {selectedWorkOrder ? (
               <div>
-                <h3 className="text-base font-semibold">Select a Workorder</h3>
-                <p className="text-sm text-gray-600">
-                  Click on any workorder in the calendar to view its details
-                </p>
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-3">
+                    <div className="flex items-center justify-center rounded-lg bg-blue-50 text-blue-600 w-12 h-12">
+                      <LuClipboardList className="w-6 h-6" />
+                    </div>
+                    <div>
+                      <h3 className="text-base font-semibold">
+                        {selectedWorkOrder.woNumber || selectedWorkOrder.wo_number || 'Work Order'}
+                      </h3>
+                      <p className="text-sm text-gray-600">
+                        {selectedWorkOrder.accountName || 'No account specified'}
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setSelectedWorkOrder(null)}
+                    className="text-gray-400 hover:text-gray-600 p-1"
+                    title="Clear selection"
+                  >
+                    ×
+                  </button>
+                </div>
+                
+                <div className="space-y-3 text-sm">
+                  <div>
+                    <span className="text-gray-600">Status:</span>
+                    <span className={`ml-2 px-2 py-1 rounded-full text-xs ${
+                      (selectedWorkOrder.stageStatus || selectedWorkOrder.stage_status || '').toLowerCase() === 'completed'
+                        ? 'bg-green-100 text-green-700'
+                        : (selectedWorkOrder.stageStatus || selectedWorkOrder.stage_status || '').toLowerCase() === 'in progress'
+                        ? 'bg-blue-100 text-blue-700'
+                        : 'bg-gray-100 text-gray-700'
+                    }`}>
+                      {selectedWorkOrder.stageStatus || selectedWorkOrder.stage_status || 'Draft'}
+                    </span>
+                  </div>
+                  
+                  {selectedWorkOrder.workDescription && (
+                    <div>
+                      <span className="text-gray-600">Description:</span>
+                      <span className="ml-1 text-gray-800">
+                        {selectedWorkOrder.workDescription}
+                      </span>
+                    </div>
+                  )}
+                  
+                  <div>
+                    <span className="text-gray-600">Due Date:</span>
+                    <span className="ml-2 font-medium">
+                      {utils.formatDate(selectedWorkOrder.dueDate, "MM/DD/YYYY") || utils.formatDate(selectedWorkOrder.due_date, "MM/DD/YYYY") || 'Not set'}
+                    </span>
+                  </div>
+                  
+                  {(selectedWorkOrder.contactPerson || selectedWorkOrder.contact_person) && (
+                    <div>
+                      <span className="text-gray-600">Contact:</span>
+                      <span className="ml-2">
+                        {selectedWorkOrder.contactPerson || selectedWorkOrder.contact_person}
+                      </span>
+                    </div>
+                  )}
+                </div>
+                
+                <div className="mt-4 pt-4 border-t">
+                  <button
+                    onClick={() => {
+                      const woId = selectedWorkOrder.id ?? selectedWorkOrder.woId ?? selectedWorkOrder.wo_id;
+                      if (woId) {
+                        navigate(`/workorders?select=${woId}`);
+                      }
+                    }}
+                    className="w-full bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors"
+                  >
+                    View Full Details
+                  </button>
+                </div>
               </div>
-            </div>
+            ) : (
+              <div className="flex items-center gap-4">
+                <div className="flex items-center justify-center rounded-lg bg-blue-50 text-blue-600 w-16 h-16">
+                  <LuClipboardList className="w-10 h-10" />
+                </div>
+                <div>
+                  <h3 className="text-base font-semibold">Select a Workorder</h3>
+                  <p className="text-sm text-gray-600">
+                    Click on any workorder in the calendar to view its details
+                  </p>
+                </div>
+              </div>
+            )}
           </div>
 
-          {/* Card 2: Quick Stats (dummy) */}
+          {/* Card 2: Quick Stats */}
           <div className="rounded-xl border border-gray-200 bg-white shadow p-6">
             <div className="flex items-center gap-3 mb-4">
               <LuChartBar className="text-gray-700 w-5 h-5" />
               <h3 className="font-semibold">Quick Stats</h3>
             </div>
-            <div className="text-sm">
+            <div className="text-sm space-y-2">
               <div className="flex items-center justify-between py-1">
                 <span className="text-gray-600">Total Workorders</span>
-                <span className="font-medium">128</span>
+                <span className="font-medium text-gray-800">{statusSummary.total}</span>
               </div>
               <div className="flex items-center justify-between py-1">
-                <span className="text-gray-600">Pending</span>
-                <span className="font-medium">34</span>
+                <div className="flex items-center gap-2">
+                  <span className="text-gray-600">Pending</span>
+                  <span className="w-2 h-2 bg-yellow-400 rounded-full"></span>
+                </div>
+                <span className="font-medium text-yellow-700">{statusSummary.pending}</span>
               </div>
               <div className="flex items-center justify-between py-1">
-                <span className="text-gray-600">In Progress</span>
-                <span className="font-medium">57</span>
+                <div className="flex items-center gap-2">
+                  <span className="text-gray-600">In Progress</span>
+                  <span className="w-2 h-2 bg-blue-400 rounded-full"></span>
+                </div>
+                <span className="font-medium text-blue-700">{statusSummary.inProgress}</span>
               </div>
               <div className="flex items-center justify-between py-1">
-                <span className="text-gray-600">Completed</span>
-                <span className="font-medium">37</span>
+                <div className="flex items-center gap-2">
+                  <span className="text-gray-600">Completed</span>
+                  <span className="w-2 h-2 bg-green-400 rounded-full"></span>
+                </div>
+                <span className="font-medium text-green-700">{statusSummary.completed}</span>
               </div>
             </div>
           </div>

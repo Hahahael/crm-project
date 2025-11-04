@@ -1,6 +1,15 @@
 //src/pages/ApprovalsPage
 import { useState, useEffect, useCallback, useRef } from "react";
-import { LuSearch } from "react-icons/lu";
+import { 
+  LuSearch, 
+  LuFileText, 
+  LuSettings, 
+  LuShoppingCart, 
+  LuClipboardList, 
+  LuHammer, 
+  LuUser, 
+  LuBuilding2 
+} from "react-icons/lu";
 import ApprovalsTable from "../components/ApprovalsTable";
 import SalesLeadDetails from "../components/SalesLeadDetails";
 import TechnicalDetails from "../components/TechnicalDetails";
@@ -33,6 +42,55 @@ const ApprovalsPage = () => {
   const [successMessage, setSuccessMessage] = useState("");
   const [refreshing, setRefreshing] = useState(false);
   const timeoutRef = useRef();
+  
+  // Calculate summary counts from approvals data
+  const calculateSummary = () => {
+    const summary = {
+      total: approvals.length,
+      salesLead: 0,
+      technicalRecommendation: 0,
+      rfq: 0,
+      quotations: 0,
+      workOrder: 0,
+      account: 0,
+      naef: 0
+    };
+
+    approvals.forEach(approval => {
+      const stage = (approval.stageName || approval.stage_name || approval.module || "").toLowerCase();
+      
+      switch (stage) {
+        case 'sales lead':
+        case 'sales_lead':
+          summary.salesLead++;
+          break;
+        case 'technical recommendation':
+        case 'technical_recommendation':
+          summary.technicalRecommendation++;
+          break;
+        case 'rfq':
+          summary.rfq++;
+          break;
+        case 'quotations':
+          summary.quotations++;
+          break;
+        case 'work order':
+        case 'workorder':
+          summary.workOrder++;
+          break;
+        case 'account':
+          summary.account++;
+          break;
+        case 'naef':
+          summary.naef++;
+          break;
+      }
+    });
+
+    return summary;
+  };
+
+  const summary = calculateSummary();
 
   const fetchApprovals = async () => {
     try {
@@ -193,7 +251,8 @@ const ApprovalsPage = () => {
         fromTime,
         toTime,
       };
-      let accountId;
+      let accountId = actionApproval.accountId || detailsData.accountId || detailsData.kristemAccountId;
+      const prevWorkOrderAssignee = detailsData?.assignee || detailsData?.assignedTo || detailsData?.preparedBy;
       const currentType = actionApproval.stageName || actionApproval.module;
       if (modalType === "approve") {
         if (
@@ -275,6 +334,21 @@ const ApprovalsPage = () => {
             payload,
           );
 
+          // Create workflow stage for current stage (Approved)
+          const approvedStageRes = await apiBackendFetch("/api/workflow-stages", {
+            method: "POST",
+            body: JSON.stringify({
+              wo_id: actionApproval?.wo_id ?? actionApproval?.woId ?? null,
+              stage_name: currentType,
+              status: "Approved",
+              assigned_to: prevWorkOrderAssignee,
+              notified: false,
+              remarks,
+              next_stage: nextModuleType,
+              account_id: accountId
+            }),
+          });
+
           // Create skeletal record for next module
           const nextModuleRes = await apiBackendFetch(endpoint, {
             method: nextModuleType === "NAEF" ? "PUT" : "POST",
@@ -285,23 +359,18 @@ const ApprovalsPage = () => {
           if (nextModuleRes.ok) {
             nextModuleData = await nextModuleRes.json();
           } else {
+            // Delete the approved workflow stage since next module creation failed
             console.error("Failed to create next module:", nextModuleRes);
+            const approvedStageData = await approvedStageRes.json();
+            const approvedStageId = approvedStageData.id;
+            await apiBackendFetch(`/api/workflow-stages/${approvedStageId}`, {
+              method: "DELETE",
+              body: JSON.stringify({
+                id: approvedStageId,
+              }),
+            });
             throw new Error("Failed to create next module");
           }
-
-          // Create workflow stage for current stage (Approved)
-          await apiBackendFetch("/api/workflow-stages", {
-            method: "POST",
-            body: JSON.stringify({
-              wo_id: actionApproval?.wo_id ?? actionApproval?.woId ?? null,
-              stage_name: currentType,
-              status: "Approved",
-              assigned_to: assignee,
-              notified: false,
-              remarks,
-              next_stage: nextModuleType,
-            }),
-          });
 
           console.log("Next module created with details", nextModuleData);
           // Create workflow stage for next module (Draft)
@@ -435,7 +504,6 @@ const ApprovalsPage = () => {
         return (
           <AccountDetails
             account={detailsData}
-            currentUser={null}
             workWeeks={[]}
             onBack={() => setSelectedApproval(null)}
             onEdit={() => {}}
@@ -450,15 +518,31 @@ const ApprovalsPage = () => {
     }
   };
 
-  // Apply simple module filter
+  // Apply module filter
   const visibleApprovals = approvals.filter((row) => {
-    const stage = (row.stageName || row.stage_name || row.module || "").toString();
-    const isAccount = stage === "Account" || stage === "account" || row.module === "account";
-    const isNaef = stage === "NAEF" || stage === "naef";
-    if (moduleFilter === "account") return isAccount && !isNaef;
-    if (moduleFilter === "naef") return isNaef;
-    if (moduleFilter === "others") return !isAccount && !isNaef;
-    return true;
+    const stage = (row.stageName || row.stage_name || row.module || "").toLowerCase();
+    
+    switch (moduleFilter) {
+      case "salesLead":
+        return stage === "sales lead" || stage === "sales_lead";
+      case "technicalRecommendation":
+        return stage === "technical recommendation" || stage === "technical_recommendation";
+      case "rfq":
+        return stage === "rfq";
+      case "quotations":
+        return stage === "quotations";
+      case "workOrder":
+        return stage === "work order" || stage === "workorder";
+      case "account":
+        return stage === "account";
+      case "naef":
+        return stage === "naef";
+      case "others":
+        return !["sales lead", "sales_lead", "technical recommendation", "technical_recommendation", 
+                "rfq", "quotations", "work order", "workorder", "account", "naef"].includes(stage);
+      default:
+        return true;
+    }
   });
 
   return (
@@ -501,6 +585,94 @@ const ApprovalsPage = () => {
             </div>
           </div>
 
+          {/* Summary Cards */}
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 mb-6">
+            {/* Total Approvals */}
+            <div
+              className={`rounded-xl border border-gray-200 bg-card text-card-foreground shadow p-6 cursor-pointer hover:shadow-md transition-all duration-200 ${
+                moduleFilter === "all" ? "ring-2 ring-blue-500 bg-blue-50" : "bg-white"
+              }`}
+              onClick={() => setModuleFilter("all")}
+              role="button"
+              tabIndex={0}
+            >
+              <div className="flex items-center justify-between pb-2">
+                <h3 className="tracking-tight text-sm font-medium">Total Approvals</h3>
+                <LuFileText className="w-5 h-5 text-gray-500" />
+              </div>
+              <div className="text-2xl font-bold mt-2">{summary.total}</div>
+              <p className="text-xs text-gray-500 mt-1">All pending approvals</p>
+            </div>
+
+            {/* Sales Leads */}
+            <div
+              className={`rounded-xl border border-gray-200 bg-card text-card-foreground shadow p-6 cursor-pointer hover:shadow-md transition-all duration-200 ${
+                moduleFilter === "salesLead" ? "ring-2 ring-blue-500 bg-blue-50" : "bg-white"
+              }`}
+              onClick={() => setModuleFilter("salesLead")}
+              role="button"
+              tabIndex={0}
+            >
+              <div className="flex items-center justify-between pb-2">
+                <h3 className="tracking-tight text-sm font-medium">Sales Leads</h3>
+                <LuUser className="w-5 h-5 text-blue-500" />
+              </div>
+              <div className="text-2xl font-bold mt-2">{summary.salesLead}</div>
+              <p className="text-xs text-gray-500 mt-1">Sales leads for approval</p>
+            </div>
+
+            {/* Technical Recos */}
+            <div
+              className={`rounded-xl border border-gray-200 bg-card text-card-foreground shadow p-6 cursor-pointer hover:shadow-md transition-all duration-200 ${
+                moduleFilter === "technicalRecommendation" ? "ring-2 ring-blue-500 bg-blue-50" : "bg-white"
+              }`}
+              onClick={() => setModuleFilter("technicalRecommendation")}
+              role="button"
+              tabIndex={0}
+            >
+              <div className="flex items-center justify-between pb-2">
+                <h3 className="tracking-tight text-sm font-medium">Technical Recos</h3>
+                <LuSettings className="w-5 h-5 text-purple-500" />
+              </div>
+              <div className="text-2xl font-bold mt-2">{summary.technicalRecommendation}</div>
+              <p className="text-xs text-gray-500 mt-1">Technical recommendations</p>
+            </div>
+
+            {/* RFQs */}
+            <div
+              className={`rounded-xl border border-gray-200 bg-card text-card-foreground shadow p-6 cursor-pointer hover:shadow-md transition-all duration-200 ${
+                moduleFilter === "rfq" ? "ring-2 ring-blue-500 bg-blue-50" : "bg-white"
+              }`}
+              onClick={() => setModuleFilter("rfq")}
+              role="button"
+              tabIndex={0}
+            >
+              <div className="flex items-center justify-between pb-2">
+                <h3 className="tracking-tight text-sm font-medium">RFQs</h3>
+                <LuShoppingCart className="w-5 h-5 text-green-500" />
+              </div>
+              <div className="text-2xl font-bold mt-2">{summary.rfq}</div>
+              <p className="text-xs text-gray-500 mt-1">Request for quotations</p>
+            </div>
+
+            {/* NAEFs */}
+            <div
+              className={`rounded-xl border border-gray-200 bg-card text-card-foreground shadow p-6 cursor-pointer hover:shadow-md transition-all duration-200 ${
+                moduleFilter === "naef" ? "ring-2 ring-blue-500 bg-blue-50" : "bg-white"
+              }`}
+              onClick={() => setModuleFilter("naef")}
+              role="button"
+              tabIndex={0}
+            >
+              <div className="flex items-center justify-between pb-2">
+                <h3 className="tracking-tight text-sm font-medium">NAEFs</h3>
+                <LuBuilding2 className="w-5 h-5 text-indigo-500" />
+              </div>
+              <div className="text-2xl font-bold mt-2">{summary.naef}</div>
+              <p className="text-xs text-gray-500 mt-1">New account enrollments</p>
+            </div>
+          </div>
+
           {/* Search + Create */}
           <div className="flex items-center mb-6">
             <div className="flex flex-col sm:flex-row gap-4 flex-1">
@@ -513,30 +685,17 @@ const ApprovalsPage = () => {
                 />
               </div>
               <div className="flex items-center gap-2">
-                <button
-                  className={`h-9 px-3 rounded-md text-sm border ${moduleFilter === "all" ? "bg-gray-800 text-white" : "bg-white"}`}
-                  onClick={() => setModuleFilter("all")}
-                >
-                  All
-                </button>
-                <button
-                  className={`h-9 px-3 rounded-md text-sm border ${moduleFilter === "account" ? "bg-gray-800 text-white" : "bg-white"}`}
-                  onClick={() => setModuleFilter("account")}
-                >
-                  Account
-                </button>
-                <button
-                  className={`h-9 px-3 rounded-md text-sm border ${moduleFilter === "naef" ? "bg-gray-800 text-white" : "bg-white"}`}
-                  onClick={() => setModuleFilter("naef")}
-                >
-                  NAEF
-                </button>
-                <button
-                  className={`h-9 px-3 rounded-md text-sm border ${moduleFilter === "others" ? "bg-gray-800 text-white" : "bg-white"}`}
-                  onClick={() => setModuleFilter("others")}
-                >
-                  Others
-                </button>
+                <span className="text-sm text-gray-500">
+                  {visibleApprovals.length} of {approvals.length} items
+                  {moduleFilter !== "all" && (
+                    <button
+                      onClick={() => setModuleFilter("all")}
+                      className="ml-2 text-blue-600 hover:text-blue-800 underline"
+                    >
+                      Clear filter
+                    </button>
+                  )}
+                </span>
               </div>
             </div>
           </div>

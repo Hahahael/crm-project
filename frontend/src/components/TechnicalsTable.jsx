@@ -10,8 +10,10 @@ import {
 } from "react-icons/lu";
 import util from "../helper/utils.js";
 import config from "../config.js";
+import { useUser } from "../contexts/UserContext.jsx";
 
 export default function TechnicalsTable({ technicals, onView, onEdit }) {
+  const { currentUser } = useUser();
   console.log("Rendering TechnicalsTable with technicals:", technicals);
   const baseBadge = "inline-flex items-center px-2.5 py-0.5 text-xs";
 
@@ -260,7 +262,7 @@ export default function TechnicalsTable({ technicals, onView, onEdit }) {
                   </button>
                   <button
                     onClick={() => onEdit(tr)}
-                    className={`rounded px-2 py-1 text-black border border-gray-200 bg-white transition-all duration-200 ${tr.stageStatus === "Approved" || tr.stageStatus === "Submitted" ? "opacity-50 cursor-not-allowed hover:bg-white pointer-events-none" : "cursor-pointer hover:bg-gray-100"}`}
+                    className={`rounded px-2 py-1 text-black border border-gray-200 bg-white transition-all duration-200 ${tr.stageStatus === "Approved" || tr.assignee !== currentUser.id ? "opacity-50 cursor-not-allowed hover:bg-white pointer-events-none" : "cursor-pointer hover:bg-gray-100"}`}
                   >
                     <LuPencil className="my-auto" />
                   </button>
