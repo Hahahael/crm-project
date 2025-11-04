@@ -114,13 +114,15 @@ const TechnicalForm = ({
           : Array.isArray(data?.rows)
             ? data.rows
             : [];
+
+
         const normalized = rows.map((s) => ({
           // keep original MSSQL keys but add unified camel/id fields
           ...s,
           id: s.Id ?? s.id,
-          Description: s.Description ?? s.description ?? s.Code ?? s.code ?? "",
-          Code: s.Code ?? s.code ?? "",
-          LocalPrice: s.LocalPrice ?? s.localPrice ?? null,
+          Description: s.Description ?? s.description ?? s.Code ?? s.code ?? `${s.CustomerPartNumberSubCode_Detail}-${s.Description_Detail}` ?? "",
+          Code: s.Code ?? s.code ?? s.CustomerPartNumberSubCode_Detail ?? "",
+          LocalPrice: s.LocalPrice ?? s.localPrice ?? s.Price_Detail ?? null,
           name:
             s.Name ??
             s.name ??
@@ -128,9 +130,11 @@ const TechnicalForm = ({
             s.description ??
             s.Code ??
             s.code ??
+            `${s.CustomerPartNumberSubCode_Detail}-${s.Description_Detail}` ??
             "",
-          description: s.Description ?? s.description ?? s.Code ?? s.code ?? "",
+          description: s.Description ?? s.description ?? s.Code ?? s.code ?? s.Description_Detail ?? "",
         }));
+        console.log("Productlist, normalized:", normalized);
         setItemsList(normalized);
       } catch (err) {
         console.error("Failed to fetch items", err);

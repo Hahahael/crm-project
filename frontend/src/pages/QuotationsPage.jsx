@@ -1,7 +1,7 @@
 //src/pages/QuotationsPage
 import { useState, useEffect, useRef, useCallback } from "react";
 import {
-    LuArrowBigLeft,
+  LuArrowBigLeft,
   LuArrowLeft,
   LuBell,
   LuCircleAlert,
@@ -195,7 +195,7 @@ export default function QuotationsPage() {
       ModifiedBy: quotation.updatedBy ?? ref.updatedBy ?? 1,
       DateModified: quotation.updatedAt ?? new Date(),
       Status: 0,
-      isConvertedToSO: false,
+      // isConvertedToSO: false,
       Notes: ref.notes ?? quotation.notes ?? "",
       Validity: 30,
       Discount: ref.discount ?? 0,
@@ -219,7 +219,7 @@ export default function QuotationsPage() {
         Amount: amount,
         Discounted_Amount: amount,
         Discount: discount,
-        isConvertedToSO: false,
+        // isConvertedToSO: false,
       };
     });
 
@@ -230,6 +230,7 @@ export default function QuotationsPage() {
   };
 
   const sendQuotationToMssql = async (quotation) => {
+
     if (!quotation) return;
     setLoading(true);
     try {
@@ -273,7 +274,7 @@ export default function QuotationsPage() {
         console.warn("Error submitting quotation status:", submitErr);
       }
 
-  setSuccessMessage("Quotation submitted to Kristem and recorded.");
+      setSuccessMessage("Quotation submitted to Kristem and recorded.");
     } catch (err) {
       console.error("Failed to send to MSSQL:", err);
       setError("Failed to send quotation to MSSQL.");
@@ -542,11 +543,10 @@ export default function QuotationsPage() {
 
       {/* Details Drawer */}
       <div
-        className={`absolute overflow-auto top-0 right-0 h-full w-full bg-white shadow-xl transition-all duration-300 ${
-          selectedQuotation
+        className={`absolute overflow-auto top-0 right-0 h-full w-full bg-white shadow-xl transition-all duration-300 ${selectedQuotation
             ? "translate-x-0 opacity-100"
             : "translate-x-full opacity-0"
-        }`}
+          }`}
       >
         {selectedQuotation && (
           <div className="w-full h-full p-6 overflow-auto">
@@ -555,7 +555,7 @@ export default function QuotationsPage() {
               <div className="flex flex-col space-x-3">
                 <button
                   className="inline-flex items-center font-medium transition-colors hover:text-gray-400 h-8 rounded-md text-sm text-gray-900 mb-3 cursor-pointer"
-                  onClick={() => {setSelectedQuotation(null); setSelectedTR(null); setSelectedRFQ(null);}}
+                  onClick={() => { setSelectedQuotation(null); setSelectedTR(null); setSelectedRFQ(null); }}
                 >
                   <LuArrowLeft className="h-5 w-5 mr-2" />
                   Back to Quotations
@@ -580,18 +580,18 @@ export default function QuotationsPage() {
             </div>
 
             {selectedTR && (
-              <TechnicalDetails technicalReco={selectedTR} onBack={() => {}} source="quotations" hideTabs={true} />
+              <TechnicalDetails technicalReco={selectedTR} onBack={() => { }} source="quotations" hideTabs={true} />
             )}
             {selectedRFQ && (
               <div className="container mx-auto p-6 overflow-auto">
-              <RFQCanvassSheet
-                rfq={selectedRFQ}
-                formItems={selectedRFQ?.items}
-                formVendors={selectedRFQ?.vendors}
-                mode="view"
-                setFormData={setSelectedRFQ}
-                source="quotations"
-              /></div>
+                <RFQCanvassSheet
+                  rfq={selectedRFQ}
+                  formItems={selectedRFQ?.items}
+                  formVendors={selectedRFQ?.vendors}
+                  mode="view"
+                  setFormData={setSelectedRFQ}
+                  source="quotations"
+                /></div>
             )}
           </div>
         )}

@@ -4,3 +4,8 @@ coverage/
 mock/
 *.code-workspace
 *.xlsx
+frontend/.env
+backend/.env
+frontend/.env
+backend/package-lock.json
+backend/.env
