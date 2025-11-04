@@ -235,7 +235,7 @@ export default function DashboardPage() {
             stageRes.json(),
             apiBackendFetch("/api/dashboard/assignees"),
           ]);
-        console.log("Fetched dashboard data:", summaryData, dueData, workflowStagesData, assigneesData);
+        console.log("Fetched dashboard data for filters:", summaryData, dueData, workflowStagesData, assigneesData);
         let assigneesJson = { totalActive: 0, top: [] };
         if (assigneesData.ok) {
           assigneesJson = await assigneesData.json();

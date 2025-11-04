@@ -166,6 +166,7 @@ router.get("/summary", async (req, res) => {
       completed: Number(row.completed) || 0,
       overdue: Number(row.overdue) || 0,
       dueSoon: Number(row.dueSoon) || 0,
+      wasUpdated: true,
       onTimeRate,
     });
   } catch (err) {
@@ -292,6 +293,7 @@ router.get("/due-performance", async (req, res) => {
       overdue: Number(row.overdue) || 0,
       notCompleted: Number(row.notCompleted) || 0,
       completed: Number(row.completed) || 0,
+      wasUpdated: true,
     });
   } catch (err) {
     console.error("Dashboard due-performance error:", err);
