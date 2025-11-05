@@ -654,9 +654,9 @@ export default function WorkOrdersPage() {
           {/* Search + Filters + Table */}
           <div className="flex flex-col p-6 border border-gray-200 rounded-md gap-6">
             {/* Search, Filters, and Create New Row */}
-            <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <div className="flex flex-col md:flex-row gap-4 items-end md:items-center">
               {/* Search Input */}
-              <div className="relative flex-1">
+              <div className="relative flex-1 w-full md:w-auto">
                 <LuSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
                 <input
                   type="text"
@@ -668,13 +668,13 @@ export default function WorkOrdersPage() {
               </div>
 
               {/* Filters */}
-              <div className="flex gap-3">
+              <div className="flex gap-3 w-full md:w-auto">
                 {/* Stage Status Filter */}
-                <div className="relative">
+                <div className="relative w-full md:w-auto">
                   <select
                     value={stageStatusFilter}
                     onChange={(e) => handleStageFilterChange(e.target.value)}
-                    className="flex h-9 rounded-md border border-gray-200 bg-transparent px-3 py-1 text-sm shadow-xs transition-colors appearance-none pr-8 min-w-[140px]"
+                    className="flex h-9 rounded-md border border-gray-200 bg-transparent px-3 py-1 text-sm shadow-xs transition-colors appearance-none pr-8 min-w-[140px] w-full"
                   >
                     <option value="">All Stages</option>
                     <option value="Draft">Draft</option>
@@ -687,11 +687,11 @@ export default function WorkOrdersPage() {
                 </div>
 
                 {/* Service Type Filter */}
-                <div className="relative">
+                <div className="relative w-full md:w-auto">
                   <select
                     value={serviceTypeFilter}
                     onChange={(e) => setServiceTypeFilter(e.target.value)}
-                    className="flex h-9 rounded-md border border-gray-200 bg-transparent px-3 py-1 text-sm shadow-xs transition-colors appearance-none pr-8 min-w-[140px]"
+                    className="flex h-9 rounded-md border border-gray-200 bg-transparent px-3 py-1 text-sm shadow-xs transition-colors appearance-none pr-8 min-w-[140px] w-full"
                   >
                     <option value="">All Types</option>
                     <option value="fsl">FSL Only</option>
@@ -708,7 +708,7 @@ export default function WorkOrdersPage() {
                   setEditingWO({});
                   setSelectedWO(null);
                 }}
-                className="px-4 py-2 rounded-md bg-blue-500 text-white hover:bg-blue-600 font-medium transition-all duration-150 cursor-pointer text-sm flex items-center gap-2 shadow-sm whitespace-nowrap"
+                className="px-4 py-2 rounded-md bg-blue-500 text-white hover:bg-blue-600 font-medium transition-all duration-150 cursor-pointer text-sm flex items-center gap-2 shadow-sm whitespace-nowrap min-w-[140px]"
               >
                 <LuPlus className="h-4 w-4" />
                 Create New
