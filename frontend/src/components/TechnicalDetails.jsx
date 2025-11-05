@@ -542,10 +542,9 @@ const TechnicalDetails = ({
                     prod.SourcePrice_Detail ??
                     0;
                   const total = prod.quantity * price;
-
                   return (
                     <tr key={idx}>
-                      <td className="p-2">{prod.Description}</td>
+                      <td className="p-2" title={prod.Id} >{`${prod.CustomerPartNumberSubCode??prod.Code}-${prod.Description}`}</td>
                       <td className="p-2">{prod.Code}</td>
                       <td className="p-2">{prod.Description}</td>
                       <td className="p-2 text-right">{prod.quantity}</td>

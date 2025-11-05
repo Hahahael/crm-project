@@ -544,7 +544,7 @@ router.get("/summary/latest", async (req, res) => {
       ORDER BY ws.created_at DESC;
     `;
     
-    console.log('Dashboard summary/latest query:', sql, 'params:', queryParams);
+    // console.log('Dashboard summary/latest query:', sql, 'params:', queryParams);
 
     const result = await db.query(sql, queryParams);
     const rows = result.rows || [];

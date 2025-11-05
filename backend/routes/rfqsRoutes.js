@@ -8,21 +8,38 @@ const router = express.Router();
 // (helper removed: was only used in commented debug)
 
 // Merge primary (detail) and parent objects. Primary wins; parent fields that collide are stored as <key>_secondary
-function mergePrimaryWithParent(detail, parent) {
+function mergePrimaryWithParent(detail, parent, removeDetail = false) {
   if (!detail && !parent) return null;
-  if (!parent) {
-    // Only detail — suffix everything with _Detail
-    return Object.fromEntries(
-      Object.entries(detail).map(([k, v]) => [`${k}_Detail`, v]),
-    );
-  }
-  if (!detail) return parent;
+  if (removeDetail) {
+    if (!parent) {
+      // Only detail — suffix everything with _Detail
+      return Object.fromEntries(
+        Object.entries(detail).map(([k, v]) => [`${k}`, v]),
+      );
+    }
+    if (!detail) return parent;
 
-  const out = { ...parent }; // start with stock (parent)
-  for (const [key, value] of Object.entries(detail)) {
-    out[`${key}_Detail`] = value; // always suffix detail fields
+    const out = { ...parent }; // start with stock (parent)
+    for (const [key, value] of Object.entries(detail)) {
+      out[`${key}`] = value; // always suffix detail fields
+    }
+    return out;
+  } else {
+    if (!parent) {
+      // Only detail — suffix everything with _Detail
+      return Object.fromEntries(
+        Object.entries(detail).map(([k, v]) => [`${k}_Detail`, v]),
+      );
+    }
+    if (!detail) return parent;
+
+    const out = { ...parent }; // start with stock (parent)
+    for (const [key, value] of Object.entries(detail)) {
+      out[`${key}_Detail`] = value; // always suffix detail fields
+    }
+    return out;
+
   }
-  return out;
 }
 
 // Get all RFQs
@@ -94,18 +111,18 @@ router.get("/", async (req, res) => {
         const [brandRes, indRes, deptRes] = await Promise.all([
           bIds.size
             ? spiPool
-                .request()
-                .query(`SELECT * FROM spidb.brand WHERE ID IN (${Array.from(bIds).join(",")})`)
+              .request()
+              .query(`SELECT * FROM spidb.brand WHERE ID IN (${Array.from(bIds).join(",")})`)
             : Promise.resolve({ recordset: [] }),
           iIds.size
             ? spiPool
-                .request()
-                .query(`SELECT * FROM spidb.Customer_Industry_Group WHERE Id IN (${Array.from(iIds).join(",")})`)
+              .request()
+              .query(`SELECT * FROM spidb.Customer_Industry_Group WHERE Id IN (${Array.from(iIds).join(",")})`)
             : Promise.resolve({ recordset: [] }),
           dIds.size
             ? spiPool
-                .request()
-                .query(`SELECT * FROM spidb.CusDepartment WHERE Id IN (${Array.from(dIds).join(",")})`)
+              .request()
+              .query(`SELECT * FROM spidb.CusDepartment WHERE Id IN (${Array.from(dIds).join(",")})`)
             : Promise.resolve({ recordset: [] }),
         ]);
 
@@ -151,14 +168,14 @@ router.get("/", async (req, res) => {
     // Fetch vendor details from MSSQL for RFQs that have selected_vendor_id
     try {
       const rfqsWithVendors = rows.filter(rfq => rfq.selected_vendor_id || rfq.selectedVendorId);
-      
+
       if (rfqsWithVendors.length > 0) {
         const vendorIds = rfqsWithVendors.map(rfq => rfq.selected_vendor_id || rfq.selectedVendorId);
         const uniqueVendorIds = [...new Set(vendorIds)].filter(id => id != null);
-        
+
         if (uniqueVendorIds.length > 0) {
           const spiPool = await poolPromise;
-          
+
           // Fetch vendors from MSSQL spidb.vendor table
           const vendorRes = await spiPool
             .request()
@@ -169,17 +186,17 @@ router.get("/", async (req, res) => {
             .query(
               "SELECT * FROM spidb.vendor_details WHERE Vendor_Id = @vendor_id",
             );
-          
+
           const vendorMap = new Map();
           (vendorRes.recordset || []).forEach(vendor => {
             vendorMap.set(vendor.Id, vendor);
           });
-          
+
           const detail =
             detailsRes && detailsRes.recordset && detailsRes.recordset[0]
               ? detailsRes.recordset[0]
               : null;
-          
+
           // Add vendor details to each RFQ
           rows.forEach(rfq => {
             const vendorId = rfq.selected_vendor_id || rfq.selectedVendorId;
@@ -188,7 +205,7 @@ router.get("/", async (req, res) => {
               rfq.vendor.details = detail;
             }
           });
-          
+
           console.log(`Enriched ${rfqsWithVendors.length} RFQs with selected vendor details from MSSQL`);
         }
       }
@@ -237,7 +254,7 @@ router.get("/:id", async (req, res) => {
       return res.status(404).json({ error: "Not found" });
     const rfq = result.rows[0];
 
-  // Get rfq_items rows (we'll resolve item details from MSSQL)
+    // Get rfq_items rows (we'll resolve item details from MSSQL)
     const itemsRes = await db.query(
       `SELECT * FROM rfq_items WHERE rfq_id = $1 ORDER BY id ASC`,
       [id],
@@ -253,24 +270,24 @@ router.get("/:id", async (req, res) => {
           .request()
           .input("id", Number(itemKey))
           .query("SELECT * FROM spidb.stock_details WHERE Stock_Id = @id");
-        const sRes = await pool
-          .request()
-          .input("id", Number(itemKey))
-          .query("SELECT * FROM spidb.stock WHERE Id = @id");
+        // const sRes = await pool
+        //   .request()
+        //   .input("id", Number(itemKey))
+        //   .query("SELECT * FROM spidb.stock WHERE Id = @id");
         // logAttributes(`rfq item stock_details (id=${ri.itemId})`, sdRes.recordset || []);
         // logAttributes(`rfq item stock (id=${ri.itemId})`, sRes.recordset || []);
         console.log(`rfq item sdRes (id=${ri.itemId})`, sdRes);
-        console.log(`rfq item sRes (id=${ri.itemId})`, sRes);
+        // console.log(`rfq item sRes (id=${ri.itemId})`, sRes);
 
         const detailObj =
           sdRes && sdRes.recordset && sdRes.recordset[0]
             ? sdRes.recordset[0]
             : null;
-        const parentObj =
-          sRes && sRes.recordset && sRes.recordset[0]
-            ? sRes.recordset[0]
-            : null;
-        const merged = mergePrimaryWithParent(detailObj, parentObj);
+        // const parentObj =
+        //   sRes && sRes.recordset && sRes.recordset[0]
+        //     ? sRes.recordset[0]
+        //     : null;
+        const merged = mergePrimaryWithParent(detailObj, [], true);
         let itemToPush = { ...ri };
         // attach resolved MSSQL details when available
         if (merged) {
@@ -448,11 +465,11 @@ router.get("/:id", async (req, res) => {
             .query("SELECT TOP (1) * FROM spidb.brand WHERE ID = @bid"),
           iId != null
             ? spiPool
-                .request()
-                .input("iid", iId)
-                .query(
-                  "SELECT TOP (1) * FROM spidb.Customer_Industry_Group WHERE Id = @iid",
-                )
+              .request()
+              .input("iid", iId)
+              .query(
+                "SELECT TOP (1) * FROM spidb.Customer_Industry_Group WHERE Id = @iid",
+              )
             : Promise.resolve({ recordset: [] }),
           spiPool
             .request()
@@ -475,13 +492,13 @@ router.get("/:id", async (req, res) => {
       try {
         const vendorId = rfq.selected_vendor_id || rfq.selectedVendorId;
         const spiPool = await poolPromise;
-        
+
         // Fetch from MSSQL spidb.vendor table
         const vendorRes = await spiPool
           .request()
           .input("id", Number(vendorId))
           .query("SELECT * FROM spidb.vendor WHERE Id = @id");
-        
+
         if (vendorRes.recordset && vendorRes.recordset.length > 0) {
           rfq.vendor = vendorRes.recordset[0];
           console.log(`Fetched selected vendor details from MSSQL for RFQ ${id}:`, rfq.vendor);
@@ -1004,7 +1021,7 @@ router.post("/:id/items", async (req, res) => {
       }
     }
 
-  const upserted = [];
+    const upserted = [];
     for (const item of items) {
       if (item.id && existingIds.has(item.id)) {
         // Update

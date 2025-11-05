@@ -245,6 +245,15 @@ router.post("/quotations", async (req, res) => {
 
       // Ensure foreign key to quotation exists (insertedQuotation.Id is MSSQL PK)
       detail.Quotation_Id = insertedQuotation.Id;
+      
+      const trxQrStatus = transaction.request();
+      const insertQRStatusSql = `INSERT INTO spidb.qr_status(QRId,qr_status_setup_id) OUTPUT INSERTED.* VALUES ('${insertedQuotation.Id}','1')`;
+      await trxQrStatus.query(insertQRStatusSql);
+
+      
+      const trxUpdQuot = transaction.request();
+      const updateQuotationSql = `UPDATE spidb.quotation SET isConvertedToSO=NULL,DateCancelled=NULL WHERE Id ='${insertedQuotation.Id}'`;
+      await trxUpdQuot.query(updateQuotationSql);
 
       const dk = Object.keys(detail);
       if (dk.length === 0) continue; // nothing to insert for this detail
