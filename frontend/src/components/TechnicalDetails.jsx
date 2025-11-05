@@ -19,7 +19,7 @@ const TechnicalDetails = ({
   hideTabs = false,
 }) => {
   const { currentUser } = useUser();
-  console.log("TechnicalDetails - technicalReco:", technicalReco);
+  console.log("TechnicalDetails - technicalReco:", technicalReco,technicalReco.items);
   console.log("📎 Attachments data:", technicalReco.attachments);
   console.log("📎 Attachments array:", utils.toArray(technicalReco.attachments));
   
@@ -544,8 +544,8 @@ const TechnicalDetails = ({
                   const total = prod.quantity * price;
                   return (
                     <tr key={idx}>
-                      <td className="p-2" title={prod.Id} >{`${prod.CustomerPartNumberSubCode??prod.Code}-${prod.Description}`}</td>
-                      <td className="p-2">{prod.Code}</td>
+                      <td className="p-2" title={prod.Id} >{`${prod.Code} ${prod.CustomerPartNumberSubCode??' '}|${prod.Description}`}</td>
+                      <td className="p-2">{prod.Code??prod.CustomerPartNumberSubCode}</td>
                       <td className="p-2">{prod.Description}</td>
                       <td className="p-2 text-right">{prod.quantity}</td>
                       <td className="p-2 text-right">

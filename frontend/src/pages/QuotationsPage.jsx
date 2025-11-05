@@ -167,11 +167,11 @@ export default function QuotationsPage() {
 
     // ✅ Priority: rfqOverride > trOverride > selectedRFQ > selectedTR > quotation.rfq > quotation.tr
     const ref =
-      rfqOverride ||
+      // rfqOverride ||
       trOverride ||
-      selectedRFQ ||
+      // selectedRFQ ||
       selectedTR ||
-      quotation.rfq ||
+      // quotation.rfq ||
       quotation.tr ||
       {};
     console.log("✅ Using reference source (RFQ/TR):", ref);
@@ -179,6 +179,13 @@ export default function QuotationsPage() {
 
 
     // --- DETAIL ROWS (Quotation Details) ---
+   console.warn("ref.items",ref.items)
+   console.warn("rfqOverride.items",rfqOverride?.items)
+   console.warn("trOverride.items",trOverride?.items)
+   console.warn("selectedRFQ.items",selectedRFQ?.items)
+   console.warn("selectedTR.items",selectedTR?.items)
+   console.warn("quotation.items",quotation?.items)
+
     const detailRows = (ref.items || []).map((i) => {
       const qty = Number(i.quantity) || 1;
       const unitPrice = Number(i.unitPrice ?? i.price ?? 0);
@@ -187,7 +194,7 @@ export default function QuotationsPage() {
 
       return {
         Qty: qty,
-        Stock_Id: i.itemId ?? i.stock_id ?? null,
+        Stock_Id: i.stock_id ?? i.itemId ?? null,
         Quotation_Id: quotation.id ?? null, // Will be replaced on insert
         Unit_Price: unitPrice,
         Amount: amount,
@@ -254,10 +261,20 @@ export default function QuotationsPage() {
       //   null,
     };
 
+    const TrInfo = trOverride || selectedTR;
+    const contactInfo ={
+        contact_type_id: 2,
+        customer_id: TrInfo.accountId,
+        contact_number: TrInfo.contactNumber,
+        contact_email: TrInfo.contactEmail,
+        contact_person: TrInfo.contactPerson,
+    }
+
     console.log("🧾 Mapped MSSQL masterRow:", masterRow);
     console.log(`📊 Mapped ${detailRows.length} detailRows:`, detailRows);
+    console.log(`📊 Mapped ${contactInfo.length} contactInfo:`, contactInfo);
 
-    return { quotation: masterRow, details: detailRows };
+    return { quotation: masterRow, details: detailRows, contact: contactInfo };
   };
 
   const sendQuotationToMssql = async (quotation) => {

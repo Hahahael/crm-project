@@ -8,38 +8,21 @@ const router = express.Router();
 // (helper removed: was only used in commented debug)
 
 // Merge primary (detail) and parent objects. Primary wins; parent fields that collide are stored as <key>_secondary
-function mergePrimaryWithParent(detail, parent, removeDetail = false) {
+function mergePrimaryWithParent(detail, parent) {
   if (!detail && !parent) return null;
-  if (removeDetail) {
-    if (!parent) {
-      // Only detail — suffix everything with _Detail
-      return Object.fromEntries(
-        Object.entries(detail).map(([k, v]) => [`${k}`, v]),
-      );
-    }
-    if (!detail) return parent;
-
-    const out = { ...parent }; // start with stock (parent)
-    for (const [key, value] of Object.entries(detail)) {
-      out[`${key}`] = value; // always suffix detail fields
-    }
-    return out;
-  } else {
-    if (!parent) {
-      // Only detail — suffix everything with _Detail
-      return Object.fromEntries(
-        Object.entries(detail).map(([k, v]) => [`${k}_Detail`, v]),
-      );
-    }
-    if (!detail) return parent;
-
-    const out = { ...parent }; // start with stock (parent)
-    for (const [key, value] of Object.entries(detail)) {
-      out[`${key}_Detail`] = value; // always suffix detail fields
-    }
-    return out;
-
+  if (!parent) {
+    // Only detail — suffix everything with _Detail
+    return Object.fromEntries(
+      Object.entries(detail).map(([k, v]) => [`${k}_Detail`, v]),
+    );
   }
+  if (!detail) return parent;
+
+  const out = { ...parent }; // start with stock (parent)
+  for (const [key, value] of Object.entries(detail)) {
+    out[`${key}_Detail`] = value; // always suffix detail fields
+  }
+  return out;
 }
 
 // Get all RFQs
@@ -111,18 +94,18 @@ router.get("/", async (req, res) => {
         const [brandRes, indRes, deptRes] = await Promise.all([
           bIds.size
             ? spiPool
-              .request()
-              .query(`SELECT * FROM spidb.brand WHERE ID IN (${Array.from(bIds).join(",")})`)
+                .request()
+                .query(`SELECT * FROM spidb.brand WHERE ID IN (${Array.from(bIds).join(",")})`)
             : Promise.resolve({ recordset: [] }),
           iIds.size
             ? spiPool
-              .request()
-              .query(`SELECT * FROM spidb.Customer_Industry_Group WHERE Id IN (${Array.from(iIds).join(",")})`)
+                .request()
+                .query(`SELECT * FROM spidb.Customer_Industry_Group WHERE Id IN (${Array.from(iIds).join(",")})`)
             : Promise.resolve({ recordset: [] }),
           dIds.size
             ? spiPool
-              .request()
-              .query(`SELECT * FROM spidb.CusDepartment WHERE Id IN (${Array.from(dIds).join(",")})`)
+                .request()
+                .query(`SELECT * FROM spidb.CusDepartment WHERE Id IN (${Array.from(dIds).join(",")})`)
             : Promise.resolve({ recordset: [] }),
         ]);
 
@@ -168,14 +151,14 @@ router.get("/", async (req, res) => {
     // Fetch vendor details from MSSQL for RFQs that have selected_vendor_id
     try {
       const rfqsWithVendors = rows.filter(rfq => rfq.selected_vendor_id || rfq.selectedVendorId);
-
+      
       if (rfqsWithVendors.length > 0) {
         const vendorIds = rfqsWithVendors.map(rfq => rfq.selected_vendor_id || rfq.selectedVendorId);
         const uniqueVendorIds = [...new Set(vendorIds)].filter(id => id != null);
-
+        
         if (uniqueVendorIds.length > 0) {
           const spiPool = await poolPromise;
-
+          
           // Fetch vendors from MSSQL spidb.vendor table
           const vendorRes = await spiPool
             .request()
@@ -186,17 +169,17 @@ router.get("/", async (req, res) => {
             .query(
               "SELECT * FROM spidb.vendor_details WHERE Vendor_Id = @vendor_id",
             );
-
+          
           const vendorMap = new Map();
           (vendorRes.recordset || []).forEach(vendor => {
             vendorMap.set(vendor.Id, vendor);
           });
-
+          
           const detail =
             detailsRes && detailsRes.recordset && detailsRes.recordset[0]
               ? detailsRes.recordset[0]
               : null;
-
+          
           // Add vendor details to each RFQ
           rows.forEach(rfq => {
             const vendorId = rfq.selected_vendor_id || rfq.selectedVendorId;
@@ -205,7 +188,7 @@ router.get("/", async (req, res) => {
               rfq.vendor.details = detail;
             }
           });
-
+          
           console.log(`Enriched ${rfqsWithVendors.length} RFQs with selected vendor details from MSSQL`);
         }
       }
@@ -254,7 +237,7 @@ router.get("/:id", async (req, res) => {
       return res.status(404).json({ error: "Not found" });
     const rfq = result.rows[0];
 
-    // Get rfq_items rows (we'll resolve item details from MSSQL)
+  // Get rfq_items rows (we'll resolve item details from MSSQL)
     const itemsRes = await db.query(
       `SELECT * FROM rfq_items WHERE rfq_id = $1 ORDER BY id ASC`,
       [id],
@@ -269,7 +252,7 @@ router.get("/:id", async (req, res) => {
         const sdRes = await pool
           .request()
           .input("id", Number(itemKey))
-          .query("SELECT * FROM spidb.stock_details WHERE Stock_Id = @id");
+          .query("SELECT * FROM spidb.stock_details WHERE id = @id");
         // const sRes = await pool
         //   .request()
         //   .input("id", Number(itemKey))
@@ -277,7 +260,7 @@ router.get("/:id", async (req, res) => {
         // logAttributes(`rfq item stock_details (id=${ri.itemId})`, sdRes.recordset || []);
         // logAttributes(`rfq item stock (id=${ri.itemId})`, sRes.recordset || []);
         console.log(`rfq item sdRes (id=${ri.itemId})`, sdRes);
-        // console.log(`rfq item sRes (id=${ri.itemId})`, sRes);
+        console.log(`rfq item sRes (id=${ri.itemId})`, sRes);
 
         const detailObj =
           sdRes && sdRes.recordset && sdRes.recordset[0]
@@ -287,7 +270,7 @@ router.get("/:id", async (req, res) => {
         //   sRes && sRes.recordset && sRes.recordset[0]
         //     ? sRes.recordset[0]
         //     : null;
-        const merged = mergePrimaryWithParent(detailObj, [], true);
+        const merged = mergePrimaryWithParent(detailObj, detailObj);
         let itemToPush = { ...ri };
         // attach resolved MSSQL details when available
         if (merged) {
@@ -418,9 +401,9 @@ router.get("/:id", async (req, res) => {
 
     console.log("Final items with prices and lead times:", items);
     console.log("Final vendors", vendors);
-    vendors.forEach((v) =>
+    // vendors.forEach((v) =>
       console.log("Vendor", v.vendorId, "with quotes:", v.quotes),
-    );
+    // );
 
     rfq.items = items;
     rfq.vendors = vendors;
@@ -465,11 +448,11 @@ router.get("/:id", async (req, res) => {
             .query("SELECT TOP (1) * FROM spidb.brand WHERE ID = @bid"),
           iId != null
             ? spiPool
-              .request()
-              .input("iid", iId)
-              .query(
-                "SELECT TOP (1) * FROM spidb.Customer_Industry_Group WHERE Id = @iid",
-              )
+                .request()
+                .input("iid", iId)
+                .query(
+                  "SELECT TOP (1) * FROM spidb.Customer_Industry_Group WHERE Id = @iid",
+                )
             : Promise.resolve({ recordset: [] }),
           spiPool
             .request()
@@ -492,13 +475,13 @@ router.get("/:id", async (req, res) => {
       try {
         const vendorId = rfq.selected_vendor_id || rfq.selectedVendorId;
         const spiPool = await poolPromise;
-
+        
         // Fetch from MSSQL spidb.vendor table
         const vendorRes = await spiPool
           .request()
           .input("id", Number(vendorId))
           .query("SELECT * FROM spidb.vendor WHERE Id = @id");
-
+        
         if (vendorRes.recordset && vendorRes.recordset.length > 0) {
           rfq.vendor = vendorRes.recordset[0];
           console.log(`Fetched selected vendor details from MSSQL for RFQ ${id}:`, rfq.vendor);
@@ -632,35 +615,18 @@ router.put("/:id", async (req, res) => {
     const { id } = req.params;
     // Debug: log raw incoming body and headers before conversion
     try {
-      console.log("[DEBUG] Incoming request headers:", {
-        "content-type": req.get("content-type"),
-        "content-length": req.get("content-length"),
-      });
-      console.log(
-        "[DEBUG] raw req.body type:",
-        Array.isArray(req.body) ? "array" : typeof req.body,
-      );
+      console.log("[DEBUG] Incoming request headers:", { "content-type": req.get("content-type"), "content-length": req.get("content-length"), });
+      console.log( "[DEBUG] raw req.body type:", Array.isArray(req.body) ? "array" : typeof req.body, );
       console.log("[DEBUG] raw req.body keys:", Object.keys(req.body || {}));
-      console.log(
-        "[DEBUG] raw req.body (stringified, truncated):",
-        JSON.stringify(req.body || {}, null, 2).slice(0, 2000),
-      );
+      console.log( "[DEBUG] raw req.body (stringified, truncated):", JSON.stringify(req.body || {}, null, 2).slice(0, 2000), );
     } catch (dbgErr) {
       console.error("[DEBUG] failed to stringify raw req.body", dbgErr);
     }
 
     const body = toSnake(req.body);
-    console.log(
-      "Updating RFQ ID:",
-      id,
-      "with data keys:",
-      Object.keys(body || {}),
-    );
+    console.log( "Updating RFQ ID:", id, "with data keys:", Object.keys(body || {}), );
     // Optional: log a truncated serialization to avoid huge logs
-    console.log(
-      "[DEBUG] converted body (truncated):",
-      JSON.stringify(body || {}, null, 2).slice(0, 2000),
-    );
+    console.log( "[DEBUG] converted body (truncated):", JSON.stringify(body || {}, null, 2).slice(0, 2000), );
     // Add all fields you want to update here
     // Ensure actual_date and actual_from_time are set if missing
     let actualDate = body.actual_date;
@@ -1021,7 +987,7 @@ router.post("/:id/items", async (req, res) => {
       }
     }
 
-    const upserted = [];
+  const upserted = [];
     for (const item of items) {
       if (item.id && existingIds.has(item.id)) {
         // Update
