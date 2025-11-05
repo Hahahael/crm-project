@@ -18,12 +18,6 @@ const WorkOrderDetails = ({
   hideTabs = false,
   source = "workOrder",
 }) => {
-  console.log(
-    "WorkOrderDetails - workOrder:",
-    workOrder,
-    "currentUser:",
-    currentUser,
-  );
   const { currentUser } = useUser();
   const isAssignedToMe = currentUser && workOrder.assignee === currentUser.id;
   const isCreator = currentUser && workOrder.createdBy === currentUser.id;
