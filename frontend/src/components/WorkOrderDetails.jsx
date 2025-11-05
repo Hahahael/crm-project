@@ -7,10 +7,10 @@ import TechnicalDetails from "./TechnicalDetails.jsx";
 import RFQDetails from "./RFQDetails.jsx";
 import config from "../config.js";
 import utils from "../helper/utils.js";
+import { useUser } from "../contexts/UserContext.jsx";
 
 const WorkOrderDetails = ({
   workOrder,
-  currentUser,
   onBack,
   onEdit,
   onWorkOrderUpdated,
@@ -24,6 +24,7 @@ const WorkOrderDetails = ({
     "currentUser:",
     currentUser,
   );
+  const { currentUser } = useUser();
   const isAssignedToMe = currentUser && workOrder.assignee === currentUser.id;
   const isCreator = currentUser && workOrder.createdBy === currentUser.id;
   const [hasSalesLead, setHasSalesLead] = useState(false);

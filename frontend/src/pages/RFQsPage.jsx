@@ -41,18 +41,6 @@ export default function RFQsPage() {
 
       const RFQsData = await RFQsRes.json();
       setRFQs(RFQsData);
-
-      // Fetch status summary
-      // const summaryRes = await apiBackendFetch("/api/rfqs/summary/status");
-      // if (summaryRes.ok) {
-      //     const summaryData = await summaryRes.json();
-      //     setStatusSummary({
-      //         total: Number(summaryData.total) || 0,
-      //         pending: Number(summaryData.pending) || 0,
-      //         inProgress: Number(summaryData.inProgress) || 0,
-      //         completed: Number(summaryData.completed) || 0,
-      //     });
-      // }
       setTimeout(() => setLoading(false), 500);
     } catch (err) {
       console.error("Error retrieving RFQs:", err);
