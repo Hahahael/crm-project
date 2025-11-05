@@ -790,7 +790,7 @@ router.get("/summary/latest", async (req, res) => {
       ORDER BY ws.created_at DESC;
     `;
 
-    console.log('Workflow stages summary/latest query:', sql, 'params:', queryParams);
+    // console.log('Workflow stages summary/latest query:', sql, 'params:', queryParams);
     const result = await db.query(sql, queryParams);
     console.log("Fetched latest workflow stages summary:", result.rows?.length || 0, "records");
     return res.json(result.rows || []);
