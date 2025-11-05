@@ -25,38 +25,21 @@ function logAttributes(label, obj) {
   }
 }
 
-function mergePrimaryWithParent(detail, parent, removeDetail = false) {
+function mergePrimaryWithParent(detail, parent) {
   if (!detail && !parent) return null;
-  if (removeDetail) {
-    if (!parent) {
-      // Only detail — suffix everything with _Detail
-      return Object.fromEntries(
-        Object.entries(detail).map(([k, v]) => [`${k}`, v]),
-      );
-    }
-    if (!detail) return parent;
-
-    const out = { ...parent }; // start with stock (parent)
-    for (const [key, value] of Object.entries(detail)) {
-      out[`${key}`] = value; // always suffix detail fields
-    }
-    return out;
-  } else {
-    if (!parent) {
-      // Only detail — suffix everything with _Detail
-      return Object.fromEntries(
-        Object.entries(detail).map(([k, v]) => [`${k}_Detail`, v]),
-      );
-    }
-    if (!detail) return parent;
-
-    const out = { ...parent }; // start with stock (parent)
-    for (const [key, value] of Object.entries(detail)) {
-      out[`${key}_Detail`] = value; // always suffix detail fields
-    }
-    return out;
-
+  if (!parent) {
+    // Only detail — suffix everything with _Detail
+    return Object.fromEntries(
+      Object.entries(detail).map(([k, v]) => [`${k}_Detail`, v]),
+    );
   }
+  if (!detail) return parent;
+
+  const out = { ...parent }; // start with stock (parent)
+  for (const [key, value] of Object.entries(detail)) {
+    out[`${key}_Detail`] = value; // always suffix detail fields
+  }
+  return out;
 }
 
 // Get all vendors
@@ -124,7 +107,7 @@ router.get("/mssql/stocks", async (req, res) => {
     request.input("limit", limit);
     // Fetch from stock_details as primary source, then merge parent stock fields
     const sql =
-      "SELECT TOP (@limit) * FROM spidb.stock_details ORDER BY Id DESC";
+      "SELECT TOP (@limit) * FROM spidb.stock_details WHERE price > 0 ORDER BY Id DESC";
     const sdRes = await request.query(sql);
     const details = sdRes.recordset || [];
     logAttributes("stock_details (fetched)", details);
@@ -135,22 +118,22 @@ router.get("/mssql/stocks", async (req, res) => {
     ];
     console.log("Unique stock IDs to fetch:", stockIds);
     let stocksMap = {};
-    if (stockIds.length > 0) {
-      const stocksSql = `SELECT * FROM spidb.stock_details WHERE Stock_Id IN (${stockIds.join(",")})`;
-      const stocksRes = await pool.request().query(stocksSql);
-      const stocks = stocksRes.recordset || [];
-      logAttributes("stock (parent fetched)", stocksRes.recordset || []);
-      stocksMap = stocks.reduce((m, s) => {
-        const id = s.Id || s.id;
-        m[id] = s;
-        return m;
-      }, {});
-    }
+    // if (stockIds.length > 0) {
+    //   const stocksSql = `SELECT * FROM spidb.stock WHERE Id IN (${stockIds.join(",")})`;
+    //   const stocksRes = await pool.request().query(stocksSql);
+    //   const stocks = stocksRes.recordset || [];
+    //   logAttributes("stock (parent fetched)", stocksRes.recordset || []);
+    //   stocksMap = stocks.reduce((m, s) => {
+    //     const id = s.Id || s.id;
+    //     m[id] = s;
+    //     return m;
+    //   }, {});
+    // }
 
     // ✅ Use the helper instead of inline merging logic
     const merged = details.map((detail) => {
-      const parent = stocksMap[detail.Stock_Id];
-      return mergePrimaryWithParent(detail, parent, true);
+      // const parent = stocksMap[detail.Stock_Id];
+      return mergePrimaryWithParent(detail, detail);
     });
 
     return res.json(merged);
@@ -168,8 +151,8 @@ router.get("/mssql/stocks/:id", async (req, res) => {
     // Fetch stock details for this stock id (primary)
     const detailsRes = await pool
       .request()
-      .input("stock_id", id)
-      .query("SELECT * FROM spidb.stock_details WHERE Stock_Id = @stock_id");
+      .input("id", id)
+      .query("SELECT * FROM spidb.stock_details WHERE id = @id");
     const details = detailsRes.recordset || [];
     logAttributes(
       "stock_details for stock id " + id,
@@ -177,18 +160,18 @@ router.get("/mssql/stocks/:id", async (req, res) => {
     );
 
     // Fetch parent stock
-    const stockRes = await pool
-      .request()
-      .input("id", id)
-      .query("SELECT * FROM spidb.stock_details WHERE Id = @id");
-    if (!stockRes.recordset || stockRes.recordset.length === 0) {
-      return res.status(404).json({ error: "Stock not found" });
-    }
-    const stock = stockRes.recordset[0];
+    // const stockRes = await pool
+    //   .request()
+    //   .input("id", id)
+    //   .query("SELECT * FROM spidb.stock WHERE Id = @id");
+    // if (!stockRes.recordset || stockRes.recordset.length === 0) {
+    //   return res.status(404).json({ error: "Stock not found" });
+    // }
+    const stock = [];//stockRes.recordset[0];
     logAttributes("stock (parent for id " + id + ")", stockRes.recordset || []);
 
     // Merge parent into each detail
-    const mergedDetails = details.map((d) => mergePrimaryWithParent(d, stock));
+    const mergedDetails = details.map((d) => mergePrimaryWithParent(d, d));
 
     stock.details = mergedDetails;
     return res.json(stock);

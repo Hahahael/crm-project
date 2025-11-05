@@ -102,7 +102,7 @@ router.get("/quotations/:id", async (req, res) => {
 // Body shape: { quotation: { ...fields }, details: [ { ...detailFields }, ... ] }
 // This handler will insert the quotation and its related details inside a transaction.
 router.post("/quotations", async (req, res) => {
-  const { quotation = {}, details = [] } = req.body || {};
+  const { quotation = {}, details = [], contact = {} } = req.body || {};
 
   // Allowed columns for insertion (based on provided MSSQL schema). Exclude identity PK columns.
   const allowedQuotationCols = [
@@ -201,8 +201,8 @@ router.post("/quotations", async (req, res) => {
         pool,
         null,
         quotation.CustomerName ||
-          quotation.Customer_Name ||
-          quotation.customerName,
+        quotation.Customer_Name ||
+        quotation.customerName,
       );
       if (resolved) filteredQuotation.Customer_Id = resolved;
     } else if (filteredQuotation.Customer_Id != null) {
@@ -220,14 +220,22 @@ router.post("/quotations", async (req, res) => {
       if (resolved) filteredQuotation.Customer_Id = resolved;
     }
 
+
+    const trxCustAttn = transaction.request();
+    const insertCustAttnSql = `INSERT INTO spidb.customer_contact(Contact_Type_Id,customer_Id,MobileNumber,EmailAddress,Name,isActive,Designation) OUTPUT INSERTED.* 
+      VALUES ('${contact.contact_type_id || 2}','${contact.customer_id || filteredQuotation.Customer_Id || 0}','${contact.contact_number || ''}','${contact.email_address || ''}','${contact.contact_person || ''}',1,'')`;
+    const CustAttn = await trxCustAttn.query(insertCustAttnSql);
+
+    console.log("CustAttn",CustAttn)
+
     // Build parameterized INSERT for quotation using allowed / filtered keys
     const qKeys = Object.keys(filteredQuotation);
     const qCols = qKeys.map((k) => `[${k}]`).join(", ");
     const qParams = qKeys.map((_, i) => `@q${i}`).join(", ");
     qKeys.forEach((k, i) => trxReq.input(`q${i}`, filteredQuotation[k]));
 
-    const insertQuotationSql = `INSERT INTO spidb.quotation (${qCols},Customer_Attn_id) OUTPUT INSERTED.* VALUES (${qParams},(select top 1 Id FROM spidb.customer_contact where customer_Id='${filteredQuotation.Customer_Id||0}' order by id desc))`;
-    
+    const insertQuotationSql = `INSERT INTO spidb.quotation (${qCols},Customer_Attn_id) OUTPUT INSERTED.* VALUES (${qParams},${CustAttn.recordset[0].Id})`;
+
     const insertRes = await trxReq.query(insertQuotationSql);
     const insertedQuotation = insertRes.recordset && insertRes.recordset[0];
 
@@ -245,12 +253,12 @@ router.post("/quotations", async (req, res) => {
 
       // Ensure foreign key to quotation exists (insertedQuotation.Id is MSSQL PK)
       detail.Quotation_Id = insertedQuotation.Id;
-      
+
       const trxQrStatus = transaction.request();
       const insertQRStatusSql = `INSERT INTO spidb.qr_status(QRId,qr_status_setup_id) OUTPUT INSERTED.* VALUES ('${insertedQuotation.Id}','1')`;
       await trxQrStatus.query(insertQRStatusSql);
 
-      
+
       const trxUpdQuot = transaction.request();
       const updateQuotationSql = `UPDATE spidb.quotation SET isConvertedToSO=NULL,DateCancelled=NULL WHERE Id ='${insertedQuotation.Id}'`;
       await trxUpdQuot.query(updateQuotationSql);
@@ -263,6 +271,7 @@ router.post("/quotations", async (req, res) => {
       const dReq = transaction.request();
       dk.forEach((k, i) => dReq.input(`d${i}`, detail[k]));
 
+      console.log("Inserting detail:", dParams, detail);
       const insertDetailSql = `INSERT INTO spidb.quotation_details (${dCols}) OUTPUT INSERTED.* VALUES (${dParams})`;
       const dRes = await dReq.query(insertDetailSql);
       if (dRes.recordset && dRes.recordset[0])
@@ -433,8 +442,8 @@ router.post("/quotations/quick", async (req, res) => {
         pool,
         null,
         quotation.CustomerName ||
-          quotation.Customer_Name ||
-          quotation.customerName,
+        quotation.Customer_Name ||
+        quotation.customerName,
       );
       if (resolved) filteredQuotation.Customer_Id = resolved;
     } else if (filteredQuotation.Customer_Id != null) {

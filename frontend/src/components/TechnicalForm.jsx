@@ -120,7 +120,7 @@ const TechnicalForm = ({
           // keep original MSSQL keys but add unified camel/id fields
           ...s,
           id: s.Id ?? s.id,
-          Description: s.Description ?? s.description ?? s.Code ?? s.code ?? `${s.CustomerPartNumberSubCode??s.Code}-${s.Description}` ?? "",
+          Description:  `${s.Code} ${s.CustomerPartNumberSubCode??' '}|${s.Description}` ?? s.Description ?? s.description ?? s.Code ?? s.code ?? "",
           Code: s.Code ?? s.code ?? s.CustomerPartNumberSubCode ?? "",
           LocalPrice: s.LocalPrice ?? s.localPrice ?? s.Price ?? null,
           name:

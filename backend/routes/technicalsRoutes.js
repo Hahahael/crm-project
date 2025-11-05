@@ -23,39 +23,23 @@ function logAttributes(label, obj) {
 }
 
 // Merge primary (detail) and parent objects. Primary wins; parent fields that collide are stored as <key>_secondary
-function mergePrimaryWithParent(detail, parent, removeDetail = false) {
+function mergePrimaryWithParent(detail, parent) {
   if (!detail && !parent) return null;
-  if (removeDetail) {
-    if (!parent) {
-      // Only detail — suffix everything with _Detail
-      return Object.fromEntries(
-        Object.entries(detail).map(([k, v]) => [`${k}`, v]),
-      );
-    }
-    if (!detail) return parent;
-
-    const out = { ...parent }; // start with stock (parent)
-    for (const [key, value] of Object.entries(detail)) {
-      out[`${key}`] = value; // always suffix detail fields
-    }
-    return out;
-  } else {
-    if (!parent) {
-      // Only detail — suffix everything with _Detail
-      return Object.fromEntries(
-        Object.entries(detail).map(([k, v]) => [`${k}_Detail`, v]),
-      );
-    }
-    if (!detail) return parent;
-
-    const out = { ...parent }; // start with stock (parent)
-    for (const [key, value] of Object.entries(detail)) {
-      out[`${key}_Detail`] = value; // always suffix detail fields
-    }
-    return out;
-
+  if (!parent) {
+    // Only detail — suffix everything with _Detail
+    return Object.fromEntries(
+      Object.entries(detail).map(([k, v]) => [`${k}_Detail`, v]),
+    );
   }
+  if (!detail) return parent;
+
+  const out = { ...parent }; // start with stock (parent)
+  for (const [key, value] of Object.entries(detail)) {
+    out[`${key}_Detail`] = value; // always suffix detail fields
+  }
+  return out;
 }
+
 const router = express.Router();
 
 // Get all technical recommendations
@@ -92,7 +76,7 @@ router.get("/", async (req, res) => {
         if (numericIds.length > 0) {
           // Load SPI customers by account ids
           console.log("🔍 Attempting to fetch customers for IDs:", numericIds);
-
+          
           const custRes = await spiPool
             .request()
             .query(`SELECT * FROM spidb.customer WHERE Id IN (${numericIds.join(",")})`);
@@ -135,18 +119,18 @@ router.get("/", async (req, res) => {
           const [brandRes, indRes, deptRes] = await Promise.all([
             bIds.size
               ? spiPool
-                .request()
-                .query(`SELECT * FROM spidb.brand WHERE ID IN (${Array.from(bIds).join(",")})`)
+                  .request()
+                  .query(`SELECT * FROM spidb.brand WHERE ID IN (${Array.from(bIds).join(",")})`)
               : Promise.resolve({ recordset: [] }),
             iIds.size
               ? spiPool
-                .request()
-                .query(`SELECT * FROM spidb.Customer_Industry_Group WHERE Id IN (${Array.from(iIds).join(",")})`)
+                  .request()
+                  .query(`SELECT * FROM spidb.Customer_Industry_Group WHERE Id IN (${Array.from(iIds).join(",")})`)
               : Promise.resolve({ recordset: [] }),
             dIds.size
               ? spiPool
-                .request()
-                .query(`SELECT * FROM spidb.CusDepartment WHERE Id IN (${Array.from(dIds).join(",")})`)
+                  .request()
+                  .query(`SELECT * FROM spidb.CusDepartment WHERE Id IN (${Array.from(dIds).join(",")})`)
               : Promise.resolve({ recordset: [] }),
           ]);
 
@@ -243,15 +227,15 @@ router.get("/:id", async (req, res) => {
         const sdRes = await pool
           .request()
           .input("id", ri.itemId)
-          .query("SELECT * FROM spidb.stock_details WHERE Stock_Id = @id");
+          .query("SELECT * FROM spidb.stock_details WHERE id = @id"); 
         // const sRes = await pool
         //   .request()
         //   .input("id", ri.itemId)
         //   .query("SELECT * FROM spidb.stock WHERE Id = @id");
-        // logAttributes(
-        //   `tr item stock_details (id=${ri.itemId})`,
-        //   sdRes.recordset || [],
-        // );
+        logAttributes(
+          `tr item stock_details (id=${ri.itemId})`,
+          sdRes.recordset || [],
+        );
         // logAttributes(`tr item stock (id=${ri.itemId})`, sRes.recordset || []);
         const detailObj =
           sdRes && sdRes.recordset && sdRes.recordset[0]
@@ -261,7 +245,7 @@ router.get("/:id", async (req, res) => {
         //   sRes && sRes.recordset && sRes.recordset[0]
         //     ? sRes.recordset[0]
         //     : null;
-        const merged = mergePrimaryWithParent(detailObj, [], true);
+        const merged = mergePrimaryWithParent(detailObj,detailObj);
         const combined = {
           ...ri,
           ...merged,
@@ -321,11 +305,11 @@ router.get("/:id", async (req, res) => {
             .query("SELECT TOP (1) * FROM spidb.brand WHERE ID = @bid"),
           iId != null
             ? spiPool
-              .request()
-              .input("iid", iId)
-              .query(
-                "SELECT TOP (1) * FROM spidb.Customer_Industry_Group WHERE Id = @iid",
-              )
+                .request()
+                .input("iid", iId)
+                .query(
+                  "SELECT TOP (1) * FROM spidb.Customer_Industry_Group WHERE Id = @iid",
+                )
             : Promise.resolve({ recordset: [] }),
           spiPool
             .request()
@@ -360,8 +344,8 @@ router.get("/:id", async (req, res) => {
       let fileIds = [];
       if (base.attachments) {
         try {
-          const parsed = typeof base.attachments === 'string'
-            ? JSON.parse(base.attachments)
+          const parsed = typeof base.attachments === 'string' 
+            ? JSON.parse(base.attachments) 
             : base.attachments;
           fileIds = Array.isArray(parsed) ? parsed : [];
           console.log("Extracted file IDs from PostgreSQL attachments:", fileIds);
@@ -375,7 +359,7 @@ router.get("/:id", async (req, res) => {
       if (fileIds.length > 0) {
         const placeholders = fileIds.map((_, index) => `@id${index}`).join(',');
         const request = crmPool.request();
-
+        
         // Add parameters for each file ID
         fileIds.forEach((id, index) => {
           request.input(`id${index}`, id);
@@ -387,7 +371,7 @@ router.get("/:id", async (req, res) => {
           WHERE Id IN (${placeholders})
           ORDER BY UploadDate DESC
         `);
-
+        
         attachments = attachmentsRes.recordset || [];
       }
 
@@ -402,7 +386,7 @@ router.get("/:id", async (req, res) => {
             WHERE TrId = @tr_id
             ORDER BY UploadDate DESC
           `);
-
+        
         attachments = attachmentsRes.recordset || [];
       }
 
@@ -410,7 +394,7 @@ router.get("/:id", async (req, res) => {
       console.log(`📁 Fetched ${attachments.length} attachments for TR ${id} using file IDs [${fileIds.join(', ')}]`);
       console.log("🔍 Raw attachment details:", attachments);
       console.log("🔍 Final base.attachments:", base.attachments);
-
+      
     } catch (attachErr) {
       console.warn("Failed to fetch attachments for TR:", attachErr.message);
       base.attachments = [];
@@ -513,9 +497,9 @@ router.post("/", async (req, res) => {
       try {
         const crmPool = await poolCrmPromise;
         const uploadedFileIds = []; // Array to collect MSSQL file IDs
-
+        
         console.log(`📁 Processing ${body.new_attachments.length} new attachments for new TR ${newId}`);
-
+        
         for (const file of body.new_attachments) {
           if (!file.name || !file.base64 || !file.type || !file.size) {
             console.warn("Skipping invalid file:", file);
@@ -716,9 +700,9 @@ router.put("/:id", async (req, res) => {
       try {
         const crmPool = await poolCrmPromise;
         const newFileIds = []; // Array to collect new MSSQL file IDs
-
+        
         console.log(`📁 Processing ${body.new_attachments.length} new attachments for TR ${updatedId}`);
-
+        
         for (const file of body.new_attachments) {
           if (!file.name || !file.base64 || !file.type || !file.size) {
             console.warn("Skipping invalid file:", file);
@@ -765,7 +749,7 @@ router.put("/:id", async (req, res) => {
               `SELECT attachments FROM technical_recommendations WHERE id = $1`,
               [updatedId]
             );
-
+            
             let currentFileIds = [];
             if (currentTrRes.rows[0]?.attachments) {
               // Parse existing attachment IDs (should be array of integers)
@@ -805,7 +789,7 @@ router.put("/:id", async (req, res) => {
     }
 
     const response = { ...result.rows[0], items: itemsRes.rows };
-
+    
     const base = { ...result.rows[0], items: itemsRes.rows };
 
     // Enrich single with SPI account
@@ -852,11 +836,11 @@ router.put("/:id", async (req, res) => {
             .query("SELECT TOP (1) * FROM spidb.brand WHERE ID = @bid"),
           iId != null
             ? spiPool
-              .request()
-              .input("iid", iId)
-              .query(
-                "SELECT TOP (1) * FROM spidb.Customer_Industry_Group WHERE Id = @iid",
-              )
+                .request()
+                .input("iid", iId)
+                .query(
+                  "SELECT TOP (1) * FROM spidb.Customer_Industry_Group WHERE Id = @iid",
+                )
             : Promise.resolve({ recordset: [] }),
           spiPool
             .request()
@@ -939,8 +923,8 @@ router.post("/:id/attachments", async (req, res) => {
 
       // Validate file size (10MB limit)
       if (file.size > 10 * 1024 * 1024) {
-        return res.status(400).json({
-          error: `File "${file.name}" exceeds 10MB limit`
+        return res.status(400).json({ 
+          error: `File "${file.name}" exceeds 10MB limit` 
         });
       }
 
@@ -966,7 +950,7 @@ router.post("/:id/attachments", async (req, res) => {
       if (result.recordset && result.recordset[0]) {
         const fileId = result.recordset[0].id;
         newFileIds.push(fileId);
-
+        
         uploadedFiles.push({
           Id: fileId,
           FileName: file.name,
@@ -985,7 +969,7 @@ router.post("/:id/attachments", async (req, res) => {
           `SELECT attachments FROM technical_recommendations WHERE id = $1`,
           [trId]
         );
-
+        
         let currentFileIds = [];
         if (currentTrRes.rows[0]?.attachments) {
           try {
@@ -1012,7 +996,7 @@ router.post("/:id/attachments", async (req, res) => {
     }
 
     console.log(`✅ Uploaded ${uploadedFiles.length} files for TR ${trId}`);
-
+    
     res.json({
       message: `Successfully uploaded ${uploadedFiles.length} files`,
       files: uploadedFiles
@@ -1070,7 +1054,7 @@ router.get("/:id/attachments/:attachmentId/download", async (req, res) => {
     }
 
     const file = result.recordset[0];
-
+    
     res.set({
       'Content-Type': file.FileType,
       'Content-Disposition': `attachment; filename="${file.FileName}"`,
@@ -1109,13 +1093,13 @@ router.delete("/:id/attachments/:attachmentId", async (req, res) => {
     // Also update PostgreSQL JSONB to remove the deleted file ID
     try {
       const { id: trId } = req.params;
-
+      
       // Get current file IDs from PostgreSQL
       const currentTrRes = await db.query(
         `SELECT attachments FROM technical_recommendations WHERE id = $1`,
         [trId]
       );
-
+      
       if (currentTrRes.rows[0]?.attachments) {
         let currentFileIds = [];
         try {
@@ -1126,7 +1110,7 @@ router.delete("/:id/attachments/:attachmentId", async (req, res) => {
         }
 
         // Filter out the deleted file ID
-        const updatedFileIds = currentFileIds.filter(id =>
+        const updatedFileIds = currentFileIds.filter(id => 
           String(id) !== String(attachmentId)
         );
 
