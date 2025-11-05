@@ -226,7 +226,7 @@ router.post("/quotations", async (req, res) => {
     const qParams = qKeys.map((_, i) => `@q${i}`).join(", ");
     qKeys.forEach((k, i) => trxReq.input(`q${i}`, filteredQuotation[k]));
 
-    const insertQuotationSql = `INSERT INTO spidb.quotation (${qCols}) OUTPUT INSERTED.* VALUES (${qParams})`;
+    const insertQuotationSql = `INSERT INTO spidb.quotation (${qCols},Customer_Attn_id) OUTPUT INSERTED.* VALUES (${qParams},(select top 1 Id FROM spidb.customer_contact where customer_Id='${filteredQuotation.Customer_Id||0}' order by id desc))`;
     
     const insertRes = await trxReq.query(insertQuotationSql);
     const insertedQuotation = insertRes.recordset && insertRes.recordset[0];
