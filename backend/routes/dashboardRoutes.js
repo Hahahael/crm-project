@@ -447,7 +447,7 @@ router.get("/assignees", async (req, res) => {
       LIMIT ${limitParam}
     `;
     
-    console.log('Dashboard assignees query:', primarySql, 'params:', queryParams);
+    // console.log('Dashboard assignees query:', primarySql, 'params:', queryParams);
     const result = await tryQuery(primarySql, fallbackSql, queryParams);
     const rows = result.rows || [];
     return res.json({
