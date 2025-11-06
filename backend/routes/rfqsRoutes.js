@@ -260,7 +260,7 @@ router.get("/:id", async (req, res) => {
         // logAttributes(`rfq item stock_details (id=${ri.itemId})`, sdRes.recordset || []);
         // logAttributes(`rfq item stock (id=${ri.itemId})`, sRes.recordset || []);
         console.log(`rfq item sdRes (id=${ri.itemId})`, sdRes);
-        console.log(`rfq item sRes (id=${ri.itemId})`, sRes);
+        // console.log(`rfq item sRes (id=${ri.itemId})`, sRes);
 
         const detailObj =
           sdRes && sdRes.recordset && sdRes.recordset[0]
@@ -402,7 +402,7 @@ router.get("/:id", async (req, res) => {
     console.log("Final items with prices and lead times:", items);
     console.log("Final vendors", vendors);
     // vendors.forEach((v) =>
-      console.log("Vendor", v.vendorId, "with quotes:", v.quotes),
+      // console.log("Vendor", v.vendorId, "with quotes:", v.quotes),
     // );
 
     rfq.items = items;
