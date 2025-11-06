@@ -188,9 +188,10 @@ export default function QuotationsPage() {
 
     const detailRows = (ref.items || []).map((i) => {
       const qty = Number(i.quantity) || 1;
-      const unitPrice = Number(i.unitPrice ?? i.price ?? 0);
+      const unitPrice = Number(i.Price ?? i.unitPrice ?? i.price ?? 0);
       const amount = qty * unitPrice;
       const discount = Number(i.discount ?? 0);
+      
 
       return {
         Qty: qty,
@@ -198,7 +199,7 @@ export default function QuotationsPage() {
         Quotation_Id: quotation.id ?? null, // Will be replaced on insert
         Unit_Price: unitPrice,
         Amount: amount,
-        Discounted_Amount: amount,
+        Discounted_Amount: discount,
         Discount: discount,
         Stock_Counter_Offer_id:0,
         // isConvertedToSO: false,
