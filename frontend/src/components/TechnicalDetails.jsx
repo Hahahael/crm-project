@@ -535,9 +535,9 @@ const TechnicalDetails = ({
                   const price =
                     prod.unitPrice ??
                     prod.Price_Details ??
+                    prod.Price ??
                     prod.LocalPrice ??
                     prod.LocalPrice_Detail ??
-                    prod.Price ??
                     prod.SourcePrice ??
                     prod.SourcePrice_Detail ??
                     0;
@@ -568,9 +568,9 @@ const TechnicalDetails = ({
                         const price =
                           i.unitPrice ??
                           i.Price_Details ??
+                          i.Price ??
                           i.LocalPrice ??
                           i.LocalPrice_Detail ??
-                          i.Price ??
                           i.SourcePrice ??
                           i.SourcePrice_Detail ??
                           0;

@@ -613,7 +613,7 @@ const RFQDetails = ({
                         className="hover:bg-gray-100 transition-all duration-200"
                       >
                         <td className="text-sm p-2 align-middle">
-                          {item.details?.Description}
+                          {`${item.details?.Code} ${item.details?.CustomerPartNumberSubCode??""}|${item.details?.Description}`}
                         </td>
                         <td className="text-sm p-2 align-middle">
                           {item.details?.BRAND_ID}
@@ -631,11 +631,11 @@ const RFQDetails = ({
                           {item.leadTime || "-"}
                         </td>
                         <td className="text-sm p-2 align-middle">
-                          ₱ {utils.formatNumber(item.unitPrice) || "-"}
+                          ₱ { utils.formatNumber(item?.details?.Price ) || "-"}
                         </td>
                         <td className="text-sm p-2 align-middle">
                           ₱{" "}
-                          {utils.formatNumber(item.unitPrice * item.quantity) ||
+                          {utils.formatNumber(item?.details?.Price * item.quantity) ||
                             "-"}
                         </td>
                       </tr>
