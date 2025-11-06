@@ -273,6 +273,7 @@ router.post("/quotations", async (req, res) => {
 
       console.log("Inserting detail:", dParams, detail);
       const insertDetailSql = `INSERT INTO spidb.quotation_details (${dCols}) OUTPUT INSERTED.* VALUES (${dParams})`;
+      // console.log("INSERT TO DETAILS" , insertDetailSql, dReq )
       const dRes = await dReq.query(insertDetailSql);
       if (dRes.recordset && dRes.recordset[0])
         insertedDetails.push(dRes.recordset[0]);

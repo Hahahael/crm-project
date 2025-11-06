@@ -127,7 +127,7 @@ export default function QuotationsTable({ quotations, onView, onSend }) {
     }
   };
   
-  console.log("QuotationsTable - quotations:", quotations);
+  // console.log("QuotationsTable - quotations:", quotations);
   return (
     <div className="relative overflow-x-auto rounded-lg border border-gray-200 bg-white">
       <table className="w-full border-collapse text-left text-sm min-w-4xl">
