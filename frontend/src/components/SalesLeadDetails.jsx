@@ -17,7 +17,8 @@ const SalesLeadDetails = ({
   source="salesLead"
 }) => {
   console.log("Rendering SalesLeadDetails for salesLead:", salesLead);
-  const { currentUser } = useUser();
+  const { currentUser } = useUser();  
+  // const isCreator = currentUser && salesLead.createdBy === currentUser.id;
   const isAssignedToMe = currentUser && salesLead.assignee === currentUser.id;
 
   const [activeTab, setActiveTab] = useState("SL"); // SL | WO | TR | RFQ

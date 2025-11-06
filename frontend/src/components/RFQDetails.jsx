@@ -506,19 +506,19 @@ const RFQDetails = ({
                 {selectedVendorId ? (
                   <>
                     <VendorDetail label="Vendor:" value={selectedVendorName} />
-                    <VendorDetail label="Amount:" value={`$${utils.formatNumber(selectedVendorTotal, 2)}`} />
-                    <VendorDetail label="Savings:" value={`$${utils.formatNumber(selectedVendorSavings, 2)}`} />
+                    <VendorDetail label="Amount:" value={`₱${utils.formatNumber(selectedVendorTotal, 2)}`} />
+                    <VendorDetail label="Savings:" value={`₱${utils.formatNumber(selectedVendorSavings, 2)}`} />
                     {selectedVendorSavings > 0 && (
                       <div className="text-xs text-green-600 bg-green-50 px-2 py-1 rounded">
-                        💰 Saves ${utils.formatNumber(selectedVendorSavings, 2)} vs best alternative
+                        💰 Saves ₱{utils.formatNumber(selectedVendorSavings, 2)} vs best alternative
                       </div>
                     )}
                   </>
                 ) : (
                   <>
                     <VendorDetail label="Vendor:" value={bestVendorName} />
-                    <VendorDetail label="Amount:" value={`$${utils.formatNumber(bestVendorTotal, 2)}`} />
-                    <VendorDetail label="Savings:" value={`$${utils.formatNumber(savingsVsNext, 2)}`} />
+                    <VendorDetail label="Amount:" value={`₱${utils.formatNumber(bestVendorTotal, 2)}`} />
+                    <VendorDetail label="Savings:" value={`₱${utils.formatNumber(savingsVsNext, 2)}`} />
                   </>
                 )}
               </div>
