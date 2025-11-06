@@ -279,7 +279,7 @@ export default function RFQCanvassSheet({
   // Fill diff for non-recommended selectedVendors
   vendorTotals.forEach((v) => {
     if (!v.recommended) {
-      v.diff = `+$${(v.total - lowestTotal).toFixed(2)}`;
+      v.diff = `+₱${(v.total - lowestTotal).toFixed(2)}`;
     }
   });
 
@@ -339,7 +339,7 @@ export default function RFQCanvassSheet({
         />
         <SummaryCard
           label="Lowest Total"
-          value={`$${summary?.lowestTotal}`}
+          value={`₱${summary?.lowestTotal}`}
           icon={<LuTrendingDown className="h-5 w-5 text-green-500" />}
         />
         <SummaryCard
@@ -390,7 +390,7 @@ export default function RFQCanvassSheet({
                     </div>
                 </div>
                 <div className="text-right">
-                    <p className="text-lg font-bold">${v.total}</p>
+                    <p className="text-lg font-bold">₱{v.total}</p>
                     {v.diff && <p className="text-sm text-red-600">{v.diff}</p>}
                 </div>
                 </div>
@@ -478,10 +478,10 @@ export default function RFQCanvassSheet({
                           className={`p-2 rounded transition-all duration-150 align-stretch relative`}
                         >
                           <p className="font-bold text-lg">
-                            {quote ? `$${quote.unitPrice}` : "-"}
+                            {quote ? `₱${quote.unitPrice}` : "-"}
                           </p>
                           <p className="text-sm text-muted-foreground">
-                            Total: {quote ? `$${quote.total}` : "-"}
+                            Total: {quote ? `₱${quote.total}` : "-"}
                           </p>
                           <div className="flex items-center justify-center space-x-1 mt-1">
                             <LuClock />{" "}
@@ -516,7 +516,7 @@ export default function RFQCanvassSheet({
                               <p className="font-bold text-green-600">
                                 {bestVendor ? bestVendor.name : "-"}
                               </p>
-                              <p className="text-sm font-medium">{`$${bestQuote.unitPrice}`}</p>
+                              <p className="text-sm font-medium">{`₱${bestQuote.unitPrice}`}</p>
                             </>
                           );
                         }
