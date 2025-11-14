@@ -19,6 +19,8 @@ import {
   LuPanelRightClose
 } from "react-icons/lu";
 // import VersionInfo from "./VersionInfo.jsx";
+import utils from "../helper/utils";
+import { useUser } from "../contexts/UserContext.jsx";
 
 const apiUrl = import.meta.env.VITE_API_URL;
 
@@ -28,6 +30,7 @@ fetch(`${apiUrl}/healthcheck`)
 
 export default function Layout() {
   const location = useLocation();
+  const { currentUser } = useUser();
   const [isCollapsed, setIsCollapsed] = useState(false);
 
   // Define routes where sidebar should not appear
@@ -66,7 +69,7 @@ export default function Layout() {
             </Link>
             <Link
               to="/workorders"
-              className="flex items-center gap-3 rounded-md px-3 py-2 hover:bg-gray-600 hover:text-white transition-all duration-300 h-10"
+              className={`${utils.hasAnyModulePermission(currentUser, "workorder") ? "flex" : "hidden"} items-center gap-3 rounded-md px-3 py-2 hover:bg-gray-600 hover:text-white transition-all duration-300 h-10`}
               title={isCollapsed ? "Workorders" : ""}
             >
               <LuClipboardList size={18} className="flex-shrink-0" />
@@ -74,7 +77,7 @@ export default function Layout() {
             </Link>
             <Link
               to="/salesleads"
-              className="flex items-center gap-3 rounded-md px-3 py-2 hover:bg-gray-600 hover:text-white transition-all duration-300 h-10"
+              className={`${utils.hasAnyModulePermission(currentUser, "salesLead") ? "flex" : "hidden"} items-center gap-3 rounded-md px-3 py-2 hover:bg-gray-600 hover:text-white transition-all duration-300 h-10`}
               title={isCollapsed ? "Sales Leads" : ""}
             >
               <LuTrendingUp size={18} className="flex-shrink-0" />
@@ -82,7 +85,7 @@ export default function Layout() {
             </Link>
             <Link
               to="/technicals"
-              className="flex items-center gap-3 rounded-md px-3 py-2 hover:bg-gray-600 hover:text-white transition-all duration-300 h-10"
+              className={`${utils.hasAnyModulePermission(currentUser, "technicalReco") ? "flex" : "hidden"} items-center gap-3 rounded-md px-3 py-2 hover:bg-gray-600 hover:text-white transition-all duration-300 h-10`}
               title={isCollapsed ? "Technical Reco" : ""}
             >
               <LuWrench size={18} className="flex-shrink-0" />
@@ -90,7 +93,7 @@ export default function Layout() {
             </Link>
             <Link
               to="/rfqs"
-              className="flex items-center gap-3 rounded-md px-3 py-2 hover:bg-gray-600 hover:text-white transition-all duration-300 h-10"
+              className={`${utils.hasAnyModulePermission(currentUser, "rfq") ? "flex" : "hidden"} items-center gap-3 rounded-md px-3 py-2 hover:bg-gray-600 hover:text-white transition-all duration-300 h-10`}
               title={isCollapsed ? "RFQs" : ""}
             >
               <LuFileText size={18} className="flex-shrink-0" />
@@ -98,7 +101,7 @@ export default function Layout() {
             </Link>
             <Link
               to="/accounts"
-              className="flex items-center gap-3 rounded-md px-3 py-2 hover:bg-gray-600 hover:text-white transition-all duration-300 h-10"
+              className={`${utils.hasAnyModulePermission(currentUser, "naef") ? "flex" : "hidden"} items-center gap-3 rounded-md px-3 py-2 hover:bg-gray-600 hover:text-white transition-all duration-300 h-10`}
               title={isCollapsed ? "NAEF" : ""}
             >
               <LuBuilding2 size={18} className="flex-shrink-0" />
@@ -106,7 +109,7 @@ export default function Layout() {
             </Link>
             <Link
               to="/quotations"
-              className="flex items-center gap-3 rounded-md px-3 py-2 hover:bg-gray-600 hover:text-white transition-all duration-300 h-10"
+              className={`${utils.hasAnyModulePermission(currentUser, "quotation") ? "flex" : "hidden"} items-center gap-3 rounded-md px-3 py-2 hover:bg-gray-600 hover:text-white transition-all duration-300 h-10`}
               title={isCollapsed ? "Quotations" : ""}
             >
               <LuDollarSign size={18} className="flex-shrink-0" />
@@ -114,7 +117,7 @@ export default function Layout() {
             </Link>
             <Link
               to="/users"
-              className="flex items-center gap-3 rounded-md px-3 py-2 hover:bg-gray-600 hover:text-white transition-all duration-300 h-10"
+              className={`${utils.hasAnyModulePermission(currentUser, "user") ? "flex" : "hidden"} items-center gap-3 rounded-md px-3 py-2 hover:bg-gray-600 hover:text-white transition-all duration-300 h-10`}
               title={isCollapsed ? "Users" : ""}
             >
               <LuUsers size={18} className="flex-shrink-0" />
@@ -130,7 +133,7 @@ export default function Layout() {
             </Link>
             <Link
               to="/approvals"
-              className="flex items-center gap-3 rounded-md px-3 py-2 hover:bg-gray-600 hover:text-white transition-all duration-300 h-10"
+              className={`${utils.hasAnyModulePermission(currentUser, "approval") ? "flex" : "hidden"} items-center gap-3 rounded-md px-3 py-2 hover:bg-gray-600 hover:text-white transition-all duration-300 h-10`}
               title={isCollapsed ? "Approvals" : ""}
             >
               <LuSquareCheckBig size={18} className="flex-shrink-0" />
@@ -139,7 +142,7 @@ export default function Layout() {
           </nav>
           {/* Admin buttons - only show when expanded */}
           {!isCollapsed && (
-            <div className="p-4 space-y-2 border-t border-gray-700">
+            <div className={`${utils.isGlobalAdmin(currentUser) ? "block" : "hidden"} p-4 space-y-2 border-t border-gray-700`}>
               <button
                 onClick={async () => {
                   try {

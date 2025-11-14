@@ -38,7 +38,7 @@ router.get("/", async (req, res) => {
           `,
           [woIds],
         );
-        console.log("Latest workflow stages result:", latestRes);
+        // console.log("Latest workflow stages result:", latestRes);
         const latestMap = new Map(
           (latestRes.rows || []).map((r) => [Number(r.wo_id ?? r.woId), r]),
         );
@@ -71,7 +71,7 @@ router.get("/", async (req, res) => {
         const customers = custRes.recordset || [];
         const custMap = new Map(customers.map((c) => [Number(c.Id), c]));
 
-        console.log(custRes);
+        // console.log(custRes);
 
         // Derive potential foreign keys from SPI customer rows using flexible field names
         const normId = (v) => {
@@ -174,7 +174,7 @@ router.get("/", async (req, res) => {
       );
     }
 
-    console.log("Fetched workorders:", workorders);
+    // console.log("Fetched workorders:", workorders);
 
     return res.json(workorders);
   } catch (err) {
@@ -263,7 +263,7 @@ router.get("/:id", async (req, res) => {
           LIMIT 1`,
         [id],
       );
-      console.log("Latest workflow stage result:", wsRes);
+      // console.log("Latest workflow stage result:", wsRes);
       if (wsRes.rows && wsRes.rows[0]) {
         wo.stageName = wsRes.rows[0].stage_name ?? wsRes.rows[0].stageName ?? null;
         wo.currentStageName = wo.stageName;
@@ -283,7 +283,7 @@ router.get("/:id", async (req, res) => {
         baseAcc = baseAccRes.rows[0];
       }
 
-      console.log("Base account fetch result for workorder", id, "with account_id:", wo.accountId, ":", baseAcc);
+      // console.log("Base account fetch result for workorder", id, "with account_id:", wo.accountId, ":", baseAcc);
 
       const spiPool = await poolPromise;
       const accId = Number(wo.accountId ?? wo.account_id);
@@ -296,7 +296,7 @@ router.get("/:id", async (req, res) => {
         customer = custRes.recordset && custRes.recordset[0] ? custRes.recordset[0] : null;
       }
 
-      console.log("SPI customer fetch result for workorder", id, ":", customer);
+      // console.log("SPI customer fetch result for workorder", id, ":", customer);
 
       if (customer) {
         let source = customer;
@@ -371,7 +371,7 @@ router.get("/:id", async (req, res) => {
 // Create new workorder
 router.post("/", async (req, res) => {
   try {
-    console.log("Creating workorder with data:", req.body);
+    // console.log("Creating workorder with data:", req.body);
     const body = toSnake(req.body);
     let {
       work_description,
@@ -475,7 +475,7 @@ router.post("/", async (req, res) => {
       finalAccountId,
     ]);
 
-    console.log("Updated account after workorder creation:", updatedAccount.rows[0]);
+    // console.log("Updated account after workorder creation:", updatedAccount.rows[0]);
 
     // 5️⃣ Return new row with assignee details
     const final = await db.query(
@@ -500,12 +500,7 @@ router.put("/calendar/:id", async (req, res) => {
     const { id } = req.params;
     const { due_date, from_time, to_time } = toSnake(req.body);
 
-    console.log("Updating workorder (calendar) ", {
-      id,
-      due_date,
-      from_time,
-      to_time,
-    });
+    // console.log("Updating workorder (calendar) ", { id, due_date, from_time, to_time });
 
     const updateResult = await db.query(
       `
@@ -537,7 +532,7 @@ router.put("/calendar/:id", async (req, res) => {
       [updatedId],
     );
 
-    console.log("Updated workorder (calendar) result:", result);
+    // console.log("Updated workorder (calendar) result:", result);
 
     if (result.rows.length === 0)
       return res.status(404).json({ error: "Not found" });
@@ -576,7 +571,7 @@ router.put("/:id", async (req, res) => {
       is_esl,
     } = body;
 
-    console.log("Updating workorder", { id, ...body });
+    // console.log("Updating workorder", { id, ...body });
 
     const updateResult = await db.query(
       `
@@ -646,6 +641,7 @@ router.get("/summary/status", async (req, res) => {
   try {
     // Extract filter parameters
     const { status, assignee, startDate, endDate } = req.query;
+    console.log("Query params for work orders summary:", req.query);
     
     // Build WHERE conditions
     let whereConditions = [];

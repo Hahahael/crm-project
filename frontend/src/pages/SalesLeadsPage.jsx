@@ -22,6 +22,7 @@ import SalesLeadForm from "../components/SalesLeadForm";
 import { apiBackendFetch } from "../services/api";
 import LoadingModal from "../components/LoadingModal";
 import { useUser } from "../contexts/UserContext";
+import utils from "../helper/utils";
 
 export default function SalesLeadsPage() {
   const { currentUser } = useUser();
@@ -116,7 +117,10 @@ export default function SalesLeadsPage() {
       const salesLeadsRes = await apiBackendFetch("/api/salesleads");
       if (!salesLeadsRes.ok) throw new Error("Failed to fetch Sales Leads");
 
-      const salesLeadsData = await salesLeadsRes.json();
+      let salesLeadsData = await salesLeadsRes.json();
+      if (!utils.isModuleAdmin(currentUser, "salesLead")) {
+        salesLeadsData = salesLeadsData.filter(salesLead => salesLead.assignee === currentUser.id);
+      }
       setSalesLeads(
         Array.isArray(salesLeadsData) ? salesLeadsData : [salesLeadsData],
       );

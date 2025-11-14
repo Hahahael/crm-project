@@ -17,6 +17,7 @@ import TechnicalDetails from "../components/TechnicalDetails";
 import { apiBackendFetch } from "../services/api";
 import LoadingModal from "../components/LoadingModal";
 import RFQCanvassSheet from "../components/RFQCanvassSheet";
+import utils from "../helper/utils";
 
 export default function QuotationsPage() {
   const timeoutRef = useRef();
@@ -46,24 +47,12 @@ export default function QuotationsPage() {
       const quotationsRes = await apiBackendFetch("/api/quotations");
       if (!quotationsRes.ok) throw new Error("Failed to fetch Quotations");
 
-      const quotationsData = await quotationsRes.json();
+      let quotationsData = await quotationsRes.json();
+      if (!utils.isModuleAdmin(currentUser, "quotation")) {
+        quotationsData = quotationsData.filter(quotation => quotation.assignee === currentUser.id);
+      }
       setQuotations(quotationsData);
       console.log("Fetched Quotations (Postgres):", quotationsData);
-
-      // Fetch MSSQL quotations and merge (best-effort)
-      // await fetchMssqlQuotations();
-
-      // Fetch status summary
-      // const summaryRes = await apiBackendFetch("/api/rfqs/summary/status");
-      // if (summaryRes.ok) {
-      //         const summaryData = await summaryRes.json();
-      //         setStatusSummary({
-      //                 total: Number(summaryData.total) || 0,
-      //                 pending: Number(summaryData.pending) || 0,
-      //                 inProgress: Number(summaryData.inProgress) || 0,
-      //                 completed: Number(summaryData.completed) || 0,
-      //         });
-      // }
       setTimeout(() => setLoading(false), 500);
     } catch (err) {
       console.error("Error retrieving Quotations:", err);
