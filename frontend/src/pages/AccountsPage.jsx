@@ -15,6 +15,7 @@ import AccountsTable from "../components/AccountsTable";
 import AccountDetails from "../components/AccountDetails";
 import AccountForm from "../components/AccountForm";
 import { useUser } from "../contexts/UserContext.jsx";
+import utils from "../helper/utils.js";
 
 export default function AccountsPage() {
   const { currentUser } = useUser();
@@ -49,7 +50,10 @@ export default function AccountsPage() {
 
       console.log("Accounts response:", accountsRes);
 
-      const accountsData = await accountsRes.json();
+      let accountsData = await accountsRes.json();
+      if (!utils.isModuleAdmin(currentUser, "naef")) {
+        accountsData = accountsData.filter(account => account.preparedBy === currentUser.id);
+      }
       setAccounts(accountsData);
       console.log("Fetched accounts:", accountsData);
 

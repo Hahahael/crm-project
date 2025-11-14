@@ -17,6 +17,7 @@ import TechnicalForm from "../components/TechnicalForm";
 import { apiBackendFetch } from "../services/api";
 import LoadingModal from "../components/LoadingModal";
 import { useUser } from "../contexts/UserContext.jsx";
+import utils from "../helper/utils.js";
 
 export default function TechnicalsPage() {
   const { currentUser } = useUser();
@@ -51,7 +52,10 @@ export default function TechnicalsPage() {
       if (!technicalRecosRes.ok)
         throw new Error("Failed to fetch Technical Recommendations");
 
-      const technicalRecosData = await technicalRecosRes.json();
+      let technicalRecosData = await technicalRecosRes.json();
+      if (!utils.isModuleAdmin(currentUser, "technicalReco")) {
+        technicalRecosData = technicalRecosData.filter(technicalReco => technicalReco.assignee === currentUser.id);
+      }
       setTechnicalRecos(technicalRecosData);
       console.log("Fetched technical recommendations:", technicalRecosData);
       

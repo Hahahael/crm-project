@@ -185,6 +185,39 @@ export function validateFileUpload(file) {
   return { valid: true };
 }
 
+export function isGlobalAdmin(user) {
+  if (!user) return false;
+  console.log("User roles:", user);
+  const permissions = Array.isArray(user.permissions) ? user.permissions : [user.permission];
+  return permissions.includes("all");
+}
+
+export function hasAnyModulePermission(user, module) {
+  if (!user) return false;
+  console.log("User permissions:", user);
+
+  const permissions = Array.isArray(user.permissions) ? user.permissions : [user.permission];
+
+  // Global admin always has all permissions
+  if (permissions.includes("all")) return true;
+
+  return permissions.some(permission =>
+    permission.startsWith(`${module}.`) // matches .read, .write, .all
+  );
+}
+
+export function isModuleAdmin(user, module) {
+  if (!user) return false;
+  console.log("User permissions:", user);
+
+  const permissions = Array.isArray(user.permissions) ? user.permissions : [user.permission];
+
+  // Global admin counts as module admin
+  if (permissions.includes("all")) return true;
+
+  return permissions.includes(`${module}.all`);
+}
+
 // ✅ Default export with all helpers including new ones
 export default {
   toCamel,
@@ -208,4 +241,7 @@ export default {
   calculateGrandTotal,
   validateField,
   validateFileUpload,
+  isGlobalAdmin,
+  hasAnyModulePermission,
+  isModuleAdmin,
 };

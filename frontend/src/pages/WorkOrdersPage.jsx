@@ -19,12 +19,13 @@ import { apiBackendFetch } from "../services/api";
 import LoadingModal from "../components/LoadingModal";
 import { toSnake } from "../helper/utils";
 import { useUser } from "../contexts/UserContext";
+import utils from "../helper/utils.js";
 
 export default function WorkOrdersPage() {
   const timeoutRef = useRef();
   const navigate = useNavigate();
   const location = useLocation();
-  const { currentUser } = useUser();
+  const { currentUser, loading: userLoading } = useUser();
 
   const [workOrders, setWorkOrders] = useState([]);
   const [search, setSearch] = useState("");
@@ -61,18 +62,50 @@ export default function WorkOrdersPage() {
     }
   };
 
-  const fetchAllData = async () => {
+  const fetchAllData = useCallback(async () => {
+    if (userLoading) {
+      console.log("User still loading, waiting...");
+      return;
+    }
+    if (!currentUser) {
+      console.log("No current user available");
+      setLoading(false);
+      return;
+    }
+    
+    console.log("Fetching work orders for user:", currentUser);
     try {
-      const workOrdersRes = await apiBackendFetch("/api/workorders");
+      const queryParams = new URLSearchParams();
+      
+      // Add assignee filter if user is not admin
+      if (!utils.isModuleAdmin(currentUser, "workorder") && currentUser?.id) {
+        queryParams.append('assignee', currentUser.id);
+      }
+
+      console.log("Query Params:", queryParams.toString(), "Length: ", queryParams.size);
+      
+      // Add any additional filters
+      // Object.entries(additionalFilters).forEach(([key, value]) => {
+      //   if (value !== null && value !== undefined && value !== '') {
+      //     queryParams.append(key, value);
+      //   }
+      // });
+      
+      const queryString = queryParams.size > 0 ? `?${queryParams.toString()}` : "";
+
+      const workOrdersRes = await apiBackendFetch(`/api/workorders${queryString}`);
       if (!workOrdersRes.ok) throw new Error("Failed to fetch Work Orders");
 
-      const workOrdersData = await workOrdersRes.json();
+      let workOrdersData = await workOrdersRes.json();
+      if (!utils.isModuleAdmin(currentUser, "workorder")) {
+        workOrdersData = workOrdersData.filter(workOrder => workOrder.assignee === currentUser.id);
+      }
       console.log("Fetched work orders:", workOrdersData);
       setWorkOrders(workOrdersData);
 
       // Fetch status summary
       const summaryRes = await apiBackendFetch(
-        "/api/workorders/summary/status",
+        `/api/workorders/summary/status${queryString}`,
       );
       if (summaryRes.ok) {
         const summaryData = await summaryRes.json();
@@ -88,14 +121,12 @@ export default function WorkOrdersPage() {
       }
 
       // Add a minimum delay before hiding loading modal
-      setTimeout(() => setLoading(false));
+      setLoading(false);
     } catch (err) {
       console.error("Error retrieving workorders:", err);
       setError("Failed to fetch work orders.");
     }
-  };
-
-
+  }, [currentUser, userLoading]);
 
   const fetchNewAssignedWorkOrders = useCallback(async () => {
     if (!currentUser) return;
@@ -116,7 +147,7 @@ export default function WorkOrdersPage() {
 
   useEffect(() => {
     fetchAllData();
-  }, []);
+  }, [fetchAllData]);
 
   // Open create form when navigated from Calendar with a selected date
   useEffect(() => {
@@ -162,9 +193,10 @@ export default function WorkOrdersPage() {
 
   useEffect(() => {
     if (currentUser) {
+      fetchAllData();
       fetchNewAssignedWorkOrders();
     }
-  }, [currentUser, fetchNewAssignedWorkOrders]);
+  }, [currentUser, fetchAllData, fetchNewAssignedWorkOrders]);
 
   useEffect(() => {
     if (successMessage) {
@@ -800,6 +832,7 @@ export default function WorkOrdersPage() {
             currentUser={currentUser}
             onBack={() => {
               setSelectedWO(null);
+              fetchAllData();
               fetchNewAssignedWorkOrders();
             }}
             onEdit={() => fetchEditingWO(selectedWO)}

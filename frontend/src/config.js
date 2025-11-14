@@ -1,16 +1,30 @@
+import { salesLeads } from "../../backend/mocks/salesleadsMock";
+
 // config.js
 const config = {
   roleBadgeClasses: {
     Admin: "bg-purple-100 text-purple-700",
-    Manager: "bg-blue-100 text-blue-700",
-    "Sales Agent": "bg-green-100 text-green-700",
-    "Technical Engineer": "bg-amber-100 text-amber-700",
-    "Field Service": "bg-indigo-100 text-indigo-700",
+    Finance: "bg-blue-100 text-blue-700",
+    "Finance-Admin": "bg-blue-100 text-blue-700",
+    Sales: "bg-green-100 text-green-700",
+    "Sales-Admin": "bg-green-100 text-green-700",
+    Warehouse: "bg-fuchsia-100 text-fuchsia-700",
+    "Warehouse-Admin": "bg-fuchsia-100 text-fuchsia-700",
+    Purchasing: "bg-indigo-100 text-indigo-700",
+    "Purchasing-Admin": "bg-indigo-100 text-indigo-700",
+    Marketing: "bg-lime-100 text-lime-700",
+    "Marketing-Admin": "bg-lime-100 text-lime-700",
+    Logistics: "bg-orange-100 text-orange-700",
+    "Logistics-Admin": "bg-orange-100 text-orange-700",
+    Service: "bg-yellow-100 text-yellow-700",
+    "Service-Admin": "bg-yellow-100 text-yellow-700",
+    System: "bg-slate-100 text-slate-700",
+    "System-Admin": "bg-slate-100 text-slate-700",
   },
 
   statusBadgeClasses: {
     Active: "bg-green-100 text-green-700",
-    Inactive: "bg-gray-100 text-gray-700",
+    Inactive: "bg-yellow-100 text-yellow-700",
     Suspended: "bg-red-100 text-red-700",
   },
 
@@ -145,8 +159,8 @@ const config = {
 
   permissions: {
     workorder: ["workorder.read", "workorder.write", "workorder.all"],
-    "sales-lead": ["sales-lead.read", "sales-lead.write", "sales-lead.all"],
-    "technical-reco": [
+    salesLead: ["sales-lead.read", "sales-lead.write", "sales-lead.all"],
+    technicalReco: [
       "technical-reco.read",
       "technical-reco.write",
       "technical-reco.all",
