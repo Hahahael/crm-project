@@ -283,7 +283,7 @@ export default function WorkOrdersTable({ workOrders, onView, onEdit }) {
                   </button>
                   <button
                     onClick={() => onEdit(wo)}
-                    className={`rounded px-2 py-1 text-black border border-gray-200 bg-white transition-all duration-200 ${wo.stageStatus === "Completed" || wo.stageStatus === "In Progress" || wo.createdBy != currentUser.id ? "opacity-50 cursor-not-allowed hover:bg-white pointer-events-none" : "cursor-pointer hover:bg-gray-100"}`}
+                    className={`rounded px-2 py-1 text-black border border-gray-200 bg-white transition-all duration-200 ${wo.stageStatus === "Completed" || wo.stageStatus === "In Progress" || wo.createdBy != currentUser.id || !util.hasEditModulePermission(currentUser, "workorder") ? "opacity-50 cursor-not-allowed hover:bg-white pointer-events-none" : "cursor-pointer hover:bg-gray-100"}`}
                   >
                     <LuPencil className="my-auto" />
                   </button>

@@ -194,7 +194,7 @@ export function isGlobalAdmin(user) {
 
 export function hasAnyModulePermission(user, module) {
   if (!user) return false;
-  console.log("User permissions:", user);
+  console.log("User permissions for has any module permission:", user, "module:", module);
 
   const permissions = Array.isArray(user.permissions) ? user.permissions : [user.permission];
 
@@ -216,6 +216,18 @@ export function isModuleAdmin(user, module) {
   if (permissions.includes("all")) return true;
 
   return permissions.includes(`${module}.all`);
+}
+
+export function hasEditModulePermission(user, module) {
+  if (!user) return false;
+  console.log("User permissions for edit module permission:", user, "module:", module);
+
+  const permissions = Array.isArray(user.permissions) ? user.permissions : [user.permission];
+
+  // Global admin always has all permissions
+  if (permissions.includes("all")) return true;
+
+  return permissions.includes(`${module}.write`) || permissions.includes(`${module}.all`);
 }
 
 // ✅ Default export with all helpers including new ones
@@ -244,4 +256,5 @@ export default {
   isGlobalAdmin,
   hasAnyModulePermission,
   isModuleAdmin,
+  hasEditModulePermission,
 };

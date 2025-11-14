@@ -77,7 +77,7 @@ export default function Layout() {
             </Link>
             <Link
               to="/salesleads"
-              className={`${utils.hasAnyModulePermission(currentUser, "salesLead") ? "flex" : "hidden"} items-center gap-3 rounded-md px-3 py-2 hover:bg-gray-600 hover:text-white transition-all duration-300 h-10`}
+              className={`${utils.hasAnyModulePermission(currentUser, "sales-lead") ? "flex" : "hidden"} items-center gap-3 rounded-md px-3 py-2 hover:bg-gray-600 hover:text-white transition-all duration-300 h-10`}
               title={isCollapsed ? "Sales Leads" : ""}
             >
               <LuTrendingUp size={18} className="flex-shrink-0" />
@@ -85,7 +85,7 @@ export default function Layout() {
             </Link>
             <Link
               to="/technicals"
-              className={`${utils.hasAnyModulePermission(currentUser, "technicalReco") ? "flex" : "hidden"} items-center gap-3 rounded-md px-3 py-2 hover:bg-gray-600 hover:text-white transition-all duration-300 h-10`}
+              className={`${utils.hasAnyModulePermission(currentUser, "technical-reco") ? "flex" : "hidden"} items-center gap-3 rounded-md px-3 py-2 hover:bg-gray-600 hover:text-white transition-all duration-300 h-10`}
               title={isCollapsed ? "Technical Reco" : ""}
             >
               <LuWrench size={18} className="flex-shrink-0" />

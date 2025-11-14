@@ -53,7 +53,7 @@ export default function TechnicalsPage() {
         throw new Error("Failed to fetch Technical Recommendations");
 
       let technicalRecosData = await technicalRecosRes.json();
-      if (!utils.isModuleAdmin(currentUser, "technicalReco")) {
+      if (!utils.isModuleAdmin(currentUser, "technical-reco")) {
         technicalRecosData = technicalRecosData.filter(technicalReco => technicalReco.assignee === currentUser.id);
       }
       setTechnicalRecos(technicalRecosData);

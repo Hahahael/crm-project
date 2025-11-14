@@ -118,7 +118,7 @@ export default function SalesLeadsPage() {
       if (!salesLeadsRes.ok) throw new Error("Failed to fetch Sales Leads");
 
       let salesLeadsData = await salesLeadsRes.json();
-      if (!utils.isModuleAdmin(currentUser, "salesLead")) {
+      if (!utils.isModuleAdmin(currentUser, "sales-lead")) {
         salesLeadsData = salesLeadsData.filter(salesLead => salesLead.assignee === currentUser.id);
       }
       setSalesLeads(
