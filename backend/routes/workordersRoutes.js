@@ -666,7 +666,7 @@ router.get("/summary/status", async (req, res) => {
     // Only add assignee filter if it's a non-empty string
     if (assignee && assignee.trim() !== '') {
       // Filter by assignee username - join with users table
-      whereConditions.push(`u.username = $${paramIndex}`);
+      whereConditions.push(`u.id = $${paramIndex}`);
       queryParams.push(assignee.trim());
       paramIndex++;
     }
