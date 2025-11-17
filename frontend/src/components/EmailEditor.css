@@ -1,0 +1,175 @@
+/* Enhanced TipTap Editor Styles */
+.email-editor-content .ProseMirror {
+  outline: none;
+  padding: 24px;
+  border: none;
+  background: white;
+  font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+  line-height: 1.7;
+  font-size: 16px;
+  color: #1f2937;
+  min-height: 500px;
+}
+
+/* Style the table area as protected */
+.email-editor-content .ProseMirror table {
+  border: 1px solid #d1d5db;
+  background: #f9fafb;
+  opacity: 0.9;
+  position: relative;
+}
+
+.email-editor-content .ProseMirror table:hover {
+  opacity: 1;
+  background: #f3f4f6;
+}
+
+/* Style the visual separators */
+.email-editor-content .ProseMirror hr[style*="dashed"] {
+  margin: 32px 0;
+  border: none;
+  border-top: 2px dashed #3b82f6;
+  opacity: 0.7;
+}
+
+.email-editor-content .ProseMirror hr[style*="dashed"]:hover {
+  opacity: 1;
+  border-top-color: #1d4ed8;
+}
+
+/* Style the protection labels */
+.email-editor-content .ProseMirror div[style*="text-align: center"] span[style*="background: #3b82f6"] {
+  display: inline-block;
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.8; }
+}
+
+.email-editor-content .ProseMirror p {
+  margin: 1em 0;
+}
+
+.email-editor-content .ProseMirror p:first-child {
+  margin-top: 0;
+}
+
+.email-editor-content .ProseMirror p:last-child {
+  margin-bottom: 0;
+}
+
+.email-editor-content .ProseMirror ul {
+  padding-left: 1.5em;
+  margin: 1em 0;
+}
+
+.email-editor-content .ProseMirror li {
+  margin: 0.5em 0;
+  line-height: 1.6;
+}
+
+.email-editor-content .ProseMirror strong {
+  font-weight: 600;
+  color: #111827;
+}
+
+.email-editor-content .ProseMirror em {
+  font-style: italic;
+  color: #374151;
+}
+
+.email-editor-content .ProseMirror h1, 
+.email-editor-content .ProseMirror h2, 
+.email-editor-content .ProseMirror h3 {
+  font-weight: 600;
+  margin: 1.5em 0 0.75em 0;
+  color: #111827;
+}
+
+.email-editor-content .ProseMirror h1 {
+  font-size: 1.875em;
+}
+
+.email-editor-content .ProseMirror h2 {
+  font-size: 1.5em;
+}
+
+.email-editor-content .ProseMirror h3 {
+  font-size: 1.25em;
+}
+
+/* Focus styles */
+.email-editor-content .ProseMirror:focus {
+  box-shadow: inset 0 0 0 2px rgb(59 130 246 / 0.2);
+  background: #fefefe;
+}
+
+/* Protected table styles */
+.email-editor-content .ProseMirror [style*="background-color: #f8fafc"] {
+  user-select: none;
+  pointer-events: none;
+  opacity: 0.95;
+  position: relative;
+}
+
+.email-editor-content .ProseMirror [style*="background-color: #f8fafc"]:hover {
+  opacity: 1;
+}
+
+.email-editor-content .ProseMirror [style*="background-color: #f8fafc"]::before {
+  content: "🔒 Protected Content";
+  position: absolute;
+  top: -8px;
+  right: 8px;
+  background: #3b82f6;
+  color: white;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 10px;
+  font-weight: 500;
+  z-index: 10;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.email-editor-content .ProseMirror [style*="background-color: #f8fafc"]:hover::before {
+  opacity: 1;
+}
+
+/* Table styling */
+.email-editor-content .ProseMirror table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 16px 0;
+}
+
+.email-editor-content .ProseMirror th,
+.email-editor-content .ProseMirror td {
+  border: 1px solid #d1d5db;
+  padding: 12px 8px;
+  text-align: left;
+}
+
+.email-editor-content .ProseMirror th {
+  background-color: #f9fafb;
+  font-weight: 600;
+  color: #374151;
+}
+
+/* Smooth transitions */
+.email-editor-content .ProseMirror * {
+  transition: color 0.2s ease, background-color 0.2s ease;
+}
+
+/* Selection styles */
+.email-editor-content .ProseMirror ::selection {
+  background: rgb(59 130 246 / 0.2);
+}
+
+/* Loading state */
+.email-editor-content.loading .ProseMirror {
+  opacity: 0.6;
+  pointer-events: none;
+}
