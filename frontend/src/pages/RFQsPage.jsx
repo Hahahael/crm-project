@@ -20,7 +20,7 @@ import { useUser } from "../contexts/UserContext.jsx";
 import utils from "../helper/utils.js";
 
 export default function RFQsPage() {
-  const { currentUser } = useUser();
+  const { currentUser, loading: userLoading } = useUser();
   const timeoutRef = useRef();
 
   const [RFQs, setRFQs] = useState([]);
@@ -34,7 +34,18 @@ export default function RFQsPage() {
   const [newAssignedRFQs, setNewAssignedRFQs] = useState([]);
   const [activeCardFilter, setActiveCardFilter] = useState("all"); // all | draft | sent | responded | completed
 
-  const fetchAllData = async () => {
+  const fetchAllData = useCallback(async () => {
+    if (userLoading) {
+      console.log("User still loading, waiting...");
+      return;
+    }
+    if (!currentUser) {
+      console.log("No current user available");
+      setLoading(false);
+      return;
+    }
+    
+    console.log("Fetching work orders for user:", currentUser);
     try {
       const RFQsRes = await apiBackendFetch("/api/rfqs");
       if (!RFQsRes.ok)
@@ -50,7 +61,7 @@ export default function RFQsPage() {
       console.error("Error retrieving RFQs:", err);
       setError("Failed to fetch RFQs.");
     }
-  };
+  }, [currentUser, userLoading]);
 
   const fetchNewAssignedRFQs = useCallback(async () => {
     console.log("fetchNewRFQs called");
@@ -68,10 +79,22 @@ export default function RFQsPage() {
       console.error("Failed to fetch assigned RFQs", err);
     }
   }, [currentUser]);
-
+  
   useEffect(() => {
     fetchAllData();
-  }, []);
+  }, [fetchAllData]);
+
+  // Handle loading state better - don't show loading if user is still loading
+  useEffect(() => {
+    if (!userLoading && !currentUser) {
+      // User finished loading but no user found - redirect to login or show error
+      console.log("User finished loading but no user found");
+      setLoading(false);
+    } else if (!userLoading && currentUser) {
+      // User loaded successfully - fetchAllData will handle the rest
+      console.log("User loaded successfully:", currentUser.username);
+    }
+  }, [userLoading, currentUser]);
 
   useEffect(() => {
     if (currentUser) {

@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import {
   LuBell,
@@ -18,7 +18,7 @@ import { useUser } from "../contexts/UserContext.jsx";
 import utils from "../helper/utils.js";
 
 export default function AccountsPage() {
-  const { currentUser } = useUser();
+  const { currentUser, loading: userLoading } = useUser();
   const timeoutRef = useRef();
   const location = useLocation();
   const salesLead = location.state?.salesLead;
@@ -42,7 +42,16 @@ export default function AccountsPage() {
 
   console.log("editingAccount:", editingAccount);
 
-  const fetchAllData = async () => {
+  const fetchAllData = useCallback(async () => {
+    if (userLoading) {
+      console.log("User still loading, waiting...");
+      return;
+    }
+    if (!currentUser) {
+      console.log("No current user available");
+      setLoading(false);
+      return;
+    }
     console.log("fetchAllData called");
     try {
       const accountsRes = await apiBackendFetch("/api/accounts/naefs");
@@ -94,7 +103,7 @@ export default function AccountsPage() {
       console.error("Error retrieving accounts:", err);
       setError("Failed to fetch accounts.");
     }
-  };
+  }, [currentUser, userLoading]);
 
   const fetchNewAssignedNAEFs = async () => {
     if (!currentUser) return;
@@ -113,10 +122,22 @@ export default function AccountsPage() {
       console.error("Failed to fetch assigned workorders", err);
     }
   };
-
+    
   useEffect(() => {
     fetchAllData();
-  }, []);
+  }, [fetchAllData]);
+
+  // Handle loading state better - don't show loading if user is still loading
+  useEffect(() => {
+    if (!userLoading && !currentUser) {
+      // User finished loading but no user found - redirect to login or show error
+      console.log("User finished loading but no user found");
+      setLoading(false);
+    } else if (!userLoading && currentUser) {
+      // User loaded successfully - fetchAllData will handle the rest
+      console.log("User loaded successfully:", currentUser.username);
+    }
+  }, [userLoading, currentUser]);
 
   useEffect(() => {
     if (currentUser) {

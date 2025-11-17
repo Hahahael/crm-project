@@ -6,7 +6,7 @@ import { apiBackendFetch } from "../services/api";
 import utils from "../helper/utils.js";
 
 const WorkOrderForm = ({ workOrder, mode = "create", onSave, onBack }) => {
-    console.log("WorkOrderForm mode:", mode, "workOrder:", workOrder);
+  console.log("WorkOrderForm mode:", mode, "workOrder:", workOrder);
   const [errors, setErrors] = useState(null);
   const [formData, setFormData] = useState({
     wo_number: "",
@@ -155,6 +155,8 @@ const WorkOrderForm = ({ workOrder, mode = "create", onSave, onBack }) => {
         setFormData((prev) => ({ ...prev, assignee_username: u.username }));
       }
     }
+
+    console.log("Hydrating account-related fields if needed..., check formData:", formData);
     // Populate account-related display fields when account_id exists (edit mode)
     if (
       !formData.is_new_account &&
@@ -284,6 +286,13 @@ const WorkOrderForm = ({ workOrder, mode = "create", onSave, onBack }) => {
           utils.formatDate(workOrder.due_date, "YYYY-MM-DD") ||
           prev.due_date ||
           "",
+        accountName: workOrder.account.accountName,
+        product_brand: workOrder.account.brand.Description,
+        department: workOrder.account.department.Department,
+        industry: workOrder.account.industry.Code,
+        product_id: workOrder.account.brand.ID,
+        department_id: workOrder.account.department.Id,
+        industry_id: workOrder.account.industry.Id,
       }));
     } else if (workOrder && Object.keys(workOrder).length === 0) {
       setFormData((prev) => ({

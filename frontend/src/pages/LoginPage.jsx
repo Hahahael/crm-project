@@ -23,7 +23,8 @@ function LoginPage() {
         throw new Error("Invalid credentials");
       }
 
-      // No need to store token manually
+      // Fetch user data and store in session
+      // await fetchCurrentUser();
       setLoginSuccess(true);
 
       // Redirect after 1.5 seconds

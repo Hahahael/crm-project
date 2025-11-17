@@ -22,10 +22,22 @@ import SalesLeadForm from "../components/SalesLeadForm";
 import { apiBackendFetch } from "../services/api";
 import LoadingModal from "../components/LoadingModal";
 import { useUser } from "../contexts/UserContext";
+import { getUserSession, hasValidSession } from "../utils/sessionStorage";
+import { useSessionUser, getCurrentUser } from "../hooks/useSessionUser";
 import utils from "../helper/utils";
 
 export default function SalesLeadsPage() {
-  const { currentUser } = useUser();
+  const { currentUser, loading: userLoading } = useUser();
+  
+  // Method 1: Direct session access (no reactivity)
+  const getSessionUser = () => getUserSession();
+  const isSessionValid = () => hasValidSession();
+  
+  // Method 2: Using custom session hook (reactive)
+  const { user: sessionUser, isValid: sessionValid } = useSessionUser();
+  
+  // Method 3: Direct function call (most direct)
+  // const directUser = getCurrentUser();
   // Handler for submit/approval (called by SalesLeadForm)
   const handleSubmitForApproval = async (formData) => {
     try {
@@ -112,8 +124,37 @@ export default function SalesLeadsPage() {
   const [latestStages, setLatestStages] = useState([]); // latest stage per workorder
   const [activeCardFilter, setActiveCardFilter] = useState("all"); // all | salesLeadStage | technicalStage | rfqStage | highUrgency
 
-  const fetchAllData = async () => {
+  const fetchAllData = useCallback (async () => {
+    if (userLoading) {
+      console.log("User still loading, waiting...");
+      return; // Don't set loading(false) here - let UserContext finish loading
+    }
+    if (!currentUser) {
+      console.log("No current user available - user not authenticated");
+      setLoading(false);
+      return;
+    }
+    
+    console.log("Fetching work orders for user:", currentUser);
     try {
+      const queryParams = new URLSearchParams();
+      
+      // Add assignee filter if user is not admin
+      if (!utils.isModuleAdmin(currentUser, "sales-lead") && currentUser?.id) {
+        queryParams.append('assignee', currentUser.id);
+      }
+
+      console.log("Query Params:", queryParams.toString(), "Length: ", queryParams.size);
+      
+      // Add any additional filters
+      // Object.entries(additionalFilters).forEach(([key, value]) => {
+      //   if (value !== null && value !== undefined && value !== '') {
+      //     queryParams.append(key, value);
+      //   }
+      // });
+      
+      const queryString = queryParams.size > 0 ? `?${queryParams.toString()}` : "";
+
       const salesLeadsRes = await apiBackendFetch("/api/salesleads");
       if (!salesLeadsRes.ok) throw new Error("Failed to fetch Sales Leads");
 
@@ -136,7 +177,7 @@ export default function SalesLeadsPage() {
       // Fetch latest summary per workorder and map to cards
       try {
         const latestRes = await apiBackendFetch(
-          "/api/workflow-stages/summary/latest",
+          `/api/workflow-stages/summary/latest${queryString}`,
         );
         if (latestRes.ok) {
           const latest = await latestRes.json();
@@ -176,7 +217,7 @@ export default function SalesLeadsPage() {
       console.error("Error retrieving salesleads:", err);
       setError("Failed to fetch sales leads.");
     }
-  };
+  }, [currentUser, userLoading]);;
 
   const fetchNewAssignedSalesLeads = useCallback(async () => {
     if (!currentUser) return;
@@ -242,7 +283,19 @@ export default function SalesLeadsPage() {
 
   useEffect(() => {
     fetchAllData();
-  }, []);
+  }, [fetchAllData]);
+
+  // Handle loading state better - don't show loading if user is still loading
+  useEffect(() => {
+    if (!userLoading && !currentUser) {
+      // User finished loading but no user found - redirect to login or show error
+      console.log("User finished loading but no user found");
+      setLoading(false);
+    } else if (!userLoading && currentUser) {
+      // User loaded successfully - fetchAllData will handle the rest
+      console.log("User loaded successfully:", currentUser.username);
+    }
+  }, [userLoading, currentUser]);
 
   useEffect(() => {
     if (currentUser) {
@@ -261,11 +314,12 @@ export default function SalesLeadsPage() {
     }
   }, [successMessage]);
 
-  if (loading)
+  // Show loading if page is loading OR user is still loading
+  if (loading || userLoading)
     return (
       <LoadingModal
-        message="Loading Sales Leads..."
-        subtext="Please wait while we fetch your data."
+        message={userLoading ? "Loading User..." : "Loading Sales Leads..."}
+        subtext={userLoading ? "Authenticating user session..." : "Please wait while we fetch your data."}
       />
     );
 

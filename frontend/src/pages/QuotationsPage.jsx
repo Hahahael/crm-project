@@ -18,9 +18,11 @@ import { apiBackendFetch } from "../services/api";
 import LoadingModal from "../components/LoadingModal";
 import RFQCanvassSheet from "../components/RFQCanvassSheet";
 import utils from "../helper/utils";
+import { useUser } from "../contexts/UserContext";
 
 export default function QuotationsPage() {
   const timeoutRef = useRef();
+  const { currentUser, loading: userLoading } = useUser();
 
   const [quotations, setQuotations] = useState([]);
   const [mssqlQuotations, setMssqlQuotations] = useState([]);
@@ -29,7 +31,7 @@ export default function QuotationsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [successMessage, setSuccessMessage] = useState("");
-  const [currentUser, setCurrentUser] = useState(null);
+  // const [currentUser, setCurrentUser] = useState(null);
   // kept for future UI tabs (prefixed with _ to avoid unused-var lint)
   const [_selectedTab, _setSelectedTab] = useState("details");
   const [newAssignedQuotations, setNewAssignedQuotations] = useState([]);
@@ -42,7 +44,18 @@ export default function QuotationsPage() {
     completed: 0,
   });
 
-  const fetchAllData = async () => {
+  const fetchAllData = useCallback(async () => {
+    if (userLoading) {
+      console.log("User still loading, waiting...");
+      return;
+    }
+    if (!currentUser) {
+      console.log("No current user available");
+      setLoading(false);
+      return;
+    }
+    
+    console.log("Fetching work orders for user:", currentUser);
     try {
       const quotationsRes = await apiBackendFetch("/api/quotations");
       if (!quotationsRes.ok) throw new Error("Failed to fetch Quotations");
@@ -58,7 +71,7 @@ export default function QuotationsPage() {
       console.error("Error retrieving Quotations:", err);
       setError("Failed to fetch Quotations.");
     }
-  };
+  }, [currentUser, userLoading]);
 
   const fetchMssqlQuotations = async () => {
     try {
@@ -76,18 +89,6 @@ export default function QuotationsPage() {
       console.log("Fetched MSSQL quotations:", data);
     } catch (err) {
       console.error("Error fetching MSSQL quotations:", err);
-    }
-  };
-
-  const fetchCurrentUser = async () => {
-    try {
-      const res = await apiBackendFetch("/auth/me");
-      if (res.ok) {
-        const data = await res.json();
-        setCurrentUser(data.user);
-      }
-    } catch (err) {
-      console.error("Failed to fetch current user", err);
     }
   };
 
@@ -324,12 +325,22 @@ export default function QuotationsPage() {
       setSelectedRFQ(null);
     }
   };
-
+  
   useEffect(() => {
-    fetchCurrentUser();
     fetchAllData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [fetchAllData]);
+
+  // Handle loading state better - don't show loading if user is still loading
+  useEffect(() => {
+    if (!userLoading && !currentUser) {
+      // User finished loading but no user found - redirect to login or show error
+      console.log("User finished loading but no user found");
+      setLoading(false);
+    } else if (!userLoading && currentUser) {
+      // User loaded successfully - fetchAllData will handle the rest
+      console.log("User loaded successfully:", currentUser.username);
+    }
+  }, [userLoading, currentUser]);
 
   useEffect(() => {
     if (currentUser) {
