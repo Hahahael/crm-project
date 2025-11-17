@@ -1,10 +1,17 @@
 import { createContext, useContext, useState, useEffect } from 'react';
 import { apiBackendFetch } from '../services/api';
+import { saveUserSession, getUserSession, clearUserSession, hasValidSession } from '../utils/sessionStorage';
 
 const UserContext = createContext();
 
 export const UserProvider = ({ children }) => {
-  const [currentUser, setCurrentUser] = useState(null);
+  const [currentUser, setCurrentUser] = useState(() => {
+    // Try to load user from sessionStorage on initialization
+    if (hasValidSession()) {
+      return getUserSession();
+    }
+    return null;
+  });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -15,10 +22,13 @@ export const UserProvider = ({ children }) => {
       if (res.ok) {
         const data = await res.json();
         setCurrentUser(data.user);
+        // Store user data in sessionStorage
+        saveUserSession(data.user);
         setError(null);
       } else {
         // Don't treat auth failures as errors - user might not be logged in
         setCurrentUser(null);
+        clearUserSession();
         setError(null);
       }
     } catch (err) {
@@ -32,6 +42,7 @@ export const UserProvider = ({ children }) => {
 
   const logout = () => {
     setCurrentUser(null);
+    clearUserSession();
     setError(null);
   };
 

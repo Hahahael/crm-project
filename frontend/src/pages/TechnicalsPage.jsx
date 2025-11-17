@@ -1,5 +1,5 @@
 //src/pages/TechnicalsPage
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useLocation } from "react-router-dom";
 import {
   LuBell,
@@ -20,7 +20,7 @@ import { useUser } from "../contexts/UserContext.jsx";
 import utils from "../helper/utils.js";
 
 export default function TechnicalsPage() {
-  const { currentUser } = useUser();
+  const { currentUser, loading: userLoading } = useUser();
   const timeoutRef = useRef();
   const location = useLocation();
   const salesLead = location.state?.salesLead;
@@ -46,7 +46,18 @@ export default function TechnicalsPage() {
 
   console.log("editingTR:", editingTR);
 
-  const fetchAllData = async () => {
+  const fetchAllData = useCallback (async () => {
+    if (userLoading) {
+      console.log("User still loading, waiting...");
+      return;
+    }
+    if (!currentUser) {
+      console.log("No current user available");
+      setLoading(false);
+      return;
+    }
+    
+    console.log("Fetching work orders for user:", currentUser);
     try {
       const technicalRecosRes = await apiBackendFetch("/api/technicals");
       if (!technicalRecosRes.ok)
@@ -81,7 +92,7 @@ export default function TechnicalsPage() {
       console.error("Error retrieving technical recommendations:", err);
       setError("Failed to fetch technical recommendations.");
     }
-  };
+  }, [currentUser, userLoading]);
 
   const fetchNewAssignedTechnicalRecos = async () => {
     if (!currentUser) return;
@@ -106,7 +117,19 @@ export default function TechnicalsPage() {
 
   useEffect(() => {
     fetchAllData();
-  }, []);
+  }, [fetchAllData]);
+
+  // Handle loading state better - don't show loading if user is still loading
+  useEffect(() => {
+    if (!userLoading && !currentUser) {
+      // User finished loading but no user found - redirect to login or show error
+      console.log("User finished loading but no user found");
+      setLoading(false);
+    } else if (!userLoading && currentUser) {
+      // User loaded successfully - fetchAllData will handle the rest
+      console.log("User loaded successfully:", currentUser.username);
+    }
+  }, [userLoading, currentUser]);
 
   useEffect(() => {
     if (currentUser) {

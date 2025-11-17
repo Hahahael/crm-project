@@ -551,25 +551,62 @@ router.put("/workorder/:id", async (req, res) => {
   try {
     const { id } = req.params;
     const body = toSnake(req.body);
-    console.log("Approving work order id", id, "with data:", body);
-
+    console.log("Updating account id", id, "from workorder with data:", body);
+    
+    // Update PostgreSQL account
     const updateResult = await db.query(`
       UPDATE accounts SET
-        wo_source_id = $1
-      WHERE kristem_account_id = $2
+        wo_source_id = $1,
+        department_id = $2,
+        account_name = $3,
+        industry_id = $4,
+        product_id = $5,
+        contact_number = $6,
+        updated_at = NOW()
+      WHERE kristem_account_id = $7
       RETURNING *
     `, [
       body.wo_id,
+      body.department_id,
+      body.account_name,
+      body.industry_id,
+      body.product_id,
+      body.contact_number,
       id
     ]);
-
+    
     if (updateResult.rows.length === 0) {
-      return res.status(404).json({ error: "Account not found for approval" });
+      return res.status(404).json({ error: "Account not found" });
     }
-
+    
     const updatedAccount = updateResult.rows[0];
-    console.log("✅ Approved PostgreSQL account:", updatedAccount);
 
+    console.log("✅ Updated PostgreSQL account:", updatedAccount);
+    
+    // Sync to MSSQL
+    if (updatedAccount.kristemAccountId) {
+      try {
+        let kristemAccount = {
+          kristemAccountId: updatedAccount.kristemAccountId,
+          naefNumber: updatedAccount.naefNumber,
+          accountName: updatedAccount.accountName,
+          address: updatedAccount.address || -1,
+          contactNumber: updatedAccount.contactNumber || null,
+          emailAddress: updatedAccount.emailAddress || null,
+          industryId: updatedAccount.industryId || 1,
+          customerLocationId: updatedAccount.customerLocationId || null,
+          chargeTo: updatedAccount.chargeTo || null,
+          tinNo: updatedAccount.tinNo || null,
+          customerMarketSegmentGroupId: updatedAccount.customerMarketSegmentGroupId || null,
+          category: updatedAccount.category || null,
+        }
+        console.log("Syncing approved account to MSSQL:", kristemAccount);
+        await syncAccountToMSSQL(kristemAccount);
+      } catch (syncErr) {
+        console.warn("Failed to sync approved account to MSSQL:", syncErr.message);
+      }
+    }
+    
     return res.json(updatedAccount);
   } catch (err) {
     console.error("PUT /api/accounts/:id/approve error:", err);
@@ -712,7 +749,7 @@ router.put("/:id", async (req, res) => {
 
 // Update approved account in MSSQL spidb.customer (dual creation mode)
 async function syncAccountToMSSQL(account) {
-  console.log("🚀 Updating approved account in MSSQL:", account.id);
+  console.log("🚀 Updating approved account in MSSQL:", account.id, "with data:", account);
   
   try {
     if (!account.kristemAccountId) {

@@ -273,10 +273,11 @@ export default function WorkOrdersPage() {
   const handleSave = async (formData, mode) => {
     console.log("Handle Save called with data:", formData, "Mode:", mode);
     try {
+      console.log("Preparing to save workorder with data:", formData);
       // If creating a new account, also create the account
       if (formData.is_new_account) {
         const accountResponse = await apiBackendFetch(
-          mode === "edit" ? `/api/accounts/${formData.accountId}` : "/api/accounts",
+          mode === "edit" ? `/api/accounts/workorder/${formData.account_id}` : "/api/accounts",
           {
             method: mode === "edit" ? "PUT" : "POST",
             body: JSON.stringify(formData),
