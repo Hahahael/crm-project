@@ -300,10 +300,13 @@ router.get("/:id", async (req, res) => {
 
       if (customer) {
         let source = customer;
-        if (Object.keys(baseAcc).length === 0) {
+        console.log("Source:", source);
+        if (Object.keys(baseAcc).length !== 0) {
           source = baseAcc;
         }
+        console.log("New Source:", source);
         const normId = (v) => {
+          console.log("Normalizing ID value:", v);
           const n = Number(v);
           return Number.isFinite(n) ? n : null;
         };
@@ -330,6 +333,8 @@ router.get("/:id", async (req, res) => {
             normId(source.DepartmentId) ??
             2
           );
+
+        console.log("Derived foreign keys for workorder", id, ":", { bId, iId, dId });
 
         const [bRes, iRes, dRes] = await Promise.all([
           spiPool
