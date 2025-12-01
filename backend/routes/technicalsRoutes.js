@@ -53,7 +53,7 @@ router.get("/", async (req, res) => {
       FROM technical_recommendations tr
       LEFT JOIN users u ON tr.assignee = u.id
       LEFT JOIN sales_leads sl ON tr.sl_id = sl.id
-      ORDER BY tr.id ASC
+      ORDER BY tr.updated_at ASC
       `);
     const rows = result.rows;
 

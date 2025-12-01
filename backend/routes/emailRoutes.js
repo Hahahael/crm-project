@@ -24,7 +24,7 @@ const createTransporter = async () => {
       fromName: emailConfig.MailFromName
     });
     
-    return nodemailer.createTransporter({
+    return nodemailer.createTransport({
       host: emailConfig.Host,
       port: parseInt(emailConfig.SmtpPort),
       secure: parseInt(emailConfig.SmtpPort) === 465, // true for 465, false for other ports

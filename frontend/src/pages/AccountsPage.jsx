@@ -39,6 +39,7 @@ export default function AccountsPage() {
     completed: 0,
   });
   const [statusFilter, setStatusFilter] = useState(null); // 'draft' | 'pending_approval' | 'overdue' | null
+  const [statusDropdownFilter, setStatusDropdownFilter] = useState(''); // dropdown filter for status
 
   console.log("editingAccount:", editingAccount);
 
@@ -188,7 +189,7 @@ export default function AccountsPage() {
       return name.includes(q) || code.includes(q);
     })
     .filter((a) => {
-      // Status filter
+      // Card status filter
       if (!statusFilter) return true;
       
       const stageStatus = (a.stageStatus || a.stage_status || "").toLowerCase();
@@ -205,6 +206,12 @@ export default function AccountsPage() {
         default:
           return true;
       }
+    })
+    .filter((a) => {
+      // Dropdown status filter
+      if (!statusDropdownFilter) return true;
+      const stageStatus = (a.stageStatus || a.stage_status || "").toLowerCase();
+      return stageStatus.includes(statusDropdownFilter.toLowerCase());
     });
 
   // Fetch a single account and set as selected (details view)
@@ -476,11 +483,10 @@ export default function AccountsPage() {
 
           {/* Status center */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-            <div 
-              className={`relative flex flex-col rounded-xl shadow-sm border border-gray-200 p-6 cursor-pointer hover:shadow-md transition ${!statusFilter ? "ring-2 ring-blue-500" : ""}`}
+            <button
+              type="button"
               onClick={() => setStatusFilter(null)}
-              role="button"
-              tabIndex={0}
+              className="text-left relative flex flex-col rounded-xl shadow-sm border border-gray-200 hover:bg-gray-50 cursor-pointer p-6 transition"
             >
               <LuFileText className="absolute top-6 right-6 text-gray-600" />
               <p className="text-sm mb-1 mr-4">Total NAEFs</p>
@@ -488,12 +494,11 @@ export default function AccountsPage() {
               <p className="text-xs text-gray-500">
                 All account enrollment forms
               </p>
-            </div>
-            <div 
-              className={`relative flex flex-col rounded-xl shadow-sm border border-gray-200 p-6 cursor-pointer hover:shadow-md transition ${statusFilter === "draft" ? "ring-2 ring-blue-500" : ""}`}
+            </button>
+            <button
+              type="button"
               onClick={() => setStatusFilter("draft")}
-              role="button"
-              tabIndex={0}
+              className="text-left relative flex flex-col rounded-xl shadow-sm border border-gray-200 hover:bg-gray-50 cursor-pointer p-6 transition"
             >
               <LuClipboard className="absolute top-6 right-6 text-yellow-600" />
               <p className="text-sm mb-1 mr-4">Draft NAEFs</p>
@@ -501,12 +506,11 @@ export default function AccountsPage() {
               <p className="text-xs text-gray-500">
                 Forms in draft status
               </p>
-            </div>
-            <div 
-              className={`relative flex flex-col rounded-xl shadow-sm border border-gray-200 p-6 cursor-pointer hover:shadow-md transition ${statusFilter === "pending_approval" ? "ring-2 ring-blue-500" : ""}`}
+            </button>
+            <button
+              type="button"
               onClick={() => setStatusFilter("pending_approval")}
-              role="button"
-              tabIndex={0}
+              className="text-left relative flex flex-col rounded-xl shadow-sm border border-gray-200 hover:bg-gray-50 cursor-pointer p-6 transition"
             >
               <LuCircleCheck className="absolute top-6 right-6 text-blue-600" />
               <p className="text-sm mb-1 mr-4">Pending Approval</p>
@@ -514,12 +518,11 @@ export default function AccountsPage() {
               <p className="text-xs text-gray-500">
                 Forms awaiting approval
               </p>
-            </div>
-            <div 
-              className={`relative flex flex-col rounded-xl shadow-sm border border-gray-200 p-6 cursor-pointer hover:shadow-md transition ${statusFilter === "overdue" ? "ring-2 ring-blue-500" : ""}`}
+            </button>
+            <button
+              type="button"
               onClick={() => setStatusFilter("overdue")}
-              role="button"
-              tabIndex={0}
+              className="text-left relative flex flex-col rounded-xl shadow-sm border border-gray-200 hover:bg-gray-50 cursor-pointer p-6 transition"
             >
               <LuCircleAlert className="absolute top-6 right-6 text-red-600" />
               <p className="text-sm mb-1 mr-4">Overdue NAEFs</p>
@@ -527,13 +530,14 @@ export default function AccountsPage() {
               <p className="text-xs text-gray-500">
                 Forms past due date
               </p>
-            </div>
+            </button>
           </div>
 
-          {/* Search + Table */}
+          {/* Search + Filters + Table */}
           <div className="flex flex-col p-6 border border-gray-200 rounded-md gap-6">
-            <div className="flex">
-              <div className="relative flex gap-6">
+            <div className="flex flex-col sm:flex-row gap-4">
+              {/* Search Bar - Stretched */}
+              <div className="relative flex-1">
                 <LuSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
                 <input
                   type="text"
@@ -543,27 +547,81 @@ export default function AccountsPage() {
                   placeholder="Search NAEFs..."
                 />
               </div>
+              
+              {/* Status Filter */}
+              <div className="w-full sm:w-48">
+                <select
+                  value={statusDropdownFilter}
+                  onChange={(e) => setStatusDropdownFilter(e.target.value)}
+                  className="flex h-9 w-full rounded-md border border-gray-200 bg-transparent px-3 py-1 text-sm shadow-xs transition-colors"
+                >
+                  <option value="">All Statuses</option>
+                  <option value="draft">Draft</option>
+                  <option value="pending">Pending</option>
+                  <option value="submitted">Submitted</option>
+                  <option value="approved">Approved</option>
+                  <option value="in progress">In Progress</option>
+                  <option value="completed">Completed</option>
+                  <option value="rejected">Rejected</option>
+                  <option value="cancelled">Cancelled</option>
+                </select>
+              </div>
             </div>
+            
+            {/* Active Filters Display */}
+            {(statusDropdownFilter || statusFilter) && (
+              <div className="flex flex-wrap items-center gap-2">
+                {/* Filter badges */}
+                <div className="flex flex-wrap gap-2">
+                  {statusFilter && (
+                    <div className="inline-flex items-center gap-2 rounded-full bg-blue-50 text-blue-700 px-3 py-1 text-xs border border-blue-200">
+                      <span>Card:</span>
+                      <span className="font-semibold">
+                        {statusFilter === 'draft' && 'draft'}
+                        {statusFilter === 'pending_approval' && 'pending approval'}
+                        {statusFilter === 'overdue' && 'overdue'}
+                      </span>
+                      <button
+                        type="button"
+                        className="ml-1 rounded-full hover:bg-blue-100 px-1.5 cursor-pointer"
+                        onClick={() => setStatusFilter(null)}
+                        aria-label="Clear card filter"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  )}
+                  
+                  {statusDropdownFilter && (
+                    <div className="inline-flex items-center gap-2 rounded-full bg-purple-50 text-purple-700 px-3 py-1 text-xs border border-purple-200">
+                      <span>Status:</span>
+                      <span className="font-semibold">{statusDropdownFilter}</span>
+                      <button
+                        type="button"
+                        className="ml-1 rounded-full hover:bg-purple-100 px-1.5 cursor-pointer"
+                        onClick={() => setStatusDropdownFilter('')}
+                        aria-label="Clear status filter"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  )}
 
-            {/* Active Filter Display */}
-            {statusFilter && (
-              <div className="flex items-center gap-2">
-                <div className="inline-flex items-center gap-2 rounded-full bg-blue-50 text-blue-700 px-3 py-1 text-xs border border-blue-200">
-                  <span>Filter:</span>
-                  <span className="font-semibold">
-                    {statusFilter === 'draft' && 'Draft NAEFs'}
-                    {statusFilter === 'pending_approval' && 'Pending Approval'}
-                    {statusFilter === 'overdue' && 'Overdue NAEFs'}
-                  </span>
-                  <button
-                    type="button"
-                    className="ml-1 rounded-full hover:bg-blue-100 px-1.5 cursor-pointer"
-                    onClick={() => setStatusFilter(null)}
-                    aria-label="Clear filter"
-                  >
-                    ×
-                  </button>
+                  {/* Clear All Filters */}
+                  {(statusDropdownFilter || statusFilter) && (
+                    <button
+                      onClick={() => {
+                        setStatusFilter(null);
+                        setStatusDropdownFilter('');
+                      }}
+                      className="text-xs text-gray-500 hover:text-gray-700 underline"
+                    >
+                      Clear all filters
+                    </button>
+                  )}
                 </div>
+                
+                <span className="text-gray-500 text-sm">({filtered.length} results)</span>
               </div>
             )}
 

@@ -85,6 +85,27 @@ export function formatNumber(value, decimals = 2) {
   return Number(value).toFixed(decimals);
 }
 
+export function formatMoney(value, options = {}) {
+  const {
+    currency = '₱',
+    locale = 'en-US',
+    minimumFractionDigits = 2,
+    maximumFractionDigits = 2,
+    showCurrency = true
+  } = options;
+  
+  if (value === null || value === undefined || Number.isNaN(Number(value))) {
+    return showCurrency ? `${currency} 0.00` : '0.00';
+  }
+  
+  const formatted = Number(value).toLocaleString(locale, {
+    minimumFractionDigits,
+    maximumFractionDigits
+  });
+  
+  return showCurrency ? `${currency} ${formatted}` : formatted;
+}
+
 export function calculateTimeliness(
   dueDate,
   doneDate = null,
@@ -95,27 +116,49 @@ export function calculateTimeliness(
   const due = dayjs(dueDate);
   if (!due.isValid()) return { status: "unknown", daysLate: null };
 
-  // If a doneDate exists, caller requested we return on_time regardless of comparison
+  // If task is completed (has doneDate), compare completion date vs due date
   if (doneDate) {
+    const done = dayjs(doneDate);
+    if (!done.isValid()) return { status: "unknown", daysLate: null };
+
+    // Calculate days late based on completion date vs due date
+    const daysLate = Math.max(
+      0,
+      done.startOf("day").diff(due.startOf("day"), "day"),
+    );
+
+    if (done.isAfter(due.add(graceDays, "day"), "day")) {
+      // Completed beyond grace period -> was overdue when completed
+      return { status: "overdue", daysLate };
+    }
+
+    if (daysLate > 0) {
+      // Completed late but within grace period
+      return { status: "late", daysLate };
+    }
+
+    // Completed on time or early
     return { status: "on_time", daysLate: 0 };
   }
 
+  // Task is not completed yet, compare current date vs due date
   const now = dayjs();
-  // days late as whole days (positive when now > due)
   const daysLate = Math.max(
     0,
     now.startOf("day").diff(due.startOf("day"), "day"),
   );
 
   if (now.isAfter(due.add(graceDays, "day"), "day")) {
-    // beyond grace -> overdue
+    // Currently beyond grace period -> overdue
     return { status: "overdue", daysLate };
   }
 
   if (daysLate > 0) {
+    // Currently late but within grace period
     return { status: "late", daysLate };
   }
 
+  // Currently on time
   return { status: "on_time", daysLate: 0 };
 }
 

@@ -237,8 +237,8 @@ export default function WorkOrdersPage() {
       const q = search.toLowerCase();
       return (
         (wo.woNumber || "").toLowerCase().includes(q) ||
-        (wo.accountName || "").toLowerCase().includes(q) ||
-        (wo.workDescription || "").toLowerCase().includes(q)
+        (wo.accountName || "").toLowerCase().includes(q)
+        //|| (wo.workDescription || "").toLowerCase().includes(q)
       );
     })
     .filter((wo) => {
@@ -696,7 +696,7 @@ export default function WorkOrdersPage() {
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   className="flex h-9 w-full rounded-md border border-gray-200 bg-transparent px-3 py-1 text-sm shadow-xs transition-colors pl-10"
-                  placeholder="Search workorders..."
+                  placeholder="Search workorders by WO# or Account Name..."
                 />
               </div>
 

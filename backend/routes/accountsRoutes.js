@@ -65,7 +65,7 @@ router.get("/", async (req, res) => {
       FROM accounts a
       LEFT JOIN users u ON a.prepared_by = u.id
       WHERE a.stage_status = 'Approved'
-      ORDER BY a.created_at DESC
+      ORDER BY a.updated_at DESC
     `);
 
     // Get kristem_account_ids of unapproved PostgreSQL accounts (to exclude from MSSQL list)

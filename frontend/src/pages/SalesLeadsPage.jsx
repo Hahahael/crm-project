@@ -123,6 +123,8 @@ export default function SalesLeadsPage() {
   });
   const [latestStages, setLatestStages] = useState([]); // latest stage per workorder
   const [activeCardFilter, setActiveCardFilter] = useState("all"); // all | salesLeadStage | technicalStage | rfqStage | highUrgency
+  const [stageFilter, setStageFilter] = useState(''); // dropdown filter for stage
+  const [urgencyFilter, setUrgencyFilter] = useState(''); // dropdown filter for urgency
 
   const fetchAllData = useCallback (async () => {
     if (userLoading) {
@@ -376,7 +378,16 @@ export default function SalesLeadsPage() {
       sl.account?.account_name || sl.accountName || sl.account_name || ""
     ).toLowerCase();
     const matchesText = slNum.includes(term) || accName.includes(term);
-    return matchesText && stageMatchesActiveFilter(sl);
+    
+    // Stage filter (sales stage)
+    const matchesStage = !stageFilter || 
+      (sl.stageName || '').toLowerCase().includes(stageFilter.toLowerCase());
+    
+    // Urgency filter
+    const matchesUrgency = !urgencyFilter || 
+      (sl.priority || sl.urgency || '').toLowerCase().includes(urgencyFilter.toLowerCase());
+    
+    return matchesText && stageMatchesActiveFilter(sl) && matchesStage && matchesUrgency;
   });
 
   const handleSave = async (formData, mode) => {
@@ -592,7 +603,7 @@ export default function SalesLeadsPage() {
             <button
               type="button"
               onClick={() => setActiveCardFilter("all")}
-              className={`text-left relative flex flex-col rounded-xl shadow-sm border p-6 transition ${activeCardFilter === "all" ? "border-blue-400 ring-1 ring-blue-300" : "border-gray-200 hover:bg-gray-50 cursor-pointer"}`}
+              className="text-left relative flex flex-col rounded-xl shadow-sm border border-gray-200 hover:bg-gray-50 cursor-pointer p-6 transition"
             >
               <LuChartColumn className="absolute top-6 right-6 text-gray-600" />
               <p className="text-sm mb-1 mr-4">Total Leads</p>
@@ -604,7 +615,7 @@ export default function SalesLeadsPage() {
             <button
               type="button"
               onClick={() => setActiveCardFilter("salesLeadStage")}
-              className={`text-left relative flex flex-col rounded-xl shadow-sm border p-6 transition ${activeCardFilter === "salesLeadStage" ? "border-blue-400 ring-1 ring-blue-300" : "border-gray-200 hover:bg-gray-50 cursor-pointer"}`}
+              className="text-left relative flex flex-col rounded-xl shadow-sm border border-gray-200 hover:bg-gray-50 cursor-pointer p-6 transition"
             >
               <LuFileText className="absolute top-6 right-6 text-gray-600" />
               <p className="text-sm mb-1 mr-4">Sales Lead Stage</p>
@@ -616,7 +627,7 @@ export default function SalesLeadsPage() {
             <button
               type="button"
               onClick={() => setActiveCardFilter("technicalStage")}
-              className={`text-left relative flex flex-col rounded-xl shadow-sm border p-6 transition ${activeCardFilter === "technicalStage" ? "border-blue-400 ring-1 ring-blue-300" : "border-gray-200 hover:bg-gray-50 cursor-pointer"}`}
+              className="text-left relative flex flex-col rounded-xl shadow-sm border border-gray-200 hover:bg-gray-50 cursor-pointer p-6 transition"
             >
               <LuClipboardCheck className="absolute top-6 right-6 text-gray-600" />
               <p className="text-sm mb-1 mr-4">Technical Stage</p>
@@ -628,7 +639,7 @@ export default function SalesLeadsPage() {
             <button
               type="button"
               onClick={() => setActiveCardFilter("rfqStage")}
-              className={`text-left relative flex flex-col rounded-xl shadow-sm border p-6 transition ${activeCardFilter === "rfqStage" ? "border-blue-400 ring-1 ring-blue-300" : "border-gray-200 hover:bg-gray-50 cursor-pointer"}`}
+              className="text-left relative flex flex-col rounded-xl shadow-sm border border-gray-200 hover:bg-gray-50 cursor-pointer p-6 transition"
             >
               <LuChartLine className="absolute top-6 right-6 text-gray-600" />
               <p className="text-sm mb-1 mr-4">RFQ / NAEF / Quotation</p>
@@ -640,7 +651,7 @@ export default function SalesLeadsPage() {
             <button
               type="button"
               onClick={() => setActiveCardFilter("highUrgency")}
-              className={`text-left relative flex flex-col rounded-xl shadow-sm border p-6 transition ${activeCardFilter === "highUrgency" ? "border-blue-400 ring-1 ring-blue-300" : "border-gray-200 hover:bg-gray-50 cursor-pointer"}`}
+              className="text-left relative flex flex-col rounded-xl shadow-sm border border-gray-200 hover:bg-gray-50 cursor-pointer p-6 transition"
             >
               <LuClock className="absolute top-6 right-6 text-gray-600" />
               <p className="text-sm mb-1 mr-5">High Urgency</p>
@@ -651,20 +662,121 @@ export default function SalesLeadsPage() {
             </button>
           </div>
 
-          {/* Search + Table */}
+          {/* Search + Filters + Table */}
           <div className="flex flex-col p-6 border border-gray-200 rounded-md gap-6">
-            <div className="flex">
-              <div className="relative flex gap-6">
+            <div className="flex flex-col sm:flex-row gap-4">
+              {/* Search Bar - Stretched */}
+              <div className="relative flex-1">
                 <LuSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
                 <input
                   type="text"
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   className="flex h-9 w-full rounded-md border border-gray-200 bg-transparent px-3 py-1 text-sm shadow-xs transition-colors pl-10"
-                  placeholder="Search salesleads..."
+                  placeholder="Search sales leads by SL# or Account Name"
                 />
               </div>
+              
+              {/* Sales Stage Filter */}
+              <div className="w-full sm:w-48">
+                <select
+                  value={stageFilter}
+                  onChange={(e) => setStageFilter(e.target.value)}
+                  className="flex h-9 w-full rounded-md border border-gray-200 bg-transparent px-3 py-1 text-sm shadow-xs transition-colors"
+                >
+                  <option value="">All Stages</option>
+                  <option value="sales lead">Sales Lead</option>
+                  <option value="technical recommendation">Technical Recommendation</option>
+                  <option value="rfq">RFQ</option>
+                  <option value="naef">NAEF</option>
+                  <option value="quotations">Quotations</option>
+                </select>
+              </div>
+              
+              {/* Urgency Filter */}
+              <div className="w-full sm:w-48">
+                <select
+                  value={urgencyFilter}
+                  onChange={(e) => setUrgencyFilter(e.target.value)}
+                  className="flex h-9 w-full rounded-md border border-gray-200 bg-transparent px-3 py-1 text-sm shadow-xs transition-colors"
+                >
+                  <option value="">All Urgency</option>
+                  <option value="low">Low</option>
+                  <option value="medium">Medium</option>
+                  <option value="high">High</option>
+                </select>
+              </div>
+              
             </div>
+            
+            {/* Active Filters Display */}
+            {(stageFilter || urgencyFilter || activeCardFilter !== 'all') && (
+              <div className="flex flex-wrap items-center gap-2">
+                {/* Filter badges */}
+                <div className="flex flex-wrap gap-2">
+                  {activeCardFilter !== 'all' && (
+                    <div className="inline-flex items-center gap-2 rounded-full bg-blue-50 text-blue-700 px-3 py-1 text-xs border border-blue-200">
+                      <span>Card:</span>
+                      <span className="font-semibold">{activeCardFilter.replace(/([A-Z])/g, ' $1').toLowerCase()}</span>
+                      <button
+                        type="button"
+                        className="ml-1 rounded-full hover:bg-blue-100 px-1.5 cursor-pointer"
+                        onClick={() => setActiveCardFilter('all')}
+                        aria-label="Clear card filter"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  )}
+                  
+                  {stageFilter && (
+                    <div className="inline-flex items-center gap-2 rounded-full bg-green-50 text-green-700 px-3 py-1 text-xs border border-green-200">
+                      <span>Stage:</span>
+                      <span className="font-semibold">{stageFilter}</span>
+                      <button
+                        type="button"
+                        className="ml-1 rounded-full hover:bg-green-100 px-1.5 cursor-pointer"
+                        onClick={() => setStageFilter('')}
+                        aria-label="Clear stage filter"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  )}
+                  
+                  {urgencyFilter && (
+                    <div className="inline-flex items-center gap-2 rounded-full bg-orange-50 text-orange-700 px-3 py-1 text-xs border border-orange-200">
+                      <span>Urgency:</span>
+                      <span className="font-semibold">{urgencyFilter}</span>
+                      <button
+                        type="button"
+                        className="ml-1 rounded-full hover:bg-orange-100 px-1.5 cursor-pointer"
+                        onClick={() => setUrgencyFilter('')}
+                        aria-label="Clear urgency filter"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Clear All Filters */}
+                  {(stageFilter || urgencyFilter || activeCardFilter !== 'all') && (
+                    <button
+                      onClick={() => {
+                        setActiveCardFilter('all');
+                        setStageFilter('');
+                        setUrgencyFilter('');
+                      }}
+                      className="text-xs text-gray-500 hover:text-gray-700 underline"
+                    >
+                      Clear all filters
+                    </button>
+                  )}
+                </div>
+                
+                <span className="text-gray-500 text-sm">({filtered.length} results)</span>
+              </div>
+            )}
 
             <SalesLeadsTable
               salesLeads={filtered}
