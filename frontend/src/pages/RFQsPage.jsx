@@ -33,6 +33,7 @@ export default function RFQsPage() {
   const [selectedTab, setSelectedTab] = useState("details");
   const [newAssignedRFQs, setNewAssignedRFQs] = useState([]);
   const [activeCardFilter, setActiveCardFilter] = useState("all"); // all | draft | sent | responded | completed
+  const [statusFilter, setStatusFilter] = useState(''); // dropdown filter for status
 
   const fetchAllData = useCallback(async () => {
     if (userLoading) {
@@ -162,9 +163,13 @@ export default function RFQsPage() {
       rfq.account?.account_name || rfq.accountName || rfq.account_name || ""
     ).toLowerCase();
     const matchesSearch = rfqNum.includes(term) || accName.includes(term);
-    const matchesFilter = statusMatchesActiveFilter(rfq);
+    const matchesCardFilter = statusMatchesActiveFilter(rfq);
     
-    return matchesSearch && matchesFilter;
+    // Status filter
+    const matchesStatus = !statusFilter || 
+      (rfq.stageStatus || rfq.status || '').toLowerCase().includes(statusFilter.toLowerCase());
+    
+    return matchesSearch && matchesCardFilter && matchesStatus;
   });
 
   const handleSave = async (formData, mode) => {
@@ -411,7 +416,7 @@ export default function RFQsPage() {
             <button
               type="button"
               onClick={() => setActiveCardFilter("all")}
-              className={`text-left relative flex flex-col rounded-xl shadow-sm border p-6 transition ${activeCardFilter === "all" ? "border-blue-400 ring-1 ring-blue-300" : "border-gray-200 hover:bg-gray-50 cursor-pointer"}`}
+              className="text-left relative flex flex-col rounded-xl shadow-sm border border-gray-200 hover:bg-gray-50 cursor-pointer p-6 transition"
             >
               <LuFileText className="absolute top-6 right-6 text-gray-600" />
               <p className="text-sm mb-1 mr-4">Total RFQs</p>
@@ -423,7 +428,7 @@ export default function RFQsPage() {
             <button
               type="button"
               onClick={() => setActiveCardFilter("draft")}
-              className={`text-left relative flex flex-col rounded-xl shadow-sm border p-6 transition ${activeCardFilter === "draft" ? "border-blue-400 ring-1 ring-blue-300" : "border-gray-200 hover:bg-gray-50 cursor-pointer"}`}
+              className="text-left relative flex flex-col rounded-xl shadow-sm border border-gray-200 hover:bg-gray-50 cursor-pointer p-6 transition"
             >
               <LuClipboard className="absolute top-6 right-6 text-gray-600" />
               <p className="text-sm mb-1 mr-4">Draft</p>
@@ -438,7 +443,7 @@ export default function RFQsPage() {
             <button
               type="button"
               onClick={() => setActiveCardFilter("sent")}
-              className={`text-left relative flex flex-col rounded-xl shadow-sm border p-6 transition ${activeCardFilter === "sent" ? "border-blue-400 ring-1 ring-blue-300" : "border-gray-200 hover:bg-gray-50 cursor-pointer"}`}
+              className="text-left relative flex flex-col rounded-xl shadow-sm border border-gray-200 hover:bg-gray-50 cursor-pointer p-6 transition"
             >
               <LuSend className="absolute top-6 right-6 text-gray-600" />
               <p className="text-sm mb-1 mr-4">Sent</p>
@@ -453,7 +458,7 @@ export default function RFQsPage() {
             <button
               type="button"
               onClick={() => setActiveCardFilter("responded")}
-              className={`text-left relative flex flex-col rounded-xl shadow-sm border p-6 transition ${activeCardFilter === "responded" ? "border-blue-400 ring-1 ring-blue-300" : "border-gray-200 hover:bg-gray-50 cursor-pointer"}`}
+              className="text-left relative flex flex-col rounded-xl shadow-sm border border-gray-200 hover:bg-gray-50 cursor-pointer p-6 transition"
             >
               <LuMessageCircle className="absolute top-6 right-6 text-gray-600" />
               <p className="text-sm mb-1 mr-4">Responded</p>
@@ -470,7 +475,7 @@ export default function RFQsPage() {
             <button
               type="button"
               onClick={() => setActiveCardFilter("completed")}
-              className={`text-left relative flex flex-col rounded-xl shadow-sm border p-6 transition ${activeCardFilter === "completed" ? "border-blue-400 ring-1 ring-blue-300" : "border-gray-200 hover:bg-gray-50 cursor-pointer"}`}
+              className="text-left relative flex flex-col rounded-xl shadow-sm border border-gray-200 hover:bg-gray-50 cursor-pointer p-6 transition"
             >
               <LuCircleAlert className="absolute top-6 right-6 text-gray-600" />
               <p className="text-sm mb-1 mr-4">Completed</p>
@@ -484,10 +489,11 @@ export default function RFQsPage() {
             </button>
           </div>
 
-          {/* Search + Table */}
+          {/* Search + Filters + Table */}
           <div className="flex flex-col p-6 border border-gray-200 rounded-md gap-6">
-            <div className="flex">
-              <div className="relative flex gap-6">
+            <div className="flex flex-col sm:flex-row gap-4">
+              {/* Search Bar - Stretched */}
+              <div className="relative flex-1">
                 <LuSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
                 <input
                   type="text"
@@ -497,7 +503,81 @@ export default function RFQsPage() {
                   placeholder="Search RFQs..."
                 />
               </div>
+              
+              {/* Status Filter */}
+              <div className="w-full sm:w-48">
+                <select
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                  className="flex h-9 w-full rounded-md border border-gray-200 bg-transparent px-3 py-1 text-sm shadow-xs transition-colors"
+                >
+                  <option value="">All Statuses</option>
+                  <option value="draft">Draft</option>
+                  <option value="pending">Pending</option>
+                  <option value="sent">Sent</option>
+                  <option value="submitted">Submitted</option>
+                  <option value="responded">Responded</option>
+                  <option value="quoted">Quoted</option>
+                  <option value="approved">Approved</option>
+                  <option value="completed">Completed</option>
+                  <option value="cancelled">Cancelled</option>
+                  <option value="rejected">Rejected</option>
+                </select>
+              </div>
             </div>
+            
+            {/* Active Filters Display */}
+            {(statusFilter || activeCardFilter !== 'all') && (
+              <div className="flex flex-wrap items-center gap-2">
+                {/* Filter badges */}
+                <div className="flex flex-wrap gap-2">
+                  {activeCardFilter !== 'all' && (
+                    <div className="inline-flex items-center gap-2 rounded-full bg-blue-50 text-blue-700 px-3 py-1 text-xs border border-blue-200">
+                      <span>Card:</span>
+                      <span className="font-semibold">{activeCardFilter}</span>
+                      <button
+                        type="button"
+                        className="ml-1 rounded-full hover:bg-blue-100 px-1.5 cursor-pointer"
+                        onClick={() => setActiveCardFilter('all')}
+                        aria-label="Clear card filter"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  )}
+                  
+                  {statusFilter && (
+                    <div className="inline-flex items-center gap-2 rounded-full bg-amber-50 text-amber-700 px-3 py-1 text-xs border border-amber-200">
+                      <span>Status:</span>
+                      <span className="font-semibold">{statusFilter}</span>
+                      <button
+                        type="button"
+                        className="ml-1 rounded-full hover:bg-amber-100 px-1.5 cursor-pointer"
+                        onClick={() => setStatusFilter('')}
+                        aria-label="Clear status filter"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Clear All Filters */}
+                  {(statusFilter || activeCardFilter !== 'all') && (
+                    <button
+                      onClick={() => {
+                        setActiveCardFilter('all');
+                        setStatusFilter('');
+                      }}
+                      className="text-xs text-gray-500 hover:text-gray-700 underline"
+                    >
+                      Clear all filters
+                    </button>
+                  )}
+                </div>
+                
+                <span className="text-gray-500 text-sm">({filtered.length} results)</span>
+              </div>
+            )}
 
             <RFQsTable
               rfqs={filtered}

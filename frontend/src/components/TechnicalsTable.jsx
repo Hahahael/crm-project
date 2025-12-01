@@ -7,7 +7,11 @@ import {
   LuClock,
   LuCircleAlert,
   LuCheck,
+  LuArrowUp,
+  LuArrowDown,
+  LuArrowUpDown,
 } from "react-icons/lu";
+import { useState } from "react";
 import util from "../helper/utils.js";
 import config from "../config.js";
 import { useUser } from "../contexts/UserContext.jsx";
@@ -16,6 +20,90 @@ export default function TechnicalsTable({ technicals, onView, onEdit }) {
   const { currentUser } = useUser();
   console.log("Rendering TechnicalsTable with technicals:", technicals);
   const baseBadge = "inline-flex items-center px-2.5 py-0.5 text-xs";
+
+  // Sorting state
+  const [sortField, setSortField] = useState(null);
+  const [sortDirection, setSortDirection] = useState('asc'); // 'asc' or 'desc'
+
+  // Handle column sorting
+  const handleSort = (field) => {
+    if (sortField === field) {
+      // Toggle direction if same field
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      // New field, default to ascending
+      setSortField(field);
+      setSortDirection('asc');
+    }
+  };
+
+  // Sort the technicals
+  const sortedTechnicals = [...technicals].sort((a, b) => {
+    if (!sortField) return 0;
+
+    let aVal, bVal;
+
+    switch (sortField) {
+      case 'trNumber':
+        aVal = a.trNumber || '';
+        bVal = b.trNumber || '';
+        break;
+      case 'account':
+        aVal = (a.account?.kristem?.Name || '').toLowerCase();
+        bVal = (b.account?.kristem?.Name || '').toLowerCase();
+        break;
+      case 'title':
+        aVal = (a.title || '').toLowerCase();
+        bVal = (b.title || '').toLowerCase();
+        break;
+      case 'stageStatus':
+        aVal = (a.stageStatus || '').toLowerCase();
+        bVal = (b.stageStatus || '').toLowerCase();
+        break;
+      case 'priority':
+        aVal = (a.priority || a.urgency || '').toLowerCase();
+        bVal = (b.priority || b.urgency || '').toLowerCase();
+        break;
+      case 'createdAt':
+        aVal = new Date(a.createdAt || 0);
+        bVal = new Date(b.createdAt || 0);
+        break;
+      case 'updatedAt':
+        aVal = new Date(a.updatedAt || 0);
+        bVal = new Date(b.updatedAt || 0);
+        break;
+      case 'dueDate':
+        aVal = new Date(a.dueDate || 0);
+        bVal = new Date(b.dueDate || 0);
+        break;
+      case 'doneDate':
+        aVal = new Date(a.doneDate || 0);
+        bVal = new Date(b.doneDate || 0);
+        break;
+      default:
+        return 0;
+    }
+
+    // Handle comparison
+    let comparison = 0;
+    if (aVal > bVal) {
+      comparison = 1;
+    } else if (aVal < bVal) {
+      comparison = -1;
+    }
+
+    return sortDirection === 'desc' ? comparison * -1 : comparison;
+  });
+
+  // Render sort icon for header
+  const renderSortIcon = (field) => {
+    if (sortField !== field) {
+      return <LuArrowUpDown className="w-4 h-4 text-gray-400" />;
+    }
+    return sortDirection === 'asc' 
+      ? <LuArrowUp className="w-4 h-4 text-blue-600" />
+      : <LuArrowDown className="w-4 h-4 text-blue-600" />;
+  };
 
   const renderStatusBadge = (status) => {
     if (!status)
@@ -126,34 +214,88 @@ export default function TechnicalsTable({ technicals, onView, onEdit }) {
   return (
     <div className="relative overflow-x-auto rounded-lg border border-gray-200 bg-white">
       <table className="w-full border-collapse text-left text-sm min-w-4xl">
-        <thead className="border-gray-200 border-b hover:bg-gray-100 transition-all duration-200">
+        <thead className="border-gray-200 border-b">
           <tr>
-            <th className="px-4 py-2 font-normal text-gray-500 text-sm w-[8%]">
-              TR#
+            <th className="px-4 py-2 w-[8%]">
+              <button 
+                onClick={() => handleSort('trNumber')}
+                className="flex items-center gap-1 font-normal text-gray-500 text-sm hover:text-gray-700 transition-colors duration-200"
+              >
+                TR#
+                {renderSortIcon('trNumber')}
+              </button>
             </th>
-            <th className="px-4 py-2 font-normal text-gray-500 text-sm w-[8%]">
-              Account
+            <th className="px-4 py-2 w-[8%]">
+              <button 
+                onClick={() => handleSort('account')}
+                className="flex items-center gap-1 font-normal text-gray-500 text-sm hover:text-gray-700 transition-colors duration-200"
+              >
+                Account
+                {renderSortIcon('account')}
+              </button>
             </th>
-            <th className="px-4 py-2 font-normal text-gray-500 text-sm ">
-              Title
+            <th className="px-4 py-2">
+              <button 
+                onClick={() => handleSort('title')}
+                className="flex items-center gap-1 font-normal text-gray-500 text-sm hover:text-gray-700 transition-colors duration-200"
+              >
+                Title
+                {renderSortIcon('title')}
+              </button>
             </th>
-            <th className="px-4 py-2 font-normal text-gray-500 text-sm w-[10%]">
-              Status
+            <th className="px-4 py-2 w-[10%]">
+              <button 
+                onClick={() => handleSort('stageStatus')}
+                className="flex items-center gap-1 font-normal text-gray-500 text-sm hover:text-gray-700 transition-colors duration-200"
+              >
+                Status
+                {renderSortIcon('stageStatus')}
+              </button>
             </th>
-            <th className="px-4 py-2 font-normal text-gray-500 text-sm w-[8%]">
-              Priority
+            <th className="px-4 py-2 w-[8%]">
+              <button 
+                onClick={() => handleSort('priority')}
+                className="flex items-center gap-1 font-normal text-gray-500 text-sm hover:text-gray-700 transition-colors duration-200"
+              >
+                Priority
+                {renderSortIcon('priority')}
+              </button>
             </th>
-            <th className="px-4 py-2 font-normal text-gray-500 text-sm">
-              Created Date
+            <th className="px-4 py-2">
+              <button 
+                onClick={() => handleSort('createdAt')}
+                className="flex items-center gap-1 font-normal text-gray-500 text-sm hover:text-gray-700 transition-colors duration-200"
+              >
+                Created Date
+                {renderSortIcon('createdAt')}
+              </button>
             </th>
-            <th className="px-4 py-2 font-normal text-gray-500 text-sm w-[7%]">
-              Last Modified
+            <th className="px-4 py-2 w-[7%]">
+              <button 
+                onClick={() => handleSort('updatedAt')}
+                className="flex items-center gap-1 font-normal text-gray-500 text-sm hover:text-gray-700 transition-colors duration-200"
+              >
+                Last Modified
+                {renderSortIcon('updatedAt')}
+              </button>
             </th>
-            <th className="px-4 py-2 font-normal text-gray-500 text-sm w-[7%]">
-              Due Date
+            <th className="px-4 py-2 w-[7%]">
+              <button 
+                onClick={() => handleSort('dueDate')}
+                className="flex items-center gap-1 font-normal text-gray-500 text-sm hover:text-gray-700 transition-colors duration-200"
+              >
+                Due Date
+                {renderSortIcon('dueDate')}
+              </button>
             </th>
-            <th className="px-4 py-2 font-normal text-gray-500 text-sm w-[7%]">
-              Done Date
+            <th className="px-4 py-2 w-[7%]">
+              <button 
+                onClick={() => handleSort('doneDate')}
+                className="flex items-center gap-1 font-normal text-gray-500 text-sm hover:text-gray-700 transition-colors duration-200"
+              >
+                Done Date
+                {renderSortIcon('doneDate')}
+              </button>
             </th>
             <th className="px-4 py-2 font-normal text-gray-500 text-sm">
               Task Status
@@ -164,7 +306,7 @@ export default function TechnicalsTable({ technicals, onView, onEdit }) {
           </tr>
         </thead>
         <tbody className="divide-y divide-gray-200">
-          {technicals.map((tr) => (
+          {sortedTechnicals.map((tr) => (
             <tr
               key={tr.id}
               className="hover:bg-gray-50 transition-all duration-200"

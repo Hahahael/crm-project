@@ -2,6 +2,8 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import { LuBold, LuItalic, LuList, LuLock, LuMail, LuEye, LuSeparatorHorizontal } from 'react-icons/lu';
+import { useUser } from '../contexts/UserContext.jsx';
+import config from '../config.js';
 import './EmailEditor.css';
 
 // Custom EmailEditor component with seamless integrated experience
@@ -11,6 +13,7 @@ export default function EmailEditor({
   rfqItems, 
   onChange 
 }) {
+  const { currentUser } = useUser();
   const [fullContent, setFullContent] = useState('');
   const [showPreview, setShowPreview] = useState(false);
 
@@ -56,8 +59,8 @@ export default function EmailEditor({
 <p>Thank you for your time and consideration.</p>
 
 <p>Best regards,<br/>
-<strong>Procurement Team</strong><br/>
-${rfqData.company_name || 'Our Company'}</p>`;
+<strong>${currentUser?.fullName || currentUser?.username || 'Procurement Team'}</strong><br/>
+${config.business?.companyName || config.companyName || 'Our Company'}</p>`;
 
     // Generate simple table for editor (no fancy styling)
     const generateSimpleTable = () => {
@@ -114,7 +117,7 @@ ${rfqData.company_name || 'Our Company'}</p>`;
       table: generateSimpleTable(),
       footer
     };
-  }, [vendor, rfqData, rfqItems]);
+  }, [vendor, rfqData, rfqItems, currentUser]);
 
   // Generate fancy table for preview only
   const generateFancyTable = useCallback(() => {
@@ -209,7 +212,7 @@ ${sections.footer}`;
       const completeEmail = sections.header + generateFancyTable() + sections.footer;
       onChange?.(completeEmail);
     }
-  }, [vendor, rfqData, rfqItems, onChange, generateEmailSections, generateFancyTable]);
+  }, [vendor, rfqData, rfqItems, onChange, generateEmailSections, generateFancyTable, currentUser]);
 
   // TipTap editor with complete email content
   const editor = useEditor({

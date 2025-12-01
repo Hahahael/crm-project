@@ -11,8 +11,8 @@ const ApprovalActionModal = ({ isOpen, type, approval, onClose, onSubmit, submit
     assignee: "",
     assigneeUsername: "",
     dueDate: "10/10/2025",
-    fromTime: "09:00",
-    toTime: "17:00",
+    fromTime: "09:00:00",
+    toTime: "17:00:00",
     remarks: "",
     nextStage: "",
   });
@@ -23,8 +23,8 @@ const ApprovalActionModal = ({ isOpen, type, approval, onClose, onSubmit, submit
         assignee: "",
         assigneeUsername: "",
         dueDate: "10/10/2025",
-        fromTime: "09:00",
-        toTime: "17:00",
+        fromTime: "09:00:00",
+        toTime: "17:00:00",
         remarks: "",
         nextStage: "",
       });
@@ -112,16 +112,33 @@ const ApprovalActionModal = ({ isOpen, type, approval, onClose, onSubmit, submit
 
   const handleChange = (e) => {
     const { name, value } = e.target;
+    let processedValue = value;
+    
+    if (name === "assignee") {
+      processedValue = Number(value);
+    } else if (name === "fromTime" || name === "toTime") {
+      // Ensure time format includes seconds for backend compatibility
+      processedValue = value.length === 5 ? `${value}:00` : value;
+    }
+    
     setForm({
       ...form,
-      [name]: name === "assignee" ? Number(value) : value,
+      [name]: processedValue,
     });
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    console.log("submitting", form);
-    onSubmit(form);
+    
+    // Ensure time fields have proper format before submitting
+    const formattedForm = {
+      ...form,
+      fromTime: form.fromTime.length === 5 ? `${form.fromTime}:00` : form.fromTime,
+      toTime: form.toTime.length === 5 ? `${form.toTime}:00` : form.toTime,
+    };
+    
+    console.log("submitting", formattedForm);
+    onSubmit(formattedForm);
   };
 
   if (!isOpen) return null;
@@ -193,7 +210,7 @@ const ApprovalActionModal = ({ isOpen, type, approval, onClose, onSubmit, submit
                 name="fromTime"
                 type="time"
                 placeholder="From Time"
-                value={form.fromTime}
+                value={form.fromTime.substring(0, 5)}
                 onChange={handleChange}
                 className="w-full border border-gray-200 rounded p-2"
                 required
@@ -202,7 +219,7 @@ const ApprovalActionModal = ({ isOpen, type, approval, onClose, onSubmit, submit
                 name="toTime"
                 type="time"
                 placeholder="To Time"
-                value={form.toTime}
+                value={form.toTime.substring(0, 5)}
                 onChange={handleChange}
                 className="w-full border border-gray-200 rounded p-2"
                 required

@@ -9,7 +9,7 @@ import {
 } from "react-icons/lu";
 import { useEffect, useState } from "react";
 import { apiBackendFetch } from "../services/api";
-import utils from "../helper/utils";
+import utils, { formatMoney } from "../helper/utils";
 import SalesLeadDetails from "./SalesLeadDetails.jsx";
 import WorkOrderDetails from "./WorkOrderDetails.jsx";
 import TechnicalDetails from "./TechnicalDetails.jsx";
@@ -506,19 +506,19 @@ const RFQDetails = ({
                 {selectedVendorId ? (
                   <>
                     <VendorDetail label="Vendor:" value={selectedVendorName} />
-                    <VendorDetail label="Amount:" value={`₱${utils.formatNumber(selectedVendorTotal, 2)}`} />
-                    <VendorDetail label="Savings:" value={`₱${utils.formatNumber(selectedVendorSavings, 2)}`} />
+                    <VendorDetail label="Amount:" value={formatMoney(selectedVendorTotal)} />
+                    <VendorDetail label="Savings:" value={formatMoney(selectedVendorSavings)} />
                     {selectedVendorSavings > 0 && (
                       <div className="text-xs text-green-600 bg-green-50 px-2 py-1 rounded">
-                        💰 Saves ₱{utils.formatNumber(selectedVendorSavings, 2)} vs best alternative
+                        💰 Saves {formatMoney(selectedVendorSavings)} vs best alternative
                       </div>
                     )}
                   </>
                 ) : (
                   <>
                     <VendorDetail label="Vendor:" value={bestVendorName} />
-                    <VendorDetail label="Amount:" value={`₱${utils.formatNumber(bestVendorTotal, 2)}`} />
-                    <VendorDetail label="Savings:" value={`₱${utils.formatNumber(savingsVsNext, 2)}`} />
+                    <VendorDetail label="Amount:" value={formatMoney(bestVendorTotal)} />
+                    <VendorDetail label="Savings:" value={formatMoney(savingsVsNext)} />
                   </>
                 )}
               </div>
@@ -631,12 +631,10 @@ const RFQDetails = ({
                           {item.leadTime || "-"}
                         </td>
                         <td className="text-sm p-2 align-middle">
-                          ₱ { utils.formatNumber(item?.details?.Price ) || "-"}
+                          {item?.details?.Price ? formatMoney(item.details.Price) : "-"}
                         </td>
                         <td className="text-sm p-2 align-middle">
-                          ₱{" "}
-                          {utils.formatNumber(item?.details?.Price * item.quantity) ||
-                            "-"}
+                          {item?.details?.Price ? formatMoney(item.details.Price * item.quantity) : "-"}
                         </td>
                       </tr>
                     ))}
@@ -648,15 +646,15 @@ const RFQDetails = ({
               <div className="w-64">
                 <div className="flex justify-between py-2">
                   <span className="font-medium">Subtotal:</span>
-                  <span>₱ {utils.formatNumber(rfq.subtotal) || "-"}</span>
+                  <span>{rfq.subtotal ? formatMoney(rfq.subtotal) : "-"}</span>
                 </div>
                 <div className="flex justify-between py-2 border-t">
                   <span className="font-medium">VAT (5%):</span>
-                  <span>₱ {utils.formatNumber(rfq.vat) || "-"}</span>
+                  <span>{rfq.vat ? formatMoney(rfq.vat) : "-"}</span>
                 </div>
                 <div className="flex justify-between py-2 border-t font-bold">
                   <span>Grand Total:</span>
-                  <span>₱ {utils.formatNumber(rfq.grandTotal) || "-"}</span>
+                  <span>{rfq.grandTotal ? formatMoney(rfq.grandTotal) : "-"}</span>
                 </div>
               </div>
             </div>
@@ -694,12 +692,12 @@ const RFQDetails = ({
                     {checkVendorStatus(vendor)}
                   </div>
                   {checkVendorStatus(vendor) === "Quoted" ? (
-                    <div className="flex flex-col items-end ml-4">
-                      <div>
-                        <p className="font-bold">
-                          ₱ {utils.formatNumber(getVendorTotal(vendor))}
-                        </p>
-                      </div>
+                      <div className="flex flex-col items-end ml-4">
+                        <div>
+                          <p className="font-bold">
+                            {formatMoney(getVendorTotal(vendor))}
+                          </p>
+                        </div>
                       <div>
                         <p className="text-xs text-gray-500">
                           Quote Date:{" "}

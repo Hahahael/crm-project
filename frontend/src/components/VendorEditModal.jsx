@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { LuX } from "react-icons/lu";
+import { formatMoney } from "../helper/utils.js";
 
 export default function VendorEditModal({ open, onClose, vendor, onSave }) {
   // Local state for transitions
@@ -252,7 +253,7 @@ export default function VendorEditModal({ open, onClose, vendor, onSave }) {
                           />
                         </td>
                         <td className="p-3 font-medium">
-                          ₱ {((Number(q.quantity) || 0) * (Number(q.unitPrice) || 0)).toFixed(2)}
+                          {formatMoney((Number(q.quantity) || 0) * (Number(q.unitPrice) || 0))}
                         </td>
                       </tr>
                     ))}
@@ -266,16 +267,16 @@ export default function VendorEditModal({ open, onClose, vendor, onSave }) {
                     <div className="flex justify-between w-48">
                       <span>Subtotal:</span>
                       <span className="font-medium">
-                        ${(Number(subtotal) || 0).toFixed(2)}
+                        {formatMoney(subtotal)}
                       </span>
                     </div>
                     <div className="flex justify-between w-48">
                       <span>VAT (5%):</span>
-                      <span className="font-medium">${(Number(vat) || 0).toFixed(2)}</span>
+                      <span className="font-medium">{formatMoney(vat)}</span>
                     </div>
                     <div className="flex justify-between w-48 text-lg font-bold border-t pt-1">
                       <span>Grand Total:</span>
-                      <span>${(Number(grandTotal) || 0).toFixed(2)}</span>
+                      <span>{formatMoney(grandTotal)}</span>
                     </div>
                   </div>
                 </div>

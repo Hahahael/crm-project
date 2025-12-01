@@ -8,21 +8,54 @@ const router = express.Router();
 // Get all sales leads
 router.get("/", async (req, res) => {
   try {
-    const result = await db.query(`
-            SELECT 
-                sl.*, 
-                u.username AS se_username
-            FROM sales_leads sl
-            LEFT JOIN users u ON sl.se_id = u.id
-            ORDER BY sl.id ASC
-        `);
-    const rows = result.rows;
+    const salesleadsResult = await db.query(`
+      SELECT 
+          sl.*, 
+          u.username AS se_username
+      FROM sales_leads sl
+      LEFT JOIN users u ON sl.se_id = u.id
+      ORDER BY sl.updated_at ASC
+    `);
+    const salesleads = salesleadsResult.rows;
+
+    // Attach latest module/stage for each workorder (batch)
+    try {
+      const woIds = salesleads.map((sl) => sl.woId).filter(Boolean);
+      console.log("Fetching latest workflow stages for WO IDs:", woIds);
+      if (woIds.length > 0) {
+        const latestRes = await db.query(
+          `
+            SELECT ws.wo_id, ws.stage_name
+            FROM workflow_stages ws
+            INNER JOIN (
+              SELECT wo_id, MAX(created_at) AS max_created
+              FROM workflow_stages
+              WHERE wo_id = ANY($1::int[])
+              GROUP BY wo_id
+            ) latest ON ws.wo_id = latest.wo_id AND ws.created_at = latest.max_created
+          `,
+          [woIds],
+        );
+
+        console.log("Latest workflow stages result:", latestRes);
+        const latestMap = new Map(
+          (latestRes.rows || []).map((r) => [Number(r.wo_id ?? r.woId), r]),
+        );
+        for (const sl of salesleads) {
+          const lr = latestMap.get(Number(sl.id));
+          sl.stageName = lr?.stage_name ?? lr?.stageName ?? null; // back-compat
+          sl.currentStageName = sl.stageName;
+        }
+      }
+    } catch (stageErr) {
+      console.warn("Failed to attach latest stage to workorders:", stageErr.message);
+    }
 
     // Enrich account via SPI only (kristem, brand, industry, department)
     try {
       const ids = Array.from(
         new Set(
-          rows
+          salesleads
             .map((r) => r.accountId ?? r.account_id)
             .filter((v) => v !== null && v !== undefined),
         ),
@@ -94,7 +127,7 @@ router.get("/", async (req, res) => {
           const industryMap = new Map((indRes.recordset || []).map((i) => [Number(i.Id), i]));
           const departmentMap = new Map((deptRes.recordset || []).map((d) => [Number(d.Id), d]));
 
-          for (const sl of rows) {
+          for (const sl of salesleads) {
             const aid = Number(sl.accountId ?? sl.account_id);
             const cust = Number.isFinite(aid) ? customerMap.get(aid) || null : null;
             if (!cust) {
@@ -133,7 +166,7 @@ router.get("/", async (req, res) => {
       );
     }
 
-    return res.json(rows);
+    return res.json(salesleads);
   } catch (err) {
     console.error(err);
     return res.status(500).json({ error: "Failed to fetch sales leads" });

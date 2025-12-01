@@ -87,6 +87,9 @@ const config = {
 
   // Business rules and constants
   business: {
+    // Company information
+    companyName: 'Kristem',
+    
     // Tax and financial
     vatRate: 0.05, // 5% VAT
     currencySymbol: '₱',

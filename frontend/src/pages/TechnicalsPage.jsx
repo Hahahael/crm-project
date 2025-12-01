@@ -43,6 +43,8 @@ export default function TechnicalsPage() {
     completed: 0,
   });
   const [activeCardFilter, setActiveCardFilter] = useState("all"); // all | draft | submitted | approved | highPriority
+  const [statusFilter, setStatusFilter] = useState(''); // dropdown filter for status
+  const [priorityFilter, setPriorityFilter] = useState(''); // dropdown filter for priority
 
   console.log("editingTR:", editingTR);
 
@@ -184,7 +186,16 @@ export default function TechnicalsPage() {
       tr.account?.account_name || tr.accountName || tr.account_name || ""
     ).toLowerCase();
     const textMatch = trNum.includes(term) || accName.includes(term);
-    return textMatch && matchesActiveFilter(tr);
+    
+    // Status filter
+    const matchesStatus = !statusFilter || 
+      (tr.stageStatus || '').toLowerCase().includes(statusFilter.toLowerCase());
+    
+    // Priority filter
+    const matchesPriority = !priorityFilter || 
+      (tr.priority || '').toLowerCase().includes(priorityFilter.toLowerCase());
+    
+    return textMatch && matchesActiveFilter(tr) && matchesStatus && matchesPriority;
   });
 
   const handleSave = async (formData, mode) => {
@@ -451,7 +462,7 @@ export default function TechnicalsPage() {
             <button
               type="button"
               onClick={() => setActiveCardFilter("all")}
-              className={`text-left relative flex flex-col rounded-xl shadow-sm border p-6 transition ${activeCardFilter === "all" ? "border-purple-400 ring-1 ring-purple-300" : "border-gray-200 hover:bg-gray-50"}`}
+              className="text-left relative flex flex-col rounded-xl shadow-sm border border-gray-200 hover:bg-gray-50 cursor-pointer p-6 transition"
             >
               <LuFileText className="absolute top-6 right-6 text-gray-600" />
               <p className="text-sm mb-1 mr-4">Total Recommendations</p>
@@ -463,7 +474,7 @@ export default function TechnicalsPage() {
             <button
               type="button"
               onClick={() => setActiveCardFilter("draft")}
-              className={`text-left relative flex flex-col rounded-xl shadow-sm border p-6 transition ${activeCardFilter === "draft" ? "border-purple-400 ring-1 ring-purple-300" : "border-gray-200 hover:bg-gray-50"}`}
+              className="text-left relative flex flex-col rounded-xl shadow-sm border border-gray-200 hover:bg-gray-50 cursor-pointer p-6 transition"
             >
               <LuClipboard className="absolute top-6 right-6 text-gray-600" />
               <p className="text-sm mb-1 mr-4">Draft</p>
@@ -475,7 +486,7 @@ export default function TechnicalsPage() {
             <button
               type="button"
               onClick={() => setActiveCardFilter("submitted")}
-              className={`text-left relative flex flex-col rounded-xl shadow-sm border p-6 transition ${activeCardFilter === "submitted" ? "border-purple-400 ring-1 ring-purple-300" : "border-gray-200 hover:bg-gray-50"}`}
+              className="text-left relative flex flex-col rounded-xl shadow-sm border border-gray-200 hover:bg-gray-50 cursor-pointer p-6 transition"
             >
               <LuForward className="absolute top-6 right-6 text-gray-600" />
               <p className="text-sm mb-1 mr-4">Submitted</p>
@@ -485,7 +496,7 @@ export default function TechnicalsPage() {
             <button
               type="button"
               onClick={() => setActiveCardFilter("approved")}
-              className={`text-left relative flex flex-col rounded-xl shadow-sm border p-6 transition ${activeCardFilter === "approved" ? "border-purple-400 ring-1 ring-purple-300" : "border-gray-200 hover:bg-gray-50"}`}
+              className="text-left relative flex flex-col rounded-xl shadow-sm border border-gray-200 hover:bg-gray-50 cursor-pointer p-6 transition"
             >
               <LuCircleCheck className="absolute top-6 right-6 text-gray-600" />
               <p className="text-sm mb-1 mr-4">Approved</p>
@@ -495,7 +506,7 @@ export default function TechnicalsPage() {
             <button
               type="button"
               onClick={() => setActiveCardFilter("highPriority")}
-              className={`text-left relative flex flex-col rounded-xl shadow-sm border p-6 transition ${activeCardFilter === "highPriority" ? "border-purple-400 ring-1 ring-purple-300" : "border-gray-200 hover:bg-gray-50"}`}
+              className="text-left relative flex flex-col rounded-xl shadow-sm border border-gray-200 hover:bg-gray-50 cursor-pointer p-6 transition"
             >
               <LuCircleAlert className="absolute top-6 right-6 text-gray-600" />
               <p className="text-sm mb-1 mr-4">High Priority</p>
@@ -506,20 +517,123 @@ export default function TechnicalsPage() {
             </button>
           </div>
 
-          {/* Search + Table */}
+          {/* Search + Filters + Table */}
           <div className="flex flex-col p-6 border border-gray-200 rounded-md gap-6">
-            <div className="flex">
-              <div className="relative flex gap-6">
+            <div className="flex flex-col sm:flex-row gap-4">
+              {/* Search Bar - Stretched */}
+              <div className="relative flex-1">
                 <LuSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
                 <input
                   type="text"
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   className="flex h-9 w-full rounded-md border border-gray-200 bg-transparent px-3 py-1 text-sm shadow-xs transition-colors pl-10"
-                  placeholder="Search technicals..."
+                  placeholder="Search technical recommendations..."
                 />
               </div>
+              
+              {/* Status Filter */}
+              <div className="w-full sm:w-48">
+                <select
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                  className="flex h-9 w-full rounded-md border border-gray-200 bg-transparent px-3 py-1 text-sm shadow-xs transition-colors"
+                >
+                  <option value="">All Statuses</option>
+                  <option value="pending">Pending</option>
+                  <option value="draft">Draft</option>
+                  <option value="in progress">In Progress</option>
+                  <option value="submitted">Submitted</option>
+                  <option value="approved">Approved</option>
+                  <option value="rejected">Rejected</option>
+                  {/* <option value="completed">Completed</option>
+                  <option value="cancelled">Cancelled</option> */}
+                </select>
+              </div>
+              
+              {/* Priority Filter */}
+              <div className="w-full sm:w-48">
+                <select
+                  value={priorityFilter}
+                  onChange={(e) => setPriorityFilter(e.target.value)}
+                  className="flex h-9 w-full rounded-md border border-gray-200 bg-transparent px-3 py-1 text-sm shadow-xs transition-colors"
+                >
+                  <option value="">All Priority</option>
+                  <option value="low">Low</option>
+                  <option value="medium">Medium</option>
+                  <option value="high">High</option>
+                </select>
+              </div>
             </div>
+            
+            {/* Active Filters Display */}
+            {(statusFilter || priorityFilter || activeCardFilter !== 'all') && (
+              <div className="flex flex-wrap items-center gap-2">
+                {/* Filter badges */}
+                <div className="flex flex-wrap gap-2">
+                  {activeCardFilter !== 'all' && (
+                    <div className="inline-flex items-center gap-2 rounded-full bg-purple-50 text-purple-700 px-3 py-1 text-xs border border-purple-200">
+                      <span>Card:</span>
+                      <span className="font-semibold">{activeCardFilter.replace(/([A-Z])/g, ' $1').toLowerCase()}</span>
+                      <button
+                        type="button"
+                        className="ml-1 rounded-full hover:bg-purple-100 px-1.5 cursor-pointer"
+                        onClick={() => setActiveCardFilter('all')}
+                        aria-label="Clear card filter"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  )}
+                  
+                  {statusFilter && (
+                    <div className="inline-flex items-center gap-2 rounded-full bg-blue-50 text-blue-700 px-3 py-1 text-xs border border-blue-200">
+                      <span>Status:</span>
+                      <span className="font-semibold">{statusFilter}</span>
+                      <button
+                        type="button"
+                        className="ml-1 rounded-full hover:bg-blue-100 px-1.5 cursor-pointer"
+                        onClick={() => setStatusFilter('')}
+                        aria-label="Clear status filter"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  )}
+                  
+                  {priorityFilter && (
+                    <div className="inline-flex items-center gap-2 rounded-full bg-orange-50 text-orange-700 px-3 py-1 text-xs border border-orange-200">
+                      <span>Priority:</span>
+                      <span className="font-semibold">{priorityFilter}</span>
+                      <button
+                        type="button"
+                        className="ml-1 rounded-full hover:bg-orange-100 px-1.5 cursor-pointer"
+                        onClick={() => setPriorityFilter('')}
+                        aria-label="Clear priority filter"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Clear All Filters */}
+                  {(statusFilter || priorityFilter || activeCardFilter !== 'all') && (
+                    <button
+                      onClick={() => {
+                        setActiveCardFilter('all');
+                        setStatusFilter('');
+                        setPriorityFilter('');
+                      }}
+                      className="text-xs text-gray-500 hover:text-gray-700 underline"
+                    >
+                      Clear all filters
+                    </button>
+                  )}
+                </div>
+                
+                <span className="text-gray-500 text-sm">({filtered.length} results)</span>
+              </div>
+            )}
 
             <TechnicalsTable
               technicals={filtered}

@@ -16,7 +16,7 @@ router.get("/", async (req, res) => {
         u.username AS assignee_username
       FROM workorders w
       LEFT JOIN users u ON w.assignee = u.id
-      ORDER BY w.id ASC
+      ORDER BY w.updated_at ASC
     `);
 
     const workorders = workordersResult.rows;
@@ -32,7 +32,7 @@ router.get("/", async (req, res) => {
             INNER JOIN (
               SELECT wo_id, MAX(created_at) AS max_created
               FROM workflow_stages
-              -- WHERE wo_id = ANY($1::int[])
+              WHERE wo_id = ANY($1::int[])
               GROUP BY wo_id
             ) latest ON ws.wo_id = latest.wo_id AND ws.created_at = latest.max_created
           `,
@@ -194,7 +194,7 @@ router.get("/assigned", async (req, res) => {
         FROM workorders w
         LEFT JOIN users u ON w.assignee = u.id
         WHERE u.username = $1
-        ORDER BY w.id ASC
+        ORDER BY w.updated_at ASC
       `,
       [username],
     );

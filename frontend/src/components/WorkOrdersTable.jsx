@@ -7,7 +7,11 @@ import {
   LuCircleAlert,
   LuClock,
   LuCheck,
+  LuArrowUp,
+  LuArrowDown,
+  LuArrowUpDown,
 } from "react-icons/lu";
+import { useState } from "react";
 import util from "../helper/utils.js";
 import config from "../config.js";
 import { useUser } from "../contexts/UserContext.jsx";
@@ -15,6 +19,94 @@ import { useUser } from "../contexts/UserContext.jsx";
 export default function WorkOrdersTable({ workOrders, onView, onEdit }) {
   const { currentUser } = useUser();
   const baseBadge = "inline-flex items-center px-2.5 py-0.5 text-xs";
+
+  // Sorting state
+  const [sortField, setSortField] = useState(null);
+  const [sortDirection, setSortDirection] = useState('asc'); // 'asc' or 'desc'
+
+  // Handle column sorting
+  const handleSort = (field) => {
+    if (sortField === field) {
+      // Toggle direction if same field
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      // New field, default to ascending
+      setSortField(field);
+      setSortDirection('asc');
+    }
+  };
+
+  // Sort the work orders
+  const sortedWorkOrders = [...workOrders].sort((a, b) => {
+    if (!sortField) return 0;
+
+    let aVal, bVal;
+
+    switch (sortField) {
+      case 'woNumber':
+        aVal = a.woNumber || '';
+        bVal = b.woNumber || '';
+        break;
+      case 'woDate':
+        aVal = new Date(a.woDate || 0);
+        bVal = new Date(b.woDate || 0);
+        break;
+      case 'workDescription':
+        aVal = (a.workDescription || '').toLowerCase();
+        bVal = (b.workDescription || '').toLowerCase();
+        break;
+      case 'account':
+        aVal = (a.account?.kristem?.Name || '').toLowerCase();
+        bVal = (b.account?.kristem?.Name || '').toLowerCase();
+        break;
+      case 'assignee':
+        aVal = (a.assigneeUsername || '').toLowerCase();
+        bVal = (b.assigneeUsername || '').toLowerCase();
+        break;
+      case 'stageStatus':
+        aVal = (a.stageStatus || '').toLowerCase();
+        bVal = (b.stageStatus || '').toLowerCase();
+        break;
+      case 'stageName':
+        aVal = (a.stageName || '').toLowerCase();
+        bVal = (b.stageName || '').toLowerCase();
+        break;
+      case 'dueDate':
+        aVal = new Date(a.dueDate || 0);
+        bVal = new Date(b.dueDate || 0);
+        break;
+      case 'doneDate':
+        aVal = new Date(a.doneDate || 0);
+        bVal = new Date(b.doneDate || 0);
+        break;
+      case 'updatedAt':
+        aVal = new Date(a.updatedAt || 0);
+        bVal = new Date(b.updatedAt || 0);
+        break;
+      default:
+        return 0;
+    }
+
+    // Handle comparison
+    let comparison = 0;
+    if (aVal > bVal) {
+      comparison = 1;
+    } else if (aVal < bVal) {
+      comparison = -1;
+    }
+
+    return sortDirection === 'desc' ? comparison * -1 : comparison;
+  });
+
+  // Render sort icon for header
+  const renderSortIcon = (field) => {
+    if (sortField !== field) {
+      return <LuArrowUpDown className="w-4 h-4 text-gray-400" />;
+    }
+    return sortDirection === 'asc' 
+      ? <LuArrowUp className="w-4 h-4 text-blue-600" />
+      : <LuArrowDown className="w-4 h-4 text-blue-600" />;
+  };
 
   const renderStatusBadge = (status) => {
     console.log(
@@ -124,37 +216,100 @@ export default function WorkOrdersTable({ workOrders, onView, onEdit }) {
   return (
     <div className="relative overflow-x-auto rounded-lg border border-gray-200 bg-white">
       <table className="w-full w-min-4xl border-collapse text-left text-sm min-w-4xl">
-        <thead className="border-gray-200 border-b hover:bg-gray-100 transition-all duration-200">
+        <thead className="border-gray-200 border-b">
           <tr>
-            <th className="px-4 py-2 font-normal text-gray-500 text-sm w-[8%]">
-              WO#
+            <th className="px-4 py-2 w-[8%]">
+              <button 
+                onClick={() => handleSort('woNumber')}
+                className="flex items-center gap-1 font-normal text-gray-500 text-sm hover:text-gray-700 transition-colors duration-200"
+              >
+                WO#
+                {renderSortIcon('woNumber')}
+              </button>
             </th>
-            <th className="px-4 py-2 font-normal text-gray-500 text-sm w-[8%]">
-              WO Date
+            <th className="px-4 py-2 w-[8%]">
+              <button 
+                onClick={() => handleSort('woDate')}
+                className="flex items-center gap-1 font-normal text-gray-500 text-sm hover:text-gray-700 transition-colors duration-200"
+              >
+                WO Date
+                {renderSortIcon('woDate')}
+              </button>
             </th>
-            <th className="px-4 py-2 font-normal text-gray-500 text-sm ">
-              Work Description
+            <th className="px-4 py-2">
+              <button 
+                onClick={() => handleSort('workDescription')}
+                className="flex items-center gap-1 font-normal text-gray-500 text-sm hover:text-gray-700 transition-colors duration-200"
+              >
+                Work Description
+                {renderSortIcon('workDescription')}
+              </button>
             </th>
-            <th className="px-4 py-2 font-normal text-gray-500 text-sm w-[10%]">
-              Account
+            <th className="px-4 py-2 w-[10%]">
+              <button 
+                onClick={() => handleSort('account')}
+                className="flex items-center gap-1 font-normal text-gray-500 text-sm hover:text-gray-700 transition-colors duration-200"
+              >
+                Account
+                {renderSortIcon('account')}
+              </button>
             </th>
             <th className="px-4 py-2 font-normal text-gray-500 text-sm w-[8%]">
               Type
             </th>
-            <th className="px-4 py-2 font-normal text-gray-500 text-sm">
-              Assignee
+            <th className="px-4 py-2">
+              <button 
+                onClick={() => handleSort('assignee')}
+                className="flex items-center gap-1 font-normal text-gray-500 text-sm hover:text-gray-700 transition-colors duration-200"
+              >
+                Assignee
+                {renderSortIcon('assignee')}
+              </button>
             </th>
-            <th className="px-4 py-2 font-normal text-gray-500 text-sm w-[7%]">
-              Status
+            <th className="px-4 py-2 w-[7%]">
+              <button 
+                onClick={() => handleSort('stageStatus')}
+                className="flex items-center gap-1 font-normal text-gray-500 text-sm hover:text-gray-700 transition-colors duration-200"
+              >
+                Status
+                {renderSortIcon('stageStatus')}
+              </button>
             </th>
-            <th className="px-4 py-2 font-normal text-gray-500 text-sm w-[7%]">
-              Sub-status
+            <th className="px-4 py-2 w-[7%]">
+              <button 
+                onClick={() => handleSort('stageName')}
+                className="flex items-center gap-1 font-normal text-gray-500 text-sm hover:text-gray-700 transition-colors duration-200"
+              >
+                Sub-status
+                {renderSortIcon('stageName')}
+              </button>
             </th>
-            <th className="px-4 py-2 font-normal text-gray-500 text-sm w-[7%]">
-              Due Date
+            <th className="px-4 py-2 w-[7%]">
+              <button 
+                onClick={() => handleSort('dueDate')}
+                className="flex items-center gap-1 font-normal text-gray-500 text-sm hover:text-gray-700 transition-colors duration-200"
+              >
+                Due Date
+                {renderSortIcon('dueDate')}
+              </button>
             </th>
-            <th className="px-4 py-2 font-normal text-gray-500 text-sm w-[7%]">
-              Done Date
+            <th className="px-4 py-2 w-[7%]">
+              <button 
+                onClick={() => handleSort('doneDate')}
+                className="flex items-center gap-1 font-normal text-gray-500 text-sm hover:text-gray-700 transition-colors duration-200"
+              >
+                Done Date
+                {renderSortIcon('doneDate')}
+              </button>
+            </th>
+            <th className="px-4 py-2 w-[7%]">
+              <button 
+                onClick={() => handleSort('updatedAt')}
+                className="flex items-center gap-1 font-normal text-gray-500 text-sm hover:text-gray-700 transition-colors duration-200"
+              >
+                Last Updated
+                {renderSortIcon('updatedAt')}
+              </button>
             </th>
             <th className="px-4 py-2 font-normal text-gray-500 text-sm">
               Task Status
@@ -165,7 +320,7 @@ export default function WorkOrdersTable({ workOrders, onView, onEdit }) {
           </tr>
         </thead>
         <tbody className="divide-y divide-gray-200">
-          {workOrders.map((wo) => (
+          {sortedWorkOrders.map((wo) => (
             <tr
               key={wo.id}
               className="hover:bg-gray-50 transition-all duration-200"
@@ -215,6 +370,9 @@ export default function WorkOrdersTable({ workOrders, onView, onEdit }) {
               </td>
               <td className="px-4 py-2 text-black text-sm">
                 {util.formatDate(wo.doneDate, "MM/DD/YYYY") || "-"}
+              </td>
+              <td className="px-4 py-2 text-black text-sm">
+                {util.formatDate(wo.updatedAt, "MM/DD/YYYY") || "-"}
               </td>
               <td className="px-4 py-2 text-black text-sm">
                 {(() => {
