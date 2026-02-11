@@ -143,7 +143,7 @@ export default function Layout() {
           {/* Admin buttons - only show when expanded */}
           {!isCollapsed && (
             <div className={`${utils.isGlobalAdmin(currentUser) ? "block" : "hidden"} p-4 space-y-2 border-t border-gray-700`}>
-              <button
+              {/* <button
                 onClick={async () => {
                   try {
                     const minIdInput = window.prompt(
@@ -201,9 +201,9 @@ export default function Layout() {
               >
                 <LuTrash2 size={16} className="flex-shrink-0" />
                 <span>Purge CRM Accounts</span>
-              </button>
+              </button> */}
 
-              <button
+              {/* <button
                 onClick={async () => {
                   try {
                     const first = window.confirm(
@@ -241,7 +241,7 @@ export default function Layout() {
               >
                 <LuTriangleAlert size={16} className="flex-shrink-0" />
                 <span>Wipe Database (Keep Core Tables)</span>
-              </button>
+              </button> */}
             </div>
           )}
 
