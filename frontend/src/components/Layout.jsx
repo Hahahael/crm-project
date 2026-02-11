@@ -1,26 +1,5 @@
 // src/components/Layout.jsx
 import { Link, Outlet, useLocation } from "react-router-dom";
-import { useState } from "react";
-import { 
-  LuLayoutDashboard, 
-  LuClipboardList, 
-  LuTrendingUp, 
-  LuWrench, 
-  LuFileText, 
-  LuBuilding2, 
-  LuDollarSign, 
-  LuUsers, 
-  LuCalendar, 
-  LuSquareCheckBig,
-  LuLogOut,
-  LuTrash2,
-  LuTriangleAlert,
-  LuPanelLeftClose,
-  LuPanelRightClose
-} from "react-icons/lu";
-// import VersionInfo from "./VersionInfo.jsx";
-import utils from "../helper/utils";
-import { useUser } from "../contexts/UserContext.jsx";
 
 const apiUrl = import.meta.env.VITE_API_URL;
 
@@ -30,8 +9,6 @@ fetch(`${apiUrl}/healthcheck`)
 
 export default function Layout() {
   const location = useLocation();
-  const { currentUser } = useUser();
-  const [isCollapsed, setIsCollapsed] = useState(false);
 
   // Define routes where sidebar should not appear
   const hideSidebar = location.pathname === "/login";
@@ -39,232 +16,182 @@ export default function Layout() {
   return (
     <div className="flex h-screen w-full">
       {!hideSidebar && (
-        <aside 
-          className={`${
-            isCollapsed ? 'w-14' : 'w-[250px]'
-          } bg-gray-200 text-black flex flex-col transition-all duration-200 ease-in-out relative`}
-        >
-          <div className="p-4 text-xl font-bold border-b border-gray-700 flex items-center justify-between transition-all duration-300">
-            <span className={`${
-              isCollapsed ? 'opacity-0' : 'opacity-100'
-            } transition-opacity duration-300 whitespace-nowrap overflow-hidden`}>
-              WorkOrder System
-            </span>
-            <button
-              onClick={() => setIsCollapsed(!isCollapsed)}
-              className="p-1 rounded hover:bg-gray-600 hover:text-white flex-shrink-0"
-              title={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-            >
-              {isCollapsed ? <LuPanelRightClose size={18} /> : <LuPanelLeftClose size={18} />}
-            </button>
+        <aside className="w-[223px] bg-gray-800 text-white flex flex-col">
+          <div className="p-4 text-xl font-bold border-b border-gray-700">
+            WorkOrder System
           </div>
-          <nav className={`flex-1 p-2 space-y-2 transition-all duration-300`}>
+          <nav className="flex-1 p-4 space-y-2">
             <Link
               to="/dashboard"
-              className="flex items-center gap-3 rounded-md px-3 py-2 hover:bg-gray-600 hover:text-white transition-all duration-300 h-10"
-              title={isCollapsed ? "Dashboard" : ""}
+              className="block rounded-md px-3 py-2 hover:bg-gray-700"
             >
-              <LuLayoutDashboard size={18} className="flex-shrink-0" />
-              {!isCollapsed && <span>Dashboard</span>}
+              Dashboard
             </Link>
             <Link
               to="/workorders"
-              className={`${utils.hasAnyModulePermission(currentUser, "workorder") ? "flex" : "hidden"} items-center gap-3 rounded-md px-3 py-2 hover:bg-gray-600 hover:text-white transition-all duration-300 h-10`}
-              title={isCollapsed ? "Workorders" : ""}
+              className="block rounded-md px-3 py-2 hover:bg-gray-700"
             >
-              <LuClipboardList size={18} className="flex-shrink-0" />
-              {!isCollapsed && <span>Workorders</span>}
+              Workorders
             </Link>
             <Link
               to="/salesleads"
-              className={`${utils.hasAnyModulePermission(currentUser, "sales-lead") ? "flex" : "hidden"} items-center gap-3 rounded-md px-3 py-2 hover:bg-gray-600 hover:text-white transition-all duration-300 h-10`}
-              title={isCollapsed ? "Sales Leads" : ""}
+              className="block rounded-md px-3 py-2 hover:bg-gray-700"
             >
-              <LuTrendingUp size={18} className="flex-shrink-0" />
-              {!isCollapsed && <span>Sales Leads</span>}
+              Sales Leads
             </Link>
             <Link
               to="/technicals"
-              className={`${utils.hasAnyModulePermission(currentUser, "technical-reco") ? "flex" : "hidden"} items-center gap-3 rounded-md px-3 py-2 hover:bg-gray-600 hover:text-white transition-all duration-300 h-10`}
-              title={isCollapsed ? "Technical Reco" : ""}
+              className="block rounded-md px-3 py-2 hover:bg-gray-700"
             >
-              <LuWrench size={18} className="flex-shrink-0" />
-              {!isCollapsed && <span>Technical Reco</span>}
+              Technical Reco
             </Link>
             <Link
               to="/rfqs"
-              className={`${utils.hasAnyModulePermission(currentUser, "rfq") ? "flex" : "hidden"} items-center gap-3 rounded-md px-3 py-2 hover:bg-gray-600 hover:text-white transition-all duration-300 h-10`}
-              title={isCollapsed ? "RFQs" : ""}
+              className="block rounded-md px-3 py-2 hover:bg-gray-700"
             >
-              <LuFileText size={18} className="flex-shrink-0" />
-              {!isCollapsed && <span>RFQs</span>}
+              RFQs
             </Link>
             <Link
               to="/accounts"
-              className={`${utils.hasAnyModulePermission(currentUser, "naef") ? "flex" : "hidden"} items-center gap-3 rounded-md px-3 py-2 hover:bg-gray-600 hover:text-white transition-all duration-300 h-10`}
-              title={isCollapsed ? "NAEF" : ""}
+              className="block rounded-md px-3 py-2 hover:bg-gray-700"
             >
-              <LuBuilding2 size={18} className="flex-shrink-0" />
-              {!isCollapsed && <span>NAEF</span>}
+              NAEF
             </Link>
             <Link
               to="/quotations"
-              className={`${utils.hasAnyModulePermission(currentUser, "quotation") ? "flex" : "hidden"} items-center gap-3 rounded-md px-3 py-2 hover:bg-gray-600 hover:text-white transition-all duration-300 h-10`}
-              title={isCollapsed ? "Quotations" : ""}
+              className="block rounded-md px-3 py-2 hover:bg-gray-700"
             >
-              <LuDollarSign size={18} className="flex-shrink-0" />
-              {!isCollapsed && <span>Quotations</span>}
+              Quotations
             </Link>
             <Link
               to="/users"
-              className={`${utils.hasAnyModulePermission(currentUser, "user") ? "flex" : "hidden"} items-center gap-3 rounded-md px-3 py-2 hover:bg-gray-600 hover:text-white transition-all duration-300 h-10`}
-              title={isCollapsed ? "Users" : ""}
+              className="block rounded-md px-3 py-2 hover:bg-gray-700"
             >
-              <LuUsers size={18} className="flex-shrink-0" />
-              {!isCollapsed && <span>Users</span>}
+              Users
             </Link>
             <Link
               to="/calendar"
-              className="flex items-center gap-3 rounded-md px-3 py-2 hover:bg-gray-600 hover:text-white transition-all duration-300 h-10"
-              title={isCollapsed ? "Calendar" : ""}
+              className="block rounded-md px-3 py-2 hover:bg-gray-700"
             >
-              <LuCalendar size={18} className="flex-shrink-0" />
-              {!isCollapsed && <span>Calendar</span>}
+              Calendar
             </Link>
             <Link
               to="/approvals"
-              className={`${utils.hasAnyModulePermission(currentUser, "approval") ? "flex" : "hidden"} items-center gap-3 rounded-md px-3 py-2 hover:bg-gray-600 hover:text-white transition-all duration-300 h-10`}
-              title={isCollapsed ? "Approvals" : ""}
+              className="block rounded-md px-3 py-2 hover:bg-gray-700"
             >
-              <LuSquareCheckBig size={18} className="flex-shrink-0" />
-              {!isCollapsed && <span>Approvals</span>}
+              Approvals
             </Link>
           </nav>
-          {/* Admin buttons - only show when expanded */}
-          {!isCollapsed && (
-            <div className={`${utils.isGlobalAdmin(currentUser) ? "block" : "hidden"} p-4 space-y-2 border-t border-gray-700`}>
-              <button
-                onClick={async () => {
-                  try {
-                    const minIdInput = window.prompt(
-                      "Enter minimum CRM Account ID to purge (id >= minId):",
-                      "661",
-                    );
-                    if (minIdInput === null) return; // cancelled
-                    const minId = Number(minIdInput);
-                    if (!Number.isFinite(minId)) {
-                      alert("Invalid minId. Please enter a number.");
-                      return;
-                    }
-
-                    // Dry run first
-                    const dryRes = await fetch(
-                      `${apiUrl}/api/accounts/purge?minId=${encodeURIComponent(
-                        String(minId),
-                      )}&dryRun=true`,
-                      {
-                        method: "DELETE",
-                        credentials: "include",
-                      },
-                    );
-                    if (!dryRes.ok) {
-                      const e = await dryRes.json().catch(() => ({}));
-                      throw new Error(e?.error || `Dry-run failed (${dryRes.status})`);
-                    }
-                    const dryData = await dryRes.json();
-                    const toDelete = dryData?.toDelete ?? 0;
-
-                    const confirmText = window.prompt(
-                      `This will permanently delete ${toDelete} account(s) with id >= ${minId}.\nType DELETE to confirm.`,
-                    );
-                    if (confirmText !== "DELETE") return;
-
-                    const res = await fetch(`${apiUrl}/api/accounts/purge`, {
-                      method: "DELETE",
-                      credentials: "include",
-                      headers: { "Content-Type": "application/json" },
-                      body: JSON.stringify({ minId, dryRun: false }),
-                    });
-                    if (!res.ok) {
-                      const e = await res.json().catch(() => ({}));
-                      throw new Error(e?.error || `Purge failed (${res.status})`);
-                    }
-                    const data = await res.json();
-                    alert(`Deleted ${data?.deleted ?? 0} account(s) with id >= ${minId}.`);
-                  } catch (err) {
-                    console.error("Purge error:", err);
-                    alert(`Purge failed: ${err?.message || err}`);
-                  }
-                }}
-                className="flex items-center gap-2 w-full px-3 py-2 bg-amber-600 rounded-md hover:bg-amber-500 text-white text-sm transition-all duration-300"
-                title="Delete CRM accounts with id >= provided value"
-              >
-                <LuTrash2 size={16} className="flex-shrink-0" />
-                <span>Purge CRM Accounts</span>
-              </button>
-
-              <button
-                onClick={async () => {
-                  try {
-                    const first = window.confirm(
-                      "DANGER: This will wipe MOST data (all public tables) except roles, departments, statuses, and users. Continue?",
-                    );
-                    if (!first) return;
-                    const confirmText = window.prompt(
-                      "Type WIPE to confirm database wipe (irreversible)",
-                    );
-                    if (confirmText !== "WIPE") return;
-
-                    const res = await fetch(`${apiUrl}/api/admin/wipe`, {
-                      method: "POST",
-                      credentials: "include",
-                      headers: { "Content-Type": "application/json" },
-                      body: JSON.stringify({ confirm: "WIPE" }),
-                    });
-                    if (!res.ok) {
-                      const e = await res.json().catch(() => ({}));
-                      throw new Error(e?.error || `Wipe failed (${res.status})`);
-                    }
-                    const data = await res.json();
-                    const count = data?.truncated ?? 0;
-                    const tables = Array.isArray(data?.tables) ? data.tables.join(", ") : "";
-                    alert(`Wipe completed. Truncated ${count} table(s).\n${tables}`);
-                    // Refresh the app state after destructive wipe
-                    window.location.reload();
-                  } catch (err) {
-                    console.error("Wipe error:", err);
-                    alert(`Wipe failed: ${err?.message || err}`);
-                  }
-                }}
-                className="flex items-center gap-2 w-full px-3 py-2 bg-red-700 rounded-md hover:bg-red-600 text-white text-sm transition-all duration-300"
-                title="Wipe database tables except roles, departments, statuses, users"
-              >
-                <LuTriangleAlert size={16} className="flex-shrink-0" />
-                <span>Wipe Database (Keep Core Tables)</span>
-              </button>
-            </div>
-          )}
-
-          {/* Version Info */}
-          {/* <VersionInfo collapsed={isCollapsed} /> */}
-
-          {/* Logout button - always visible */}
-          <div className={`${isCollapsed ? "m-2 my-4" : "m-4"}`}>
+          <div className="p-4 space-y-2 border-t border-gray-700">
             <button
               onClick={async () => {
-                await fetch(`${apiUrl}/auth/logout`, {
-                  method: "POST",
-                  credentials: "include", // send cookie
-                });
-                window.location.href = "/login"; // redirect to login
+                try {
+                  const minIdInput = window.prompt(
+                    "Enter minimum CRM Account ID to purge (id >= minId):",
+                    "661",
+                  );
+                  if (minIdInput === null) return; // cancelled
+                  const minId = Number(minIdInput);
+                  if (!Number.isFinite(minId)) {
+                    alert("Invalid minId. Please enter a number.");
+                    return;
+                  }
+
+                  // Dry run first
+                  const dryRes = await fetch(
+                    `${apiUrl}/api/accounts/purge?minId=${encodeURIComponent(
+                      String(minId),
+                    )}&dryRun=true`,
+                    {
+                      method: "DELETE",
+                      credentials: "include",
+                    },
+                  );
+                  if (!dryRes.ok) {
+                    const e = await dryRes.json().catch(() => ({}));
+                    throw new Error(e?.error || `Dry-run failed (${dryRes.status})`);
+                  }
+                  const dryData = await dryRes.json();
+                  const toDelete = dryData?.toDelete ?? 0;
+
+                  const confirmText = window.prompt(
+                    `This will permanently delete ${toDelete} account(s) with id >= ${minId}.\nType DELETE to confirm.`,
+                  );
+                  if (confirmText !== "DELETE") return;
+
+                  const res = await fetch(`${apiUrl}/api/accounts/purge`, {
+                    method: "DELETE",
+                    credentials: "include",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ minId, dryRun: false }),
+                  });
+                  if (!res.ok) {
+                    const e = await res.json().catch(() => ({}));
+                    throw new Error(e?.error || `Purge failed (${res.status})`);
+                  }
+                  const data = await res.json();
+                  alert(`Deleted ${data?.deleted ?? 0} account(s) with id >= ${minId}.`);
+                } catch (err) {
+                  console.error("Purge error:", err);
+                  alert(`Purge failed: ${err?.message || err}`);
+                }
               }}
-              className="h-10 w-full flex items-center gap-2 px-3 py-2 bg-red-700 rounded-md hover:bg-red-600 text-white transition-all duration-300"
-              title={isCollapsed ? "Logout" : ""}
+              className="w-full px-3 py-2 bg-amber-600 rounded-md hover:bg-amber-500 text-white text-sm"
+              title="Delete CRM accounts with id >= provided value"
             >
-              <LuLogOut size={16} className="flex-shrink-0" />
-              {!isCollapsed && <span>Logout</span>}
+              Purge CRM Accounts
+            </button>
+
+            <button
+              onClick={async () => {
+                try {
+                  const first = window.confirm(
+                    "DANGER: This will wipe MOST data (all public tables) except roles, departments, statuses, and users. Continue?",
+                  );
+                  if (!first) return;
+                  const confirmText = window.prompt(
+                    "Type WIPE to confirm database wipe (irreversible)",
+                  );
+                  if (confirmText !== "WIPE") return;
+
+                  const res = await fetch(`${apiUrl}/api/admin/wipe`, {
+                    method: "POST",
+                    credentials: "include",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ confirm: "WIPE" }),
+                  });
+                  if (!res.ok) {
+                    const e = await res.json().catch(() => ({}));
+                    throw new Error(e?.error || `Wipe failed (${res.status})`);
+                  }
+                  const data = await res.json();
+                  const count = data?.truncated ?? 0;
+                  const tables = Array.isArray(data?.tables) ? data.tables.join(", ") : "";
+                  alert(`Wipe completed. Truncated ${count} table(s).\n${tables}`);
+                } catch (err) {
+                  console.error("Wipe error:", err);
+                  alert(`Wipe failed: ${err?.message || err}`);
+                }
+              }}
+              className="w-full px-3 py-2 bg-red-700 rounded-md hover:bg-red-600 text-white text-sm"
+              title="Wipe database tables except roles, departments, status
+              <span>ENV: Dev</span>es, users"
+            >
+              Wipe Database (Keep Core Tables)
             </button>
           </div>
+          <button
+            onClick={async () => {
+              await fetch(`${apiUrl}/auth/logout`, {
+                method: "POST",
+                credentials: "include", // send cookie
+              });
+              window.location.href = "/login"; // redirect to login
+            }}
+            className="mt-4 px-3 py-2 bg-red-600 rounded-md hover:bg-red-500"
+          >
+            Logout
+          </button>
         </aside>
       )}
 

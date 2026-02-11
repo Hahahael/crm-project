@@ -19,6 +19,7 @@ import WorkOrderDetails from "../components/WorkOrderDetails";
 import AccountDetails from "../components/AccountDetails";
 import UserDetails from "../components/UserDetails";
 import ApprovalActionModal from "../components/ApprovalActionModal";
+import TRApprovalModal from "../components/TRApprovalModal";
 import { apiBackendFetch } from "../services/api";
 
 const ApprovalsPage = () => {
@@ -29,6 +30,7 @@ const ApprovalsPage = () => {
   const [actionApproval, setActionApproval] = useState(null); // for modal actions
   const [detailsData, setDetailsData] = useState(null);
   const [modalOpen, setModalOpen] = useState(false);
+  const [trModalOpen, setTrModalOpen] = useState(false); // For TR-specific approval modal
   const [modalType, setModalType] = useState(null); // 'approve' or 'reject'
   const [_modalData, setModalData] = useState({
     assignee: "",
@@ -214,7 +216,18 @@ const ApprovalsPage = () => {
     fetchDetails();
     setActionApproval(row);
     setModalType(type);
-    setModalOpen(true);
+    
+    // Check if this is a Technical Recommendation approval
+    const stageName = row.stageName || row.stage_name || row.module || "";
+    const isTRApproval = stageName === "Technical Recommendation" || stageName === "technical_recommendation";
+    
+    if (isTRApproval && type === "approve") {
+      // Use specialized TR approval modal
+      setTrModalOpen(true);
+    } else {
+      // Use generic approval modal
+      setModalOpen(true);
+    }
   };
 
   // Modal submit handler
@@ -334,8 +347,9 @@ const ApprovalsPage = () => {
             payload,
           );
 
-          // Create workflow stage for current stage (Approved)
-          const approvedStageRes = await apiBackendFetch("/api/workflow-stages", {
+          // IMPORTANT: Mark current stage as Approved FIRST before creating next module
+          console.log("✅ Marking", currentType, "as Approved before creating next module");
+          await apiBackendFetch("/api/workflow-stages", {
             method: "POST",
             body: JSON.stringify({
               wo_id: actionApproval?.wo_id ?? actionApproval?.woId ?? null,
@@ -349,31 +363,20 @@ const ApprovalsPage = () => {
             }),
           });
 
-          // Create skeletal record for next module
+          // Now create skeletal record for next module (which will create Draft workflow stage)
           const nextModuleRes = await apiBackendFetch(endpoint, {
             method: nextModuleType === "NAEF" ? "PUT" : "POST",
             body: JSON.stringify(payload),
           });
           console.log("Next module creation response:", nextModuleRes);
-          let nextModuleData = null;
-          if (nextModuleRes.ok) {
-            nextModuleData = await nextModuleRes.json();
-          } else {
-            // Delete the approved workflow stage since next module creation failed
+          
+          if (!nextModuleRes.ok) {
             console.error("Failed to create next module:", nextModuleRes);
-            const approvedStageData = await approvedStageRes.json();
-            const approvedStageId = approvedStageData.id;
-            await apiBackendFetch(`/api/workflow-stages/${approvedStageId}`, {
-              method: "DELETE",
-              body: JSON.stringify({
-                id: approvedStageId,
-              }),
-            });
             throw new Error("Failed to create next module");
           }
-
+          
+          const nextModuleData = await nextModuleRes.json();
           console.log("Next module created with details", nextModuleData);
-          // Create workflow stage for next module (Draft)
         }
       } else {
         // Rejection: only create workflow stage for current stage
@@ -414,6 +417,186 @@ const ApprovalsPage = () => {
     } catch (err) {
       console.error("Failed to submit approval/rejection:", err);
       setError("Failed to submit approval/rejection");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  // TR-specific approval handler
+  const handleTRModalSubmit = async (form) => {
+    if (!actionApproval) return;
+    console.log("Submitting TR approval with data:", form);
+    console.log("Product routing:", form.productRouting);
+    console.log("Item mappings:", form.itemMappings);
+    console.log("New item flags:", form.newItemFlags);
+    console.log("Is split scenario:", form.isMixed);
+    setSubmitting(true);
+    try {
+      const { 
+        assignee, rfqAssignee, quotationAssignee, isMixed, 
+        dueDate, fromTime, toTime, remarks,
+        rfqDueDate, rfqFromTime, rfqToTime, rfqRemarks,
+        quotationDueDate, quotationFromTime, quotationToTime, quotationRemarks,
+        productRouting, itemMappings, newItemFlags, nextStage 
+      } = form;
+      
+      // First, update the products with routing information, item mappings, and new item flags
+      const trId = detailsData?.id;
+      if (trId && productRouting) {
+        console.log("Updating product routing, item mappings, and new item flags for TR", trId);
+        await apiBackendFetch(`/api/technicals/${trId}/routing`, {
+          method: "PUT",
+          body: JSON.stringify({ 
+            productRouting,
+            itemMappings: itemMappings || {},
+            newItemFlags: newItemFlags || {}
+          }),
+        });
+      }
+      
+      // Detect split scenario: some products to RFQ, some to Direct Quotation
+      const products = detailsData?.products || [];
+      const rfqProducts = products.filter(p => productRouting[p.id] === 'rfq');
+      const directProducts = products.filter(p => productRouting[p.id] === 'direct_quotation');
+      
+      const isSplitScenario = rfqProducts.length > 0 && directProducts.length > 0;
+      
+      console.log("📊 Routing Analysis:");
+      console.log(`  - RFQ products: ${rfqProducts.length}`);
+      console.log(`  - Direct products: ${directProducts.length}`);
+      console.log(`  - Split scenario: ${isSplitScenario}`);
+      
+      // IMPORTANT: Mark TR as Approved FIRST before creating next modules
+      // This ensures proper workflow stage ordering
+      const prevWorkOrderAssignee = detailsData?.assignee || detailsData?.assignedTo || detailsData?.preparedBy;
+      console.log("✅ Marking TR as Approved before creating next modules");
+      await apiBackendFetch("/api/workflow-stages", {
+        method: "POST",
+        body: JSON.stringify({
+          wo_id: actionApproval?.wo_id ?? actionApproval?.woId ?? null,
+          stage_name: "Technical Recommendation",
+          status: "Approved",
+          assigned_to: prevWorkOrderAssignee,
+          notified: false,
+          remarks,
+          next_stage: nextStage,
+          account_id: actionApproval.accountId || detailsData.accountId,
+        }),
+      });
+      
+      // Create next stage based on routing
+      // Determine assignees based on split scenario
+      const finalAssignee = isMixed ? null : assignee; // Single assignee for non-split
+      const finalRfqAssignee = isMixed ? rfqAssignee : assignee; // RFQ assignee for split, else single
+      const finalQuotationAssignee = isMixed ? quotationAssignee : assignee; // Quotation assignee for split, else single
+      
+      const basePayload = {
+        woId: actionApproval.woId,
+        accountId: actionApproval.accountId,
+        contactPerson: detailsData?.contactPerson || "",
+        contactNumber: detailsData?.contactNumber || "",
+        contactEmail: detailsData?.contactEmail || "",
+      };
+
+      if (isSplitScenario) {
+        // SPLIT SCENARIO: Create both RFQ and Quotation with separate assignees and schedules
+        console.log("🔀 Split scenario detected: Creating both RFQ and Quotation");
+        console.log(`  RFQ: Assignee ${finalRfqAssignee}, Due ${rfqDueDate}`);
+        console.log(`  Quotation: Assignee ${finalQuotationAssignee}, Due ${quotationDueDate}`);
+        
+        // Step 1: Create RFQ with RFQ-specific scheduling
+        console.log("📦 Creating RFQ with", rfqProducts.length, "products");
+        const rfqRes = await apiBackendFetch("/api/rfqs", {
+          method: "POST",
+          body: JSON.stringify({ 
+            ...basePayload, 
+            assignee: finalRfqAssignee,
+            dueDate: rfqDueDate,
+            fromTime: rfqFromTime || null,
+            toTime: rfqToTime || null,
+            remarks: rfqRemarks || "",
+          }),
+        });
+        if (!rfqRes.ok) {
+          throw new Error("Failed to create RFQ in split scenario");
+        }
+        console.log("✅ RFQ created successfully");
+        
+        // Step 2: Create Quotation with Quotation-specific scheduling
+        console.log("📝 Creating Quotation with", directProducts.length, "products (source: tr_direct)");
+        const quotRes = await apiBackendFetch("/api/quotations", {
+          method: "POST",
+          body: JSON.stringify({
+            ...basePayload,
+            assignee: finalQuotationAssignee,
+            dueDate: quotationDueDate,
+            fromTime: quotationFromTime || null,
+            toTime: quotationToTime || null,
+            remarks: quotationRemarks || "",
+            sourceModule: 'tr_direct', // Mark as coming directly from TR
+          }),
+        });
+        if (!quotRes.ok) {
+          throw new Error("Failed to create Quotation in split scenario");
+        }
+        console.log("✅ Quotation created successfully");
+        
+        nextStage = "RFQ & Quotations"; // Update display text
+        
+      } else if (nextStage === "RFQ") {
+        // All products go to RFQ
+        console.log("📦 Creating RFQ with all products");
+        const nextModuleRes = await apiBackendFetch("/api/rfqs", {
+          method: "POST",
+          body: JSON.stringify({ 
+            ...basePayload, 
+            assignee: finalAssignee,
+            dueDate,
+            fromTime: fromTime || null,
+            toTime: toTime || null,
+            remarks: remarks || "",
+          }),
+        });
+        if (!nextModuleRes.ok) {
+          throw new Error("Failed to create RFQ");
+        }
+        console.log("✅ RFQ created successfully");
+        
+      } else if (nextStage === "Quotations") {
+        // All products go to Direct Quotation
+        console.log("📝 Creating Quotation with all products (source: tr_direct)");
+        const nextModuleRes = await apiBackendFetch("/api/quotations", {
+          method: "POST",
+          body: JSON.stringify({
+            ...basePayload,
+            assignee: finalAssignee,
+            dueDate,
+            fromTime: fromTime || null,
+            toTime: toTime || null,
+            remarks: remarks || "",
+            sourceModule: 'tr_direct', // Mark as coming directly from TR
+          }),
+        });
+        if (!nextModuleRes.ok) {
+          throw new Error("Failed to create Quotation");
+        }
+        console.log("✅ Quotation created successfully");
+      }
+
+      setTrModalOpen(false);
+      setActionApproval(null);
+      setModalType(null);
+      
+      // Show success message
+      setSuccessMessage("TR approval sent successfully!");
+      
+      // Refresh approvals list
+      setRefreshing(true);
+      await fetchApprovals();
+      setRefreshing(false);
+    } catch (err) {
+      console.error("Failed to submit TR approval:", err);
+      setError("Failed to submit TR approval");
     } finally {
       setSubmitting(false);
     }
@@ -735,6 +918,20 @@ const ApprovalsPage = () => {
             setActionApproval(null);
           }}
           onSubmit={handleModalSubmit}
+          submitting={submitting}
+        />
+      )}
+
+      {/* TR-specific Approval Modal */}
+      {trModalOpen && (
+        <TRApprovalModal
+          isOpen={trModalOpen}
+          technicalReco={detailsData}
+          onClose={() => {
+            setTrModalOpen(false);
+            setActionApproval(null);
+          }}
+          onSubmit={handleTRModalSubmit}
           submitting={submitting}
         />
       )}

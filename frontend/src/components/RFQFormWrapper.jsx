@@ -56,6 +56,21 @@ export default function RFQFormWrapper({
   });
   const [formItems, setFormItems] = useState([]);
   const [formVendors, setFormVendors] = useState([]);
+  
+  // Check if all items are ready (mapped or have pending item)
+  const allItemsReady = (formItems || []).every(item => {
+    const isNewItem = item.isNewItem || item.is_new_item;
+    const hasPendingItem = item.pendingItemId || item.pending_item_id;
+    const isMapped = item.itemId || item.item_id;
+    
+    if (isNewItem) {
+      // New items need pending item created
+      return hasPendingItem;
+    } else {
+      // Existing items need to be mapped
+      return isMapped;
+    }
+  });
 
   useEffect(() => {
     console.log("✅ formData updated:", formData);
@@ -80,7 +95,7 @@ export default function RFQFormWrapper({
 
   // Sync formData and formItems with rfq prop (one-way init)
   useEffect(() => {
-    console.log("RFQ prop changed, syncing to formData", rfq);
+    // console.log("RFQ prop changed, syncing to formData", rfq);
     if (rfq && Object.keys(rfq).length > 0) {
       // Normalize incoming rfq items to the UI shape
       const rawItems = Array.isArray(rfq.items) ? rfq.items : [];
@@ -156,14 +171,14 @@ export default function RFQFormWrapper({
   }, [rfq]);
 
   // Debug: log formData.items whenever it changes so we can trace nulls
-  useEffect(() => {
-    console.log(
-      "RFQFormWrapper formData.items now:",
-      formData.items,
-      "type:",
-      typeof formData.items,
-    );
-  }, [formData.items]);
+  // useEffect(() => {
+  //   console.log(
+  //     "RFQFormWrapper formData.items now:",
+  //     formData.items,
+  //     "type:",
+  //     typeof formData.items,
+  //   );
+  // }, [formData.items]);
 
   // If rfq items exist on load ensure formData items are initialized (handled above)
   useEffect(() => {
@@ -250,7 +265,7 @@ export default function RFQFormWrapper({
         grandTotal: null,
       }));
     }
-    console.log("Recalculated totals from formItems", { items });
+    // console.log("Recalculated totals from formItems", { items });
   }, [formItems]);
 
   // Aggregated validation before save
@@ -269,6 +284,8 @@ export default function RFQFormWrapper({
   };
 
   const handleSubmit = (e) => {
+    console.log("🔴 [DEBUG] RFQFormWrapper.handleSubmit TRIGGERED!");
+    console.trace("🔴 [TRACE] Parent form submit stack:");
     e.preventDefault();
     if (!validateAll()) return;
     // Aggregate all form data and pass to parent for saving
@@ -286,7 +303,7 @@ export default function RFQFormWrapper({
   };
 
   return (
-    <div className="w-full h-full p-6 space-y-6 overflow-y-auto">
+    <div className="w-full h-full space-y-6 overflow-y-auto">
       {errors.length > 0 && (
         <div className="mb-4 p-3 bg-red-100 border border-red-300 rounded text-red-700">
           <ul className="list-disc pl-5">
@@ -343,19 +360,26 @@ export default function RFQFormWrapper({
           role="tablist"
           className="tab-header p-1 space-x-1 bg-gray-100 rounded-sm flex justify-center w-full h-12 mb-6"
         >
-          {TABS.filter((tab) => !isApproved || tab.key === "canvass").map((tab) => (
-            <button
-              type="button"
-              key={tab.key}
-              role="tab"
-              aria-selected={activeTab === tab.key}
-              onClick={() => setActiveTab(tab.key)}
-              className={`w-full h-full rounded transition-all duration-200 flex items-center justify-center
-                        ${activeTab === tab.key ? "active bg-white" : "hover:bg-gray-200 cursor-pointer"}`}
-            >
-              {tab.icon} {tab.label}
-            </button>
-          ))}
+          {TABS.filter((tab) => !isApproved || tab.key === "canvass").map((tab) => {
+            const isDisabled = (tab.key === 'vendors' || tab.key === 'canvass') && !allItemsReady && !isApproved;
+            
+            return (
+              <button
+                type="button"
+                key={tab.key}
+                role="tab"
+                aria-selected={activeTab === tab.key}
+                disabled={isDisabled}
+                onClick={() => !isDisabled && setActiveTab(tab.key)}
+                className={`w-full h-full rounded transition-all duration-200 flex items-center justify-center
+                          ${activeTab === tab.key ? "active bg-white" : isDisabled ? "opacity-50 cursor-not-allowed bg-gray-100" : "hover:bg-gray-200 cursor-pointer"}`}
+                title={isDisabled ? "Complete item setup before proceeding" : ""}
+              >
+                {tab.icon} {tab.label}
+                {isDisabled && <span className="ml-2 text-xs text-red-500">🔒</span>}
+              </button>
+            );
+          })}
         </div>
         <div className="tab-content">
           {activeTab === "details" && (

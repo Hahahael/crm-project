@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 import { apiBackendFetch } from "../services/api";
 import utils from "../helper/utils";
 import {
@@ -31,6 +32,7 @@ import {
 import LoadingModal from "../components/LoadingModal";
 
 export default function DashboardPage() {
+  const navigate = useNavigate();
   // workorders state intentionally omitted — server provides aggregated dashboard endpoints
   const [loading, setLoading] = useState(true);
   const [filterLoading, setFilterLoading] = useState(false);
@@ -334,6 +336,107 @@ export default function DashboardPage() {
     name: s.stage || s.name,
     value: s.count,
   }));
+
+  // Alternative click handler for chart elements
+  const handleChartClick = (event, activeElements) => {
+    console.log('Chart click event:', event);
+    console.log('Active elements:', activeElements);
+    
+    if (activeElements && activeElements.length > 0) {
+      const elementIndex = activeElements[0].index;
+      const clickedData = duePerformanceData[elementIndex];
+      console.log('Clicked data from index:', clickedData);
+      
+      if (clickedData) {
+        let statusFilter = '';
+        
+        switch (clickedData.name) {
+          case 'Early':
+          case 'On Time':
+            statusFilter = 'Completed';
+            break;
+          case 'Due Soon':
+            statusFilter = 'In Progress';
+            break;
+          case 'Overdue':
+            statusFilter = 'In Progress';
+            break;
+          case 'Not Completed':
+            statusFilter = 'Pending';
+            break;
+          default:
+            statusFilter = '';
+        }
+        
+        console.log('Alternative handler - Status filter:', statusFilter);
+        
+        if (statusFilter) {
+          navigate(`/workorders?status=${encodeURIComponent(statusFilter)}`);
+        }
+      }
+    }
+  };
+
+  // Click handler for due performance bars
+  const handleBarClick = (data) => {
+    console.log('Bar clicked! Raw data:', data);
+    
+    let barData = null;
+    
+    // Handle different data structures that Recharts might send
+    if (data && data.name && data.value && data.color) {
+      // Direct bar data (first structure we saw in console)
+      barData = data;
+      console.log('Using direct bar data:', barData);
+    } else if (data && data.activePayload && data.activePayload[0]) {
+      // Wrapped payload structure  
+      barData = data.activePayload[0].payload;
+      console.log('Using wrapped payload data:', barData);
+    } else if (data && data.activeLabel) {
+      // Chart metadata structure - try to find matching data by label
+      const matchingData = duePerformanceData.find(item => item.name === data.activeLabel);
+      if (matchingData) {
+        barData = matchingData;
+        console.log('Using matched data by label:', barData);
+      }
+    }
+    
+    if (barData && barData.name) {
+      console.log('Processing bar data:', barData);
+      let taskStatusFilter = '';
+      
+      // Map bar names directly to task status filter values
+      switch (barData.name) {
+        case 'Early':
+          taskStatusFilter = 'Early';
+          break;
+        case 'On Time':
+          taskStatusFilter = 'On Time';
+          break;
+        case 'Due Soon':
+          taskStatusFilter = 'Due Soon';
+          break;
+        case 'Overdue':
+          taskStatusFilter = 'Overdue';
+          break;
+        case 'Not Completed':
+          taskStatusFilter = 'Not Completed';
+          break;
+        default:
+          taskStatusFilter = '';
+      }
+      
+      console.log('Task status filter determined:', taskStatusFilter);
+      console.log('Navigating to:', `/workorders?taskStatus=${encodeURIComponent(taskStatusFilter)}`);
+      
+      if (taskStatusFilter) {
+        // Navigate to work orders page with task status filter
+        navigate(`/workorders?taskStatus=${encodeURIComponent(taskStatusFilter)}`);
+      }
+    } else {
+      console.log('No valid bar data found in:', data);
+    }
+  };
 
   // Progress helpers
   const woTotal = Number(workorderStatusSummary.total || 0);
@@ -970,13 +1073,50 @@ export default function DashboardPage() {
         </div>
 
         <div style={{ width: "100%", height: 260 }} className="mt-6">
+          <p className="text-sm text-gray-500 mb-2">💡 Click on bars to filter work orders by status</p>
+          
+          {/* Test button to verify navigation works */}
+          {/* <button 
+            onClick={() => {
+              console.log('Test button clicked - testing taskStatus');
+              navigate('/workorders?taskStatus=Overdue');
+            }}
+            className="mb-2 px-3 py-1 bg-blue-500 text-white rounded text-xs"
+          >
+            Test Navigation (Overdue Task Status)
+          </button> */}
+          
           <ResponsiveContainer>
-            <BarChart data={duePerformanceData}>
+            <BarChart 
+              data={duePerformanceData} 
+              onClick={handleBarClick}
+              onMouseDown={(e) => console.log('Chart mouse down:', e)}
+              onMouseUp={(e) => console.log('Chart mouse up:', e)}
+            >
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="name" />
               <YAxis />
-              <RechartsTooltip />
-              <Bar dataKey="value">
+              <RechartsTooltip 
+                content={({ active, payload, label }) => {
+                  if (active && payload && payload.length) {
+                    return (
+                      <div className="bg-white border border-gray-200 rounded-lg p-3 shadow-lg">
+                        <p className="font-semibold text-gray-800">{label}</p>
+                        <p className="text-gray-600">
+                          <span className="font-medium">{payload[0].value}</span> work orders
+                        </p>
+                        <p className="text-xs text-blue-600 mt-1">Click to view filtered work orders</p>
+                      </div>
+                    );
+                  }
+                  return null;
+                }}
+              />
+              <Bar 
+                dataKey="value" 
+                style={{ cursor: 'pointer' }}
+                onClick={handleBarClick}
+              >
                 {duePerformanceData.map((entry, index) => (
                   <Cell key={`cell-${index}`} fill={entry.color} />
                 ))}

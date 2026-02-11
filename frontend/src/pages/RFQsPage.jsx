@@ -173,6 +173,8 @@ export default function RFQsPage() {
   });
 
   const handleSave = async (formData, mode) => {
+    console.log("🔴 [DEBUG] RFQsPage.handleSave CALLED");
+    console.trace("🔴 [TRACE] Save stack:");
     console.log("Saving RFQ:", formData, "Mode:", mode);
     try {
       const rfqRes = await apiBackendFetch(`/api/rfqs/${formData.id}`, {
@@ -285,7 +287,7 @@ export default function RFQsPage() {
   // removed unused saveRFQById to satisfy linter
 
   return (
-    <div className="relative w-full h-full overflow-hidden bg-white">
+    <div className="relative w-full h-full bg-white">
       {/* Toast Notification */}
       <div
         className={`z-50 absolute top-4 right-4 bg-green-500 text-white px-4 py-2 rounded-md shadow-md transition-all duration-500
@@ -598,7 +600,7 @@ export default function RFQsPage() {
         className={`absolute overflow-auto top-0 right-0 h-full w-full bg-white shadow-xl transition-all duration-300 ${
           selectedRFQ && !editingRFQ
             ? "translate-x-0 opacity-100"
-            : "translate-x-full opacity-0"
+            : "translate-x-full opacity-0 hidden"
         }`}
       >
         {selectedRFQ && !editingRFQ && (
@@ -630,7 +632,7 @@ export default function RFQsPage() {
         className={`absolute top-0 right-0 h-full w-full bg-white shadow-xl transition-all duration-300 ${
           editingRFQ && editingRFQ.id
             ? "translate-x-0 opacity-100"
-            : "translate-x-full opacity-0"
+            : "translate-x-full opacity-0 hidden"
         }`}
       >
         {editingRFQ && editingRFQ.id && (

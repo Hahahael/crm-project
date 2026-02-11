@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
-import { LuPlus, LuTrash } from "react-icons/lu";
+import { LuPlus, LuTrash, LuSearch } from "react-icons/lu";
 import { useRef } from "react";
 import { apiBackendFetch } from "../services/api";
 import utils from "../helper/utils.js";
+import NewItemModal from "./NewItemModal.jsx";
 
 export default function RFQDetailsForm({
   rfq,
@@ -12,6 +13,14 @@ export default function RFQDetailsForm({
 }) {
   console.log("RFQDetailsForm Props: ", rfq, formItems);
   const [itemsList, setItemsList] = useState([]);
+  // const [kristemItems, setKristemItems] = useState([]);
+  const [newItemModalOpen, setNewItemModalOpen] = useState(false);
+  const [viewItemModalOpen, setViewItemModalOpen] = useState(false);
+  const [selectedItem, setSelectedItem] = useState(null);
+  const [remapConfirmOpen, setRemapConfirmOpen] = useState(false);
+  const [remapItem, setRemapItem] = useState(null);
+  const [searchDropdownOpen, setSearchDropdownOpen] = useState(null); // index of item with open dropdown
+  const [searchQuery, setSearchQuery] = useState("");
   // errors state intentionally omitted (not used here)
 
   const onItemChange = (itemId, field, value) => {
@@ -41,6 +50,134 @@ export default function RFQDetailsForm({
   };
 
   const dropdownRefs = useRef({});
+
+  // Fetch Kristem items for mapping
+  // useEffect(() => {
+  //   const fetchKristemItems = async () => {
+  //     try {
+  //       console.log("🔍 Fetching Kristem items...");
+  //       const res = await apiBackendFetch("/api/mssql/inventory/stocks?limit=5000");
+  //       if (res.ok) {
+  //         const data = await res.json();
+  //         const items = data.rows || data || [];
+  //         console.log("✅ Kristem items fetched:", items.length, "items");
+  //         console.log("📦 Sample items:", items.slice(0, 3));
+  //         setKristemItems(items);
+  //       } else {
+  //         console.error("❌ Failed to fetch Kristem items:", res.status, res.statusText);
+  //       }
+  //     } catch (err) {
+  //       console.error("❌ Failed to fetch Kristem items", err);
+  //     }
+  //   };
+  //   fetchKristemItems();
+  // }, []);
+
+  const handleSetupNewItem = (item, index) => {
+    setSelectedItem({ ...item, _index: index });
+    setNewItemModalOpen(true);
+  };
+
+  const handleSaveNewItem = async (formData) => {
+    console.log("🟢 [DEBUG] handleSaveNewItem START - Saving locally");
+    try {
+      console.log("💾 Saving new item locally:", formData);
+      
+      // Update local formItems state with all item details directly
+      setFormItems(prev => prev.map((item, idx) => 
+        idx === selectedItem._index
+          ? { 
+              ...item,
+              // Store all 14 fields directly in the item
+              productName: formData.productName,
+              correctedPartNo: formData.correctedPartNo,
+              description: formData.description,
+              correctedDescription: formData.correctedDescription,
+              brand: formData.brand,
+              unitOm: formData.unitOm,
+              vendor: formData.vendor,
+              stockType: formData.stockType,
+              supplyType: formData.supplyType,
+              weight: formData.weight,
+              moq: formData.moq,
+              moqBy: formData.moqBy,
+              isActive: formData.isActive,
+              isCommon: formData.isCommon,
+              buyPrice: formData.buyPrice,
+              sellingPrice: formData.sellingPrice,
+              setupStatus: 'setup_complete', // Flag as setup complete
+            }
+          : item
+      ));
+
+      setNewItemModalOpen(false);
+      setSelectedItem(null);
+
+      console.log("🟢 [DEBUG] handleSaveNewItem END - Saved locally");
+    } catch (err) {
+      console.error("🔴 [ERROR] Error saving new item:", err);
+      alert(`Failed to save new item: ${err.message}`);
+    }
+  };
+
+  const handleChangeMapping = (item, index) => {
+    if (item.mappedInTrApproval || item.mapped_in_tr_approval) {
+      // Show confirmation dialog
+      setRemapItem({ ...item, _index: index });
+      setRemapConfirmOpen(true);
+    } else {
+      // Open search directly
+      openMappingSearch(index);
+    }
+  };
+
+  const openMappingSearch = (index) => {
+    setSearchDropdownOpen(index);
+    setSearchQuery('');
+  };
+
+  const closeMappingSearch = () => {
+    setSearchDropdownOpen(null);
+    setSearchQuery("");
+  };
+
+  const selectKristemItem = (kristemItem, itemIndex) => {
+    // Update the form item with the new mapping
+    setFormItems(prev => prev.map((item, idx) => {
+      if (idx === itemIndex) {
+        return {
+          ...item,
+          itemId: kristemItem.Id,
+          item_id: kristemItem.Id,
+          productName: kristemItem.Description || item.productName,
+          product_name: kristemItem.Description || item.product_name,
+          correctedPartNo: kristemItem.Code || item.correctedPartNo,
+          corrected_part_no: kristemItem.Code || item.corrected_part_no,
+          brand: kristemItem.BRAND_ID || item.brand,
+          unitOm: kristemItem.SK_UOM || item.unitOm,
+          unit_om: kristemItem.SK_UOM || item.unit_om,
+          // Keep existing setup data if any
+          setupStatus: item.setupStatus || item.setup_status,
+          setup_status: item.setupStatus || item.setup_status,
+        };
+      }
+      return item;
+    }));
+    closeMappingSearch();
+  };
+
+  const confirmRemap = () => {
+    if (remapItem) {
+      openMappingSearch(remapItem._index);
+      setRemapConfirmOpen(false);
+      setRemapItem(null);
+    }
+  };
+
+  const cancelRemap = () => {
+    setRemapConfirmOpen(false);
+    setRemapItem(null);
+  };
 
   useEffect(() => {
     const fetchItems = async () => {
@@ -73,12 +210,20 @@ export default function RFQDetailsForm({
           return item;
         }),
       );
+      
+      // Close mapping search dropdown if clicking outside
+      if (searchDropdownOpen !== null) {
+        const searchDropdown = document.querySelector('[data-search-dropdown]');
+        if (searchDropdown && !searchDropdown.contains(e.target)) {
+          closeMappingSearch();
+        }
+      }
     };
     document.addEventListener("mousedown", handleClickOutside);
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
     };
-  }, [setFormItems, dropdownRefs]);
+  }, [setFormItems, dropdownRefs, searchDropdownOpen]);
 
   // No totals effect here: wrapper owns totals and syncs formData from formItems
 
@@ -189,10 +334,252 @@ export default function RFQDetailsForm({
         </div>
       </div>
 
-      {/* Items */}
+      {/* Items from Technical Recommendation */}
       <div className="rounded-xl border border-gray-200 p-6 shadow-sm">
         <div className="flex flex-col space-y-1.5 pb-6">
           <h3 className="font-bold leading-none tracking-tight">Items</h3>
+          <p className="text-sm text-gray-500">
+            Products from Technical Recommendation - Setup required before vendor selection
+          </p>
+        </div>
+        <div className="space-y-4">
+          <div className="rounded-md border border-gray-200 overflow-x-auto">
+            <table className="min-w-full border-collapse text-left text-sm">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="p-3 font-medium text-gray-700">Product Name</th>
+                  <th className="p-3 font-medium text-gray-700">Part No.</th>
+                  <th className="p-3 font-medium text-gray-700">Description</th>
+                  <th className="p-3 font-medium text-gray-700 text-center">Status</th>
+                  <th className="p-3 font-medium text-gray-700">Kristem Item</th>
+                  <th className="p-3 font-medium text-gray-700 text-center">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-200">
+                {(formItems || []).map((item, idx) => {
+                  const isNewItem = item.isNewItem || item.is_new_item;
+                  const setupStatus = item.setupStatus || item.setup_status;
+                  const hasSetup = setupStatus && setupStatus !== 'not_setup';
+                  const isMapped = item.itemId || item.item_id;
+                  const mappedInTr = item.mappedInTrApproval || item.mapped_in_tr_approval;
+                  
+                  let statusBadge, statusText;
+                  if (hasSetup) {
+                    statusBadge = "bg-blue-50 text-blue-700 border-blue-200";
+                    statusText = setupStatus === 'setup_complete' ? "⚙️ Setup Complete (Unsaved)" : "✓ Setup Saved";
+                  } else if (isNewItem) {
+                    statusBadge = "bg-amber-50 text-amber-700 border-amber-200";
+                    statusText = "⚠️ New Item";
+                  } else if (isMapped) {
+                    statusBadge = "bg-green-50 text-green-700 border-green-200";
+                    statusText = "✓ Mapped";
+                  } else {
+                    statusBadge = "bg-gray-50 text-gray-700 border-gray-200";
+                    statusText = "○ Unmapped";
+                  }
+
+                  const kristemItem = itemsList.find(k => k.Id === String(item.itemId || item.item_id));
+
+                  // Display data directly from item (no more pendingItemData)
+                  const displayData = item;
+
+                  return (
+                    <tr key={`rfq-item-${item.id}-${item.itemId || item.item_id}-${idx}`} className="hover:bg-gray-50">
+                      <td className="p-3">{displayData.productName || item.product_name || '-'}</td>
+                      <td className="p-3">{displayData.correctedPartNo || item.corrected_part_no || '-'}</td>
+                      <td className="p-3 text-xs text-gray-600">
+                        {displayData.description || item.description ? 
+                          ((displayData.description || item.description).length > 50 
+                            ? (displayData.description || item.description).substring(0, 50) + '...' 
+                            : displayData.description || item.description)
+                          : '-'}
+                      </td>
+                      <td className="p-3 text-center">
+                        <span className={`inline-flex items-center rounded-md border px-2 py-0.5 text-xs font-semibold ${statusBadge}`}>
+                          {statusText}
+                        </span>
+                      </td>
+                      <td className="p-3">
+                        {isMapped && kristemItem ? (
+                          <div 
+                            className="text-xs cursor-pointer hover:bg-blue-50 p-1 rounded"
+                            onClick={() => {
+                              setSelectedItem({ 
+                                ...item, 
+                                _index: idx,
+                                // Add Kristem data for viewing
+                                kristemData: kristemItem 
+                              });
+                              setViewItemModalOpen(true);
+                            }}
+                            title="Click to view details"
+                          >
+                            <div className="font-medium text-blue-600">{kristemItem.Code}</div>
+                            <div className="text-gray-500 truncate max-w-xs">{kristemItem.Description}</div>
+                          </div>
+                        ) : (
+                          <span className="text-gray-400 text-xs">-</span>
+                        )}
+                      </td>
+                      <td className="p-3 text-center">
+                        {isNewItem && !hasSetup ? (
+                          <button
+                            type="button"
+                            onClick={() => handleSetupNewItem(item, idx)}
+                            className="px-3 py-1 text-xs font-medium text-white bg-blue-600 rounded hover:bg-blue-700"
+                          >
+                            Setup Item
+                          </button>
+                        ) : hasSetup ? (
+                          <div className="flex gap-2 justify-center">
+                            <button
+                              type="button"
+                              onClick={() => handleSetupNewItem(item, idx)}
+                              className="px-3 py-1 text-xs font-medium text-blue-600 bg-blue-50 border border-blue-200 rounded hover:bg-blue-100"
+                            >
+                              Edit Setup
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSelectedItem({ ...item, _index: idx });
+                                setViewItemModalOpen(true);
+                              }}
+                              className="px-3 py-1 text-xs font-medium text-gray-600 bg-gray-50 border border-gray-200 rounded hover:bg-gray-100"
+                            >
+                              View Details
+                            </button>
+                          </div>
+                        ) : searchDropdownOpen === idx ? (
+                          <div className="relative" data-search-dropdown>
+                            <div className="flex items-center gap-1">
+                              <input
+                                type="text"
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                placeholder="Search by code or description..."
+                                className="w-64 px-2 py-1 text-xs border border-blue-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                autoFocus
+                              />
+                              <button
+                                type="button"
+                                onClick={closeMappingSearch}
+                                className="px-2 py-1 text-xs text-gray-500 hover:text-gray-700"
+                              >
+                                ✕
+                              </button>
+                            </div>
+                            {searchQuery.length >= 2 && (
+                              <div className="absolute z-50 mt-1 w-80 max-h-60 overflow-y-auto bg-white border border-gray-200 rounded-lg shadow-lg">
+                                {(() => {
+                                  const filtered = itemsList.filter(k => 
+                                    (k.Code && k.Code.toLowerCase().includes(searchQuery.toLowerCase())) ||
+                                    (k.Description && k.Description.toLowerCase().includes(searchQuery.toLowerCase()))
+                                  );
+                                  if (filtered.length === 0) {
+                                    return (
+                                      <div className="p-3 text-xs text-gray-500 text-center">
+                                        No items found matching "{searchQuery}"
+                                      </div>
+                                    );
+                                  }
+                                  return filtered.slice(0, 20).map((k) => (
+                                    <div
+                                      key={k.Id}
+                                      onClick={() => selectKristemItem(k, idx)}
+                                      className="p-2 hover:bg-blue-50 cursor-pointer border-b border-gray-100 last:border-b-0"
+                                    >
+                                      <div className="text-xs font-medium text-gray-900">{k.Code}</div>
+                                      <div className="text-xs text-gray-500 truncate">{k.Description}</div>
+                                      {k.BRAND_ID && <div className="text-xs text-gray-400">Brand: {k.BRAND_ID}</div>}
+                                    </div>
+                                  ));
+                                })()}
+                              </div>
+                            )}
+                          </div>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => handleChangeMapping(item, idx)}
+                            className="px-3 py-1 text-xs font-medium text-blue-600 bg-blue-50 border border-blue-200 rounded hover:bg-blue-100 inline-flex items-center gap-1"
+                          >
+                            <LuSearch className="h-3 w-3" />
+                            {isMapped ? 'Change' : 'Map Item'}
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+                {(!formItems || formItems.length === 0) && (
+                  <tr>
+                    <td colSpan={6} className="p-8 text-center text-gray-500">
+                      No items found. Items are automatically populated from Technical Recommendation.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      {/* Edit Item Modal */}
+      <NewItemModal
+        isOpen={newItemModalOpen}
+        onClose={() => {
+          setNewItemModalOpen(false);
+          setSelectedItem(null);
+        }}
+        item={selectedItem}
+        onSave={handleSaveNewItem}
+        mode="edit"
+      />
+
+      {/* View Item Modal */}
+      <NewItemModal
+        isOpen={viewItemModalOpen}
+        onClose={() => {
+          setViewItemModalOpen(false);
+          setSelectedItem(null);
+        }}
+        item={selectedItem}
+        mode="view"
+      />
+
+      {/* Remap Confirmation Modal */}
+      {remapConfirmOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="bg-white rounded-lg shadow-xl p-6 max-w-md w-full m-4">
+            <h3 className="text-lg font-bold mb-4">Confirm Remapping</h3>
+            <p className="text-sm text-gray-600 mb-6">
+              This item was mapped during TR approval. Are you sure you want to change the mapping?
+            </p>
+            <div className="flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={cancelRemap}
+                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={confirmRemap}
+                className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700"
+              >
+                Yes, Change Mapping
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Legacy Items Section - Hidden for now since items come from TR */}
+      <div className="hidden rounded-xl border border-gray-200 p-6 shadow-sm">
+        <div className="flex flex-col space-y-1.5 pb-6">
+          <h3 className="font-bold leading-none tracking-tight">Items (Legacy)</h3>
           <p className="text-sm text-gray-500">
             List of items included in this RFQ
           </p>
@@ -236,7 +623,7 @@ export default function RFQDetailsForm({
                 <tbody className="divide-y divide-gray-200">
                   {(formItems || []).map((item, idx) => (
                     <tr
-                      key={item.itemId ?? item.id ?? idx}
+                      key={`legacy-item-${item.id}-${item.itemId}-${idx}`}
                       className="hover:bg-gray-100 transition-all duration-200"
                     >
                       <td

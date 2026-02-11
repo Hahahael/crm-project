@@ -13,6 +13,7 @@ import utils, { formatMoney } from "../helper/utils";
 import SalesLeadDetails from "./SalesLeadDetails.jsx";
 import WorkOrderDetails from "./WorkOrderDetails.jsx";
 import TechnicalDetails from "./TechnicalDetails.jsx";
+import NewItemModal from "./NewItemModal.jsx";
 import { useUser } from "../contexts/UserContext.jsx";
 
 const RFQDetails = ({
@@ -27,6 +28,8 @@ const RFQDetails = ({
   const { currentUser } = useUser();
   const [items, setItems] = useState([]);
   const [vendors, setVendors] = useState([]);
+  const [viewItemModalOpen, setViewItemModalOpen] = useState(false);
+  const [selectedItem, setSelectedItem] = useState(null);
   const [activeTab, setActiveTab] = useState("RFQ"); // RFQ | SL | WO | TR
   const [slDetails, setSlDetails] = useState(null);
   const [woDetails, setWoDetails] = useState(null);
@@ -265,7 +268,7 @@ const RFQDetails = ({
           </button>)}
           <div className="flex flex-col gap-1">
             <h1 className="text-2xl font-bold">
-              Multi-Vendor RFQ {rfq.trNumber}
+              Multi-Vendor {rfq.rfqNumber}
             </h1>
             <h2 className="text-md text-gray-500">
               {rfq.description} • Created on{" "}
@@ -571,77 +574,135 @@ const RFQDetails = ({
           <div className="flex flex-col space-y-1.5 pb-6">
             <h3 className="font-bold leading-none tracking-tight">Items</h3>
             <p className="text-sm text-gray-500">
-              List of items included in this RFQ
+              Products from Technical Recommendation
             </p>
           </div>
           <div className="space-y-4">
             <div className="rounded-md border border-gray-200">
               <div className="relative w-full overflow-auto">
                 <table className="min-w-full border-collapse text-left text-sm">
-                  <thead className="border-b border-gray-200">
-                    <tr className="border-b border-gray-200 transition-colors hover:bg-gray-50">
-                      <th className="p-2 font-normal text-sm text-gray-500 text-left align-middle">
-                        Description
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="p-3 font-medium text-gray-700 text-left">
+                        Product Name
                       </th>
-                      <th className="p-2 font-normal text-sm text-gray-500 text-left align-middle">
-                        Brand
-                      </th>
-                      <th className="p-2 font-normal text-sm text-gray-500 text-left align-middle">
+                      <th className="p-3 font-medium text-gray-700 text-left">
                         Part No.
                       </th>
-                      <th className="p-2 font-normal text-sm text-gray-500 text-left align-middle">
-                        Qty
+                      <th className="p-3 font-medium text-gray-700 text-left">
+                        Description
                       </th>
-                      <th className="p-2 font-normal text-sm text-gray-500 text-left align-middle">
+                      <th className="p-3 font-medium text-gray-700 text-left">
+                        Brand
+                      </th>
+                      <th className="p-3 font-medium text-gray-700 text-center">
+                        Status
+                      </th>
+                      <th className="p-3 font-medium text-gray-700 text-left">
+                        Kristem Item
+                      </th>
+                      <th className="p-3 font-medium text-gray-700 text-left">
                         Unit
                       </th>
-                      <th className="p-2 font-normal text-sm text-gray-500 text-left align-middle">
-                        Lead Time
-                      </th>
-                      <th className="p-2 font-normal text-sm text-gray-500 text-left align-middle">
-                        Unit Price
-                      </th>
-                      <th className="p-2 font-normal text-sm text-gray-500 text-left align-middle">
-                        Amount
+                      <th className="p-3 font-medium text-gray-700 text-center">
+                        Actions
                       </th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200">
-                    {items.map((item) => (
-                      <tr
-                        key={item.id}
-                        className="hover:bg-gray-100 transition-all duration-200"
-                      >
-                        <td className="text-sm p-2 align-middle">
-                          {`${item.details?.Code} ${item.details?.CustomerPartNumberSubCode??""}|${item.details?.Description}`}
-                        </td>
-                        <td className="text-sm p-2 align-middle">
-                          {item.details?.BRAND_ID}
-                        </td>
-                        <td className="text-sm p-2 align-middle">
-                          {item.details?.Code}
-                        </td>
-                        <td className="text-sm p-2 align-middle">
-                          {item.quantity}
-                        </td>
-                        <td className="text-sm p-2 align-middle">
-                          {item.details?.SK_UOM}
-                        </td>
-                        <td className="text-sm p-2 align-middle">
-                          {item.leadTime || "-"}
-                        </td>
-                        <td className="text-sm p-2 align-middle">
-                          {item?.details?.Price ? formatMoney(item.details.Price) : "-"}
-                        </td>
-                        <td className="text-sm p-2 align-middle">
-                          {item?.details?.Price ? formatMoney(item.details.Price * item.quantity) : "-"}
-                        </td>
-                      </tr>
-                    ))}
+                    {items.map((item) => {
+                      const isNewItem = item.isNewItem || item.is_new_item;
+                      const setupStatus = item.setupStatus || item.setup_status;
+                      const hasSetup = setupStatus && setupStatus !== 'not_setup';
+                      const isMapped = item.itemId || item.item_id;
+                      
+                      let statusBadge, statusText;
+                      if (hasSetup) {
+                        statusBadge = "bg-blue-50 text-blue-700 border-blue-200";
+                        statusText = "⚙️ Setup";
+                      } else if (isNewItem) {
+                        statusBadge = "bg-amber-50 text-amber-700 border-amber-200";
+                        statusText = "⚠️ New";
+                      } else if (isMapped) {
+                        statusBadge = "bg-green-50 text-green-700 border-green-200";
+                        statusText = "✓ Mapped";
+                      } else {
+                        statusBadge = "bg-gray-50 text-gray-700 border-gray-200";
+                        statusText = "○ Unmapped";
+                      }
+
+                      return (
+                        <tr
+                          key={item.id}
+                          className="hover:bg-gray-50"
+                        >
+                          <td className="text-sm p-3">
+                            {item.productName || item.product_name || '-'}
+                          </td>
+                          <td className="text-sm p-3">
+                            {item.correctedPartNo || item.corrected_part_no || '-'}
+                          </td>
+                          <td className="text-sm p-3 text-gray-600">
+                            {item.description ? 
+                              (item.description.length > 60 ? item.description.substring(0, 60) + '...' : item.description)
+                              : '-'}
+                          </td>
+                          <td className="text-sm p-3">
+                            {item.brand || '-'}
+                          </td>
+                          <td className="text-sm p-3 text-center">
+                            <span className={`inline-flex items-center rounded-md border px-2 py-0.5 text-xs font-semibold ${statusBadge}`}>
+                              {statusText}
+                            </span>
+                          </td>
+                          <td className="text-sm p-3">
+                            {isMapped && item.details ? (
+                              <div className="text-xs">
+                                <div className="font-medium">{item.details.Code}</div>
+                                <div className="text-gray-500 truncate max-w-xs">{item.details.Description}</div>
+                              </div>
+                            ) : (
+                              <span className="text-gray-400 text-xs">-</span>
+                            )}
+                          </td>
+                          <td className="text-sm p-3">
+                            {item.unitOm || item.unit_om || item.details?.SK_UOM || '-'}
+                          </td>
+                          <td className="text-sm p-3 text-center">
+                            {hasSetup ? (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setSelectedItem(item);
+                                  setViewItemModalOpen(true);
+                                }}
+                                className="px-3 py-1 text-xs font-medium text-blue-600 bg-blue-50 border border-blue-200 rounded hover:bg-blue-100"
+                              >
+                                View Details
+                              </button>
+                            ) : (
+                              <span className="text-gray-400 text-xs">-</span>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
             </div>
+            
+            {/* View Item Modal */}
+            <NewItemModal
+              isOpen={viewItemModalOpen}
+              onClose={() => {
+                setViewItemModalOpen(false);
+                setSelectedItem(null);
+              }}
+              item={selectedItem}
+              mode="view"
+            />
+            
             <div className="flex justify-end space-y-2">
               <div className="w-64">
                 <div className="flex justify-between py-2">

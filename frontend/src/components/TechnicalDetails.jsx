@@ -19,7 +19,7 @@ const TechnicalDetails = ({
   hideTabs = false,
 }) => {
   const { currentUser } = useUser();
-  console.log("TechnicalDetails - technicalReco:", technicalReco,technicalReco.items);
+  console.log("TechnicalDetails - technicalReco:", technicalReco, technicalReco.products);
   console.log("📎 Attachments data:", technicalReco.attachments);
   console.log("📎 Attachments array:", utils.toArray(technicalReco.attachments));
   
@@ -515,71 +515,40 @@ const TechnicalDetails = ({
                   <th className="text-left font-medium text-gray-500">
                     Product Name
                   </th>
-                  <th className="text-left font-medium text-gray-500">Model</th>
+                  <th className="text-left font-medium text-gray-500">
+                    Part Number
+                  </th>
                   <th className="text-left font-medium text-gray-500">
                     Description
                   </th>
-                  <th className="text-right font-medium text-gray-500">
-                    Quantity
+                  <th className="text-left font-medium text-gray-500">
+                    Brand
                   </th>
-                  <th className="text-right font-medium text-gray-500">
-                    Unit Price
-                  </th>
-                  <th className="text-right font-medium text-gray-500">
-                    Total Price
+                  <th className="text-left font-medium text-gray-500">
+                    Unit of Measure
                   </th>
                 </tr>
               </thead>
               <tbody>
-                {technicalReco.items?.map((prod, idx) => {
-                  const price =
-                    prod.unitPrice ??
-                    prod.Price_Details ??
-                    prod.Price ??
-                    prod.LocalPrice ??
-                    prod.LocalPrice_Detail ??
-                    prod.SourcePrice ??
-                    prod.SourcePrice_Detail ??
-                    0;
-                  const total = prod.quantity * price;
+                {technicalReco.products?.map((product, idx) => {
+                  const productId = product.id || idx;
                   return (
-                    <tr key={idx}>
-                      <td className="p-2" title={prod.Id} >{`${prod.Code} ${prod.CustomerPartNumberSubCode??' '}|${prod.Description}`}</td>
-                      <td className="p-2">{prod.Code??prod.CustomerPartNumberSubCode}</td>
-                      <td className="p-2">{prod.Description}</td>
-                      <td className="p-2 text-right">{prod.quantity}</td>
-                      <td className="p-2 text-right">
-                        ₱ {price.toLocaleString()}
-                      </td>
-                      <td className="p-2 text-right">
-                        ₱ {total.toLocaleString()}
-                      </td>
+                    <tr key={productId}>
+                      <td className="p-2">{product.productName || product.product_name || '-'}</td>
+                      <td className="p-2">{product.correctedPartNo || product.corrected_part_no || '-'}</td>
+                      <td className="p-2">{product.description || '-'}</td>
+                      <td className="p-2">{product.brand || '-'}</td>
+                      <td className="p-2">{product.unitOm || product.unit_om || '-'}</td>
                     </tr>
                   );
                 })}
-                <tr>
-                  <td colSpan={5} className="p-2 text-right font-bold">
-                    Total
-                  </td>
-                  <td className="p-2 text-right font-bold">
-                    ₱{" "}
-                    {(technicalReco.items || [])
-                      .reduce((sum, i) => {
-                        const price =
-                          i.unitPrice ??
-                          i.Price_Details ??
-                          i.Price ??
-                          i.LocalPrice ??
-                          i.LocalPrice_Detail ??
-                          i.SourcePrice ??
-                          i.SourcePrice_Detail ??
-                          0;
-                        const qty = i.quantity ?? 0;
-                        return sum + qty * price;
-                      }, 0)
-                      .toLocaleString()}
-                  </td>
-                </tr>
+                {(!technicalReco.products || technicalReco.products.length === 0) && (
+                  <tr>
+                    <td colSpan={5} className="p-4 text-center text-gray-500">
+                      No products added yet
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>

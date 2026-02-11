@@ -22,8 +22,8 @@ export default function SalesLeadsTable({ salesLeads, onView, onEdit }) {
   const baseBadge = "inline-flex items-center px-2.5 py-0.5 text-xs";
 
   // Sorting state
-  const [sortField, setSortField] = useState(null);
-  const [sortDirection, setSortDirection] = useState('asc'); // 'asc' or 'desc'
+  const [sortField, setSortField] = useState('createdAt');
+  const [sortDirection, setSortDirection] = useState('desc'); // 'asc' or 'desc'
 
   // Handle column sorting
   const handleSort = (field) => {
@@ -91,6 +91,10 @@ export default function SalesLeadsTable({ salesLeads, onView, onEdit }) {
       case 'updatedAt':
         aVal = new Date(a.updatedAt || 0);
         bVal = new Date(b.updatedAt || 0);
+        break;
+      case 'createdAt':
+        aVal = new Date(a.createdAt || 0);
+        bVal = new Date(b.createdAt || 0);
         break;
       default:
         return 0;

@@ -19,8 +19,7 @@ const TechnicalForm = ({
   onSubmitForApproval,
 }) => {
   const [errors, setErrors] = useState({});
-  const [itemsList, setItemsList] = useState([]);
-  const [trItems, setTrItems] = useState([]);
+  const [trProducts, setTrProducts] = useState([]);
   const [attachments, setAttachments] = useState([]);
   const nextTempIdRef = useRef(-1);
   const [formData, setFormData] = useState({
@@ -52,45 +51,42 @@ const TechnicalForm = ({
   const [_dropdownOpen, _setDropdownOpen] = useState(false);
   const assigneeRef = useRef(null);
 
-  const onItemChange = (itemId, field, value) => {
-    setTrItems((prevItems) =>
-      prevItems.map((item) =>
-        item.id === itemId ? { ...item, [field]: value } : item,
+  const onProductChange = (productId, field, value) => {
+    setTrProducts((prevProducts) =>
+      prevProducts.map((product) =>
+        product.id === productId ? { ...product, [field]: value } : product,
       ),
     );
-    console.log(trItems);
+    console.log(trProducts);
   };
 
-  const onRemoveItem = (itemId) => {
-    setTrItems((prevItems) => prevItems.filter((item) => item.id !== itemId));
+  const onRemoveProduct = (productId) => {
+    setTrProducts((prevProducts) => prevProducts.filter((product) => product.id !== productId));
   };
 
-  const onAddItem = () => {
+  const onAddProduct = () => {
     const tempId = nextTempIdRef.current--;
-    const newItem = {
+    const newProduct = {
       id: tempId,
-      item_id: null,
-      name: "",
-      model: "",
+      productName: "",
+      correctedPartNo: "",
       description: "",
-      quantity: 1,
-      unitPrice: 0,
-      showDropdown: false,
-      searchQuery: "",
+      brand: "",
+      unitOm: "",
     };
-    setTrItems((prevItems) => [...prevItems, newItem]);
+    setTrProducts((prevProducts) => [...prevProducts, newProduct]);
   };
 
   // Clear product recommendation error as soon as there's at least one product
   useEffect(() => {
-    if (trItems && trItems.length > 0 && errors?.products) {
+    if (trProducts && trProducts.length > 0 && errors?.products) {
       setErrors((prev) => {
         const copy = { ...(prev || {}) };
         delete copy.products;
         return copy;
       });
     }
-  }, [trItems, errors]);
+  }, [trProducts, errors]);
 
   // fetch users once
   useEffect(() => {
@@ -165,21 +161,22 @@ const TechnicalForm = ({
   useEffect(() => {
     if (technicalReco && Object.keys(technicalReco).length > 0) {
       setFormData((_prev) => ({ ..._prev, ...technicalReco }));
-      // 🟢 If technicalReco has items, populate them into trItems
-      if (technicalReco.items && Array.isArray(technicalReco.items)) {
-        setTrItems(
-          technicalReco.items.map((item) => ({
-            id: item.id ?? nextTempIdRef.current--, // fallback if no id
-            item_id: item.item_id ?? item.itemId ?? null,
-            name: item.name ?? item.Description ?? "",
-            model: item.model ?? item.Code ?? "",
-            description: item.description ?? item.Description ?? "",
-            quantity: item.quantity ?? 1,
-            unitPrice: item.unitPrice ?? item.LocalPrice ?? item.Price ?? 0,
-            showDropdown: false,
-            searchQuery: "",
+      // 🟢 If technicalReco has products, populate them into trProducts
+      if (technicalReco.products && Array.isArray(technicalReco.products)) {
+        console.log("📦 Loading", technicalReco.products.length, "existing products into form");
+        setTrProducts(
+          technicalReco.products.map((product) => ({
+            id: product.id ?? nextTempIdRef.current--, // fallback if no id
+            productName: product.product_name ?? product.productName ?? "",
+            correctedPartNo: product.corrected_part_no ?? product.correctedPartNo ?? "",
+            description: product.description ?? "",
+            brand: product.brand ?? "",
+            unitOm: product.unit_om ?? product.unitOm ?? "",
           })),
         );
+        console.log("✅ Products loaded into form state");
+      } else {
+        console.log("ℹ️ No products found in technicalReco");
       }
       
       // Initialize attachments if they exist
@@ -225,7 +222,6 @@ const TechnicalForm = ({
   }, [technicalReco]);
 
   const handleChange = (e) => {
-    console.log("Fetched items:", itemsList);
     const { name, value, type, checked } = e.target;
     const newValue = type === "checkbox" ? checked : value;
 
@@ -283,8 +279,8 @@ const TechnicalForm = ({
       formData.technicalJustification.toString().trim() === ""
     )
       err.technicalJustification = "Technical justification is required.";
-    // products: use trItems as product recommendations
-    if (!trItems || !Array.isArray(trItems) || trItems.length === 0)
+    // products: use trProducts as product recommendations
+    if (!trProducts || !Array.isArray(trProducts) || trProducts.length === 0)
       err.products = "At least one product recommendation is required.";
 
     const valid = Object.keys(err).length === 0;
@@ -307,7 +303,7 @@ const TechnicalForm = ({
       trainingRequirements: formData.trainingRequirements || null,
       maintenanceRequirements: formData.maintenanceRequirements || null,
       additionalNotes: formData.additionalNotes || null,
-      items: trItems,
+      products: trProducts,
       attachments: attachments.filter(att => att.uploaded), // Only include successfully uploaded files
     };
 
@@ -343,32 +339,18 @@ const TechnicalForm = ({
       trainingRequirements: formData.trainingRequirements || null,
       maintenanceRequirements: formData.maintenanceRequirements || null,
       additionalNotes: formData.additionalNotes || null,
-      items: trItems,
+      products: trProducts,
     };
     if (onSubmitForApproval) {
       onSubmitForApproval(cleanedFormData, mode);
     }
   };
 
-  // Add a ref for dropdown
-  const dropdownRefs = useRef({});
-
-  // Close dropdown on outside click for product name dropdowns
+  // Remove the dropdown close handler since we no longer need it for manual input
+  // Products are now manually entered, no dropdown needed
   useEffect(() => {
-    const handleClickOutside = (e) => {
-      setTrItems((prevItems) =>
-        prevItems.map((item) => {
-          const ref = dropdownRefs.current[item.id];
-          if (item.showDropdown && ref && !ref.contains(e.target)) {
-            return { ...item, showDropdown: false };
-          }
-          return item;
-        }),
-      );
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [trItems]);
+    // Placeholder for future product-related effects if needed
+  }, [trProducts]);
 
   // File upload functions
   const formatFileSize = (bytes) => {
@@ -867,230 +849,107 @@ const TechnicalForm = ({
                         Product Name
                       </th>
                       <th className="p-2 font-normal text-sm text-gray-500 text-left align-middle">
-                        Model
+                        Corrected Part No.
                       </th>
                       <th className="p-2 font-normal text-sm text-gray-500 text-left align-middle">
                         Description
                       </th>
                       <th className="p-2 font-normal text-sm text-gray-500 text-left align-middle">
-                        Quantity
+                        Brand
                       </th>
                       <th className="p-2 font-normal text-sm text-gray-500 text-left align-middle">
-                        Unit Price
+                        Unit of Measure
                       </th>
                       <th className="p-2 font-normal text-sm text-gray-500 text-left align-middle w-10"></th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200">
-                    {trItems?.map((item, index) => (
+                    {trProducts?.map((product, index) => (
                       <tr
-                        key={index}
+                        key={product.id}
                         className="hover:bg-gray-100 transition-all duration-200"
                       >
-                        <td
-                          className="text-sm p-2 align-middle"
-                          style={{ position: "relative", overflow: "visible" }}
-                        >
-                          <div
-                            className="relative"
-                            ref={(el) => {
-                              dropdownRefs.current[item.id] = el;
-                            }}
-                            style={{ overflow: "visible" }}
-                          >
-                            <input
-                              type="text"
-                              value={item.description || ""}
-                              onChange={(e) => {
-                                onItemChange(
-                                  item.id,
-                                  "description",
-                                  e.target.value,
-                                );
-                                setTrItems((prevItems) =>
-                                  prevItems.map((itm) =>
-                                    itm.id === item.id
-                                      ? {
-                                          ...itm,
-                                          showDropdown: true,
-                                          searchQuery: e.target.value,
-                                        }
-                                      : itm,
-                                  ),
-                                );
-                              }}
-                              className="w-full rounded border border-gray-200 px-2 py-2 text-sm"
-                              onFocus={() =>
-                                setTrItems((prevItems) =>
-                                  prevItems.map((itm) =>
-                                    itm.id === item.id
-                                      ? { ...itm, showDropdown: true }
-                                      : itm,
-                                  ),
-                                )
-                              }
-                              autoComplete="off"
-                            />
-                            {item.showDropdown && (
-                              <div
-                                style={{
-                                  position: "absolute",
-                                  left: 0,
-                                  bottom: "100%",
-                                  zIndex: 20,
-                                  width: "max-content",
-                                  minWidth: "100%",
-                                  maxWidth: "400px",
-                                  boxShadow: "0 4px 16px rgba(0,0,0,0.12)",
-                                  background: "white",
-                                  borderRadius: "0.5rem",
-                                  border: "1px solid #e5e7eb",
-                                  overflow: "visible",
-                                }}
-                              >
-                                <ul
-                                  className="max-h-40 overflow-y-auto"
-                                  style={{ margin: 0, padding: 0 }}
-                                >
-                                  {(itemsList || [])
-                                    .filter((i) => {
-                                      const q = (
-                                        item.searchQuery ||
-                                        item.description ||
-                                        ""
-                                      )
-                                        .toString()
-                                        .trim()
-                                        .toLowerCase();
-                                      // if user hasn't typed anything, don't show the entire list
-                                      if (!q) return false;
-                                      const text = (
-                                        i.name ||
-                                        i.description ||
-                                        i.Description ||
-                                        i.Code ||
-                                        ""
-                                      )
-                                        .toString()
-                                        .toLowerCase();
-                                      // const already = trItems.some(
-                                      //   (tr) => tr.item_id === (i.Id || i.id),
-                                      // );
-                                      // return text.includes(q) && !already;
-                                      return text.includes(q);
-                                    })
-                                    .map((itm) => (
-                                      <li
-                                        key={itm.Id}
-                                        onClick={() => {
-                                          console.log("Selected item:", itm);
-                                          setTrItems((prevItems) =>
-                                            prevItems.map((it) =>
-                                              it.id === item.id
-                                                ? {
-                                                    ...it,
-                                                    id: itm.Id || itm.id,
-                                                    item_id: itm.Id || itm.id,
-                                                    model:
-                                                      itm.Code ||
-                                                      itm.Code ||
-                                                      itm.Model ||
-                                                      itm.model ||
-                                                      "",
-                                                    description:
-                                                      itm.Description ||
-                                                      itm.description ||
-                                                      itm.Code ||
-                                                      itm.code ||
-                                                      "",
-                                                    quantity: it.quantity || 1,
-                                                    unitPrice:
-                                                      itm.Price_Detail ??
-                                                      itm.LocalPrice ??
-                                                      itm.LocalPrice_Details ??
-                                                      itm.SourcePrice_Details ??
-                                                      itm.LocalPrice ??
-                                                      itm.Localprice ??
-                                                      itm.localPrice ??
-                                                      itm.price ??
-                                                      itm.Price ??
-                                                      0,
-                                                    showDropdown: false,
-                                                    searchQuery: "",
-                                                  }
-                                                : it,
-                                            ),
-                                          );
-                                        }}
-                                        className="px-3 py-2 cursor-pointer hover:bg-gray-100 text-sm"
-                                        style={{ listStyle: "none" }}
-                                      >
-                                        {itm.Description ||
-                                          itm.description ||
-                                          itm.Code ||
-                                          itm.code}
-                                      </li>
-                                    ))}
-                                  {(itemsList || []).filter((i) =>
-                                    (i.name || i.description || "")
-                                      .toLowerCase()
-                                      .includes(
-                                        (item.searchQuery || "").toLowerCase(),
-                                      ),
-                                  ).length === 0 && (
-                                    <li
-                                      className="px-3 py-2 text-gray-500 text-sm"
-                                      style={{ listStyle: "none" }}
-                                    >
-                                      No results found
-                                    </li>
-                                  )}
-                                </ul>
-                              </div>
-                            )}
-                          </div>
-                        </td>
                         <td className="text-sm p-2 align-middle">
                           <input
                             type="text"
-                            value={item.model || ""}
-                            readOnly
-                            className="w-full rounded border border-gray-200 px-2 py-2 text-sm bg-gray-100"
-                          />
-                        </td>
-                        <td className="text-sm p-2 align-middle">
-                          <input
-                            type="text"
-                            value={item.description || ""}
-                            readOnly
-                            className="w-full rounded border border-gray-200 px-2 py-2 text-sm bg-gray-100"
-                          />
-                        </td>
-                        <td className="text-sm p-2 align-middle">
-                          <input
-                            type="number"
-                            min="1"
-                            value={item.quantity}
-                            className="w-full rounded border border-gray-200 px-2 py-2 text-sm bg-white"
+                            value={product.productName || ""}
                             onChange={(e) => {
-                              const value = Math.max(1, Number(e.target.value));
-                              onItemChange(item.id, "quantity", value);
+                              onProductChange(
+                                product.id,
+                                "productName",
+                                e.target.value,
+                              );
                             }}
+                            placeholder="Enter product name"
+                            className="w-full rounded border border-gray-200 px-2 py-2 text-sm"
+                            autoComplete="off"
                           />
                         </td>
                         <td className="text-sm p-2 align-middle">
                           <input
                             type="text"
-                            value={item.unitPrice}
-                            readOnly
-                            className="w-full rounded border border-gray-200 px-2 py-2 text-sm bg-gray-100"
+                            value={product.correctedPartNo || ""}
+                            onChange={(e) => {
+                              onProductChange(
+                                product.id,
+                                "correctedPartNo",
+                                e.target.value,
+                              );
+                            }}
+                            placeholder="Enter part number"
+                            className="w-full rounded border border-gray-200 px-2 py-2 text-sm"
+                          />
+                        </td>
+                        <td className="text-sm p-2 align-middle">
+                          <input
+                            type="text"
+                            value={product.description || ""}
+                            onChange={(e) => {
+                              onProductChange(
+                                product.id,
+                                "description",
+                                e.target.value,
+                              );
+                            }}
+                            placeholder="Enter description"
+                            className="w-full rounded border border-gray-200 px-2 py-2 text-sm"
+                          />
+                        </td>
+                        <td className="text-sm p-2 align-middle">
+                          <input
+                            type="text"
+                            value={product.brand || ""}
+                            onChange={(e) => {
+                              onProductChange(
+                                product.id,
+                                "brand",
+                                e.target.value,
+                              );
+                            }}
+                            placeholder="Enter brand"
+                            className="w-full rounded border border-gray-200 px-2 py-2 text-sm"
+                          />
+                        </td>
+                        <td className="text-sm p-2 align-middle">
+                          <input
+                            type="text"
+                            value={product.unitOm || ""}
+                            onChange={(e) => {
+                              onProductChange(
+                                product.id,
+                                "unitOm",
+                                e.target.value,
+                              );
+                            }}
+                            placeholder="e.g., PCS, SET"
+                            className="w-full rounded border border-gray-200 px-2 py-2 text-sm"
                           />
                         </td>
                         <td className="text-sm p-2 align-middle">
                           <button
                             type="button"
                             className="text-red-600 hover:text-red-800 text-sm"
-                            onClick={() => onRemoveItem(item.id)}
+                            onClick={() => onRemoveProduct(product.id)}
                           >
                             <LuTrash />
                           </button>
@@ -1105,9 +964,9 @@ const TechnicalForm = ({
               <button
                 type="button"
                 className="border border-gray-200 text-gray-800 rounded-md px-4 py-2 flex items-center shadow-xs hover:bg-gray-200 transition-all duration-200 cursor-pointer text-xs"
-                onClick={onAddItem}
+                onClick={onAddProduct}
               >
-                <LuPlus className="mr-2" /> Add Item
+                <LuPlus className="mr-2" /> Add Product
               </button>
             </div>
           </div>

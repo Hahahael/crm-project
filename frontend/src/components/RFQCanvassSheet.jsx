@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import {
   LuDownload,
   LuPrinter,
@@ -79,6 +79,40 @@ export default function RFQCanvassSheet({
     if (!vendorTotals || vendorTotals.length === 0) return;
     const best = vendorTotals.reduce((min, v) => (v.total < min.total ? v : min), vendorTotals[0]);
     if (best?.id) handleSelectVendorAll(best.id);
+  };
+
+  // Select a specific vendor for a single item
+  const handleSelectVendorForItem = (itemId, vendorId) => {
+    if (readOnly) return;
+    const newSelection = { ...selectedVendorsByItem, [itemId]: vendorId };
+    setSelectedVendorsByItem(newSelection);
+
+    // Update the item's price/leadTime from the selected quote
+    const selectedQuote = (quotations || []).find(
+      (q) => idEq(q.itemId, itemId) && idEq(q.vendorId, vendorId),
+    );
+    if (selectedQuote) {
+      const updatedItems = (formItems || []).map((item) => {
+        if (!idEq(canonItemId(item), itemId)) return item;
+        return {
+          ...item,
+          unitPrice: selectedQuote.unitPrice ?? item.unitPrice,
+          leadTime: selectedQuote.leadTime ?? item.leadTime,
+          quantity: selectedQuote.quantity ?? item.quantity,
+          total: (selectedQuote.unitPrice ?? 0) * (selectedQuote.quantity ?? 0),
+        };
+      });
+      setFormItems(updatedItems);
+      if (setFormData)
+        setFormData((prev) => ({
+          ...prev,
+          items: updatedItems,
+          selectedVendorsByItem: newSelection,
+        }));
+    }
+
+    // Clear the global "all" selection since items now differ
+    setSelectedVendorAll(null);
   };
 
   const [selectedVendorsByItem, setSelectedVendorsByItem] = useState(() => {
@@ -184,14 +218,18 @@ export default function RFQCanvassSheet({
     return generateQuotations(initialSelections);
   });
 
-  // Watch for changes in the RFQ's selected vendor and update local state
+  // Watch for changes in the RFQ's selected vendor from OUTSIDE (e.g. loading from DB)
+  // Only react to actual changes in the rfq prop's vendor ID, not formItems changes
+  const prevGlobalVendorRef = useRef(rfq?.selectedVendorId || rfq?.selected_vendor_id);
   useEffect(() => {
     const globalSelectedVendor = rfq?.selectedVendorId || rfq?.selected_vendor_id;
-    if (globalSelectedVendor !== selectedVendorAll) {
+    // Only sync if the global vendor ID actually changed from what we last saw
+    if (globalSelectedVendor && globalSelectedVendor !== prevGlobalVendorRef.current) {
+      prevGlobalVendorRef.current = globalSelectedVendor;
       setSelectedVendorAll(globalSelectedVendor);
       
       // Update selectedVendorsByItem to reflect the global selection
-      if (globalSelectedVendor && Array.isArray(formItems)) {
+      if (Array.isArray(formItems)) {
         const newSelections = {};
         formItems.forEach((item) => {
           const iid = canonItemId(item);
@@ -200,7 +238,7 @@ export default function RFQCanvassSheet({
         setSelectedVendorsByItem(newSelections);
       }
     }
-  }, [rfq?.selectedVendorId, rfq?.selected_vendor_id, selectedVendorAll, formItems]);
+  }, [rfq?.selectedVendorId, rfq?.selected_vendor_id]);
 
   // Sync quotations when selectedVendorsByItem changes
   useEffect(() => {
@@ -466,17 +504,23 @@ export default function RFQCanvassSheet({
                       "is selected:",
                       quote?.isSelected,
                     );
-                    return (
+                      const isItemSelected = idEq(selectedVendorsByItem[canonItemId(item)], canonVendorId(v));
+                      return (
                       <td
                         key={v.vendorId}
-                        className={`text-center cursor-default align-middle relative transition-all duration-150 ${
-                          quote?.isSelected ? "bg-blue-50" : ""
-                        }`}
-                        aria-disabled={true}
+                        className={`text-center align-middle relative transition-all duration-150 ${
+                          isItemSelected ? "bg-blue-50 ring-2 ring-inset ring-blue-300" : "hover:bg-gray-50"
+                        } ${readOnly ? "cursor-default" : "cursor-pointer"}`}
+                        onClick={() => !readOnly && handleSelectVendorForItem(canonItemId(item), canonVendorId(v))}
                       >
                         <div
                           className={`p-2 rounded transition-all duration-150 align-stretch relative`}
                         >
+                          {isItemSelected && (
+                            <div className="absolute top-1 right-1">
+                              <LuCheck className="h-4 w-4 text-blue-600" />
+                            </div>
+                          )}
                           <p className="font-bold text-lg">
                             {quote ? `₱${quote.unitPrice}` : "-"}
                           </p>

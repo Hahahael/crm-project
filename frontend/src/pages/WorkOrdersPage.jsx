@@ -43,6 +43,7 @@ export default function WorkOrdersPage() {
   });
   const [statusFilter, setStatusFilter] = useState(null); // 'Pending' | 'In Progress' | 'Completed' | null
   const [stageStatusFilter, setStageStatusFilter] = useState(''); // dropdown for stage status
+  const [taskStatusFilter, setTaskStatusFilter] = useState(''); // due date performance status: 'Early' | 'On Time' | 'Overdue' | 'Due Soon' | 'Not Completed'
   const [serviceTypeFilter, setServiceTypeFilter] = useState(''); // 'fsl', 'esl', 'new_account', ''
 
   // Unified filter handler to sync both status systems
@@ -160,11 +161,60 @@ export default function WorkOrdersPage() {
     }
   }, [location?.state, navigate]);
 
-  // Handle query parameters (e.g., from calendar)
+  // Handle query parameters (e.g., from calendar or dashboard)
   useEffect(() => {
     const urlParams = new URLSearchParams(location.search);
     const selectWoId = urlParams.get('select');
     const filterDate = urlParams.get('date');
+    const statusParam = urlParams.get('status');
+    const taskStatusParam = urlParams.get('taskStatus');
+    
+    // Handle status filter from URL parameter
+    if (statusParam) {
+      console.log('Setting status filter from URL:', statusParam);
+      // Map any variations to the correct values
+      let mappedStatus = statusParam;
+      switch (statusParam.toLowerCase()) {
+        case 'in progress':
+        case 'in-progress':
+          mappedStatus = 'In Progress';
+          break;
+        case 'pending':
+          mappedStatus = 'Pending';
+          break;
+        case 'completed':
+          mappedStatus = 'Completed';
+          break;
+        case 'draft':
+          mappedStatus = 'Draft';
+          break;
+        case 'approved':
+          mappedStatus = 'Approved';
+          break;
+        default:
+          mappedStatus = statusParam;
+      }
+      
+      setStageStatusFilter(mappedStatus);
+    }
+    
+    // Handle task status filter from URL parameter (due date performance)
+    if (taskStatusParam) {
+      console.log('Setting task status filter from URL:', taskStatusParam);
+      // Valid task status values: Early, On Time, Due Soon, Overdue, Not Completed
+      const validTaskStatuses = ['Early', 'On Time', 'Due Soon', 'Overdue', 'Not Completed'];
+      if (validTaskStatuses.includes(taskStatusParam)) {
+        setTaskStatusFilter(taskStatusParam);
+      }
+    }
+    
+    // Clear the query parameters to avoid reprocessing
+    if (statusParam || taskStatusParam) {
+      const newUrl = new URL(window.location);
+      newUrl.searchParams.delete('status');
+      newUrl.searchParams.delete('taskStatus');
+      navigate(newUrl.pathname + newUrl.search, { replace: true });
+    }
     
     if (selectWoId && workOrders.length > 0) {
       // Find the work order in the current list
@@ -265,6 +315,42 @@ export default function WorkOrdersPage() {
           return wo.isEsl === true;
         case 'new_account':
           return wo.isNewAccount === true;
+        default:
+          return true;
+      }
+    })
+    .filter((wo) => {
+      // Task Status Filter (Due Date Performance)
+      if (!taskStatusFilter) return true;
+      
+      const now = new Date();
+      const dueDate = wo.dueDate ? new Date(wo.dueDate) : null;
+      const doneDate = wo.doneDate ? new Date(wo.doneDate) : null;
+      const isCompleted = (wo.stageStatus || wo.stage_status || '').toLowerCase() === 'completed';
+      
+      switch (taskStatusFilter) {
+        case 'Early':
+          // Completed before due date
+          return isCompleted && doneDate && dueDate && doneDate < dueDate;
+        
+        case 'On Time':
+          // Completed on or by due date
+          return isCompleted && doneDate && dueDate && doneDate <= dueDate && doneDate.toDateString() === dueDate.toDateString();
+        
+        case 'Overdue':
+          // Not completed and past due date
+          return !isCompleted && dueDate && now > dueDate;
+        
+        case 'Due Soon':
+          // Not completed, due within 3 days
+          if (isCompleted || !dueDate) return false;
+          const daysUntilDue = Math.ceil((dueDate - now) / (1000 * 60 * 60 * 24));
+          return daysUntilDue >= 0 && daysUntilDue <= 3;
+        
+        case 'Not Completed':
+          // Not completed regardless of due date
+          return !isCompleted;
+        
         default:
           return true;
       }
@@ -733,6 +819,23 @@ export default function WorkOrdersPage() {
                   </select>
                   <LuFilter className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4 pointer-events-none" />
                 </div>
+
+                {/* Task Status Filter */}
+                <div className="relative w-full md:w-auto">
+                  <select
+                    value={taskStatusFilter}
+                    onChange={(e) => setTaskStatusFilter(e.target.value)}
+                    className="flex h-9 rounded-md border border-gray-200 bg-transparent px-3 py-1 text-sm shadow-xs transition-colors appearance-none pr-8 min-w-[140px] w-full"
+                  >
+                    <option value="">All Task Status</option>
+                    <option value="Early">Early</option>
+                    <option value="On Time">On Time</option>
+                    <option value="Due Soon">Due Soon</option>
+                    <option value="Overdue">Overdue</option>
+                    <option value="Not Completed">Not Completed</option>
+                  </select>
+                  <LuFilter className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4 pointer-events-none" />
+                </div>
               </div>
 
               {/* Create New Work Order Button */}
@@ -771,6 +874,22 @@ export default function WorkOrdersPage() {
                   </div>
                 )}
                 
+                {/* Task Status Filter Badge */}
+                {taskStatusFilter && (
+                  <div className="inline-flex items-center gap-2 rounded-full bg-green-50 text-green-700 px-3 py-1 text-xs border border-green-200">
+                    <span>Task Status:</span>
+                    <span className="font-semibold">{taskStatusFilter}</span>
+                    <button
+                      type="button"
+                      className="ml-1 rounded-full hover:bg-green-100 px-1.5 cursor-pointer"
+                      onClick={() => setTaskStatusFilter('')}
+                      aria-label="Clear task status filter"
+                    >
+                      ×
+                    </button>
+                  </div>
+                )}
+                
                 {serviceTypeFilter && (
                   <div className="inline-flex items-center gap-2 rounded-full bg-purple-50 text-purple-700 px-3 py-1 text-xs border border-purple-200">
                     <span>Type:</span>
@@ -791,11 +910,12 @@ export default function WorkOrdersPage() {
                 )}
 
                 {/* Clear All Filters */}
-                {(statusFilter || stageStatusFilter || serviceTypeFilter) && (
+                {(statusFilter || stageStatusFilter || taskStatusFilter || serviceTypeFilter) && (
                   <button
                     onClick={() => {
                       setStatusFilter(null);
                       setStageStatusFilter('');
+                      setTaskStatusFilter('');
                       setServiceTypeFilter('');
                     }}
                     className="text-xs text-gray-500 hover:text-gray-700 underline"

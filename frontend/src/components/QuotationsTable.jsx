@@ -20,8 +20,8 @@ export default function QuotationsTable({ quotations, onView, onSend }) {
   const { currentUser } = useUser();
   
   // Sorting state
-  const [sortField, setSortField] = useState(null);
-  const [sortDirection, setSortDirection] = useState('asc'); // 'asc' or 'desc'
+  const [sortField, setSortField] = useState('createdAt');
+  const [sortDirection, setSortDirection] = useState('desc'); // 'asc' or 'desc'
 
   const getQuotationType = (quotation) => {
     if (quotation.rfq) return "RFQ";
@@ -87,6 +87,10 @@ export default function QuotationsTable({ quotations, onView, onSend }) {
       case 'assignee':
         aVal = (a.assigneeUsername || '').toLowerCase();
         bVal = (b.assigneeUsername || '').toLowerCase();
+        break;
+      case 'createdAt':
+        aVal = new Date(a.createdAt || 0);
+        bVal = new Date(b.createdAt || 0);
         break;
       default:
         return 0;
