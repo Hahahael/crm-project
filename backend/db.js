@@ -62,17 +62,30 @@ if (process.env.USE_MOCK === "true") {
 
   pool
     .connect()
-    .then(() =>
+    .then((client) => {
       console.log(
         `✅ Connected to database: ${process.env.DB_NAME || (process.env.DATABASE_URL ? "(DATABASE_URL)" : "unknown")}`,
-      ),
-    )
-    .catch((err) => console.error("❌ Database connection error:", err));
+      );
+      client.release(); // Release the test client back to the pool
+    })
+    .catch((err) => console.error("❌ Database connection error:", err.message || err));
 
-  // Prevent crashes on transient pool-level errors (e.g., server restarts)
+  // Prevent crashes on transient pool-level errors (e.g., server restarts, ETIMEDOUT)
   pool.on("error", (err) => {
     console.error("⚠️ Unexpected PG pool error (handled):", err?.code || err?.message || err);
   });
+
+  // Also catch errors on individual clients checked out of the pool
+  const origConnect = pool.connect.bind(pool);
+  pool.connect = async (...args) => {
+    const client = await origConnect(...args);
+    if (client && typeof client.on === "function") {
+      client.on("error", (err) => {
+        console.error("⚠️ PG client error (handled):", err?.code || err?.message || err);
+      });
+    }
+    return client;
+  };
 }
 
 // ✅ wrap query to always camelCase rows + add a light retry for transient errors

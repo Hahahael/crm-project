@@ -66,8 +66,8 @@ router.get("/", async (req, res) => {
             .filter((v) => v !== null && v !== undefined),
         ),
       );
-      console.log("🔍 Extracted account IDs from technical recommendations:", ids);
-      console.log("🔍 Sample TR row:", rows[0] || "No TRs found");
+      // console.log("🔍 Extracted account IDs from technical recommendations:", ids);
+      // console.log("🔍 Sample TR row:", rows[0] || "No TRs found");
       if (ids.length > 0) {
         const spiPool = await poolPromise;
         const numericIds = ids
@@ -75,14 +75,14 @@ router.get("/", async (req, res) => {
           .filter((n) => Number.isFinite(n));
         if (numericIds.length > 0) {
           // Load SPI customers by account ids
-          console.log("🔍 Attempting to fetch customers for IDs:", numericIds);
+          // console.log("🔍 Attempting to fetch customers for IDs:", numericIds);
           
           const custRes = await spiPool
             .request()
             .query(`SELECT * FROM spidb.customer WHERE Id IN (${numericIds.join(",")})`);
           const customers = custRes.recordset || [];
-          console.log("✅ Successfully fetched customers:", customers.length, "records");
-          console.log("🔍 Sample customer data:", customers[0] || "No customers found");
+          // console.log("✅ Successfully fetched customers:", customers.length, "records");
+          // console.log("🔍 Sample customer data:", customers[0] || "No customers found");
           const customerMap = new Map(customers.map((c) => [Number(c.Id), c]));
 
           const normId = (v) => {
@@ -206,69 +206,27 @@ router.get("/:id", async (req, res) => {
     if (result.rows.length === 0)
       return res.status(404).json({ error: "Not found" });
 
-    // Fetch items assigned to this tr
-    const itemsRes = await db.query(
+    // Fetch products assigned to this tr
+    const productsRes = await db.query(
       `
-        SELECT
-          ti.*
-        FROM tr_items ti
-        WHERE ti.tr_id = $1 ORDER BY ti.id ASC
+        SELECT *
+        FROM technical_recommendation_products
+        WHERE tr_id = $1
       `,
       [id],
     );
+    // console.log("📦 Fetched", productsRes.rows.length, "products for TR", id);
 
-    // Resolve MSSQL details for each tr_item and merge
-    const pool = await poolPromise;
-    const items = [];
-    for (const ri of itemsRes.rows) {
-      try {
-        console.log("Resolving MSSQL item for tr_item:", ri);
-        console.log("itemId:", ri.itemId);
-        const sdRes = await pool
-          .request()
-          .input("id", ri.itemId)
-          .query("SELECT * FROM spidb.stock_details WHERE id = @id"); 
-        // const sRes = await pool
-        //   .request()
-        //   .input("id", ri.itemId)
-        //   .query("SELECT * FROM spidb.stock WHERE Id = @id");
-        logAttributes(
-          `tr item stock_details (id=${ri.itemId})`,
-          sdRes.recordset || [],
-        );
-        // logAttributes(`tr item stock (id=${ri.itemId})`, sRes.recordset || []);
-        const detailObj =
-          sdRes && sdRes.recordset && sdRes.recordset[0]
-            ? sdRes.recordset[0]
-            : null;
-        // const parentObj =
-        //   sRes && sRes.recordset && sRes.recordset[0]
-        //     ? sRes.recordset[0]
-        //     : null;
-        const merged = mergePrimaryWithParent(detailObj,detailObj);
-        const combined = {
-          ...ri,
-          ...merged,
-        };
-        items.push(combined);
-      } catch (err) {
-        console.error("Error resolving MSSQL item for tr_item", ri, err);
-        items.push({ id: ri.id, itemId: ri.item_id, quantity: ri.quantity });
-      }
-    }
-
-    console.log("Fetched items for technical recommendation:", items);
-
-    const base = { ...result.rows[0], items };
+    const base = { ...result.rows[0], products: productsRes.rows };
 
     // Enrich single with SPI account
     try {
       const spiPool = await poolPromise;
       const accId = Number(base.accountId ?? base.account_id);
-      console.log("🔍 Single TR - Account ID:", accId, "from base:", base.accountId, base.account_id);
+      // console.log("🔍 Single TR - Account ID:", accId, "from base:", base.accountId, base.account_id);
       let customer = null;
       if (Number.isFinite(accId)) {
-        console.log("🔍 Fetching single customer for ID:", accId);
+        // console.log("🔍 Fetching single customer for ID:", accId);
         const custRes = await spiPool
           .request()
           .input("id", accId)
@@ -325,7 +283,7 @@ router.get("/:id", async (req, res) => {
         };
 
         base.account = account;
-        console.log("Fetched technical recommendation:", base);
+        // console.log("Fetched technical recommendation:", base);
         // return res.json(base);
       }
     } catch (enrichErr) {
@@ -348,7 +306,7 @@ router.get("/:id", async (req, res) => {
             ? JSON.parse(base.attachments) 
             : base.attachments;
           fileIds = Array.isArray(parsed) ? parsed : [];
-          console.log("Extracted file IDs from PostgreSQL attachments:", fileIds);
+          // console.log("Extracted file IDs from PostgreSQL attachments:", fileIds);
         } catch {
           console.warn("Failed to parse PostgreSQL attachments JSONB");
           fileIds = [];
@@ -391,16 +349,16 @@ router.get("/:id", async (req, res) => {
       }
 
       base.attachments = attachments;
-      console.log(`📁 Fetched ${attachments.length} attachments for TR ${id} using file IDs [${fileIds.join(', ')}]`);
-      console.log("🔍 Raw attachment details:", attachments);
-      console.log("🔍 Final base.attachments:", base.attachments);
+      // console.log(`📁 Fetched ${attachments.length} attachments for TR ${id} using file IDs [${fileIds.join(', ')}]`);
+      // console.log("🔍 Raw attachment details:", attachments);
+      // console.log("🔍 Final base.attachments:", base.attachments);
       
     } catch (attachErr) {
       console.warn("Failed to fetch attachments for TR:", attachErr.message);
       base.attachments = [];
     }
 
-    console.log("Fetched technical recommendation:", base);
+    // console.log("Fetched technical recommendation:", base);
     return res.json(base);
   } catch (err) {
     console.error(err);
@@ -414,7 +372,8 @@ router.get("/:id", async (req, res) => {
 router.post("/", async (req, res) => {
   try {
     const body = toSnake(req.body);
-    console.log("Creating technical recommendation with data:", body);
+    // console.log("📝 Creating technical recommendation with data:", body);
+    // console.log("📦 Products to be created:", body.products);
     // Only require wo_id and assignee for skeletal creation, status defaults to 'Draft'
     const wo_id = body.wo_id;
     const account_id = body.account_id;
@@ -492,13 +451,39 @@ router.post("/", async (req, res) => {
       [wo_id, "Technical Recommendation", "Draft", assignee],
     );
 
+    // Insert products if any
+    if (body.products && Array.isArray(body.products) && body.products.length > 0) {
+      // console.log(`📦 Inserting ${body.products.length} products for new TR ${newId}`);
+      
+      for (const product of body.products) {
+        const insertResult = await db.query(
+          `INSERT INTO technical_recommendation_products 
+           (tr_id, product_name, corrected_part_no, description, brand, unit_om) 
+           VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
+          [
+            newId,
+            product.product_name || product.productName,
+            product.corrected_part_no || product.correctedPartNo,
+            product.description,
+            product.brand,
+            product.unit_om || product.unitOm,
+          ],
+        );
+        // console.log("✅ Inserted product with ID:", insertResult.rows[0]?.id);
+      }
+      
+      // console.log(`✅ Successfully inserted ${body.products.length} products for TR ${newId}`);
+    } else {
+      // console.log("ℹ️ No products to insert for TR", newId);
+    }
+
     // Handle file uploads if any new attachments
     if (body.new_attachments && Array.isArray(body.new_attachments) && body.new_attachments.length > 0) {
       try {
         const crmPool = await poolCrmPromise;
         const uploadedFileIds = []; // Array to collect MSSQL file IDs
         
-        console.log(`📁 Processing ${body.new_attachments.length} new attachments for new TR ${newId}`);
+        // console.log(`📁 Processing ${body.new_attachments.length} new attachments for new TR ${newId}`);
         
         for (const file of body.new_attachments) {
           if (!file.name || !file.base64 || !file.type || !file.size) {
@@ -534,7 +519,7 @@ router.post("/", async (req, res) => {
           // Collect the file ID for PostgreSQL storage
           if (result.recordset && result.recordset[0]) {
             uploadedFileIds.push(result.recordset[0].id);
-            console.log(`✅ Uploaded file: ${file.name} (ID: ${result.recordset[0].id}) for new TR ${newId}`);
+            // console.log(`✅ Uploaded file: ${file.name} (ID: ${result.recordset[0].id}) for new TR ${newId}`);
           }
         }
 
@@ -546,7 +531,7 @@ router.post("/", async (req, res) => {
               [JSON.stringify(uploadedFileIds), newId]
             );
 
-            console.log(`✅ Updated PostgreSQL attachments with file IDs [${uploadedFileIds.join(', ')}] for new TR ${newId}`);
+            // console.log(`✅ Updated PostgreSQL attachments with file IDs [${uploadedFileIds.join(', ')}] for new TR ${newId}`);
           } catch (pgError) {
             console.error("PostgreSQL attachments update error:", pgError);
           }
@@ -569,7 +554,16 @@ router.post("/", async (req, res) => {
       [newId],
     );
 
-    return res.status(201).json(final.rows[0]);
+    // Fetch products for the newly created TR
+    const productsRes = await db.query(
+      `SELECT * FROM technical_recommendation_products WHERE tr_id = $1`,
+      [newId],
+    );
+    // console.log("📦 Fetched", productsRes.rows.length, "products for newly created TR", newId);
+
+    const response = { ...final.rows[0], products: productsRes.rows };
+
+    return res.status(201).json(response);
   } catch (err) {
     console.error(err);
     return res
@@ -583,12 +577,13 @@ router.put("/:id", async (req, res) => {
   try {
     const { id } = req.params;
     const body = toSnake(req.body);
-    console.log("Updating technical recommendation id", id, "with data:", body);
+    // console.log("📝 Updating technical recommendation id", id, "with data:", body);
+    // console.log("📦 Products in request:", body.products);
     const actual_date = body.actual_date || null;
     const actual_from_time = body.actual_from_time || null;
     const actual_to_time = body.actual_to_time || null;
     // Add all fields you want to update here
-    console.log("Attachments field on update:", body.attachments);
+    // console.log("Attachments field on update:", body.attachments);
     const updateResult = await db.query(
       `
         UPDATE technical_recommendations 
@@ -624,44 +619,73 @@ router.put("/:id", async (req, res) => {
       ],
     );
 
-    // --- Update tr_items robustly ---
-    // 1. Fetch all existing items for this tr_id
-    const existingItemsRes = await db.query(
-      `SELECT id FROM tr_items WHERE tr_id = $1`,
+    // --- Update technical_recommendation_products robustly ---
+    // 1. Fetch all existing products for this tr_id
+    const existingProductsRes = await db.query(
+      `SELECT id FROM technical_recommendation_products WHERE tr_id = $1`,
       [id],
     );
-    const existingItemIds = new Set(existingItemsRes.rows.map((row) => row.id));
+    const existingProductIds = new Set(existingProductsRes.rows.map((row) => row.id));
 
-    // 2. Get incoming items from request
-    const incomingItems = body.items || [];
-    const incomingItemIds = new Set(
-      incomingItems.filter((it) => it.id).map((it) => it.id),
+    // 2. Get incoming products from request
+    const incomingProducts = body.products || [];
+    const incomingProductIds = new Set(
+      incomingProducts.filter((product) => product.id).map((product) => product.id),
     );
-    console.log("Existing item IDs:", existingItemsRes.rows);
-    console.log("Incoming item IDs:", incomingItems);
+    // console.log("🔍 Existing product IDs:", existingProductsRes.rows);
+    // console.log("🔍 Incoming products count:", incomingProducts.length);
+    // console.log("📋 Incoming products detail:", incomingProducts);
 
-    // 3. Delete items that exist in DB but not in incoming
-    for (const dbId of existingItemIds) {
-      if (!incomingItemIds.has(dbId)) {
-        await db.query(`DELETE FROM tr_items WHERE id = $1`, [dbId]);
+    // 3. Delete products that exist in DB but not in incoming
+    for (const dbId of existingProductIds) {
+      if (!incomingProductIds.has(dbId)) {
+        // console.log("🗑️  Deleting removed product with ID:", dbId);
+        await db.query(`DELETE FROM technical_recommendation_products WHERE id = $1`, [dbId]);
       }
     }
 
-    // 4. Upsert incoming items
-    for (const item of incomingItems) {
-      console.log("Upserting item:", item);
-      if (item.id && existingItemIds.has(item.id)) {
-        // Update existing item
-        await db.query(`UPDATE tr_items SET quantity=$1 WHERE id=$2`, [
-          item.quantity,
-          item.id,
-        ]);
-      } else {
-        // Insert new item
+    // 4. Upsert incoming products
+    for (const product of incomingProducts) {
+      // console.log("💾 Upserting product:", {
+      //   id: product.id,
+      //   productName: product.product_name || product.productName,
+      //   correctedPartNo: product.corrected_part_no || product.correctedPartNo,
+      //   description: product.description?.substring(0, 50) + '...',
+      //   brand: product.brand,
+      //   unitOm: product.unit_om || product.unitOm
+      // });
+      if (product.id && existingProductIds.has(product.id)) {
+        // Update existing product
+        // console.log("🔄 Updating existing product with ID:", product.id);
         await db.query(
-          `INSERT INTO tr_items (tr_id, item_id, quantity) VALUES ($1, $2, $3)`,
-          [id, item.id, item.quantity],
+          `UPDATE technical_recommendation_products 
+           SET product_name=$1, corrected_part_no=$2, description=$3, brand=$4, unit_om=$5 
+           WHERE id=$6`,
+          [
+            product.product_name || product.productName,
+            product.corrected_part_no || product.correctedPartNo,
+            product.description,
+            product.brand,
+            product.unit_om || product.unitOm,
+            product.id,
+          ],
         );
+      } else {
+        // Insert new product
+        const insertResult = await db.query(
+          `INSERT INTO technical_recommendation_products 
+           (tr_id, product_name, corrected_part_no, description, brand, unit_om) 
+           VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
+          [
+            id,
+            product.product_name || product.productName,
+            product.corrected_part_no || product.correctedPartNo,
+            product.description,
+            product.brand,
+            product.unit_om || product.unitOm,
+          ],
+        );
+        // console.log("✅ Inserted new product with ID:", insertResult.rows[0]?.id);
       }
     }
 
@@ -682,18 +706,16 @@ router.put("/:id", async (req, res) => {
     if (result.rows.length === 0)
       return res.status(404).json({ error: "Not found" });
 
-    // Fetch items assigned to this tr
-    const itemsRes = await db.query(
+    // Fetch products assigned to this tr
+    const productsRes = await db.query(
       `
-        SELECT
-          ti.*,
-          i.*
-        FROM tr_items ti
-        LEFT JOIN items i ON ti.item_id = i.id
-        WHERE ti.tr_id = $1
+        SELECT *
+        FROM technical_recommendation_products
+        WHERE tr_id = $1
       `,
       [updatedId],
     );
+    // console.log("📦 Fetched", productsRes.rows.length, "products after update for TR", updatedId);
 
     // Handle file uploads if any new attachments
     if (body.new_attachments && Array.isArray(body.new_attachments) && body.new_attachments.length > 0) {
@@ -701,7 +723,7 @@ router.put("/:id", async (req, res) => {
         const crmPool = await poolCrmPromise;
         const newFileIds = []; // Array to collect new MSSQL file IDs
         
-        console.log(`📁 Processing ${body.new_attachments.length} new attachments for TR ${updatedId}`);
+        // console.log(`📁 Processing ${body.new_attachments.length} new attachments for TR ${updatedId}`);
         
         for (const file of body.new_attachments) {
           if (!file.name || !file.base64 || !file.type || !file.size) {
@@ -737,7 +759,7 @@ router.put("/:id", async (req, res) => {
           // Collect the file ID for PostgreSQL storage
           if (result.recordset && result.recordset[0]) {
             newFileIds.push(result.recordset[0].id);
-            console.log(`✅ Uploaded file: ${file.name} (ID: ${result.recordset[0].id}) for TR ${updatedId}`);
+            // console.log(`✅ Uploaded file: ${file.name} (ID: ${result.recordset[0].id}) for TR ${updatedId}`);
           }
         }
 
@@ -764,9 +786,9 @@ router.put("/:id", async (req, res) => {
             // Append new file IDs to existing ones
             const updatedFileIds = [...currentFileIds, ...newFileIds];
 
-            console.log("Current file IDs:", currentFileIds);
-            console.log("New file IDs:", newFileIds);
-            console.log("Updated combined file IDs:", updatedFileIds);
+            // console.log("Current file IDs:", currentFileIds);
+            // console.log("New file IDs:", newFileIds);
+            // console.log("Updated combined file IDs:", updatedFileIds);
 
             // Update PostgreSQL attachments field with combined file IDs
             const trAttachmentsRes = await db.query(
@@ -774,9 +796,9 @@ router.put("/:id", async (req, res) => {
               [JSON.stringify(updatedFileIds), updatedId]
             );
 
-            console.log("Post attachments update result:", trAttachmentsRes.rows[0]);
+            // console.log("Post attachments update result:", trAttachmentsRes.rows[0]);
 
-            console.log(`✅ Updated PostgreSQL attachments with file IDs [${updatedFileIds.join(', ')}] for TR ${updatedId}`);
+            // console.log(`✅ Updated PostgreSQL attachments with file IDs [${updatedFileIds.join(', ')}] for TR ${updatedId}`);
           } catch (pgError) {
             console.error("PostgreSQL attachments update error:", pgError);
           }
@@ -788,18 +810,20 @@ router.put("/:id", async (req, res) => {
       }
     }
 
-    const response = { ...result.rows[0], items: itemsRes.rows };
+    const response = { ...result.rows[0], products: productsRes.rows };
     
-    const base = { ...result.rows[0], items: itemsRes.rows };
+    // console.log("📦 Fetched", productsRes.rows.length, "products for TR", id);
+
+    const base = { ...result.rows[0], products: productsRes.rows };
 
     // Enrich single with SPI account
     try {
       const spiPool = await poolPromise;
       const accId = base.accountId ?? base.account_id;
-      console.log("🔍 PUT TR - Account ID:", accId, "from base:", base.accountId, base.account_id);
+      // console.log("🔍 PUT TR - Account ID:", accId, "from base:", base.accountId, base.account_id);
       let customer = null;
       if (accId != null) {
-        console.log("🔍 PUT - Fetching single customer for ID:", Number(accId));
+        // console.log("🔍 PUT - Fetching single customer for ID:", Number(accId));
         const custRes = await spiPool
           .request()
           .input("id", Number(accId))
@@ -856,7 +880,7 @@ router.put("/:id", async (req, res) => {
         };
 
         const response = { ...base, account };
-        console.log("Fetched technical recommendation:", response);
+        // console.log("Fetched technical recommendation:", response);
         return res.json(response);
       }
     } catch (enrichErr) {
@@ -871,6 +895,55 @@ router.put("/:id", async (req, res) => {
     return res
       .status(500)
       .json({ error: "Failed to update technical recommendation" });
+  }
+});
+
+// Update product routing for TR approval
+router.put("/:id/routing", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { productRouting, itemMappings, newItemFlags } = req.body;
+    
+    // console.log("📝 Updating product routing for TR", id);
+    // console.log("📦 Product routing data:", productRouting);
+    // console.log("🔗 Item mappings data:", itemMappings);
+    // console.log("🆕 New item flags:", newItemFlags);
+
+    if (!productRouting || typeof productRouting !== 'object') {
+      return res.status(400).json({ error: "Invalid product routing data" });
+    }
+
+    // Update each product's routing_type, item_id, and is_new_item flag
+    for (const [productId, routingType] of Object.entries(productRouting)) {
+      if (!['rfq', 'direct_quotation'].includes(routingType)) {
+        console.warn(`⚠️ Invalid routing type '${routingType}' for product ${productId}, skipping`);
+        continue;
+      }
+
+      const itemId = itemMappings && itemMappings[productId] ? itemMappings[productId] : null;
+      const isNewItem = newItemFlags && newItemFlags[productId] ? true : false;
+
+      await db.query(
+        `UPDATE technical_recommendation_products 
+         SET routing_type = $1, item_id = $2, is_new_item = $3 
+         WHERE id = $4 AND tr_id = $5`,
+        [routingType, itemId, isNewItem, productId, id]
+      );
+      
+      if (isNewItem) {
+        // console.log(`✅ Updated product ${productId}: routing=${routingType}, NEW ITEM (no mapping required)`);
+      } else if (itemId) {
+        // console.log(`✅ Updated product ${productId}: routing=${routingType}, mapped to item ${itemId}`);
+      } else {
+        // console.log(`✅ Updated product ${productId}: routing=${routingType}, no item mapping`);
+      }
+    }
+
+    // console.log("✅ Successfully updated routing, mappings, and new item flags for all products in TR", id);
+    return res.json({ success: true, message: "Product routing, item mappings, and new item flags updated successfully" });
+  } catch (err) {
+    console.error("❌ Error updating product routing:", err);
+    return res.status(500).json({ error: "Failed to update product routing" });
   }
 });
 
@@ -989,13 +1062,13 @@ router.post("/:id/attachments", async (req, res) => {
           [JSON.stringify(updatedFileIds), trId]
         );
 
-        console.log(`✅ Updated PostgreSQL attachments with file IDs [${updatedFileIds.join(', ')}] for TR ${trId}`);
+        // console.log(`✅ Updated PostgreSQL attachments with file IDs [${updatedFileIds.join(', ')}] for TR ${trId}`);
       } catch (pgError) {
         console.warn("Failed to update PostgreSQL attachments:", pgError.message);
       }
     }
 
-    console.log(`✅ Uploaded ${uploadedFiles.length} files for TR ${trId}`);
+    // console.log(`✅ Uploaded ${uploadedFiles.length} files for TR ${trId}`);
     
     res.json({
       message: `Successfully uploaded ${uploadedFiles.length} files`,
@@ -1038,7 +1111,7 @@ router.get("/:id/attachments/:attachmentId/download", async (req, res) => {
     const { attachmentId } = req.params;
     const crmPool = await poolCrmPromise;
 
-    console.log(`🔍 Downloading attachment ID ${attachmentId} for TR ${req.params.id}`);
+    // console.log(`🔍 Downloading attachment ID ${attachmentId} for TR ${req.params.id}`);
 
     const result = await crmPool
       .request()
@@ -1061,7 +1134,7 @@ router.get("/:id/attachments/:attachmentId/download", async (req, res) => {
       'Content-Length': file.Content.length
     });
 
-    console.log(`✅ Serving download for file: ${file.FileName} (Type: ${file.FileType}, Size: ${file.Content.length} bytes)`);
+    // console.log(`✅ Serving download for file: ${file.FileName} (Type: ${file.FileType}, Size: ${file.Content.length} bytes)`);
 
     res.send(file.Content);
 
@@ -1120,7 +1193,7 @@ router.delete("/:id/attachments/:attachmentId", async (req, res) => {
           [JSON.stringify(updatedFileIds), trId]
         );
 
-        console.log(`✅ Updated PostgreSQL attachments, removed file ID ${attachmentId} from TR ${trId}`);
+        // console.log(`✅ Updated PostgreSQL attachments, removed file ID ${attachmentId} from TR ${trId}`);
       }
     } catch (pgError) {
       console.warn("Failed to update PostgreSQL attachments after delete:", pgError.message);

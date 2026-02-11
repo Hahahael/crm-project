@@ -17,12 +17,12 @@ const createTransporter = async () => {
     }
     
     const emailConfig = result.recordset[0];
-    console.log("📧 Loading email config from database:", {
-      host: emailConfig.Host,
-      port: emailConfig.SmtpPort,
-      from: emailConfig.MailFrom,
-      fromName: emailConfig.MailFromName
-    });
+    // console.log("📧 Loading email config from database:", {
+    //   host: emailConfig.Host,
+    //   port: emailConfig.SmtpPort,
+    //   from: emailConfig.MailFrom,
+    //   fromName: emailConfig.MailFromName
+    // });
     
     return nodemailer.createTransport({
       host: emailConfig.Host,
@@ -63,12 +63,12 @@ router.post("/send-rfq", async (req, res) => {
   try {
     const { to, subject, content, vendor, rfqData, rfqItems } = req.body;
 
-    console.log("📧 Sending RFQ email:", {
-      to,
-      subject,
-      vendor: vendor?.name,
-      itemCount: rfqItems?.length || 0
-    });
+    // console.log("📧 Sending RFQ email:", {
+    //   to,
+    //   subject,
+    //   vendor: vendor?.name,
+    //   itemCount: rfqItems?.length || 0
+    // });
 
     // Validate required fields
     if (!to || !subject || !content) {
@@ -84,7 +84,7 @@ router.post("/send-rfq", async (req, res) => {
     // Verify transporter configuration
     try {
       await transporter.verify();
-      console.log("✅ Email transporter is ready");
+      // console.log("✅ Email transporter is ready");
     } catch (verifyError) {
       console.error("❌ Email transporter verification failed:", verifyError);
       return res.status(500).json({ 
@@ -105,11 +105,11 @@ router.post("/send-rfq", async (req, res) => {
     // Send email
     const info = await transporter.sendMail(mailOptions);
     
-    console.log("✅ Email sent successfully:", {
-      messageId: info.messageId,
-      to: to,
-      subject: subject
-    });
+    // console.log("✅ Email sent successfully:", {
+    //   messageId: info.messageId,
+    //   to: to,
+    //   subject: subject
+    // });
 
     // Log email activity (you might want to save this to database)
     const emailLog = {
@@ -122,7 +122,7 @@ router.post("/send-rfq", async (req, res) => {
       status: 'sent'
     };
     
-    console.log("📝 Email log:", emailLog);
+    // console.log("📝 Email log:", emailLog);
 
     res.json({
       success: true,

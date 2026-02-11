@@ -226,7 +226,7 @@ router.post("/quotations", async (req, res) => {
       VALUES ('${contact.contact_type_id || 2}','${contact.customer_id || filteredQuotation.Customer_Id || 0}','${contact.contact_number || ''}','${contact.email_address || ''}','${contact.contact_person || ''}',1,'')`;
     const CustAttn = await trxCustAttn.query(insertCustAttnSql);
 
-    console.log("CustAttn",CustAttn)
+    // console.log("CustAttn",CustAttn)
 
     // Build parameterized INSERT for quotation using allowed / filtered keys
     const qKeys = Object.keys(filteredQuotation);
@@ -271,9 +271,9 @@ router.post("/quotations", async (req, res) => {
       const dReq = transaction.request();
       dk.forEach((k, i) => dReq.input(`d${i}`, detail[k]));
 
-      console.log("Inserting detail:", dParams, detail);
+      // console.log("Inserting detail:", dParams, detail);
       const insertDetailSql = `INSERT INTO spidb.quotation_details (${dCols}) OUTPUT INSERTED.* VALUES (${dParams})`;
-      // console.log("INSERT TO DETAILS" , insertDetailSql, dReq )
+      // // console.log("INSERT TO DETAILS" , insertDetailSql, dReq )
       const dRes = await dReq.query(insertDetailSql);
       if (dRes.recordset && dRes.recordset[0])
         insertedDetails.push(dRes.recordset[0]);
@@ -283,7 +283,7 @@ router.post("/quotations", async (req, res) => {
 
     // Attach details array to returned object
     insertedQuotation.details = insertedDetails;
-    console.log("Inserted quotation:", insertedQuotation);
+    // console.log("Inserted quotation:", insertedQuotation);
 
     // Side-effect: mark linked Work Order as Completed if a WO context was provided upstream.
     // We expect the frontend to submit to Postgres first and know the wo_id. Since MSSQL schema

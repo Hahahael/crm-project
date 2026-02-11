@@ -27,7 +27,7 @@ router.get("/", async (req, res) => {
     `);
     const quotations = qRes.rows;
 
-    console.log(`Fetched ${quotations.length} quotations`);
+    // console.log(`Fetched ${quotations.length} quotations`);
 
     // Collect all related IDs (convert to numbers and filter out invalids)
     const rfqIds = [
@@ -46,9 +46,9 @@ router.get("/", async (req, res) => {
       ),
     ];
 
-    console.log("Collected RFQ IDs:", rfqIds);
-    console.log("Collected TR IDs:", trIds);
-    console.log("Collected Workorder IDs:", woIds);
+    // console.log("Collected RFQ IDs:", rfqIds);
+    // console.log("Collected TR IDs:", trIds);
+    // console.log("Collected Workorder IDs:", woIds);
 
     // Prepare batched queries dynamically
     const rfqQuery = rfqIds.length ? buildInQuery("rfqs", rfqIds) : null;
@@ -64,9 +64,9 @@ router.get("/", async (req, res) => {
       woQuery ? db.query(woQuery.query, woQuery.params) : { rows: [] },
     ]);
 
-    console.log(
-      `Fetched ${rfqsRes.rows.length} RFQs, ${trsRes.rows.length} TRs, ${wosRes.rows.length} Workorders`,
-    );
+    // console.log(
+    //   `Fetched ${rfqsRes.rows.length} RFQs, ${trsRes.rows.length} TRs, ${wosRes.rows.length} Workorders`,
+    // );
 
     // Convert results to maps for fast lookups
     const rfqMap = Object.fromEntries(rfqsRes.rows.map((r) => [r.id, r]));
@@ -83,7 +83,7 @@ router.get("/", async (req, res) => {
 
     // Enrich with MSSQL customer data
     try {
-      console.log("Starting enrichment of quotations with customer data from MSSQL");
+      // console.log("Starting enrichment of quotations with customer data from MSSQL");
       // Collect account IDs that need customer enrichment
       const accountIds = [
         ...new Set(
@@ -100,7 +100,7 @@ router.get("/", async (req, res) => {
           .query(`SELECT * FROM spidb.customer WHERE Id IN (${accountIds.join(",")})`);
         const customers = custRes.recordset || [];
         const custMap = new Map(customers.map((c) => [Number(c.Id), c]));
-        console.log(`Fetched ${customers.length} customers from MSSQL for enrichment`);
+        // console.log(`Fetched ${customers.length} customers from MSSQL for enrichment`);
 
         const normId = (v) => {
           const n = Number(v);
@@ -184,19 +184,19 @@ router.get("/", async (req, res) => {
             industry: iId != null ? indMap.get(iId) || null : null,
             department: deptMap.get(dId) || null,
           };
-          console.log("Quotation: ", q);
+          // console.log("Quotation: ", q);
         }
       }
 
       // if (accountIds.length > 0) {
-      //   console.log("Enriching quotations with customer data for account IDs:", accountIds);
+      //   // console.log("Enriching quotations with customer data for account IDs:", accountIds);
         
       //   // Get PostgreSQL accounts to find kristem_account_ids
       //   // const accountsQuery = `SELECT id, kristem_account_id FROM accounts WHERE kristem_account_id IN (${accountIds.map((_, i) => `$${i + 1}`).join(",")})`;
       //   // const accountsRes = await db.query(accountsQuery, accountIds);
       //   // const accountsMap = accountsRes.rows;
 
-      //   // console.log("Fetched kristem_account_ids for accounts:", accountsMap);
+      //   // // console.log("Fetched kristem_account_ids for accounts:", accountsMap);
 
       //   // // Get kristem customer IDs
       //   // const kristemIds = [
@@ -219,26 +219,26 @@ router.get("/", async (req, res) => {
       //       customerRes.recordset.map((c) => [Number(c.Id), c])
       //     );
 
-      //     console.log("Fetched customers from MSSQL:", customerRes.recordset);
+      //     // console.log("Fetched customers from MSSQL:", customerRes.recordset);
 
       //     // Attach customer data to quotations
       //     enriched.forEach((q) => {
-      //       console.log("Enriching quotation ID:", q.id);
+      //       // console.log("Enriching quotation ID:", q.id);
       //       const accountId = q.account_id || q.accountId;
       //       if (accountId) {
-      //         console.log("Account ID for enrichment:", accountId);
+      //         // console.log("Account ID for enrichment:", accountId);
       //         q.account = customerMap[accountId];
       //       }
       //     });
 
-      //     console.log(`✅ Enriched ${enriched.length} quotations with customer data`);
+      //     // console.log(`✅ Enriched ${enriched.length} quotations with customer data`);
       //   }
       // }
     } catch (customerErr) {
       console.warn("Failed to enrich quotations with customer data:", customerErr.message);
     }
 
-    // console.log("✅ Enriched quotations:", enriched);
+    // // console.log("✅ Enriched quotations:", enriched);
     return res.json(enriched);
   } catch (err) {
     console.error(err);
@@ -510,7 +510,7 @@ router.get("/:id", async (req, res) => {
             
             if (customerRes.recordset.length > 0) {
               quotation.customer = customerRes.recordset[0];
-              console.log("✅ Enriched quotation with customer data:", quotation.customer.Name);
+              // console.log("✅ Enriched quotation with customer data:", quotation.customer.Name);
             }
           }
         }
@@ -531,7 +531,7 @@ router.put("/:id", async (req, res) => {
   try {
     const { id } = req.params;
     const body = toSnake(req.body);
-    console.log("Received request to update quotation with body:", body);
+    // console.log("Received request to update quotation with body:", body);
     // Update allowed fields; minimally status and due_date
     const result = await db.query(
       `UPDATE quotations
@@ -545,7 +545,7 @@ router.put("/:id", async (req, res) => {
     if (result.rows.length === 0) return res.status(404).json({ error: "Not found" });
     const quotation = result.rows[0];
 
-    console.log("Updated quotation:", quotation);
+    // console.log("Updated quotation:", quotation);
 
     // Note: Work Order is marked Completed only after successful MSSQL submission
 
@@ -558,41 +558,59 @@ router.put("/:id", async (req, res) => {
 
 router.post("/", async (req, res) => {
   try {
-    console.log(
-      "Received request to create quotation with body:",
-      toSnake(req.body),
-    );
-    const { wo_id, assignee, account_id, created_by, updated_by } = toSnake(
+    // console.log(
+    //   "Received request to create quotation with body:",
+    //   toSnake(req.body),
+    // );
+    const { wo_id, assignee, account_id, created_by, updated_by, rfq_id: provided_rfq_id, source_module } = toSnake(
       req.body,
     );
 
-    // Find RFQ and TR for this WO
-    const rfqRes = await db.query(
-      "SELECT id FROM rfqs WHERE wo_id = $1 LIMIT 1",
-      [wo_id],
-    );
-    const trRes = await db.query(
-      "SELECT id FROM technical_recommendations WHERE wo_id = $1 LIMIT 1",
-      [wo_id],
-    );
+    // Find RFQ and TR for this WO (or use provided IDs)
+    let rfq_id = provided_rfq_id || null;
+    let tr_id = null;
+    
+    if (!rfq_id && wo_id) {
+      const rfqRes = await db.query(
+        "SELECT id FROM rfqs WHERE wo_id = $1 LIMIT 1",
+        [wo_id],
+      );
+      rfq_id = rfqRes.rows[0]?.id || null;
+    }
+    
+    // Find TR by wo_id
+    if (wo_id) {
+      const trRes = await db.query(
+        "SELECT id FROM technical_recommendations WHERE wo_id = $1 LIMIT 1",
+        [wo_id],
+      );
+      tr_id = trRes.rows[0]?.id || null;
+    }
+    
+    // console.log("📋 Quotation source analysis:");
+    // console.log("  - wo_id:", wo_id);
+    // console.log("  - rfq_id:", rfq_id);
+    // console.log("  - tr_id:", tr_id);
+    // console.log("  - source_module:", source_module || 'rfq (default)');
+    
+    // Find TR by wo_id
+    if (wo_id) {
+      const trRes = await db.query(
+        "SELECT id FROM technical_recommendations WHERE wo_id = $1 LIMIT 1",
+        [wo_id],
+      );
+      tr_id = trRes.rows[0]?.id || null;
+    }
 
-    console.log("Found RFQ and TR for WO:", {
-      rfqRes: rfqRes.rows,
-      trRes: trRes.rows,
-    });
-
-    const rfq_id = rfqRes.rows[0]?.id || null;
-    const tr_id = trRes.rows[0]?.id || null;
+    // console.log("Quotation references:", { rfq_id, tr_id, wo_id });
 
     if (!rfq_id && !tr_id) {
       return res.status(400).json({
-        error: "Missing reference",
-        rfq_id,
-        tr_id,
+        error: "Missing reference: At least one of rfq_id or tr_id is required",
       });
     }
 
-    // Generate TR number
+    // Generate quotation number
     const currentYear = new Date().getFullYear();
     const qtNumRes = await db.query(
       `
@@ -605,7 +623,7 @@ router.post("/", async (req, res) => {
       [`QUOT-${currentYear}-%`],
     );
 
-    console.log("Last quotation number for current year:", qtNumRes.rows);
+    // console.log("Last quotation number for current year:", qtNumRes.rows);
 
     let newCounter = 1;
     if (qtNumRes.rows.length > 0) {
@@ -618,8 +636,8 @@ router.post("/", async (req, res) => {
 
     const result = await db.query(
       `
-        INSERT INTO quotations (rfq_id, tr_id, wo_id, assignee, account_id, created_at, created_by, updated_at, updated_by, quotation_number, due_date)
-        VALUES ($1, $2, $3, $4, $5, NOW(), $6, NOW(), $7, $8, $9)
+        INSERT INTO quotations (rfq_id, tr_id, wo_id, assignee, account_id, source_module, created_at, created_by, updated_at, updated_by, quotation_number, due_date)
+        VALUES ($1, $2, $3, $4, $5, $6, NOW(), $7, NOW(), $8, $9, $10)
         RETURNING *
       `,
       [
@@ -628,6 +646,7 @@ router.post("/", async (req, res) => {
         wo_id,
         assignee,
         account_id,
+        source_module || 'rfq', // Default to 'rfq' if not provided
         created_by,
         updated_by,
         quotation_number,
@@ -635,9 +654,84 @@ router.post("/", async (req, res) => {
       ],
     );
 
-    console.log("Created new quotation:", result.rows[0]);
+    // console.log("Created new quotation:", result.rows[0]);
+    const quotation_id = result.rows[0].id;
 
-    // Create workflow stage for new technical recommendation (Draft)
+    // Populate quotation with products based on source
+    const quotationProducts = [];
+    
+    if (rfq_id) {
+      // Scenario A: From RFQ - Get RFQ items (already priced from vendor selection)
+      // console.log(`📦 Fetching products from RFQ ${rfq_id}`);
+      const rfqItemsRes = await db.query(
+        `SELECT * FROM rfq_items WHERE rfq_id = $1`,
+        [rfq_id]
+      );
+      // console.log(`📦 Found ${rfqItemsRes.rows.length} RFQ items`);
+      
+      // Add RFQ items to quotation products list
+      for (const rfqItem of rfqItemsRes.rows) {
+        quotationProducts.push({
+          source: 'rfq',
+          rfq_item_id: rfqItem.id,
+          tr_product_id: rfqItem.trProductId || rfqItem.tr_product_id,
+          product_name: rfqItem.productName || rfqItem.product_name,
+          corrected_part_no: rfqItem.correctedPartNo || rfqItem.corrected_part_no,
+          description: rfqItem.description,
+          brand: rfqItem.brand,
+          unit_om: rfqItem.unitOm || rfqItem.unit_om,
+          // Pricing from RFQ vendor selection would be here
+        });
+      }
+    }
+    
+    if (tr_id) {
+      // Get direct_quotation products from TR
+      // console.log(`📦 Fetching direct quotation products from TR ${tr_id}`);
+      const trDirectProductsRes = await db.query(
+        `SELECT * FROM technical_recommendation_products 
+         WHERE tr_id = $1 AND routing_type = 'direct_quotation'`,
+        [tr_id]
+      );
+      // console.log(`📦 Found ${trDirectProductsRes.rows.length} products marked for direct quotation`);
+      
+      // Add TR direct products to quotation products list
+      for (const trProduct of trDirectProductsRes.rows) {
+        quotationProducts.push({
+          source: 'tr_direct',
+          tr_product_id: trProduct.id,
+          product_name: trProduct.productName || trProduct.product_name,
+          corrected_part_no: trProduct.correctedPartNo || trProduct.corrected_part_no,
+          description: trProduct.description,
+          brand: trProduct.brand,
+          unit_om: trProduct.unitOm || trProduct.unit_om,
+        });
+      }
+    }
+    
+    // Insert all quotation products
+    // console.log(`📦 Inserting ${quotationProducts.length} total products into quotation ${quotation_id}`);
+    for (const product of quotationProducts) {
+      await db.query(
+        `INSERT INTO quotation_items 
+         (quotation_id, tr_product_id, rfq_item_id, product_name, corrected_part_no, description, brand, unit_om, source) 
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+        [
+          quotation_id,
+          product.tr_product_id,
+          product.rfq_item_id || null,
+          product.product_name,
+          product.corrected_part_no,
+          product.description,
+          product.brand,
+          product.unit_om,
+          product.source,
+        ]
+      );
+    }
+    // console.log(`✅ Successfully populated quotation ${quotation_id} with products`);
+
+    // Create workflow stage for new quotation (Draft)
     await db.query(
       `
         INSERT INTO workflow_stages (wo_id, stage_name, status, assigned_to, created_at, updated_at)

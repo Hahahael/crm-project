@@ -73,6 +73,7 @@ router.get("/stocks", async (req, res) => {
 
     const stockIds = stocksResult.recordset.map((s) => s.Id);
 
+    // Fetch stock_details
     let details = [];
     if (stockIds.length > 0) {
       const reqQ = pool.request();
@@ -88,15 +89,77 @@ router.get("/stocks", async (req, res) => {
       details = detRes.recordset;
     }
 
+    // Fetch all brands, uoms, stock_types for mapping
+    const [brandsRes, uomsRes, stockTypesRes] = await Promise.all([
+      pool.request().query(`SELECT ID, Code, Description FROM spidb.brand`),
+      pool.request().query(`SELECT Id, Code, Description FROM spidb.uom`),
+      pool.request().query(`SELECT Id, Code, Description FROM spidb.stock_type`),
+    ]);
+
+    const brandsMap = new Map(brandsRes.recordset.map((b) => [b.ID, b]));
+    const uomsMap = new Map(uomsRes.recordset.map((u) => [u.Id, u]));
+    const stockTypesMap = new Map(stockTypesRes.recordset.map((st) => [st.Id, st]));
+
     const stocks = stocksResult.recordset.map((s) => ({
       ...s,
       details: details.find((d) => d.Stock_Id === s.Id) || {},
+      brand: brandsMap.get(s.BRAND_ID) || null,
+      uom: uomsMap.get(s.SK_UOM) || null,
+      stockType: stockTypesMap.get(s.Stock_Type_Id) || null,
     }));
 
     return res.json({ count: stocksResult.recordset.length, rows: stocks });
   } catch (err) {
     console.error(err);
     return res.status(500).json({ error: "Failed to fetch stocks" });
+  }
+});
+
+// GET /mssql/inventory/brands?limit=100&offset=0
+router.get("/brands", async (req, res) => {
+  try {
+    const limit = parseInt(req.query.limit, 10) || 500;
+    const offset = parseInt(req.query.offset, 10) || 0;
+    const pool = await poolPromise;
+
+    const result = await pool
+      .request()
+      .input("limit", sql.Int, limit)
+      .input("offset", sql.Int, offset).query(`
+        SELECT ID, Code, Description, ModifiedBy, DateModified, commrate
+        FROM spidb.brand
+        ORDER BY Code
+        OFFSET @offset ROWS FETCH NEXT @limit ROWS ONLY
+      `);
+
+    return res.json({ count: result.recordset.length, rows: result.recordset });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: "Failed to fetch brands" });
+  }
+});
+
+// GET /mssql/inventory/uoms?limit=100&offset=0
+router.get("/uoms", async (req, res) => {
+  try {
+    const limit = parseInt(req.query.limit, 10) || 500;
+    const offset = parseInt(req.query.offset, 10) || 0;
+    const pool = await poolPromise;
+
+    const result = await pool
+      .request()
+      .input("limit", sql.Int, limit)
+      .input("offset", sql.Int, offset).query(`
+        SELECT Id, Code, Description
+        FROM spidb.uom
+        ORDER BY Code
+        OFFSET @offset ROWS FETCH NEXT @limit ROWS ONLY
+      `);
+
+    return res.json({ count: result.recordset.length, rows: result.recordset });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: "Failed to fetch UOMs" });
   }
 });
 

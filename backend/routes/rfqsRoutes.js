@@ -252,7 +252,7 @@ router.get("/:id", async (req, res) => {
         const sdRes = await pool
           .request()
           .input("id", Number(itemKey))
-          .query("SELECT * FROM spidb.stock_details WHERE id = @id");
+          .query("SELECT * FROM spidb.stock WHERE id = @id");
         // const sRes = await pool
         //   .request()
         //   .input("id", Number(itemKey))
@@ -298,14 +298,12 @@ router.get("/:id", async (req, res) => {
       }
     }
 
-
-
     // Get rfq_vendors rows and resolve vendor details from MSSQL
     const vendorsRes = await db.query(
       `SELECT * FROM rfq_vendors WHERE rfq_id = $1 ORDER BY id ASC`,
       [id],
     );
-    console.log("Fetched RFQ rfq_vendors:", vendorsRes.rows);
+    // console.log("Fetched RFQ rfq_vendors:", vendorsRes.rows);
     const vendors = [];
     for (const rv of vendorsRes.rows) {
       try {
@@ -358,8 +356,8 @@ router.get("/:id", async (req, res) => {
       }
     }
 
-    console.log("Final items before quotations:", items);
-    console.log("Final vendors before quotations:", vendors);
+    // console.log("Final items before quotations:", items);
+    // console.log("Final vendors before quotations:", vendors);
 
     // Get quotations with item and vendor details
     const quotationsRes = await db.query(
@@ -401,8 +399,8 @@ router.get("/:id", async (req, res) => {
     //         return item;
     // });
 
-    console.log("Final items with prices and lead times:", items);
-    console.log("Final vendors", vendors);
+    // console.log("Final items with prices and lead times:", items);
+    // console.log("Final vendors", vendors);
     // vendors.forEach((v) =>
     // console.log("Vendor", v.vendorId, "with quotes:", v.quotes),
     // );
@@ -578,22 +576,88 @@ router.post("/", async (req, res) => {
       ],
     );
     const newId = insertResult.rows[0].id;
-    console.log("Created RFQ with ID:", newId);
+    console.log("✅ Created RFQ with ID:", newId);
 
-    // Upsert RFQ items
-    if (items && Array.isArray(items)) {
-      console.log("Inserting RFQ items:", items);
-      for (const item of items) {
-        console.log("Inserting RFQ item:", item);
-        let tempId = await db.query(
-          `INSERT INTO rfq_items (rfq_id, item_id, quantity) VALUES ($1,$2,$3) RETURNING id`,
-          [newId, item.item_id, item.quantity],
+    // Handle items/products based on source
+    let rfqItems = [];
+    
+    if (wo_id) {
+      // Find TR for this work order
+      const trRes = await db.query(
+        `SELECT id FROM technical_recommendations WHERE wo_id = $1 LIMIT 1`,
+        [wo_id]
+      );
+      
+      if (trRes.rows.length > 0) {
+        const tr_id = trRes.rows[0].id;
+        // Fetch products from TR with routing_type = 'rfq'
+        console.log(`📦 Fetching RFQ products from TR ${tr_id} via WO ${wo_id}`);
+        const trProductsRes = await db.query(
+          `SELECT * FROM technical_recommendation_products 
+           WHERE tr_id = $1 AND routing_type = 'rfq'`,
+          [tr_id]
         );
-        console.log("Inserted RFQ item with ID:", tempId.rows[0].id);
+        
+        console.log(`📦 Found ${trProductsRes.rows.length} products marked for RFQ`);
+        rfqItems = trProductsRes.rows;
       }
     }
+    
+    if (rfqItems.length === 0 && items && Array.isArray(items)) {
+      // Legacy: Use provided items array
+      console.log("📦 Using provided items array");
+      rfqItems = items;
+    }
 
-    // Create workflow stage for new technical recommendation (Draft)
+    // Insert RFQ items
+    if (rfqItems && rfqItems.length > 0) {
+      console.log(`📦 Inserting ${rfqItems.length} RFQ items`);
+      for (const item of rfqItems) {
+        if (item.product_name || item.productName) {
+          // New TR product-based item
+          const mappedItemId = item.item_id || item.itemId || null;
+          const mappedInTrApproval = mappedItemId ? true : false; // Track if mapping came from TR
+          const isNewItem = item.is_new_item || item.isNewItem || false; // Track if marked as new item
+          
+          const insertedItem = await db.query(
+            `INSERT INTO rfq_items 
+             (rfq_id, tr_product_id, item_id, mapped_in_tr_approval, is_new_item, product_name, corrected_part_no, description, brand, unit_om) 
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING id`,
+            [
+              newId,
+              item.id,
+              mappedItemId,
+              mappedInTrApproval,
+              isNewItem,
+              item.product_name || item.productName,
+              item.corrected_part_no || item.correctedPartNo,
+              item.description,
+              item.brand,
+              item.unit_om || item.unitOm,
+            ],
+          );
+          const insertedId = insertedItem.rows[0].id;
+          if (isNewItem) {
+            console.log(`✅ Inserted RFQ item ${insertedId} (NEW ITEM - not in Kristem)`);
+          } else if (mappedItemId) {
+            console.log(`✅ Inserted RFQ item ${insertedId} (mapped to Kristem item ${mappedItemId})`);
+          } else {
+            console.log(`✅ Inserted RFQ item ${insertedId} (no Kristem mapping - manual entry)`);
+          }
+        } else if (item.item_id) {
+          // Legacy item_id based
+          const insertedItem = await db.query(
+            `INSERT INTO rfq_items (rfq_id, item_id, quantity) VALUES ($1,$2,$3) RETURNING id`,
+            [newId, item.item_id, item.quantity],
+          );
+          console.log("✅ Inserted legacy RFQ item with ID:", insertedItem.rows[0].id);
+        }
+      }
+    } else {
+      console.warn("⚠️ No items to insert for RFQ", newId);
+    }
+
+    // Create workflow stage for new RFQ (Draft)
     await db.query(
       `
         INSERT INTO workflow_stages (wo_id, stage_name, status, assigned_to, created_at, updated_at)
@@ -678,48 +742,245 @@ router.put("/:id", async (req, res) => {
     );
     const updatedId = updateResult.rows[0].id;
 
+    
     // Upsert RFQ items
     if (body.items && Array.isArray(body.items)) {
+      console.log("Processing RFQ items for RFQ ID:", id, "with items count:", body.items.length);
       // Delete items not in incoming
       const existingRes = await db.query(
         "SELECT * FROM rfq_items WHERE rfq_id = $1",
         [id],
       );
       const existing = toSnake(existingRes.rows);
-      const existingIds = new Set(existing.map((i) => i.item_id));
+      const existingIds = new Set(existing.map((i) => i.id));
       const incomingIds = new Set(
-        body.items.filter((i) => i.item_id).map((i) => i.item_id),
+        body.items.filter((i) => i.id).map((i) => i.id),
       );
-      console.log("Existing items:", existing);
-      console.log("Body items:", body.items);
+      console.log("Existing items:", existingIds);
+      console.log("Incoming items:", incomingIds);
       for (const ex of existing) {
-        if (!incomingIds.has(ex.item_id)) {
+        if (!incomingIds.has(ex.id)) {
+          console.log("Deleting RFQ item with id", ex.id);
           await db.query(
-            "DELETE FROM rfq_items WHERE item_id = $1 AND rfq_id = $2",
-            [ex.item_id, id],
+            "DELETE FROM rfq_items WHERE id = $1 AND rfq_id = $2",
+            [ex.id, id],
           );
         }
       }
       for (const item of body.items) {
+        console.log("Processing item for upsert with item.id:", item.id);
         const unitPrice = item.unit_price === "" ? null : item.unit_price;
         const quantity = item.quantity === "" ? null : item.quantity;
-        // If the incoming item provides an item_id that already exists for this RFQ, update the record
-        if (item.item_id && existingIds.has(item.item_id)) {
-          await db.query(
-            `UPDATE rfq_items SET quantity = $1, unit_price = $2, lead_time = $3 WHERE item_id = $4 AND rfq_id = $5 RETURNING *`,
-            [quantity, unitPrice, item.lead_time, item.item_id, id],
-          );
+        
+        // If the incoming item's already exists for this RFQ, update the record
+        // New Items: non-existing in Kristem
+        // Mapped Items: existing in Kristem, uses item_id for mapping
+        if (item.is_new_item || item.isNewItem) {
+          console.log("Processing as NEW ITEM");
+          if (item.id && existingIds.has(item.id)) {
+            console.log("Processing as UPDATE NEW ITEM");
+            // Build dynamic update with all fields
+            const updateFields = [];
+            const updateValues = [];
+            let paramCount = 1;
+            
+            if (quantity !== undefined) {
+              updateFields.push(`quantity = $${paramCount++}`);
+              updateValues.push(quantity);
+            }
+            if (unitPrice !== undefined) {
+              updateFields.push(`unit_price = $${paramCount++}`);
+              updateValues.push(unitPrice);
+            }
+            if (item.lead_time !== undefined) {
+              updateFields.push(`lead_time = $${paramCount++}`);
+              updateValues.push(item.lead_time);
+            }
+            
+            // Add new item detail fields if present
+            if (item.product_name !== undefined) {
+              updateFields.push(`product_name = $${paramCount++}`);
+              updateValues.push(item.product_name);
+            }
+            if (item.corrected_part_no !== undefined) {
+              updateFields.push(`corrected_part_no = $${paramCount++}`);
+              updateValues.push(item.corrected_part_no);
+            }
+            if (item.description !== undefined) {
+              updateFields.push(`description = $${paramCount++}`);
+              updateValues.push(item.description);
+            }
+            if (item.corrected_description !== undefined) {
+              updateFields.push(`corrected_description = $${paramCount++}`);
+              updateValues.push(item.corrected_description);
+            }
+            if (item.brand !== undefined) {
+              updateFields.push(`brand = $${paramCount++}`);
+              updateValues.push(item.brand);
+            }
+            if (item.unit_om !== undefined) {
+              updateFields.push(`unit_om = $${paramCount++}`);
+              updateValues.push(item.unit_om);
+            }
+            if (item.vendor !== undefined) {
+              updateFields.push(`vendor = $${paramCount++}`);
+              updateValues.push(item.vendor);
+            }
+            if (item.stock_type !== undefined) {
+              updateFields.push(`stock_type = $${paramCount++}`);
+              updateValues.push(item.stock_type);
+            }
+            if (item.supply_type !== undefined) {
+              updateFields.push(`supply_type = $${paramCount++}`);
+              updateValues.push(item.supply_type);
+            }
+            if (item.weight !== undefined) {
+              updateFields.push(`weight = $${paramCount++}`);
+              updateValues.push(item.weight === '' || item.weight === null ? null : parseFloat(item.weight));
+            }
+            if (item.moq !== undefined) {
+              updateFields.push(`moq = $${paramCount++}`);
+              updateValues.push(item.moq === '' || item.moq === null ? null : parseInt(item.moq));
+            }
+            if (item.moq_by !== undefined) {
+              updateFields.push(`moq_by = $${paramCount++}`);
+              updateValues.push(item.moq_by);
+            }
+            if (item.is_active !== undefined) {
+              updateFields.push(`is_active = $${paramCount++}`);
+              updateValues.push(item.is_active);
+            }
+            if (item.is_common !== undefined) {
+              updateFields.push(`is_common = $${paramCount++}`);
+              updateValues.push(item.is_common);
+            }
+            if (item.buy_price !== undefined) {
+              updateFields.push(`buy_price = $${paramCount++}`);
+              updateValues.push(item.buy_price === '' || item.buy_price === null ? null : parseFloat(item.buy_price));
+            }
+            if (item.selling_price !== undefined) {
+              updateFields.push(`selling_price = $${paramCount++}`);
+              updateValues.push(item.selling_price === '' || item.selling_price === null ? null : parseFloat(item.selling_price));
+            }
+            if (item.setup_status !== undefined) {
+              updateFields.push(`setup_status = $${paramCount++}`);
+              updateValues.push(item.setup_status);
+            }
+
+            updateValues.push(item.id, id);
+            
+            await db.query(
+              `UPDATE rfq_items SET ${updateFields.join(', ')} WHERE id = $${paramCount++} AND rfq_id = $${paramCount++} RETURNING *`,
+              updateValues,
+            );
+          } else {
+            console.log("Processing as INSERT NEW ITEM");
+            // Insert new item with all available fields
+            const insertFields = ['rfq_id', 'item_id', 'quantity', 'unit_price', 'lead_time'];
+            const insertValues = [id, item.item_id, quantity, unitPrice, item.lead_time];
+            let paramCount = insertValues.length + 1;
+            
+            // Add optional fields if provided
+            if (item.product_name !== undefined) {
+              insertFields.push('product_name');
+              insertValues.push(item.product_name);
+            }
+            if (item.corrected_part_no !== undefined) {
+              insertFields.push('corrected_part_no');
+              insertValues.push(item.corrected_part_no);
+            }
+            if (item.description !== undefined) {
+              insertFields.push('description');
+              insertValues.push(item.description);
+            }
+            if (item.corrected_description !== undefined) {
+              insertFields.push('corrected_description');
+              insertValues.push(item.corrected_description);
+            }
+            if (item.brand !== undefined) {
+              insertFields.push('brand');
+              insertValues.push(item.brand);
+            }
+            if (item.unit_om !== undefined) {
+              insertFields.push('unit_om');
+              insertValues.push(item.unit_om);
+            }
+            if (item.vendor !== undefined) {
+              insertFields.push('vendor');
+              insertValues.push(item.vendor);
+            }
+            if (item.stock_type !== undefined) {
+              insertFields.push('stock_type');
+              insertValues.push(item.stock_type);
+            }
+            if (item.supply_type !== undefined) {
+              insertFields.push('supply_type');
+              insertValues.push(item.supply_type);
+            }
+            if (item.weight !== undefined) {
+              insertFields.push('weight');
+              insertValues.push(item.weight === '' || item.weight === null ? null : parseFloat(item.weight));
+            }
+            if (item.moq !== undefined) {
+              insertFields.push('moq');
+              insertValues.push(item.moq === '' || item.moq === null ? null : parseInt(item.moq));
+            }
+            if (item.moq_by !== undefined) {
+              insertFields.push('moq_by');
+              insertValues.push(item.moq_by);
+            }
+            if (item.is_active !== undefined) {
+              insertFields.push('is_active');
+              insertValues.push(item.is_active);
+            }
+            if (item.is_common !== undefined) {
+              insertFields.push('is_common');
+              insertValues.push(item.is_common);
+            }
+            if (item.buy_price !== undefined) {
+              insertFields.push('buy_price');
+              insertValues.push(item.buy_price === '' || item.buy_price === null ? null : parseFloat(item.buy_price));
+            }
+            if (item.selling_price !== undefined) {
+              insertFields.push('selling_price');
+              insertValues.push(item.selling_price === '' || item.selling_price === null ? null : parseFloat(item.selling_price));
+            }
+            if (item.setup_status !== undefined) {
+              insertFields.push('setup_status');
+              insertValues.push(item.setup_status);
+            }
+            
+            const placeholders = insertValues.map((_, i) => `$${i + 1}`).join(', ');
+            
+            await db.query(
+              `INSERT INTO rfq_items (${insertFields.join(', ')}) VALUES (${placeholders}) RETURNING *`,
+              insertValues,
+            );
+          }
         } else {
-          await db.query(
-            `INSERT INTO rfq_items (rfq_id, item_id, quantity, unit_price, lead_time) VALUES ($1,$2,$3,$4,$5) RETURNING *`,
-            [id, item.item_id, quantity, unitPrice, item.lead_time],
-          );
+          // Legacy item without new item flag
+          console.log("Processing as MAPPED ITEM");
+          if (item.item_id && existingIds.has(item.id)) {
+            console.log("Processing as UPDATE MAPPED ITEM");
+            await db.query(
+              `UPDATE rfq_items SET item_id = $1 WHERE id = $2 AND rfq_id = $3 RETURNING *`,
+              [item.item_id, item.id, id],
+            );
+          } else {
+            console.log("Processing as INSERT MAPPED ITEM");
+            await db.query(
+              `INSERT INTO rfq_items (rfq_id, item_id) VALUES ($1,$2) RETURNING *`,
+              [id, item.item_id],
+            );
+          }
         }
       }
     }
 
+
     // Upsert RFQ vendors
     if (body.vendors && Array.isArray(body.vendors)) {
+      console.log("Processing RFQ vendors for RFQ ID:", id, "with vendors count:", body.vendors.length);
       const existingRes = await db.query(
         "SELECT * FROM rfq_vendors WHERE rfq_id = $1",
         [id],
@@ -729,11 +990,12 @@ router.put("/:id", async (req, res) => {
       const incomingIds = new Set(
         body.vendors.filter((v) => v.vendor_id).map((v) => v.vendor_id),
       );
-      console.log("Existing vendors:", existing);
-      console.log("Body vendors:", body.vendors);
+      // console.log("Existing vendors:", existing);
+      // console.log("Body vendors:", body.vendors);
       // Delete vendors not in incoming
       for (const ex of existing) {
         if (!incomingIds.has(ex.vendor_id)) {
+          console.log("Deleting RFQ vendor with vendor_id", ex.vendor_id);
           await db.query(
             "DELETE FROM rfq_vendors WHERE vendor_id = $1 AND rfq_id = $2",
             [ex.vendor_id, id],
@@ -741,6 +1003,7 @@ router.put("/:id", async (req, res) => {
         }
       }
       for (const vendor of body.vendors) {
+        console.log("Processing RFQ vendor:", vendor);
         const validUntil = vendor.validUntil === "" ? null : vendor.validUntil;
         const paymentTerms =
           vendor.paymentTerms === "" ? null : vendor.paymentTerms;
@@ -777,6 +1040,7 @@ router.put("/:id", async (req, res) => {
       }
     }
 
+
     // Flatten vendor quotes arrays into a single quotations array
     let allQuotations = [];
     if (body.vendors && Array.isArray(body.vendors)) {
@@ -787,7 +1051,7 @@ router.put("/:id", async (req, res) => {
         }
       });
     }
-    console.log("quotations", allQuotations);
+    // console.log("quotations", allQuotations);
     // Track vendor changes (unit_price/lead_time) within this update request
     const vendorChanged = new Map(); // key: vendor_id, value: boolean
     if (allQuotations.length > 0) {

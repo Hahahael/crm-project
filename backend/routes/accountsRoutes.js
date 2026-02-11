@@ -85,7 +85,7 @@ router.get("/", async (req, res) => {
 
     // Filter out MSSQL customers that are linked to unapproved PostgreSQL accounts
     const visibleCustomers = customers.filter(c => !excludeIds.has(Number(c.Id)));
-    console.log(`🔍 Filtered ${customers.length - visibleCustomers.length} linked unapproved accounts from MSSQL customers`);
+    // console.log(`🔍 Filtered ${customers.length - visibleCustomers.length} linked unapproved accounts from MSSQL customers`);
 
     // Get unique IDs for SPI lookups for enrichment
     const brandIds = new Set();
@@ -234,7 +234,7 @@ router.get("/", async (req, res) => {
     // Combine visible MSSQL customers + approved PostgreSQL accounts
     const allAccounts = [...enrichedCustomers, ...approvedAccounts.map(a => ({ ...a, source: 'postgresql' }))];
 
-    console.log(`📊 Returning ${enrichedCustomers.length} MSSQL customers + ${approvedAccounts.length} approved PostgreSQL accounts`);
+    // console.log(`📊 Returning ${enrichedCustomers.length} MSSQL customers + ${approvedAccounts.length} approved PostgreSQL accounts`);
     return res.json(allAccounts);
   } catch (err) {
     console.error("/api/accounts error:", err);
@@ -245,7 +245,7 @@ router.get("/", async (req, res) => {
 // GET all NAEF accounts (PostgreSQL only - for workflow management)
 router.get("/naefs", async (req, res) => {
   try {
-    console.log("Fetching NAEF accounts from PostgreSQL");
+    // console.log("Fetching NAEF accounts from PostgreSQL");
     
     // Get all NAEF accounts from PostgreSQL (including drafts, pending, etc.)
     const result = await db.query(`
@@ -350,7 +350,7 @@ router.get("/naefs", async (req, res) => {
       console.warn("Failed to enrich NAEF accounts with MSSQL data:", enrichErr.message);
     }
     
-    console.log(`Found ${naefAccounts.length} NAEF accounts`);
+    // console.log(`Found ${naefAccounts.length} NAEF accounts`);
     return res.json(naefAccounts);
   } catch (err) {
     console.error("/api/accounts/naefs error:", err);
@@ -360,8 +360,8 @@ router.get("/naefs", async (req, res) => {
 
 // ADD new account (Dual creation: MSSQL + PostgreSQL)
 router.post("/", async (req, res) => {
-  console.log("POST /api/accounts called - Dual creation mode");
-  console.log("Request body for creating a new account:", req.body);
+  // console.log("POST /api/accounts called - Dual creation mode");
+  // console.log("Request body for creating a new account:", req.body);
   
   try {
     const body = toSnake(req.body);
@@ -384,7 +384,7 @@ router.post("/", async (req, res) => {
     const naef_number = `NAEF-${currentYear}-${String(newCounter).padStart(4, "0")}`;
     
     // Step 1: Create MSSQL customer (for immediate referencing)
-    console.log("🔍 Creating MSSQL customer for immediate referencing...");
+    // console.log("🔍 Creating MSSQL customer for immediate referencing...");
     const spiPool = await poolPromise;
     const mssqlResult = await spiPool.request()
       .input('code', naef_number)
@@ -413,10 +413,10 @@ router.post("/", async (req, res) => {
       `);
     
     const kristemId = mssqlResult.recordset[0].Id;
-    console.log("✅ Created MSSQL customer with ID:", kristemId);
+    // console.log("✅ Created MSSQL customer with ID:", kristemId);
     
     // Step 2: Create PostgreSQL account with kristem_account_id link
-    console.log("🔍 Creating PostgreSQL account with kristem link...");
+    // console.log("🔍 Creating PostgreSQL account with kristem link...");
     const insertResult = await db.query(`
       INSERT INTO accounts (
         naef_number, kristem_account_id, stage_status, ref_number, date_created, requested_by,
@@ -490,7 +490,7 @@ router.post("/", async (req, res) => {
     ]);
     
     const newAccount = insertResult.rows[0];
-    console.log("✅ Created PostgreSQL account with kristem_account_id:", newAccount.kristemAccountId);
+    // console.log("✅ Created PostgreSQL account with kristem_account_id:", newAccount.kristemAccountId);
     
     // Add kristem data to response for immediate use
     newAccount.kristem_id = kristemId; // For other modules to reference
@@ -507,7 +507,7 @@ router.put("/approval/:id", async (req, res) => {
   try {
     const { id } = req.params;
     const body = toSnake(req.body);
-    console.log("Approving account id", id, "with data:", body);
+    // console.log("Approving account id", id, "with data:", body);
 
     const updateResult = await db.query(`
       UPDATE accounts SET
@@ -537,7 +537,7 @@ router.put("/approval/:id", async (req, res) => {
     );
 
     const updatedAccount = updateResult.rows[0];
-    console.log("✅ Approved PostgreSQL account:", updatedAccount);
+    // console.log("✅ Approved PostgreSQL account:", updatedAccount);
 
     return res.json(updatedAccount);
   } catch (err) {
@@ -551,7 +551,7 @@ router.put("/workorder/:id", async (req, res) => {
   try {
     const { id } = req.params;
     const body = toSnake(req.body);
-    console.log("Updating account id", id, "from workorder with data:", body);
+    // console.log("Updating account id", id, "from workorder with data:", body);
     
     // Update PostgreSQL account
     const updateResult = await db.query(`
@@ -581,7 +581,7 @@ router.put("/workorder/:id", async (req, res) => {
     
     const updatedAccount = updateResult.rows[0];
 
-    console.log("✅ Updated PostgreSQL account:", updatedAccount);
+    // console.log("✅ Updated PostgreSQL account:", updatedAccount);
     
     // Sync to MSSQL
     if (updatedAccount.kristemAccountId) {
@@ -600,7 +600,7 @@ router.put("/workorder/:id", async (req, res) => {
           customerMarketSegmentGroupId: updatedAccount.customerMarketSegmentGroupId || null,
           category: updatedAccount.category || null,
         }
-        console.log("Syncing approved account to MSSQL:", kristemAccount);
+        // console.log("Syncing approved account to MSSQL:", kristemAccount);
         await syncAccountToMSSQL(kristemAccount);
       } catch (syncErr) {
         console.warn("Failed to sync approved account to MSSQL:", syncErr.message);
@@ -619,7 +619,7 @@ router.put("/:id", async (req, res) => {
   try {
     const { id } = req.params;
     const body = toSnake(req.body);
-    console.log("Updating account id", id, "with data:", body);
+    // console.log("Updating account id", id, "with data:", body);
     
     // Update PostgreSQL account
     const updateResult = await db.query(`
@@ -729,7 +729,7 @@ router.put("/:id", async (req, res) => {
     
     const updatedAccount = updateResult.rows[0];
 
-    console.log("✅ Updated PostgreSQL account:", updatedAccount);
+    // console.log("✅ Updated PostgreSQL account:", updatedAccount);
     
     // If account was approved, sync to MSSQL
     if (body.stage_status === 'Approved' && !updatedAccount.kristemAccountId) {
@@ -749,7 +749,7 @@ router.put("/:id", async (req, res) => {
 
 // Update approved account in MSSQL spidb.customer (dual creation mode)
 async function syncAccountToMSSQL(account) {
-  console.log("🚀 Updating approved account in MSSQL:", account.id, "with data:", account);
+  // console.log("🚀 Updating approved account in MSSQL:", account.id, "with data:", account);
   
   try {
     if (!account.kristemAccountId) {
@@ -789,7 +789,7 @@ async function syncAccountToMSSQL(account) {
         WHERE Id = @id
       `);
     
-    console.log("✅ Updated MSSQL customer ID:", account.kristemAccountId, "with final approved data");
+    // console.log("✅ Updated MSSQL customer ID:", account.kristemAccountId, "with final approved data");
     
   } catch (err) {
     console.error("❌ Failed to update account in MSSQL:", err);
@@ -835,7 +835,7 @@ router.get("/product-brands", async (req, res) => {
 router.get("/:id", async (req, res) => {
   try {
     const { id } = req.params;
-    console.log("Fetching account by id:", id);
+    // console.log("Fetching account by id:", id);
     
     // First try PostgreSQL (for draft/pending accounts)
     const pgResult = await db.query(`
@@ -846,7 +846,7 @@ router.get("/:id", async (req, res) => {
       LEFT JOIN users u ON a.prepared_by = u.id
       WHERE a.kristem_account_id = $1
     `, [id]);
-    console.log("✅ Found account in PostgreSQL:", pgResult.rows[0]);
+    // console.log("✅ Found account in PostgreSQL:", pgResult.rows[0]);
     
     if (pgResult.rows.length > 0) {
       const account = pgResult.rows[0];

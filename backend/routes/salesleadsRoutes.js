@@ -21,7 +21,7 @@ router.get("/", async (req, res) => {
     // Attach latest module/stage for each workorder (batch)
     try {
       const woIds = salesleads.map((sl) => sl.woId).filter(Boolean);
-      console.log("Fetching latest workflow stages for WO IDs:", woIds);
+      // console.log("Fetching latest workflow stages for WO IDs:", woIds);
       if (woIds.length > 0) {
         const latestRes = await db.query(
           `
@@ -37,7 +37,7 @@ router.get("/", async (req, res) => {
           [woIds],
         );
 
-        console.log("Latest workflow stages result:", latestRes);
+        // console.log("Latest workflow stages result:", latestRes);
         const latestMap = new Map(
           (latestRes.rows || []).map((r) => [Number(r.wo_id ?? r.woId), r]),
         );
@@ -290,7 +290,7 @@ router.get("/exists/workorder/:woId", async (req, res) => {
 router.post("/", async (req, res) => {
   try {
     const body = toSnake(req.body);
-    console.log("Creating skeletal sales lead with data:", body);
+    // console.log("Creating skeletal sales lead with data:", body);
     // Only require wo_id and assignee, set sales_stage to 'Draft' by default
     const wo_id = body.wo_id;
     const assignee = body.assignee;
@@ -400,7 +400,7 @@ router.put("/:id", async (req, res) => {
   try {
     const { id } = req.params;
     const body = toSnake(req.body);
-    console.log("Updating sales lead ID", id, "with data:", body);
+    // console.log("Updating sales lead ID", id, "with data:", body);
     // Add all fields you want to update here
     const updateResult = await db.query(
       `UPDATE sales_leads 

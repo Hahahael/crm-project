@@ -138,7 +138,7 @@ router.get("/latest-submitted", async (req, res) => {
       ORDER BY submitted_date DESC;
     `;
     let { rows } = await db.query(unionQuery);
-    console.log("Base latest submitted workflow stages:", rows);
+    // console.log("Base latest submitted workflow stages:", rows);
 
     // Fetch Account/NAEF latest-submitted separately and populate via CRM
     const accountLatestQuery = `
@@ -176,7 +176,7 @@ router.get("/latest-submitted", async (req, res) => {
     `;
     const accStageRes = await db.query(accountLatestQuery);
     const accStageRows = accStageRes.rows || [];
-    console.log("Account/NAEF latest submitted stages:", accStageRows);
+    // console.log("Account/NAEF latest submitted stages:", accStageRows);
 
     // Enrich each row with CRM + SPI account details
     try {
@@ -188,7 +188,7 @@ router.get("/latest-submitted", async (req, res) => {
         ),
       );
 
-      console.log("Unique account IDs to fetch from CRM:", accountIds);
+      // console.log("Unique account IDs to fetch from CRM:", accountIds);
 
       if (accountIds.length > 0) {
         const spiPool = await poolPromise;
@@ -201,13 +201,13 @@ router.get("/latest-submitted", async (req, res) => {
           const accSql = `SELECT * FROM spidb.customer WHERE id IN (${numericIds.join(",")})`;
           const accRes = await spiPool.request().query(accSql);
           const spidbAccounts = accRes.recordset || [];
-          console.log("Fetched CRM accounts for enrichment:", spidbAccounts.length);
+          // console.log("Fetched CRM accounts for enrichment:", spidbAccounts.length);
           accountMap = new Map(spidbAccounts.map((a) => [Number(a.Id), a]));
 
-          console.log("Fetched CRM accounts for enrichment:", spidbAccounts.length);
+          // console.log("Fetched CRM accounts for enrichment:", spidbAccounts.length);
 
-          console.log("Account Map keys:", accStageRows);
-          console.log ("Account Map size:", accountMap);
+          // console.log("Account Map keys:", accStageRows);
+          // console.log ("Account Map size:", accountMap);
 
           // Build Account/NAEF rows from CRM and attach same account object
           const accRowsBuilt = accStageRows.map((r) => {
@@ -261,7 +261,7 @@ router.get("/latest-submitted", async (req, res) => {
       );
     }
 
-    console.log("Latest submitted workflow stages:", rows);
+    // console.log("Latest submitted workflow stages:", rows);
     return res.json(rows);
   } catch (err) {
     console.error(err);
@@ -328,10 +328,10 @@ router.get("/:id", async (req, res) => {
 
 // Create a new workflow stage
 router.post("/", async (req, res) => {
-  console.log("🔍 WORKFLOW STAGE CREATE REQUEST:", req.body);
+  // console.log("🔍 WORKFLOW STAGE CREATE REQUEST:", req.body);
   try {
     const body = toSnake(req.body);
-    console.log("🔍 WORKFLOW: Creating workflow stage with data:", body);
+    // console.log("🔍 WORKFLOW: Creating workflow stage with data:", body);
     const {
       wo_id,
       stage_name,
@@ -349,7 +349,7 @@ router.post("/", async (req, res) => {
       );
       const latest = existing.rows?.[0];
       if (latest && String(latest.status) === String(status)) {
-        console.log("Idempotent workflow stage hit; returning existing stage", latest.id);
+        // console.log("Idempotent workflow stage hit; returning existing stage", latest.id);
         return res.status(200).json(latest);
       }
     } catch (checkErr) {
@@ -391,7 +391,7 @@ router.post("/", async (req, res) => {
           break;
         case "Account":
         case "NAEF":
-          console.log("🔍 WORKFLOW: Updating Account/NAEF stage status for wo_id:", wo_id, "to status:", status, "and account_id:", body.account_id);
+          // console.log("🔍 WORKFLOW: Updating Account/NAEF stage status for wo_id:", wo_id, "to status:", status, "and account_id:", body.account_id);
           if (body.account_id) {
             const updateQuery = status === "Approved"
               ? "UPDATE accounts SET stage_status = $1, done_date = NOW() WHERE kristem_account_id = $2"
@@ -401,20 +401,20 @@ router.post("/", async (req, res) => {
             
             // If approved, sync to MSSQL (ONLY for manually approved accounts)
             if (status === "Approved") {
-              console.log("🔍 WORKFLOW: Account approval detected for account ID:", body.account_id);
+              // console.log("🔍 WORKFLOW: Account approval detected for account ID:", body.account_id);
               try {
                 const accountResult = await db.query("SELECT * FROM accounts WHERE kristem_account_id = $1", [wo_id]);
                 if (accountResult.rows.length > 0) {
                   const account = accountResult.rows[0];
-                  console.log("🔍 WORKFLOW: Account details:", { 
-                    id: account.id, 
-                    stage_status: account.stageStatus,
-                    kristem_account_id: account.kristemAccountId,
-                    account_name: account.accountName 
-                  });
+                  // console.log("🔍 WORKFLOW: Account details:", { 
+                  //   id: account.id, 
+                  //   stage_status: account.stageStatus,
+                  //   kristem_account_id: account.kristemAccountId,
+                  //   account_name: account.accountName 
+                  // });
                   
                   if (account.kristemAccountId) {
-                    console.log("🚀 WORKFLOW: Updating existing MSSQL customer with final data...");
+                    // console.log("🚀 WORKFLOW: Updating existing MSSQL customer with final data...");
                     // UPDATE existing MSSQL customer with final approved data
                     const spiPool = await poolPromise;
                     await spiPool.request()
@@ -446,7 +446,7 @@ router.post("/", async (req, res) => {
                         WHERE Id = @id
                       `);
                     
-                    console.log("✅ Updated MSSQL customer ID:", account.kristemAccountId, "with final approved data");
+                    // console.log("✅ Updated MSSQL customer ID:", account.kristemAccountId, "with final approved data");
                   } else {
                     console.warn("⚠️ WORKFLOW: Account has no kristem_account_id - this shouldn't happen in dual creation mode");
                   }
@@ -472,7 +472,7 @@ router.post("/", async (req, res) => {
       const allStages = await db.query(
         "SELECT * FROM workflow_stages ORDER BY created_at ASC",
       );
-      console.log("All workflow stages:", allStages.rows);
+      // console.log("All workflow stages:", allStages.rows);
 
       await db.query("COMMIT");
     } catch (err) {
@@ -530,12 +530,12 @@ router.delete("/:id", async (req, res) => {
 
 // Get latest workflow stages assigned to a user with 'Pending' status for a specific stage name
 router.get("/assigned/latest/:id/:stageName", async (req, res) => {
-  console.log(
-    "Fetching latest assigned workflow stages for user:",
-    req.params.id,
-    "and stage:",
-    req.params.stageName,
-  );
+  // console.log(
+  //   "Fetching latest assigned workflow stages for user:",
+  //   req.params.id,
+  //   "and stage:",
+  //   req.params.stageName,
+  // );
   try {
     const { id, stageName } = req.params;
 
@@ -582,12 +582,12 @@ router.get("/assigned/latest/:id/:stageName", async (req, res) => {
     } else {
       // For other tables: join sales_leads for sl_number, join users for username/department
       // Table name and alias
-      console.log(
-        "Stage does not match sales lead or work order, using generic query for stage:",
-        stageName,
-      );
+      // console.log(
+      //   "Stage does not match sales lead or work order, using generic query for stage:",
+      //   stageName,
+      // );
       if (stage.includes("technical reco") || stage.includes("tr")) {
-        console.log("Using technical_recommendations join");
+        // console.log("Using technical_recommendations join");
         query = `
           SELECT tr.*, sl.sl_number, a.account_name AS account_name
           FROM workflow_stages ws
@@ -603,7 +603,7 @@ router.get("/assigned/latest/:id/:stageName", async (req, res) => {
           WHERE ws.status = 'Draft' AND ws.stage_name = $2
         `;
       } else if (stage.includes("rfq")) {
-        console.log("Using rfqs join");
+        // console.log("Using rfqs join");
         query = `
           SELECT rfq.*, sl.sl_number, a.account_name AS account_name
           FROM workflow_stages ws
@@ -649,20 +649,20 @@ router.get("/assigned/latest/:id/:stageName", async (req, res) => {
       }
     }
 
-    console.log("Executing assigned latest workflow stages query:", query);
-    console.log("With parameters:", [id, stageName]);
+    // console.log("Executing assigned latest workflow stages query:", query);
+    // console.log("With parameters:", [id, stageName]);
     const result = await db.query(query, [id, stageName]);
-    console.log("Latest assigned workflow stages result:", result.rows);
+    // console.log("Latest assigned workflow stages result:", result.rows);
     
     try {
       for (const row of result.rows) {
         const base = row;
         const spiPool = await poolPromise;
         const accId = Number(base.accountId ?? base.account_id ?? base.kristemAccountId);
-        console.log("🔍 Single TR - Account ID:", accId, "from base:", base.accountId, base.account_id);
+        // console.log("🔍 Single TR - Account ID:", accId, "from base:", base.accountId, base.account_id);
         let customer = null;
         if (Number.isFinite(accId)) {
-          console.log("🔍 Fetching single customer for ID:", accId);
+          // console.log("🔍 Fetching single customer for ID:", accId);
           const custRes = await spiPool
             .request()
             .input("id", accId)
@@ -676,7 +676,7 @@ router.get("/assigned/latest/:id/:stageName", async (req, res) => {
           };
 
           row.account = account;
-          console.log("Fetched row:", row);
+          // console.log("Fetched row:", row);
         }
       }
     } catch (enrichErr) {
@@ -792,7 +792,7 @@ router.get("/summary/latest", async (req, res) => {
 
     // console.log('Workflow stages summary/latest query:', sql, 'params:', queryParams);
     const result = await db.query(sql, queryParams);
-    console.log("Fetched latest workflow stages summary:", result.rows?.length || 0, "records");
+    // console.log("Fetched latest workflow stages summary:", result.rows?.length || 0, "records");
     return res.json(result.rows || []);
   } catch (err) {
     console.error("Failed to fetch summary latest workflow stages:", err);

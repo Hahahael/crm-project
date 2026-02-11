@@ -25,6 +25,7 @@ import mssqlAccountsRoutes from "./routes/mssqlAccountsRoutes.js";
 import dashboardRoutes from "./routes/dashboardRoutes.js";
 import adminRoutes from "./routes/adminRoutes.js";
 import emailRoutes from "./routes/emailRoutes.js";
+import pendingItemsRouter from "./routes/pendingItemsRoutes.js";
 
 const PORT = process.env.PORT || 5500;
 const FRONTEND_URL = process.env.FRONTEND_URL || "http://localhost:5173";
@@ -100,11 +101,11 @@ app.get("/api/debug/cors", (req, res) => {
 // verify exactly what the server receives. Remove or protect in production.
 app.post("/api/debug/echo", (req, res) => {
   try {
-    console.log("[DEBUG ECHO] headers:", {
-      "content-type": req.get("content-type"),
-      "content-length": req.get("content-length"),
-    });
-    console.log("[DEBUG ECHO] body keys:", Object.keys(req.body || {}));
+    // console.log("[DEBUG ECHO] headers:", {
+    //   "content-type": req.get("content-type"),
+    //   "content-length": req.get("content-length"),
+    // });
+    // console.log("[DEBUG ECHO] body keys:", Object.keys(req.body || {}));
     return res.json({ ok: true, body: req.body });
   } catch (err) {
     console.error("[DEBUG ECHO] error:", err);
@@ -138,6 +139,7 @@ app.use("/api/technicals", technicalsRouter);
 app.use("/api/rfqs", rfqsRouter);
 app.use("/api/inventory", inventoryRouter);
 app.use("/api/quotations", quotationsRouter);
+app.use("/api/pending-items", pendingItemsRouter);
 app.use("/api/email", emailRoutes);
 
 app.get("/", (req, res) => {

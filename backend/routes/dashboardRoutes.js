@@ -143,7 +143,7 @@ router.get("/summary", async (req, res) => {
       ${whereClause.replace('w.', 'r.')}
     `;
 
-    console.log('Dashboard summary query:', primarySql, 'params:', queryParams);
+    // console.log('Dashboard summary query:', primarySql, 'params:', queryParams);
     const result = await tryQuery(primarySql, fallbackSql, queryParams);
     let row = result.rows && result.rows[0] ? result.rows[0] : {};
 
@@ -250,7 +250,7 @@ router.get("/due-performance", async (req, res) => {
       ${whereClause.replace('w.', 'r.')};
     `;
 
-    console.log('Dashboard due-performance query:', primarySql, 'params:', queryParams);
+    // console.log('Dashboard due-performance query:', primarySql, 'params:', queryParams);
     const result = await tryQuery(primarySql, fallbackSql, queryParams);
     let row = result.rows && result.rows[0] ? result.rows[0] : {};
 
@@ -368,7 +368,7 @@ router.get("/stage-distribution", async (req, res) => {
       ORDER BY count DESC
     `;
     
-    console.log('Dashboard stage-distribution query:', primarySql, 'params:', queryParams);
+    // console.log('Dashboard stage-distribution query:', primarySql, 'params:', queryParams);
     const result = await tryQuery(primarySql, fallbackSql, queryParams);
     const rows = result.rows || [];
     const total = rows.reduce((s, r) => s + Number(r.count || 0), 0) || 0;
@@ -447,7 +447,7 @@ router.get("/assignees", async (req, res) => {
       LIMIT ${limitParam}
     `;
     
-    // console.log('Dashboard assignees query:', primarySql, 'params:', queryParams);
+    // // console.log('Dashboard assignees query:', primarySql, 'params:', queryParams);
     const result = await tryQuery(primarySql, fallbackSql, queryParams);
     const rows = result.rows || [];
     return res.json({
@@ -544,12 +544,12 @@ router.get("/summary/latest", async (req, res) => {
       ORDER BY ws.created_at DESC;
     `;
     
-    // console.log('Dashboard summary/latest query:', sql, 'params:', queryParams);
+    // // console.log('Dashboard summary/latest query:', sql, 'params:', queryParams);
 
     const result = await db.query(sql, queryParams);
     const rows = result.rows || [];
     for (const row of rows) {
-      console.log("Fetching details for row:", row);
+      // console.log("Fetching details for row:", row);
       let rowQuery = "";
       if (row.stageName.toLowerCase().includes("work order")) {
         rowQuery = `SELECT * FROM workorders WHERE id = $1`;

@@ -300,13 +300,13 @@ router.get("/:id", async (req, res) => {
 
       if (customer) {
         let source = customer;
-        console.log("Source:", source);
+        // console.log("Source:", source);
         if (Object.keys(baseAcc).length !== 0) {
           source = baseAcc;
         }
-        console.log("New Source:", source);
+        // console.log("New Source:", source);
         const normId = (v) => {
-          console.log("Normalizing ID value:", v);
+          // console.log("Normalizing ID value:", v);
           const n = Number(v);
           return Number.isFinite(n) ? n : null;
         };
@@ -334,7 +334,7 @@ router.get("/:id", async (req, res) => {
             2
           );
 
-        console.log("Derived foreign keys for workorder", id, ":", { bId, iId, dId });
+        // console.log("Derived foreign keys for workorder", id, ":", { bId, iId, dId });
 
         const [bRes, iRes, dRes] = await Promise.all([
           spiPool
@@ -646,7 +646,7 @@ router.get("/summary/status", async (req, res) => {
   try {
     // Extract filter parameters
     const { status, assignee, startDate, endDate } = req.query;
-    console.log("Query params for work orders summary:", req.query);
+    // console.log("Query params for work orders summary:", req.query);
     
     // Build WHERE conditions
     let whereConditions = [];
@@ -715,7 +715,7 @@ router.get("/summary/status", async (req, res) => {
       ${whereClause};
     `;
     
-    console.log('Work orders summary query:', query, 'params:', queryParams);
+    // console.log('Work orders summary query:', query, 'params:', queryParams);
     const result = await db.query(query, queryParams);
 
     // Back-compat: expose 'pending' key (alias) for frontend consumption

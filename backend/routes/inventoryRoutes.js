@@ -8,18 +8,18 @@ const router = express.Router();
 // Helper to log attribute keys for objects or arrays of rows
 function logAttributes(label, obj) {
   try {
-    if (!obj) return console.log(`${label}: <empty>`);
+    if (!obj) return // console.log(`${label}: <empty>`);
     if (Array.isArray(obj)) {
       const keys = new Set();
       obj.forEach((r) => {
         if (r && typeof r === "object")
           Object.keys(r).forEach((k) => keys.add(k));
       });
-      return console.log(`${label} keys:`, Array.from(keys));
+      return // console.log(`${label} keys:`, Array.from(keys));
     }
     if (typeof obj === "object")
-      return console.log(`${label} keys:`, Object.keys(obj));
-    return console.log(`${label}:`, obj);
+      return // console.log(`${label} keys:`, Object.keys(obj));
+    return // console.log(`${label}:`, obj);
   } catch (err) {
     console.error("logAttributes error:", err);
   }
@@ -116,7 +116,7 @@ router.get("/mssql/stocks", async (req, res) => {
     const stockIds = [
       ...new Set(details.map((d) => d.Stock_Id).filter(Boolean)),
     ];
-    console.log("Unique stock IDs to fetch:", stockIds);
+    // console.log("Unique stock IDs to fetch:", stockIds);
     let stocksMap = {};
     // if (stockIds.length > 0) {
     //   const stocksSql = `SELECT * FROM spidb.stock WHERE Id IN (${stockIds.join(",")})`;
