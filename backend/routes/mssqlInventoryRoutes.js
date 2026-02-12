@@ -38,11 +38,26 @@ router.get("/vendors", async (req, res) => {
       const detRes = await reqQ.query(detailsQuery);
       details = detRes.recordset;
     }
+    
+    // Fetch currencies and active forex rates for mapping
+    const [currenciesRes, forexRes] = await Promise.all([
+      pool.request().query(`SELECT ID, Code, Description FROM spidb.currency`),
+      pool.request().query(`SELECT Id, currency_Id, Rate, Validity, IsActive FROM spidb.foreign_exchange WHERE IsActive = 1`),
+    ]);
 
-    // attach details to vendors
+    const currenciesMap = new Map(
+      currenciesRes.recordset.map((c) => [c.ID, c])
+    );
+    const forexMap = new Map(
+      forexRes.recordset.map((fx) => [fx.currency_Id, { ...fx, currency: currenciesMap.get(fx.currency_Id) || null }])
+    );
+
+    // attach details, currency, and forex to vendors
     const vendors = vendorsResult.recordset.map((v) => ({
       ...v,
       details: details.find((d) => d.Vendor_Id === v.Id) || {},
+      currency: currenciesMap.get(v.Currency_Id) || null,
+      forex: forexMap.get(v.Currency_Id) || null,
     }));
 
     return res.json({ count: vendorsResult.recordset.length, rows: vendors });
@@ -94,11 +109,13 @@ router.get("/stocks", async (req, res) => {
       pool.request().query(`SELECT ID, Code, Description FROM spidb.brand`),
       pool.request().query(`SELECT Id, Code, Description FROM spidb.uom`),
       pool.request().query(`SELECT Id, Code, Description FROM spidb.stock_type`),
+      pool.request().query(`SELECT Id, Code, Description FROM spidb.category`),
     ]);
 
     const brandsMap = new Map(brandsRes.recordset.map((b) => [b.ID, b]));
     const uomsMap = new Map(uomsRes.recordset.map((u) => [u.Id, u]));
     const stockTypesMap = new Map(stockTypesRes.recordset.map((st) => [st.Id, st]));
+    const categoriesMap = new Map(stockTypesRes.recordset.map((c) => [c.Id, c]));
 
     const stocks = stocksResult.recordset.map((s) => ({
       ...s,
@@ -106,6 +123,7 @@ router.get("/stocks", async (req, res) => {
       brand: brandsMap.get(s.BRAND_ID) || null,
       uom: uomsMap.get(s.SK_UOM) || null,
       stockType: stockTypesMap.get(s.Stock_Type_Id) || null,
+      category: categoriesMap.get(s.Category_Id) || null,
     }));
 
     return res.json({ count: stocksResult.recordset.length, rows: stocks });
@@ -160,6 +178,90 @@ router.get("/uoms", async (req, res) => {
   } catch (err) {
     console.error(err);
     return res.status(500).json({ error: "Failed to fetch UOMs" });
+  }
+});
+
+// GET /mssql/inventory/stock-types
+router.get("/stock-types", async (req, res) => {
+  try {
+    const pool = await poolPromise;
+    const result = await pool.request().query(`
+      SELECT TOP (1000) [Id], [Code], [Description]
+      FROM spidb.stock_type
+      ORDER BY [Description]
+    `);
+    return res.json({ count: result.recordset.length, rows: result.recordset });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: "Failed to fetch stock types" });
+  }
+});
+
+// GET /mssql/inventory/supply-type/:stockTypeId
+// Returns default supply type for a given stock_type_id using the spidb.Get_StockSupplyType function
+router.get("/supply-type/:stockTypeId", async (req, res) => {
+  try {
+    const stockTypeId = parseInt(req.params.stockTypeId, 10);
+    if (!Number.isFinite(stockTypeId)) {
+      return res.status(400).json({ error: "Invalid stock type ID" });
+    }
+    const pool = await poolPromise;
+    const result = await pool
+      .request()
+      .input("Stock_type_id", sql.Int, stockTypeId)
+      .query(`SELECT [spidb].[Get_StockSupplyType](@Stock_type_id) AS SupplyType`);
+    const supplyType = result.recordset?.[0]?.SupplyType ?? null;
+    return res.json({ stockTypeId, supplyType });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: "Failed to fetch supply type" });
+  }
+});
+
+// GET /mssql/inventory/currencies
+router.get("/currencies", async (req, res) => {
+  try {
+    const pool = await poolPromise;
+    const result = await pool.request().query(`
+      SELECT Id, Code, Description
+      FROM spidb.currency
+      ORDER BY Code
+    `);
+    return res.json({ count: result.recordset.length, rows: result.recordset });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: "Failed to fetch currencies" });
+  }
+});
+
+// GET /mssql/inventory/forex
+router.get("/forex", async (req, res) => {
+  try {
+    const pool = await poolPromise;
+
+    const [forexRes, currenciesRes] = await Promise.all([
+      pool.request().query(`
+        SELECT Id, currency_Id, Rate, Validity, IsActive
+        FROM spidb.foreign_exchange
+        ORDER BY currency_Id
+      `),
+      pool.request().query(`
+        SELECT Id, Code, Description
+        FROM spidb.currency
+      `),
+    ]);
+
+    const currencyMap = new Map(currenciesRes.recordset.map((c) => [c.Id, c]));
+
+    const rows = forexRes.recordset.map((fx) => ({
+      ...fx,
+      currency: currencyMap.get(fx.currency_Id) || null,
+    }));
+
+    return res.json({ count: rows.length, rows });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: "Failed to fetch forex rates" });
   }
 });
 

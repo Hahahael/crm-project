@@ -458,8 +458,8 @@ router.post("/", async (req, res) => {
       for (const product of body.products) {
         const insertResult = await db.query(
           `INSERT INTO technical_recommendation_products 
-           (tr_id, product_name, corrected_part_no, description, brand, unit_om) 
-           VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
+           (tr_id, product_name, corrected_part_no, description, brand, unit_om, quantity) 
+           VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id`,
           [
             newId,
             product.product_name || product.productName,
@@ -467,6 +467,7 @@ router.post("/", async (req, res) => {
             product.description,
             product.brand,
             product.unit_om || product.unitOm,
+            product.quantity ?? null,
           ],
         );
         // console.log("✅ Inserted product with ID:", insertResult.rows[0]?.id);
@@ -659,14 +660,15 @@ router.put("/:id", async (req, res) => {
         // console.log("🔄 Updating existing product with ID:", product.id);
         await db.query(
           `UPDATE technical_recommendation_products 
-           SET product_name=$1, corrected_part_no=$2, description=$3, brand=$4, unit_om=$5 
-           WHERE id=$6`,
+           SET product_name=$1, corrected_part_no=$2, description=$3, brand=$4, unit_om=$5, quantity=$6 
+           WHERE id=$7`,
           [
             product.product_name || product.productName,
             product.corrected_part_no || product.correctedPartNo,
             product.description,
             product.brand,
             product.unit_om || product.unitOm,
+            product.quantity ?? null,
             product.id,
           ],
         );
@@ -674,8 +676,8 @@ router.put("/:id", async (req, res) => {
         // Insert new product
         const insertResult = await db.query(
           `INSERT INTO technical_recommendation_products 
-           (tr_id, product_name, corrected_part_no, description, brand, unit_om) 
-           VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
+           (tr_id, product_name, corrected_part_no, description, brand, unit_om, quantity) 
+           VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id`,
           [
             id,
             product.product_name || product.productName,
@@ -683,6 +685,7 @@ router.put("/:id", async (req, res) => {
             product.description,
             product.brand,
             product.unit_om || product.unitOm,
+            product.quantity ?? null,
           ],
         );
         // console.log("✅ Inserted new product with ID:", insertResult.rows[0]?.id);

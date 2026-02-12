@@ -244,6 +244,23 @@ router.get("/:id", async (req, res) => {
     );
     console.log("Fetched RFQ rfq_items:", itemsRes.rows);
     const pool = await poolPromise;
+
+    // Fetch all brands, uoms, stock_types, categories, currencies, forex for mapping
+    const [brandsRes, uomsRes, stockTypesRes, categoriesRes, currenciesRes, forexRes] = await Promise.all([
+      pool.request().query(`SELECT ID, Code, Description FROM spidb.brand`),
+      pool.request().query(`SELECT Id, Code, Description FROM spidb.uom`),
+      pool.request().query(`SELECT Id, Code, Description FROM spidb.stock_type`),
+      pool.request().query(`SELECT Id, Code, Description FROM spidb.category`),
+      pool.request().query(`SELECT ID, Code, Description FROM spidb.currency`),
+      pool.request().query(`SELECT Id, currency_Id, Rate, Validity, IsActive FROM spidb.foreign_exchange WHERE IsActive = 1`),
+    ]);
+    const brandsMap = new Map(brandsRes.recordset.map((b) => [b.ID, b]));
+    const uomsMap = new Map(uomsRes.recordset.map((u) => [u.Id, u]));
+    const stockTypesMap = new Map(stockTypesRes.recordset.map((st) => [st.Id, st]));
+    const categoriesMap = new Map(categoriesRes.recordset.map((c) => [c.Id, c]));
+    const currenciesMap = new Map(currenciesRes.recordset.map((c) => [c.ID, c]));
+    const forexMap = new Map(forexRes.recordset.map((fx) => [fx.currency_Id, { ...fx, currency: currenciesMap.get(fx.currency_Id) || null }]));
+
     let items = [];
     for (const ri of itemsRes.rows) {
       try {
@@ -275,6 +292,13 @@ router.get("/:id", async (req, res) => {
         // attach resolved MSSQL details when available
         if (merged) {
           itemToPush.details = merged;
+        }
+        // enrich with brand, uom, stockType from lookup maps
+        if (detailObj) {
+          itemToPush.brand_details = brandsMap.get(detailObj.BRAND_ID) || null;
+          itemToPush.uom_details = uomsMap.get(detailObj.SK_UOM) || null;
+          itemToPush.stockType_details = stockTypesMap.get(detailObj.Stock_Type_Id) || null;
+          itemToPush.category_details = categoriesMap.get(detailObj.Category_Id) || null;
         }
         // canonicalize item id fields for frontend convenience
         itemToPush.itemId =
@@ -337,6 +361,11 @@ router.get("/:id", async (req, res) => {
         // if (merged) vendorToPush.details = merged;
         vendorToPush.details = detail;
         vendorToPush.items = items.map((it) => ({ price: null, leadTime: "", ...it }));
+        // Enrich with currency and forex rate
+        if (parent && parent.Currency_Id) {
+          vendorToPush.currency = currenciesMap.get(parent.Currency_Id) || null;
+          vendorToPush.forex = forexMap.get(parent.Currency_Id) || null;
+        }
         // canonicalize vendor id fields
         vendorToPush.vendorId =
           vendorToPush.vendorId ??
@@ -621,8 +650,8 @@ router.post("/", async (req, res) => {
           
           const insertedItem = await db.query(
             `INSERT INTO rfq_items 
-             (rfq_id, tr_product_id, item_id, mapped_in_tr_approval, is_new_item, product_name, corrected_part_no, description, brand, unit_om) 
-             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING id`,
+             (rfq_id, tr_product_id, item_id, mapped_in_tr_approval, is_new_item, product_name, corrected_part_no, description, brand, unit_om, quantity) 
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING id`,
             [
               newId,
               item.id,
@@ -634,6 +663,7 @@ router.post("/", async (req, res) => {
               item.description,
               item.brand,
               item.unit_om || item.unitOm,
+              item.quantity,
             ],
           );
           const insertedId = insertedItem.rows[0].id;
@@ -1004,16 +1034,13 @@ router.put("/:id", async (req, res) => {
       }
       for (const vendor of body.vendors) {
         console.log("Processing RFQ vendor:", vendor);
-        const validUntil = vendor.validUntil === "" ? null : vendor.validUntil;
-        const paymentTerms =
-          vendor.paymentTerms === "" ? null : vendor.paymentTerms;
-        const notes = vendor.notes === "" ? null : vendor.notes;
-        const subtotal = vendor.subtotal === "" ? null : vendor.subtotal;
-        const vat = vendor.vat === "" ? null : vendor.vat;
-        const grandTotal =
-          vendor.grandTotal === "" ? null : vendor.grandTotal;
-        const quoteDate =
-          vendor.quoteDate === "" ? null : vendor.quoteDate;
+        const validUntil = (vendor.valid_until ?? vendor.validUntil) || null;
+        const paymentTerms = (vendor.payment_terms ?? vendor.paymentTerms) || null;
+        const notes = (vendor.notes) || null;
+        const subtotal = (vendor.subtotal) || null;
+        const vat = (vendor.vat) || null;
+        const grandTotal = (vendor.grand_total ?? vendor.grandTotal) || null;
+        const quoteDate = (vendor.quote_date ?? vendor.quoteDate) || null;
         // If the incoming vendor provides a vendor_id that already exists for this RFQ, update the record
         if (vendor.vendor_id && existingIds.has(vendor.vendor_id)) {
           await db.query(
