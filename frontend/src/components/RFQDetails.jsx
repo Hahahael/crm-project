@@ -669,20 +669,16 @@ const RFQDetails = ({
                             {item.unitOm || item.unit_om || item.details?.SK_UOM || '-'}
                           </td>
                           <td className="text-sm p-3 text-center">
-                            {hasSetup ? (
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setSelectedItem(item);
-                                  setViewItemModalOpen(true);
-                                }}
-                                className="px-3 py-1 text-xs font-medium text-blue-600 bg-blue-50 border border-blue-200 rounded hover:bg-blue-100"
-                              >
-                                View Details
-                              </button>
-                            ) : (
-                              <span className="text-gray-400 text-xs">-</span>
-                            )}
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSelectedItem(item);
+                                setViewItemModalOpen(true);
+                              }}
+                              className="px-3 py-1 text-xs font-medium text-blue-600 bg-blue-50 border border-blue-200 rounded hover:bg-blue-100"
+                            >
+                              View Details
+                            </button>
                           </td>
                         </tr>
                       );

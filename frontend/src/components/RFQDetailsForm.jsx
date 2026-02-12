@@ -474,7 +474,9 @@ export default function RFQDetailsForm({
                                 {(() => {
                                   const filtered = itemsList.filter(k => 
                                     (k.Code && k.Code.toLowerCase().includes(searchQuery.toLowerCase())) ||
-                                    (k.Description && k.Description.toLowerCase().includes(searchQuery.toLowerCase()))
+                                    (k.Description && k.Description.toLowerCase().includes(searchQuery.toLowerCase())) || 
+                                    (k.brand?.Code && k.brand.Code.toLowerCase().includes(searchQuery.toLowerCase())) || 
+                                    (k.brand?.Description && k.brand.Description.toLowerCase().includes(searchQuery.toLowerCase()))
                                   );
                                   if (filtered.length === 0) {
                                     return (
@@ -491,7 +493,7 @@ export default function RFQDetailsForm({
                                     >
                                       <div className="text-xs font-medium text-gray-900">{k.Code}</div>
                                       <div className="text-xs text-gray-500 truncate">{k.Description}</div>
-                                      {k.BRAND_ID && <div className="text-xs text-gray-400">Brand: {k.BRAND_ID}</div>}
+                                      {k.brand?.Code && <div className="text-xs text-gray-400">Brand: {k.brand.Code}</div>}
                                     </div>
                                   ));
                                 })()}

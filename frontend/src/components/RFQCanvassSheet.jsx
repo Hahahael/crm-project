@@ -9,11 +9,13 @@ import {
   LuClock,
   LuCheck,
 } from "react-icons/lu";
+import { formatMoney } from "../helper/utils.js";
 
 export default function RFQCanvassSheet({
   rfq,
   formItems,
   formVendors,
+  setFormVendors,
   setFormItems,
   mode = "create",
   setFormData,
@@ -34,6 +36,12 @@ export default function RFQCanvassSheet({
   const canonItemId = (obj) => (obj ? (obj.itemId ?? obj.item_id ?? obj.id) : undefined);
   const canonVendorId = (obj) => (obj ? (obj.vendorId ?? obj.vendor_id ?? obj.id) : undefined);
   const idEq = (a, b) => String(a ?? "") === String(b ?? "");
+  // Forex rate helper: returns PHP conversion rate for vendor (1 if PHP)
+  const getForexRate = (vendor) => {
+    const code = vendor?.currency?.Code;
+    if (!code || code === 'PHP') return 1;
+    return Number(vendor?.forex?.Rate) || 1;
+  };
   // Global selected vendor for ALL items - use the database field
   const [selectedVendorAll, setSelectedVendorAll] = useState(() => rfq?.selectedVendorId || rfq?.selected_vendor_id || null);
 
@@ -61,6 +69,19 @@ export default function RFQCanvassSheet({
       return acc;
     }, {});
 
+    // Update isSelected flags on vendor quotes
+    const updatedVendors = (formVendors || []).map((vendor) => {
+      const vid = canonVendorId(vendor);
+      return {
+        ...vendor,
+        quotes: (vendor.quotes || []).map((q) => ({
+          ...q,
+          isSelected: idEq(newSelection[q.itemId ?? q.item_id], vid),
+        })),
+      };
+    });
+    if (setFormVendors) setFormVendors(updatedVendors);
+
     setSelectedVendorAll(vendorId);
     setSelectedVendorsByItem(newSelection);
     setFormItems(updatedItems);
@@ -68,7 +89,8 @@ export default function RFQCanvassSheet({
       setFormData((prev) => ({
         ...prev,
         items: updatedItems,
-        selectedVendorId: vendorId, // Store the selected vendor ID in formData
+        vendors: updatedVendors,
+        selectedVendorId: vendorId,
         selectedVendorsByItem: newSelection,
       }));
   };
@@ -91,6 +113,27 @@ export default function RFQCanvassSheet({
     const selectedQuote = (quotations || []).find(
       (q) => idEq(q.itemId, itemId) && idEq(q.vendorId, vendorId),
     );
+
+    // Update isSelected flags on vendor quotes
+    const updatedVendors = (formVendors || []).map((vendor) => {
+      const vid = canonVendorId(vendor);
+      return {
+        ...vendor,
+        quotes: (vendor.quotes || []).map((q) => ({
+          ...q,
+          isSelected: idEq(newSelection[q.itemId ?? q.item_id], vid),
+        })),
+      };
+    });
+    if (setFormVendors) setFormVendors(updatedVendors);
+
+    // Determine if all items now select the same vendor (only if every item has a selection)
+    const totalItems = (formItems || []).length;
+    const allVids = (formItems || []).map((i) => newSelection[canonItemId(i)]).filter(Boolean);
+    const uniqueVids = Array.from(new Set(allVids.map(String)));
+    const globalVendorId = (totalItems > 0 && allVids.length === totalItems && uniqueVids.length === 1) ? allVids[0] : null;
+    setSelectedVendorAll(globalVendorId);
+
     if (selectedQuote) {
       const updatedItems = (formItems || []).map((item) => {
         if (!idEq(canonItemId(item), itemId)) return item;
@@ -107,12 +150,19 @@ export default function RFQCanvassSheet({
         setFormData((prev) => ({
           ...prev,
           items: updatedItems,
+          vendors: updatedVendors,
+          selectedVendorId: globalVendorId,
+          selectedVendorsByItem: newSelection,
+        }));
+    } else {
+      if (setFormData)
+        setFormData((prev) => ({
+          ...prev,
+          vendors: updatedVendors,
+          selectedVendorId: globalVendorId,
           selectedVendorsByItem: newSelection,
         }));
     }
-
-    // Clear the global "all" selection since items now differ
-    setSelectedVendorAll(null);
   };
 
   const [selectedVendorsByItem, setSelectedVendorsByItem] = useState(() => {
@@ -126,12 +176,19 @@ export default function RFQCanvassSheet({
         const iid = canonItemId(item);
         itemVendorMap[iid] = globalSelectedVendor;
       });
-    } else if (Array.isArray(formItems)) {
-      // Fallback: use individual item vendor selections if no global selection
-      formItems.forEach((item) => {
-        const iid = canonItemId(item);
-        const bestVid = item.bestVendorId ?? null;
-        if (bestVid) itemVendorMap[iid] = bestVid;
+    } else if (rfq?.selectedVendorsByItem && Object.keys(rfq.selectedVendorsByItem).length > 0) {
+      // Restore per-item selections from saved formData
+      Object.assign(itemVendorMap, rfq.selectedVendorsByItem);
+    } else if (Array.isArray(formVendors)) {
+      // Derive from vendor quotes' isSelected flags (loaded from DB)
+      formVendors.forEach((vendor) => {
+        const vid = canonVendorId(vendor);
+        (vendor.quotes || []).forEach((q) => {
+          if (q.isSelected) {
+            const iid = q.itemId ?? q.item_id;
+            if (iid) itemVendorMap[iid] = vid;
+          }
+        });
       });
     }
     return itemVendorMap;
@@ -164,6 +221,10 @@ export default function RFQCanvassSheet({
               1)
             : (item.quantity ?? 1);
 
+          const total = unitPrice * quantity;
+          const forexRate = getForexRate(vendor);
+          const phpTotal = total * forexRate;
+
           arr.push({
             itemId: iid,
             vendorId: vid,
@@ -175,19 +236,21 @@ export default function RFQCanvassSheet({
             leadTimeColor: vendorItem
               ? (vendorItem.leadTimeColor ?? vendorItem.lead_time_color)
               : "",
-            total: unitPrice * quantity,
-            // FIX: isSelected should compare selected vendorId for this item
+            total,
+            phpTotal,
+            currencyCode: vendor?.currency?.Code || 'PHP',
+            forexRate,
             isSelected: idEq(selectedVendorsByItem[iid], vid),
           });
         });
       });
-      // Mark best option per item
+      // Mark best option per item (compare in PHP-converted totals)
       (formItems || []).forEach((item) => {
         const iid2 = canonItemId(item);
         const itemQuotes = arr.filter((q) => idEq(q.itemId, iid2));
-        const minTotal = Math.min(...itemQuotes.map((q) => q.total));
+        const minPhpTotal = Math.min(...itemQuotes.map((q) => q.phpTotal));
         itemQuotes.forEach((q) => {
-          q.isBestOption = q.total === minTotal;
+          q.isBestOption = q.phpTotal === minPhpTotal;
         });
       });
       return arr;
@@ -206,13 +269,19 @@ export default function RFQCanvassSheet({
         const iid = canonItemId(item);
         initialSelections[iid] = globalSelectedVendor;
       });
-    } else {
-      // Fallback to individual item selections
-      initialSelections = (formItems || []).reduce((acc, item) => {
-        const iid = canonItemId(item);
-        if (item.bestVendorId) acc[iid] = item.bestVendorId;
-        return acc;
-      }, {});
+    } else if (rfq?.selectedVendorsByItem && Object.keys(rfq.selectedVendorsByItem).length > 0) {
+      initialSelections = { ...rfq.selectedVendorsByItem };
+    } else if (Array.isArray(formVendors)) {
+      // Derive from vendor quotes' isSelected flags
+      formVendors.forEach((vendor) => {
+        const vid = canonVendorId(vendor);
+        (vendor.quotes || []).forEach((q) => {
+          if (q.isSelected) {
+            const iid = q.itemId ?? q.item_id;
+            if (iid) initialSelections[iid] = vid;
+          }
+        });
+      });
     }
     
     return generateQuotations(initialSelections);
@@ -244,8 +313,14 @@ export default function RFQCanvassSheet({
   useEffect(() => {
     setQuotations(generateQuotations(selectedVendorsByItem));
     // Persist selected vendors for each item in formData (only when not view mode)
-    if (!readOnly && setFormData)
-      setFormData((prev) => ({ ...prev, selectedVendorsByItem }));
+    if (!readOnly && setFormData) {
+      // Determine global selectedVendorId: only if EVERY item has the same vendor selected
+      const totalItems = (formItems || []).length;
+      const allVids = (formItems || []).map((i) => selectedVendorsByItem[canonItemId(i)]).filter(Boolean);
+      const uniqueVids = Array.from(new Set(allVids.map(String)));
+      const globalVendorId = (totalItems > 0 && allVids.length === totalItems && uniqueVids.length === 1) ? allVids[0] : null;
+      setFormData((prev) => ({ ...prev, selectedVendorsByItem, selectedVendorId: globalVendorId }));
+    }
   }, [
     selectedVendorsByItem,
     formItems,
@@ -257,12 +332,13 @@ export default function RFQCanvassSheet({
 
   // If all items share the same selected vendor, reflect it in selectedVendorAll (for header highlighting)
   useEffect(() => {
+    const totalItems = (formItems || []).length;
     const vids = (formItems || [])
       .map((i) => selectedVendorsByItem[canonItemId(i)])
       .filter(Boolean);
-    if (vids.length === 0) return;
+    if (vids.length === 0) { setSelectedVendorAll(null); return; }
     const unique = Array.from(new Set(vids.map(String)));
-    if (unique.length === 1) setSelectedVendorAll(vids[0]);
+    setSelectedVendorAll((totalItems > 0 && vids.length === totalItems && unique.length === 1) ? vids[0] : null);
   }, [selectedVendorsByItem, formItems]);
 
   // For backward-compatibility: redirect per-item clicks to global selection (no separate handler needed)
@@ -274,57 +350,53 @@ export default function RFQCanvassSheet({
 
   console.log("Quotations:", quotations);
 
-  // Mark best option per item
-  (formItems || []).forEach((item) => {
-    const itemQuotes = quotations.filter((q) => q.itemId === item.itemId);
-    const minTotal = Math.min(...itemQuotes.map((q) => q.total));
-    itemQuotes.forEach((q) => {
-      q.isBestOption = q.total === minTotal;
-    });
-  });
-
   console.log(quotations);
 
   // Calculate vendorTotals from quotations array
   const vendorTotals = (formVendors || []).map((vendor) => {
     const vid = canonVendorId(vendor);
-    let total = quotations
+    const total = quotations
       .filter((q) => idEq(q.vendorId, vid))
       .reduce((sum, q) => sum + q.total, 0);
+    const forexRate = getForexRate(vendor);
+    const phpTotal = total * forexRate;
     return {
       id: vid,
       name: vendor.Name || vendor.vendor?.Name || vendor.name || vendor.details?.Name || "-",
-      total: total,
-      recommended: false, // will be set below
-      diff: null, // will be set below
+      total,
+      phpTotal,
+      currencyCode: vendor?.currency?.Code || 'PHP',
+      forexRate,
+      vendor,
+      recommended: false,
+      diff: null,
     };
   });
 
-  // Find lowest total
-  const lowestTotal =
-    vendorTotals.length > 0 ? Math.min(...vendorTotals.map((v) => v.total)) : 0;
-  // Mark recommended vendor (lowest total)
+  // Find lowest PHP-converted total for comparison
+  const lowestPhpTotal =
+    vendorTotals.length > 0 ? Math.min(...vendorTotals.map((v) => v.phpTotal)) : 0;
+  // Mark recommended vendor (lowest PHP total)
   let recommendedVendor = {};
   vendorTotals.forEach((v) => {
-    if (v.total === lowestTotal) {
+    if (v.phpTotal === lowestPhpTotal) {
       v.recommended = true;
-      recommendedVendor =
-        formData.vendors.find((vendorObj) => vendorObj.name === v.name) || {};
+      recommendedVendor = v.vendor || formData.vendors.find((vendorObj) => vendorObj.name === v.name) || {};
     } else {
       v.recommended = false;
     }
   });
-  // Fill diff for non-recommended selectedVendors
+  // Fill diff for non-recommended vendors (in PHP)
   vendorTotals.forEach((v) => {
     if (!v.recommended) {
-      v.diff = `+₱${(v.total - lowestTotal).toFixed(2)}`;
+      v.diff = v.phpTotal - lowestPhpTotal;
     }
   });
 
   const summary = {
     totalItems,
     quotedVendors,
-    lowestTotal,
+    lowestPhpTotal,
   };
   return (
     <div className="space-y-6">
@@ -377,12 +449,12 @@ export default function RFQCanvassSheet({
         />
         <SummaryCard
           label="Lowest Total"
-          value={`₱${summary?.lowestTotal}`}
+          value={formatMoney(summary?.lowestPhpTotal, null, { currency: 'PHP' })}
           icon={<LuTrendingDown className="h-5 w-5 text-green-500" />}
         />
         <SummaryCard
           label="Recommended"
-          value={recommendedVendor?.name}
+          value={recommendedVendor?.Name || recommendedVendor?.name || "-"}
           icon={<LuCircleAlert className="h-5 w-5 text-orange-500" />}
           highlight
         />
@@ -428,8 +500,13 @@ export default function RFQCanvassSheet({
                     </div>
                 </div>
                 <div className="text-right">
-                    <p className="text-lg font-bold">₱{v.total}</p>
-                    {v.diff && <p className="text-sm text-red-600">{v.diff}</p>}
+                    <p className="text-lg font-bold">{formatMoney(v.total, v.vendor)}</p>
+                    {v.currencyCode !== 'PHP' && (
+                      <p className="text-sm font-medium text-green-700">
+                        {formatMoney(v.phpTotal, null, { currency: 'PHP' })}
+                      </p>
+                    )}
+                    {v.diff != null && <p className="text-sm text-red-600">+{formatMoney(v.diff, null, { currency: 'PHP' })}</p>}
                 </div>
                 </div>
             );
@@ -456,23 +533,28 @@ export default function RFQCanvassSheet({
                 <th></th>
                 <th className="text-left font-light">Item Details</th>
                 {formData.vendors.map((v) => {
-
                   const vid = canonVendorId(v);
                   const isSelected = selectedVendorAll && idEq(selectedVendorAll, vid);
                   return (
-                    <th key={vid} className="text-center min-w-[150px]">
+                    <th key={vid} className="text-center min-w-[150px] px-2 py-3 align-bottom">
                       <button
                         type="button"
                         onClick={() => handleSelectVendorAll(vid)}
-                        className={`px-3 py-1 rounded-md border text-sm transition duration-100 ${isSelected ? "bg-blue-600 text-white border-blue-600" : "bg-white border-gray-200 hover:bg-gray-50"}`}
+                        className={`w-full px-3 py-2 rounded-lg border text-sm font-medium transition-all duration-150
+                          ${isSelected
+                            ? "bg-blue-600 text-white border-blue-600 shadow-sm"
+                            : "bg-white border-gray-200 text-gray-700 hover:border-blue-300 hover:bg-blue-50"
+                          } ${readOnly ? "opacity-60 cursor-not-allowed" : "cursor-pointer"}`}
                         disabled={readOnly}
                       >
-                        {v.Name}
+                        <span className="block truncate">{v.Name || v.name || "-"}</span>
                       </button>
                     </th>
                   );
                 })}
-                <th>Best Option</th>
+                <th className="text-center min-w-[120px] px-2 py-3 align-bottom">
+                  <span className="text-sm font-medium text-gray-500">Best Option</span>
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -482,11 +564,11 @@ export default function RFQCanvassSheet({
                   <td>
                     <div>
                       <p className="font-medium">
-                        {item.name || item.details?.Description || "-"}
+                        {item.productName || item.name || item.details?.Description || "-"}
                       </p>
                       <p className="text-sm text-muted-foreground">
-                        {item.brand || item.details?.BRAND_ID || item.BRAND_ID}{" "}
-                        - {item.partNumber || item.details?.Code || item.Code}
+                        {item.brand?.Description || item.brand || item.details?.BRAND_ID || item.BRAND_ID}{" "}
+                        - {item.partNumber || item.correctedPartNo || item.details?.Code || item.Code}
                       </p>
                       <p className="text-xs text-muted-foreground">
                         Qty: {item.quantity} {item.unit}
@@ -508,13 +590,13 @@ export default function RFQCanvassSheet({
                       return (
                       <td
                         key={v.vendorId}
-                        className={`text-center align-middle relative transition-all duration-150 ${
-                          isItemSelected ? "bg-blue-50 ring-2 ring-inset ring-blue-300" : "hover:bg-gray-50"
-                        } ${readOnly ? "cursor-default" : "cursor-pointer"}`}
+                        className={`text-center align-middle relative transition-all duration-150 p-1 ${readOnly ? "cursor-default" : "cursor-pointer"}`}
                         onClick={() => !readOnly && handleSelectVendorForItem(canonItemId(item), canonVendorId(v))}
                       >
                         <div
-                          className={`p-2 rounded transition-all duration-150 align-stretch relative`}
+                          className={`p-2 rounded-lg transition-all duration-150 relative h-full flex flex-col items-center justify-center min-h-[120px] ${
+                            isItemSelected ? "bg-blue-50 ring-2 ring-blue-300" : "hover:bg-gray-50"
+                          }`}
                         >
                           {isItemSelected && (
                             <div className="absolute top-1 right-1">
@@ -522,11 +604,16 @@ export default function RFQCanvassSheet({
                             </div>
                           )}
                           <p className="font-bold text-lg">
-                            {quote ? `₱${quote.unitPrice}` : "-"}
+                            {quote ? formatMoney(quote.unitPrice, null, { currency: quote.currencyCode }) : "-"}
                           </p>
                           <p className="text-sm text-muted-foreground">
-                            Total: {quote ? `₱${quote.total}` : "-"}
+                            Total: {quote ? formatMoney(quote.total, null, { currency: quote.currencyCode }) : "-"}
                           </p>
+                          {quote && quote.currencyCode !== 'PHP' && (
+                            <p className="text-xs text-green-700">
+                              {formatMoney(quote.phpTotal, null, { currency: 'PHP' })}
+                            </p>
+                          )}
                           <div className="flex items-center justify-center space-x-1 mt-1">
                             <LuClock />{" "}
                             <span
@@ -547,7 +634,6 @@ export default function RFQCanvassSheet({
                   <td className="border-b border-gray-200">
                     <div className="text-center">
                       {(() => {
-                        // Find the best option quote for this item
                         const bestQuote = quotations.find(
                           (q) => idEq(q.itemId, canonItemId(item)) && q.isBestOption,
                         );
@@ -558,9 +644,16 @@ export default function RFQCanvassSheet({
                           return (
                             <>
                               <p className="font-bold text-green-600">
-                                {bestVendor ? bestVendor.name : "-"}
+                                {bestVendor ? (bestVendor.Name || bestVendor.name) : "-"}
                               </p>
-                              <p className="text-sm font-medium">{`₱${bestQuote.unitPrice}`}</p>
+                              <p className="text-sm font-medium">
+                                {formatMoney(bestQuote.unitPrice, null, { currency: bestQuote.currencyCode })}
+                              </p>
+                              {bestQuote.currencyCode !== 'PHP' && (
+                                <p className="text-xs text-green-700">
+                                  {formatMoney(bestQuote.unitPrice * bestQuote.forexRate, null, { currency: 'PHP' })}
+                                </p>
+                              )}
                             </>
                           );
                         }

@@ -272,7 +272,8 @@ const ApprovalsPage = () => {
           currentType === "Sales Lead" ||
           currentType === "sales_lead"
         ) {
-          nextModuleType = nextStage;
+          // Sales Lead always goes to Technical Recommendation
+          nextModuleType = "Technical Recommendation";
         } else if (currentType === "Technical Recommendation" || currentType === "technical_recommendation") {
           // For TR approval, just proceed to the provided next stage
           nextModuleType = nextStage;

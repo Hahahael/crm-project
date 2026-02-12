@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { LuX } from "react-icons/lu";
+import { apiBackendFetch } from "../services/api.js";
 
 const NewItemModal = ({ isOpen, onClose, item, onSave, mode = "edit" }) => {
   const [visible, setVisible] = useState(false);
@@ -26,6 +27,12 @@ const NewItemModal = ({ isOpen, onClose, item, onSave, mode = "edit" }) => {
 
   const [errors, setErrors] = useState({});
 
+  // Lookup data for dropdowns
+  const [brands, setBrands] = useState([]);
+  const [uoms, setUoms] = useState([]);
+  const [stockTypes, setStockTypes] = useState([]);
+  const [loadingLookups, setLoadingLookups] = useState(false);
+
   const isViewMode = mode === "view";
 
   // Helper to get input props based on mode
@@ -39,20 +46,25 @@ const NewItemModal = ({ isOpen, onClose, item, onSave, mode = "edit" }) => {
   useEffect(() => {
     if (isOpen && item) {
       // Pre-fill form with existing item data directly
+      // For Brand/UOM/StockType: prefer the ID (for dropdown matching), fall back to description string
+      const brandVal = item.brand_details?.ID || item.details?.BRAND_ID || item.brandId || item.brand_id || item.brand || "";
+      const uomVal = item.uom_details?.Id || item.details?.SK_UOM || item.uomId || item.uom_id || item.unitOm || item.unit_om || "";
+      const stockTypeVal = item.stockType_details?.Id || item.details?.Stock_Type_Id || item.stockTypeId || item.stock_type_id || item.stockType || item.stock_type || "";
+      
       setFormData({
-        productName: item.productName || item.product_name || "",
-        correctedPartNo: item.correctedPartNo || item.corrected_part_no || "",
-        description: item.description || "",
-        correctedDescription: item.correctedDescription || item.corrected_description || "",
-        brand: item.brand || "",
-        unitOm: item.unitOm || item.unit_om || "",
+        productName: item.details?.Description || item.productName || item.product_name || "",
+        correctedPartNo: item.details?.Code || item.correctedPartNo || item.corrected_part_no || "",
+        description: item.details?.Description || item.description || "",
+        correctedDescription: item.correctedDescription || item.corrected_description || item.details?.custom_description || "",
+        brand: String(brandVal),
+        unitOm: String(uomVal),
         vendor: item.vendor || "",
-        stockType: item.stockType || item.stock_type || "",
-        supplyType: item.supplyType || item.supply_type || "",
-        weight: item.weight || "",
-        moq: item.moq || "",
-        moqBy: item.moqBy || item.moq_by || "",
-        isActive: item.isActive !== undefined ? item.isActive : item.is_active !== undefined ? item.is_active : true,
+        stockType: String(stockTypeVal),
+        supplyType: item.category_details?.Description || item.supplyType || item.supply_type || "",
+        weight: String(item.details?.weight_kg ?? item.weight ?? ""),
+        moq: item.details?.MOQPurchase || item.moq || "",
+        moqBy: item.details?.MOQMultiplier || item.moqBy || item.moq_by || "",
+        isActive: item.details?.Status === "1" || item.isActive !== undefined ? item.isActive : item.is_active !== undefined ? item.is_active : true,
         isCommon: item.isCommon !== undefined ? item.isCommon : item.is_common !== undefined ? item.is_common : false,
         buyPrice: item.buyPrice || item.buy_price || "",
         sellingPrice: item.sellingPrice || item.selling_price || "",
@@ -104,6 +116,64 @@ const NewItemModal = ({ isOpen, onClose, item, onSave, mode = "edit" }) => {
     };
   }, [isOpen]);
 
+  // Fetch lookup data for dropdowns when modal opens
+  useEffect(() => {
+    if (!isOpen) return;
+    let cancelled = false;
+    const fetchLookups = async () => {
+      setLoadingLookups(true);
+      try {
+        const [brandsRes, uomsRes, stockTypesRes] = await Promise.all([
+          apiBackendFetch("/api/mssql/inventory/brands"),
+          apiBackendFetch("/api/mssql/inventory/uoms"),
+          apiBackendFetch("/api/mssql/inventory/stock-types"),
+        ]);
+        const [brandsData, uomsData, stockTypesData] = await Promise.all([
+          brandsRes.json(),
+          uomsRes.json(),
+          stockTypesRes.json(),
+        ]);
+        if (!cancelled) {
+          setBrands(brandsData.rows || []);
+          setUoms(uomsData.rows || []);
+          setStockTypes(stockTypesData.rows || []);
+        }
+      } catch (err) {
+        console.error("Failed to fetch lookup data:", err);
+      } finally {
+        if (!cancelled) setLoadingLookups(false);
+      }
+    };
+    fetchLookups();
+    return () => { cancelled = true; };
+  }, [isOpen]);
+
+  // Auto-fetch supply type default when stock type changes
+  useEffect(() => {
+    if (!formData.stockType || isViewMode) return;
+    // Find the stock type ID from the selected value
+    const selectedST = stockTypes.find(
+      (st) => String(st.Id) === String(formData.stockType) || st.Description === formData.stockType || st.Code === formData.stockType,
+    );
+    const stockTypeId = selectedST?.Id;
+    if (!stockTypeId) return;
+
+    let cancelled = false;
+    const fetchSupplyType = async () => {
+      try {
+        const res = await apiBackendFetch(`/api/mssql/inventory/supply-type/${stockTypeId}`);
+        const data = await res.json();
+        if (!cancelled && data.supplyType) {
+          setFormData((prev) => ({ ...prev, supplyType: data.supplyType }));
+        }
+      } catch (err) {
+        console.error("Failed to fetch supply type:", err);
+      }
+    };
+    fetchSupplyType();
+    return () => { cancelled = true; };
+  }, [formData.stockType, stockTypes, isViewMode]);
+
   if (!isOpen && !visible) return null;
 
   const handleChange = (e) => {
@@ -126,10 +196,10 @@ const NewItemModal = ({ isOpen, onClose, item, onSave, mode = "edit" }) => {
     if (!formData.correctedPartNo.trim()) newErrors.correctedPartNo = "Part number is required";
     if (!formData.description.trim()) newErrors.description = "Description is required";
     if (!formData.correctedDescription.trim()) newErrors.correctedDescription = "Corrected description is required";
-    if (!formData.brand.trim()) newErrors.brand = "Brand is required";
-    if (!formData.unitOm.trim()) newErrors.unitOm = "Unit of measure is required";
+    if (!formData.brand) newErrors.brand = "Brand is required";
+    if (!formData.unitOm) newErrors.unitOm = "Unit of measure is required";
     if (!formData.vendor.trim()) newErrors.vendor = "Vendor is required";
-    if (!formData.stockType.trim()) newErrors.stockType = "Stock type is required";
+    if (!formData.stockType) newErrors.stockType = "Stock type is required";
     if (!formData.supplyType.trim()) newErrors.supplyType = "Supply type is required";
     if (!formData.weight || parseFloat(formData.weight) <= 0) newErrors.weight = "Valid weight is required";
     if (!formData.moq || parseInt(formData.moq) <= 0) newErrors.moq = "Valid MOQ is required";
@@ -271,13 +341,18 @@ const NewItemModal = ({ isOpen, onClose, item, onSave, mode = "edit" }) => {
                     <label className="text-sm font-medium leading-none">
                         Brand {!isViewMode && <span className="text-red-500">*</span>}
                     </label>
-                    <input
-                        type="text"
+                    <select
                         name="brand"
                         value={formData.brand}
                         onChange={handleChange}
-                        {...getInputProps("brand", "flex h-9 w-full rounded-md border bg-white px-3 py-1 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500")}
-                    />
+                        disabled={isViewMode || loadingLookups}
+                        className={`flex h-9 w-full rounded-md border bg-white px-3 py-1 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 ${isViewMode ? "bg-gray-50 cursor-default border-gray-300" : errors.brand ? "border-red-300" : "border-gray-300"}`}
+                    >
+                        <option value="">Select Brand...</option>
+                        {brands.map((b) => (
+                          <option key={b.ID} value={b.ID}>{b.Description || b.Code}</option>
+                        ))}
+                    </select>
                     {errors.brand && <p className="text-xs text-red-500 mt-1">{errors.brand}</p>}
                 </div>
 
@@ -305,11 +380,12 @@ const NewItemModal = ({ isOpen, onClose, item, onSave, mode = "edit" }) => {
                         name="stockType"
                         value={formData.stockType}
                         onChange={handleChange}
-                        disabled={isViewMode}
+                        disabled={isViewMode || loadingLookups}
                         className={`flex h-9 w-full rounded-md border bg-white px-3 py-1 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 ${isViewMode ? "bg-gray-50 cursor-default border-gray-300" : errors.stockType ? "border-red-300" : "border-gray-300"}`}>
-                        <option value="">Select...</option>
-                        <option value="Stock">Stock</option>
-                        <option value="Non-Stock">Non-Stock</option>
+                        <option value="">Select Stock Type...</option>
+                        {stockTypes.map((st) => (
+                          <option key={st.Id} value={st.Id}>{st.Description || st.Code}</option>
+                        ))}
                     </select>
                     {errors.stockType && <p className="text-xs text-red-500 mt-1">{errors.stockType}</p>}
                 </div>
@@ -319,16 +395,14 @@ const NewItemModal = ({ isOpen, onClose, item, onSave, mode = "edit" }) => {
                     <label className="text-sm font-medium leading-none">
                         Supply Type {!isViewMode && <span className="text-red-500">*</span>}
                     </label>
-                    <select
+                    <input
+                        type="text"
                         name="supplyType"
                         value={formData.supplyType}
-                        onChange={handleChange}
-                        disabled={isViewMode}
-                        className={`flex h-9 w-full rounded-md border bg-white px-3 py-1 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 ${isViewMode ? "bg-gray-50 cursor-default border-gray-300" : errors.supplyType ? "border-red-300" : "border-gray-300"}`}>
-                        <option value="">Select...</option>
-                        <option value="Local">Local</option>
-                        <option value="Imported">Imported</option>
-                    </select>
+                        readOnly
+                        className="flex h-9 w-full rounded-md border bg-gray-50 cursor-default border-gray-300 px-3 py-1 text-sm shadow-sm focus:outline-none"
+                        placeholder={formData.stockType ? "Loading..." : "Select Stock Type first"}
+                    />
                     {errors.supplyType && <p className="text-xs text-red-500 mt-1">{errors.supplyType}</p>}
                 </div>
 
@@ -353,14 +427,18 @@ const NewItemModal = ({ isOpen, onClose, item, onSave, mode = "edit" }) => {
                     <label className="text-sm font-medium leading-none">
                         Unit of Measure {!isViewMode && <span className="text-red-500">*</span>}
                     </label>
-                    <input
-                        type="text"
+                    <select
                         name="unitOm"
                         value={formData.unitOm}
                         onChange={handleChange}
-                        placeholder="e.g., PCS, BOX, KG"
-                        {...getInputProps("unitOm", "flex h-9 w-full rounded-md border bg-white px-3 py-1 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500")}
-                    />
+                        disabled={isViewMode || loadingLookups}
+                        className={`flex h-9 w-full rounded-md border bg-white px-3 py-1 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 ${isViewMode ? "bg-gray-50 cursor-default border-gray-300" : errors.unitOm ? "border-red-300" : "border-gray-300"}`}
+                    >
+                        <option value="">Select UOM...</option>
+                        {uoms.map((u) => (
+                          <option key={u.Id} value={u.Id}>{u.Description || u.Code}</option>
+                        ))}
+                    </select>
                     {errors.unitOm && <p className="text-xs text-red-500 mt-1">{errors.unitOm}</p>}
                 </div>
 

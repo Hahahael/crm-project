@@ -19,7 +19,7 @@ import {
   LuUser,
 } from "react-icons/lu";
 import { apiBackendFetch } from "../services/api";
-import { getVendorStatus } from "../helper/utils";
+import { getVendorStatus, formatMoney, formatDate } from "../helper/utils";
 
 const TRANSITION_MS = 150;
 
@@ -190,11 +190,11 @@ export default function RFQVendorsForm({
           vendorId: getId(v), // backend vendor id reference
           paymentTerms: "",
           validUntil: "",
-          items: (formItems || []).map((item) => ({
+          quotes: (formItems || []).map((item) => ({
             ...item,
-            price: null,
+            unitPrice: null,
             leadTime: "",
-          })), // add items from formItems with null price and empty leadTime
+          })),
           notes: "",
         })),
     ];
@@ -324,7 +324,6 @@ export default function RFQVendorsForm({
         <VendorEditModal
           open={showVendorModal}
           vendor={editingVendor}
-          items={editingVendor?.items || formItems}
           onClose={() => setShowVendorModal(false)}
           onSave={handleVendorSave}
         />
@@ -395,8 +394,18 @@ export default function RFQVendorsForm({
                     <LuCoins className="h-5 w-5 text-gray-500 mr-2" />
                     <div className="flex flex-col">
                       <p className="text-sm font-medium">
-                        ₱ {vendor.grandTotal}
+                        {formatMoney(vendor.grandTotal, vendor)}
                       </p>
+                      {vendor.currency?.Code && vendor.currency.Code !== 'PHP' && vendor.forex?.Rate && (
+                        <>
+                          <p className="text-sm font-medium text-green-700">
+                            ₱ {(Number(vendor.grandTotal || 0) * Number(vendor.forex.Rate)).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          </p>
+                          <p className="text-[10px] text-gray-400">
+                            @ 1 {vendor.currency.Code} = ₱{Number(vendor.forex.Rate).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 4 })}
+                          </p>
+                        </>
+                      )}
                       <p className="text-xs text-muted-foreground">
                         Total Amount
                       </p>
@@ -405,7 +414,7 @@ export default function RFQVendorsForm({
                   <div className="flex items-center">
                     <LuCalendar className="h-5 w-5 text-gray-500 mr-2" />
                     <div className="flex flex-col">
-                      <p className="text-sm font-medium">{vendor.quoteDate}</p>
+                      <p className="text-sm font-medium">{formatDate(vendor.quoteDate || vendor.quote_date, "MMM D, YYYY") || '-'}</p>
                       <p className="text-xs text-muted-foreground">
                         Quote Date
                       </p>
@@ -414,7 +423,7 @@ export default function RFQVendorsForm({
                   <div className="flex items-center">
                     <LuClock className="h-5 w-5 text-gray-500 mr-2" />
                     <div className="flex flex-col">
-                      <p className="text-sm font-medium">{vendor.validUntil}</p>
+                      <p className="text-sm font-medium">{formatDate(vendor.validUntil || vendor.valid_until, "MMM D, YYYY") || '-'}</p>
                       <p className="text-xs text-muted-foreground">
                         Valid Until
                       </p>

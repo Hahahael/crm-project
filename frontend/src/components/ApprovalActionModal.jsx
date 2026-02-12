@@ -88,10 +88,8 @@ const ApprovalActionModal = ({ isOpen, type, approval, onClose, onSubmit, submit
   const stage = approval?.stageName || approval?.stage_name || approval?.module;
   let nextStageOptions = [];
   if (stage === "Sales Lead" || stage === "sales_lead") {
-    nextStageOptions = [
-      { value: "Technical Recommendation", label: "Technical Recommendation" },
-      { value: "RFQ", label: "RFQ" },
-    ];
+    // Sales Lead always goes to Technical Recommendation - no selection needed
+    nextStageOptions = [];
   } else if (
     stage === "Technical Recommendation" ||
     stage === "technical_recommendation"
@@ -261,7 +259,9 @@ const ApprovalActionModal = ({ isOpen, type, approval, onClose, onSubmit, submit
                   <p className="text-sm text-blue-700 mt-1">
                     {(() => {
                       // Determine what happens next based on current stage
-                      if (stage === "RFQ" || stage === "rfq") {
+                      if (stage === "Sales Lead" || stage === "sales_lead") {
+                        return "After approval, this will proceed to Technical Recommendation stage.";
+                      } else if (stage === "RFQ" || stage === "rfq") {
                         if (woIsNew) {
                           return "After approval, this will proceed to NAEF stage for new account creation.";
                         }

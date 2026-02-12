@@ -85,25 +85,46 @@ export function formatNumber(value, decimals = 2) {
   return Number(value).toFixed(decimals);
 }
 
-export function formatMoney(value, options = {}) {
+function getCurrencySymbol(code, locale) {
+  try {
+    return (0).toLocaleString(locale, {
+      style: "currency",
+      currency: code,
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0
+    }).replace(/\d/g, "").trim();
+  } catch {
+    return code;
+  }
+}
+
+export function formatMoney(value, vendor, options = {}) {
   const {
-    currency = '₱',
-    locale = 'en-US',
+    currency,           // ISO code now
+    locale = "en-PH",
     minimumFractionDigits = 2,
     maximumFractionDigits = 2,
     showCurrency = true
   } = options;
-  
-  if (value === null || value === undefined || Number.isNaN(Number(value))) {
-    return showCurrency ? `${currency} 0.00` : '0.00';
+
+  const amount = Number(value);
+  if (!Number.isFinite(amount)) {
+    return showCurrency
+      ? `${getCurrencySymbol(currency, locale)} 0.00`
+      : "0.00";
   }
-  
-  const formatted = Number(value).toLocaleString(locale, {
+
+  const formatted = amount.toLocaleString(locale, {
     minimumFractionDigits,
     maximumFractionDigits
   });
   
-  return showCurrency ? `${currency} ${formatted}` : formatted;
+  const finalCurrency = currency ?? vendor?.currency?.Code ?? "PHP";
+
+  if (!showCurrency) return formatted;
+
+  const symbol = getCurrencySymbol(finalCurrency, locale);
+  return `${symbol} ${formatted}`;
 }
 
 export function calculateTimeliness(

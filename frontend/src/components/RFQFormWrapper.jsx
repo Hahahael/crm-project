@@ -57,15 +57,16 @@ export default function RFQFormWrapper({
   const [formItems, setFormItems] = useState([]);
   const [formVendors, setFormVendors] = useState([]);
   
-  // Check if all items are ready (mapped or have pending item)
+  // Check if all items are ready (mapped or have pending item or setup complete)
   const allItemsReady = (formItems || []).every(item => {
     const isNewItem = item.isNewItem || item.is_new_item;
     const hasPendingItem = item.pendingItemId || item.pending_item_id;
+    const isSetupComplete = (item.setupStatus || item.setup_status) === 'setup_complete';
     const isMapped = item.itemId || item.item_id;
     
     if (isNewItem) {
-      // New items need pending item created
-      return hasPendingItem;
+      // New items need pending item created OR setup completed locally
+      return hasPendingItem || isSetupComplete;
     } else {
       // Existing items need to be mapped
       return isMapped;
@@ -119,20 +120,20 @@ export default function RFQFormWrapper({
               (it) => it.itemId === itemId || it.id === itemId,
             ) || {};
           return {
-            ...q,
+            ...matchedItem, // hydrate quote with full item data (details, brand, uom, stockType, etc.)
+            ...q, // quote-specific fields (unitPrice, leadTime, isSelected) override item defaults
             itemId,
             unitPrice: q.unitPrice ?? q.unit_price ?? q.price ?? null,
-            quantity: q.quantity ?? q.Qty ?? q.qty ?? null,
+            quantity: q.quantity ?? matchedItem.quantity ?? q.Qty ?? q.qty ?? null,
             leadTime: q.leadTime ?? q.lead_time ?? "",
-            // Include item metadata for easier rendering in vendor views
-            _itemName: matchedItem.name || matchedItem.Description || "",
-            _itemBrand: matchedItem.brand || matchedItem.BRAND_ID || "",
-            _itemPartNumber:
-              matchedItem.partNumber ||
-              matchedItem.part_number ||
-              matchedItem.Code ||
-              "",
-            _itemUnit: matchedItem.unit || matchedItem.SK_UOM || "",
+            // Carry over enriched objects from the item
+            details: q.details || matchedItem.details || null,
+            brand: q.brand || matchedItem.brand || null,
+            uom: q.uom || matchedItem.uom || null,
+            stockType: q.stockType || matchedItem.stockType || null,
+            productName: q.productName || matchedItem.productName || matchedItem.product_name || "",
+            correctedPartNo: q.correctedPartNo || matchedItem.correctedPartNo || matchedItem.corrected_part_no || "",
+            description: q.description || matchedItem.description || "",
           };
         }),
       }));
@@ -406,6 +407,7 @@ export default function RFQFormWrapper({
               rfq={formData}
               formItems={formItems}
               formVendors={formVendors}
+              setFormVendors={setFormVendors}
               setFormItems={setFormItems}
               setFormData={setFormData}
               mode={mode}

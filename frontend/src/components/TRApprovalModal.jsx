@@ -282,7 +282,8 @@ const TRApprovalModal = ({
                         const searchLower = searchQuery.toLowerCase();
                         const code = (item.Code || "").toLowerCase();
                         const description = (item.Description || "").toLowerCase();
-                        return code.includes(searchLower) || description.includes(searchLower);
+                        const brand = (item.brand?.Code || item.brand?.Description || "").toLowerCase();
+                        return code.includes(searchLower) || description.includes(searchLower) || brand.includes(searchLower);
                       }).slice(0, 50)
                     : kristemItems.slice(0, 50); // Show first 50 items when no search query
                   
@@ -394,6 +395,7 @@ const TRApprovalModal = ({
                                     >
                                       <div className="text-xs font-medium">{item.Code}</div>
                                       <div className="text-xs text-gray-600 truncate">{item.Description}</div>
+                                      {item.brand?.Code && <div className="text-xs text-gray-400">Brand: {item.brand.Code}</div>}
                                     </li>
                                   ))}
                                 </ul>

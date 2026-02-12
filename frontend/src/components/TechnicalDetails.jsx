@@ -527,6 +527,9 @@ const TechnicalDetails = ({
                   <th className="text-left font-medium text-gray-500">
                     Unit of Measure
                   </th>
+                  <th className="text-left font-medium text-gray-500">
+                    Quantity
+                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -539,6 +542,7 @@ const TechnicalDetails = ({
                       <td className="p-2">{product.description || '-'}</td>
                       <td className="p-2">{product.brand || '-'}</td>
                       <td className="p-2">{product.unitOm || product.unit_om || '-'}</td>
+                      <td className="p-2">{product.quantity ?? '-'}</td>
                     </tr>
                   );
                 })}

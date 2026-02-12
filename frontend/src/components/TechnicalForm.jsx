@@ -73,6 +73,7 @@ const TechnicalForm = ({
       description: "",
       brand: "",
       unitOm: "",
+      quantity: 1,
     };
     setTrProducts((prevProducts) => [...prevProducts, newProduct]);
   };
@@ -860,6 +861,9 @@ const TechnicalForm = ({
                       <th className="p-2 font-normal text-sm text-gray-500 text-left align-middle">
                         Unit of Measure
                       </th>
+                      <th className="p-2 font-normal text-sm text-gray-500 text-left align-middle">
+                        Quantity
+                      </th>
                       <th className="p-2 font-normal text-sm text-gray-500 text-left align-middle w-10"></th>
                     </tr>
                   </thead>
@@ -943,6 +947,22 @@ const TechnicalForm = ({
                             }}
                             placeholder="e.g., PCS, SET"
                             className="w-full rounded border border-gray-200 px-2 py-2 text-sm"
+                          />
+                        </td>
+                        <td className="text-sm p-2 align-middle">
+                          <input
+                            type="number"
+                            min="1"
+                            value={product.quantity ?? 1}
+                            onChange={(e) => {
+                              onProductChange(
+                                product.id,
+                                "quantity",
+                                parseInt(e.target.value, 10) || 1,
+                              );
+                            }}
+                            placeholder="Qty"
+                            className="w-20 rounded border border-gray-200 px-2 py-2 text-sm"
                           />
                         </td>
                         <td className="text-sm p-2 align-middle">

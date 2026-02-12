@@ -1,15 +1,17 @@
 import React, { useState, useEffect, useRef } from "react";
 import { LuX } from "react-icons/lu";
-import { formatMoney } from "../helper/utils.js";
+import { formatMoney, formatDate } from "../helper/utils.js";
 
 export default function VendorEditModal({ open, onClose, vendor, onSave }) {
+  console.log("VendorEditModal - props:", { open, vendor });
   // Local state for transitions
   const [visible, setVisible] = useState(open);
   const [isAnimating, setIsAnimating] = useState(false);
 
   // Editable fields
-  const [paymentTerms, setPaymentTerms] = useState(vendor?.paymentTerms || "");
-  const [validUntil, setValidUntil] = useState(vendor?.validUntil || "");
+  const rawValidUntil = vendor?.validUntil || vendor?.valid_until || "";
+  const [paymentTerms, setPaymentTerms] = useState(vendor?.paymentTerms || vendor?.payment_terms || "");
+  const [validUntil, setValidUntil] = useState(rawValidUntil ? formatDate(rawValidUntil, "YYYY-MM-DD") : "");
   const [notes, setNotes] = useState(vendor?.notes || "");
   const [quotes, setQuotes] = useState(vendor?.quotes || []);
   const [subtotal, setSubtotal] = useState(Number(vendor?.subtotal) || 0);
@@ -43,7 +45,7 @@ export default function VendorEditModal({ open, onClose, vendor, onSave }) {
     const sub = quotes.reduce(
       (sum, item) => {
         const quantity = Number(item.quantity) || 0;
-        const unitPrice = Number(item.unitPrice) || 0;
+        const unitPrice = Number(item.unitPrice ?? item.unit_price) || 0;
         return sum + (quantity * unitPrice);
       },
       0,
@@ -54,6 +56,11 @@ export default function VendorEditModal({ open, onClose, vendor, onSave }) {
   }, [quotes]);
 
   if (!open && !visible) return null;
+
+  // Currency conversion
+  const currencyCode = vendor?.currency?.Code || 'PHP';
+  const isNotPHP = currencyCode !== 'PHP';
+  const forexRate = Number(vendor?.forex?.Rate) || 1;
 
   // Overlay transition
   const overlayClass = `fixed inset-0 z-40 bg-black bg-opacity-40 transition-opacity duration-300 ease-in-out ${
@@ -217,25 +224,30 @@ export default function VendorEditModal({ open, onClose, vendor, onSave }) {
                         Unit Price
                       </th>
                       <th className="p-2 font-normal text-sm text-gray-500 text-left align-middle">
-                        Amount
+                        Amount ({currencyCode})
                       </th>
+                      {isNotPHP && (
+                        <th className="p-2 font-normal text-sm text-gray-500 text-left align-middle">
+                          Amount (PHP)
+                        </th>
+                      )}
                       <th className="p-2 font-normal text-sm text-gray-500 text-left align-middle w-10"></th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200">
                     {quotes.map((q, idx) => (
                       <tr key={idx}>
-                        <td className="p-3">{q.details?.Description}</td>
-                        <td className="p-3">{q.details?.BRAND_ID}</td>
-                        <td className="p-3">{q.details?.Description}</td>
-                        <td className="p-3">{q.details?.Code}</td>
+                        <td className="p-3">{q.details?.Description || q.productName || q.product_name || '-'}</td>
+                        <td className="p-3">{q.brand_details?.Description || q.details?.BRAND_ID || '-'}</td>
+                        <td className="p-3">{q.details?.Description || q.description || '-'}</td>
+                        <td className="p-3">{q.details?.Code || q.correctedPartNo || q.corrected_part_no || '-'}</td>
                         <td className="p-3">{q.quantity}</td>
-                        <td className="p-3">{q.details?.SK_UOM}</td>
+                        <td className="p-3">{q.uom_details?.Description || q.details?.SK_UOM || '-'}</td>
                         <td className="p-3">
                           <input
                             className="flex h-9 rounded-md border border-gray-300 bg-white px-3 py-1 text-sm shadow-sm w-24 focus:outline-none focus:ring-1 focus:ring-blue-500"
                             placeholder="Lead time"
-                            value={q.leadTime}
+                            value={q.leadTime ?? q.lead_time ?? ""}
                             onChange={(e) =>
                               handleItemChange(idx, "leadTime", e.target.value)
                             }
@@ -246,15 +258,20 @@ export default function VendorEditModal({ open, onClose, vendor, onSave }) {
                             type="number"
                             className="flex h-9 rounded-md border border-gray-300 bg-white px-3 py-1 text-sm shadow-sm w-24 focus:outline-none focus:ring-1 focus:ring-blue-500"
                             step="0.01"
-                            value={q.unitPrice}
+                            value={q.unitPrice ?? q.unit_price ?? ""}
                             onChange={(e) =>
                               handleItemChange(idx, "unitPrice", e.target.value)
                             }
                           />
                         </td>
                         <td className="p-3 font-medium">
-                          {formatMoney((Number(q.quantity) || 0) * (Number(q.unitPrice) || 0))}
+                          {formatMoney((Number(q.quantity) || 1) * (Number(q.unitPrice ?? q.unit_price) || 0), vendor)}
                         </td>
+                        {isNotPHP && (
+                          <td className="p-3 font-medium text-green-700">
+                            ₱ {((Number(q.quantity) || 1) * (Number(q.unitPrice ?? q.unit_price) || 0) * forexRate).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          </td>
+                        )}
                       </tr>
                     ))}
                   </tbody>
@@ -265,19 +282,38 @@ export default function VendorEditModal({ open, onClose, vendor, onSave }) {
                 <div className="flex justify-end">
                   <div className="text-right space-y-1">
                     <div className="flex justify-between w-48">
-                      <span>Subtotal:</span>
+                      <span>Subtotal ({currencyCode}):</span>
                       <span className="font-medium">
-                        {formatMoney(subtotal)}
+                        {formatMoney(subtotal, vendor)}
                       </span>
                     </div>
+                    {isNotPHP && (
+                      <div className="flex justify-between w-48">
+                        <span>Subtotal (PHP):</span>
+                        <span className="font-medium text-green-700">
+                          ₱ {(subtotal * forexRate).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </span>
+                      </div>
+                    )}
                     <div className="flex justify-between w-48">
                       <span>VAT (5%):</span>
-                      <span className="font-medium">{formatMoney(vat)}</span>
+                      <span className="font-medium">{formatMoney(vat, vendor)}</span>
                     </div>
                     <div className="flex justify-between w-48 text-lg font-bold border-t pt-1">
                       <span>Grand Total:</span>
-                      <span>{formatMoney(grandTotal)}</span>
+                      <span>{formatMoney(grandTotal, vendor)}</span>
                     </div>
+                    {isNotPHP && (
+                      <div className="flex justify-between w-48 text-lg font-bold text-green-700">
+                        <span>PHP Total:</span>
+                        <span>₱ {(grandTotal * forexRate).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                      </div>
+                    )}
+                    {isNotPHP && (
+                      <div className="text-xs text-gray-400 mt-1">
+                        Rate: 1 {currencyCode} = ₱{forexRate.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 4 })}
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>

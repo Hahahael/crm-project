@@ -83,7 +83,7 @@ export default function Layout() {
             </Link>
           </nav>
           <div className="p-4 space-y-2 border-t border-gray-700">
-            <button
+            {/* <button
               onClick={async () => {
                 try {
                   const minIdInput = window.prompt(
@@ -140,9 +140,9 @@ export default function Layout() {
               title="Delete CRM accounts with id >= provided value"
             >
               Purge CRM Accounts
-            </button>
+            </button> */}
 
-            <button
+            {/* <button
               onClick={async () => {
                 try {
                   const first = window.confirm(
@@ -178,7 +178,7 @@ export default function Layout() {
               <span>ENV: Dev</span>es, users"
             >
               Wipe Database (Keep Core Tables)
-            </button>
+            </button> */}
           </div>
           <button
             onClick={async () => {
